@@ -28,7 +28,10 @@ class LessonProgress(models.Model):
 
     class Meta:
         unique_together = ("user", "lesson")
-
+        # Add this index for Issue #115
+        indexes = [
+            models.Index(fields=["user", "lesson"]),
+        ]
 
 class ExerciseAttempt(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
