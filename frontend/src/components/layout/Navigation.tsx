@@ -5,6 +5,7 @@ import { fetchApi } from "../../lib/api";
 import { useTheme } from "../../hooks/useTheme";
 import { useAuth } from "../../features/auth/AuthContext";
 import { fetchLessonsApi } from "../../lib/lessons";
+import LogoutButtonWithConfirm from "./LogoutButtonWithConfirm";
 
 const navItems = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutGrid },
@@ -209,12 +210,7 @@ export function Navigation() {
                     </span>
                   )}
                 </span>
-                <button
-                  onClick={logout}
-                  className="rounded-xl bg-[#ffb5e8] px-3 py-2 text-xs font-black text-black border-2 border-black shadow-card-sm hover:-translate-y-0.5 hover:shadow-card active:translate-y-0.5 active:shadow-card-sm transition-all cursor-pointer uppercase"
-                >
-                  Logout
-                </button>
+                <LogoutButtonWithConfirm />
               </div>
             ) : (
               <Link
