@@ -31,6 +31,9 @@ export default {
         "card-sm": "2px 2px 0px 0px rgba(0, 0, 0, 1)",
         "gel": "0px 8px 0px 0px rgba(230, 40, 20, 1), 0px -4px 0px 0px rgba(255,100,80,1) inset",
       },
+      scale: {
+        "102": "1.02",
+      },
     },
   },
   plugins: [],
