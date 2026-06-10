@@ -60,6 +60,9 @@ class MyProgressView(APIView):
             defaults={"completed": completed, "score": score}
         )
 
+        from .badge_evaluator import BadgeEvaluator
+        BadgeEvaluator.evaluate(request.user)
+
         serializer = LessonProgressSerializer(progress)
         return Response(
             serializer.data,

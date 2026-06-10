@@ -84,3 +84,54 @@ def test_badges_endpoint_returns_only_authenticated_users_stats():
     assert response.status_code == 200
     assert response.data["progress_points"] == 40
     assert [badge["slug"] for badge in response.data["badges"]] == ["own-badge"]
+
+
+@pytest.mark.django_db
+def test_lesson_completion_automatically_awards_badges_and_notifies():
+    from apps.notifications.models import Notification
+    user = User.objects.create_user(username="newbie", password="strongpass123")
+    client = APIClient()
+    client.force_authenticate(user=user)
+
+    # 1. Complete a lesson that should unlock the "First Steps" badge (min_lessons=1)
+    response = client.post(
+        "/api/progress/me/",
+        {
+            "lesson_slug": "intro",
+            "score": 100,
+            "completed": True,
+        },
+        format="json",
+    )
+    assert response.status_code == 201
+
+    # Check if the "first-steps" badge was automatically created and awarded
+    assert UserBadge.objects.filter(user=user, badge__slug="first-steps").exists()
+
+    # Check if a notification was sent
+    assert Notification.objects.filter(
+        recipient=user,
+        notif_type="badge",
+        meta__badge_slug="first-steps"
+    ).exists()
+
+    # 2. Complete "first-contribution-walkthrough" (mod-5 badge requires this single lesson)
+    response = client.post(
+        "/api/progress/me/",
+        {
+            "lesson_slug": "first-contribution-walkthrough",
+            "score": 100,
+            "completed": True,
+        },
+        format="json",
+    )
+    assert response.status_code == 201
+
+    # Check if the "mod-5" badge was awarded and notified
+    assert UserBadge.objects.filter(user=user, badge__slug="mod-5").exists()
+    assert Notification.objects.filter(
+        recipient=user,
+        notif_type="badge",
+        meta__badge_slug="mod-5"
+    ).exists()
+
