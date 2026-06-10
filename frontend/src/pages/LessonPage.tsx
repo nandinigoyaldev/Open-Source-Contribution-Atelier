@@ -494,6 +494,12 @@ export function LessonPage() {
                         placeholder="Type your git command here"
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
+                        onKeyDown={(e) => {
+                          if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+                            e.preventDefault();
+                            handleCommandSubmit(e as any);
+                          }
+                        }}
                         disabled={feedback === "correct"}
                         autoFocus
                       />
