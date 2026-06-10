@@ -81,3 +81,39 @@ class NotificationConsumer(AsyncWebsocketConsumer):
     def mark_notification_read(self, notif_id):
         from .models import Notification
         Notification.objects.filter(id=notif_id, recipient=self.scope["user"]).update(is_read=True)
+
+
+class LeaderboardConsumer(AsyncWebsocketConsumer):
+    """
+    WebSocket consumer for live leaderboard updates.
+    Group name  →  leaderboard
+    """
+
+    async def connect(self):
+        user = self.scope.get("user")
+
+        # Reject anonymous connections
+        if not user or not user.is_authenticated:
+            logger.warning("WS Leaderboard rejected: unauthenticated user")
+            await self.close(code=4001)
+            return
+
+        self.group_name = "leaderboard"
+
+        # Join leaderboard channel group
+        await self.channel_layer.group_add(self.group_name, self.channel_name)
+        await self.accept()
+        logger.info("WS Leaderboard connected: user=%s group=%s", user.id, self.group_name)
+
+    async def disconnect(self, close_code):
+        if hasattr(self, "group_name"):
+            await self.channel_layer.group_discard(self.group_name, self.channel_name)
+            logger.info("WS Leaderboard disconnected: group=%s code=%s", self.group_name, close_code)
+
+    async def leaderboard_update(self, event):
+        """Relay leaderboard update event to the websocket client."""
+        await self.send(text_data=json.dumps({
+            "type": "leaderboard_update",
+            "message": event.get("message", "Leaderboard update triggered"),
+        }))
+

@@ -71,3 +71,35 @@ def test_mark_all_read(user_a, notif_for_a):
     assert response.data["marked_read"] >= 1
     notif_for_a.refresh_from_db()
     assert notif_for_a.is_read is True
+
+
+def test_lesson_completed_broadcasts_to_leaderboard_channel(db, user_a):
+    from unittest.mock import patch, MagicMock
+    from apps.progress.models import LessonProgress
+    from apps.content.models import Lesson
+
+    lesson = Lesson.objects.create(
+        slug="test-lesson-broadcast",
+        title="Test Lesson Broadcast",
+        summary="Test Summary",
+        content="Test Content",
+        difficulty="beginner"
+    )
+
+    with patch("apps.progress.signals.channel_layer") as mock_layer:
+        # Trigger completion save
+        progress = LessonProgress.objects.create(
+            user=user_a,
+            lesson=lesson,
+            completed=True,
+            score=100
+        )
+
+        mock_layer.group_send.assert_called_once_with(
+            "leaderboard",
+            {
+                "type": "leaderboard_update",
+                "message": f"User {user_a.username} completed lesson {lesson.title}",
+            }
+        )
+

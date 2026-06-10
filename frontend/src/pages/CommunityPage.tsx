@@ -3,8 +3,17 @@ import { SectionCard } from "../components/ui/SectionCard";
 import { useQuery } from "@tanstack/react-query";
 import { fetchApi } from "../lib/api";
 import SkeletonStatGrid from "../components/ui/skeletons/SkeletonStatGrid";
-import { Trophy, Award, Users, Star } from "lucide-react";
+import { Trophy, Award } from "lucide-react";
 import { useAuth } from "../features/auth/AuthContext";
+
+interface LeaderboardItem {
+  rank: number;
+  username: string;
+  avatar_url: string;
+  html_url: string;
+  contributions: number;
+  xp: number;
+}
 
 export function CommunityPage() {
   const { user } = useAuth();
@@ -24,7 +33,7 @@ export function CommunityPage() {
   });
 
   // 2. Fetch GitHub contributors for the leaderboard
-  const [leaderboard, setLeaderboard] = useState<any[]>([]);
+  const [leaderboard, setLeaderboard] = useState<LeaderboardItem[]>([]);
   const [loadingLeaderboard, setLoadingLeaderboard] = useState(true);
   const [search, setSearch] = useState("");
   const [sortOrder, setSortOrder] = useState<"desc" | "asc">("desc");
@@ -43,26 +52,22 @@ export function CommunityPage() {
       });
   }, [leaderboard, search, sortOrder]);
 
-  useEffect(() => {
-    fetch(
-      "https://api.github.com/repos/goyaljiiiiii/Open-Source-Contribution-Atelier/contributors",
-    )
-      .then((res) => {
-        if (!res.ok) throw new Error("Rate limit or offline");
-        return res.json();
-      })
+  const fetchLeaderboard = () => {
+    setLoadingLeaderboard(true);
+    fetchApi("/leaderboard/")
       .then((data) => {
-        if (Array.isArray(data)) {
-          // Map to custom XP points representation based on contributions
-          const mapped = data.map((item, idx) => ({
+        if (data && Array.isArray(data.results)) {
+          const mapped = data.results.map((item: { username: string; prs_merged: number; xp: number }, idx: number) => ({
             rank: idx + 1,
-            username: item.login,
-            avatar_url: item.avatar_url,
-            html_url: item.html_url,
-            contributions: item.contributions,
-            xp: item.contributions * 50 + 120, // Proxy logic for XP ranking
+            username: item.username,
+            avatar_url: `https://github.com/${item.username}.png`,
+            html_url: `https://github.com/${item.username}`,
+            contributions: item.prs_merged,
+            xp: item.xp,
           }));
           setLeaderboard(mapped.slice(0, 10));
+        } else {
+          throw new Error("Invalid results format");
         }
         setLoadingLeaderboard(false);
       })
@@ -104,7 +109,42 @@ export function CommunityPage() {
         ]);
         setLoadingLeaderboard(false);
       });
+  };
+
+  useEffect(() => {
+    fetchLeaderboard();
+
+    const token = localStorage.getItem("accessToken");
+    if (!token) return;
+
+    const apiBase = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api";
+    const wsHost = apiBase.replace(/^https?:\/\//, "").replace(/\/api$/, "");
+    const wsScheme = apiBase.startsWith("https") ? "wss" : "ws";
+    const wsUrl = `${wsScheme}://${wsHost}/ws/leaderboard/?token=${token}`;
+
+    const socket = new WebSocket(wsUrl);
+
+    socket.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === "leaderboard_update") {
+          console.log("Leaderboard updated:", data.message);
+          fetchLeaderboard();
+        }
+      } catch (err) {
+        console.error("Failed to parse websocket message:", err);
+      }
+    };
+
+    socket.onerror = (err) => {
+      console.error("Leaderboard WebSocket error:", err);
+    };
+
+    return () => {
+      socket.close();
+    };
   }, []);
+
 
   const displayStats = [
     {
