@@ -437,13 +437,21 @@ export function LessonPage() {
                   </div>
 
                   {quizFeedback === "correct" && (
-                    <div className="mt-4 p-4 bg-green-50 text-green-800 border-4 border-green-600 rounded-xl font-bold text-sm">
+                    <div
+                      role="alert"
+                      aria-live="assertive"
+                      className="mt-4 p-4 bg-green-50 text-green-800 border-4 border-green-600 rounded-xl font-bold text-sm"
+                    >
                       🎉 Correct! {lesson.quizzes![currentQuizIndex].explanation}
                     </div>
                   )}
 
                   {quizFeedback === "incorrect" && (
-                    <div className="mt-4 p-4 bg-red-50 text-red-800 border-4 border-red-600 rounded-xl font-bold text-sm">
+                    <div
+                      role="alert"
+                      aria-live="assertive"
+                      className="mt-4 p-4 bg-red-50 text-red-800 border-4 border-red-600 rounded-xl font-bold text-sm"
+                    >
                       ❌ Not quite. Try reviewing the lesson text or options again.
                     </div>
                   )}
