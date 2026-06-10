@@ -571,7 +571,7 @@ export function DashboardPage() {
                 <Link
                   key={lesson.slug}
                   to={`/lessons/${lesson.slug}`}
-                  className="flex flex-col gap-2 p-5 rounded-2xl border-4 border-black bg-surface-lowest shadow-card-sm hover:shadow-card hover:-translate-y-1 transition-all dark:bg-[#151411] dark:border-[#2e2924] dark:hover:bg-[#1f1c18]"
+                  className="flex flex-col gap-2 p-5 rounded-2xl border-4 border-black bg-surface-lowest shadow-card-sm hover:shadow-card hover:-translate-y-1 transition-all cursor-pointer dark:bg-[#151411] dark:border-[#2e2924] dark:hover:bg-[#1f1c18]"
                 >
                   <div className="flex justify-between items-end">
                     <h3 className="font-black text-xl dark:text-[#f0ebe2]">{lesson.title}</h3>
