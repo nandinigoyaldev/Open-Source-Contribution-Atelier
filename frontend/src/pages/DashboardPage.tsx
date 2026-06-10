@@ -23,7 +23,8 @@ import {
   ChevronRight,
   HelpCircle,
   Code,
-  X
+  X,
+  Lock
 } from "lucide-react";
 import {
   BarChart,
@@ -658,7 +659,8 @@ export function DashboardPage() {
                     UNLOCKED
                   </span>
                 ) : (
-                  <span className="absolute top-2 right-2 bg-gray-100 text-gray-400 border-2 border-gray-400 text-[8px] font-black px-1.5 py-0.5 rounded-full dark:border-none">
+                  <span className="absolute top-2 right-2 bg-gray-100 text-gray-400 border-2 border-gray-400 text-[8px] font-black px-1.5 py-0.5 rounded-full dark:border-none flex items-center gap-1">
+                    <Lock size={10} />
                     LOCKED
                   </span>
                 )}
