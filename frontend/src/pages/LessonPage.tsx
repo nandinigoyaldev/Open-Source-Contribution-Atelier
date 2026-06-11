@@ -10,6 +10,7 @@ import { Lesson, fetchLessonsApi, fetchLessonContent } from "../lib/lessons";
 import { MarkdownRenderer } from "../components/ui/MarkdownRenderer";
 import { GitGraph } from "../components/ui/GitGraph";
 import { createInitialRepo, parseGitCommand, RepoState } from "../lib/gitSimulator";
+import { useFailureAnimation } from '../hooks/useFailureAnimation';
 
 function normalizeCommand(value: string) {
   return value.trim().replace(/\s+/g, " ").toLowerCase();
@@ -57,6 +58,10 @@ export function LessonPage() {
   const [currentQuizIndex, setCurrentQuizIndex] = useState(0);
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
   const [quizFeedback, setQuizFeedback] = useState<"correct" | "incorrect" | null>(null);
+
+  // animation hooks for quiz and terminal wrapper containers
+  const { ref: quizRef, trigger: triggerQuizAnim } = useFailureAnimation<HTMLDivElement>();
+  const { ref: terminalRef, trigger: triggerTerminalAnim } = useFailureAnimation<HTMLDivElement>();
 
   // Help Request panel
   const [isHelpPanelOpen, setIsHelpPanelOpen] = useState(false);
@@ -171,6 +176,9 @@ export function LessonPage() {
     if (result.error) {
        setTerminalOutput(result.error);
        setFeedback("error");
+       // trigger terminal animations on parse error
+       triggerTerminalAnim('animate-shake');
+       triggerTerminalAnim('animate-flash');
        setShowHint(true);
        return; // Stop processing further for invalid commands
     } else {
@@ -200,6 +208,9 @@ export function LessonPage() {
       });
     } else {
       setFeedback("error");
+      // trigger terminal animations on incorrect submission
+      triggerTerminalAnim('animate-shake');
+      triggerTerminalAnim('animate-flash');
       setShowHint(true);
     }
     
@@ -223,6 +234,9 @@ export function LessonPage() {
       }
     } else {
       setQuizFeedback("incorrect");
+      // trigger quiz wrapper animations on incorrect answer
+      triggerQuizAnim('animate-shake');
+      triggerQuizAnim('animate-flash');
     }
   };
 
@@ -392,7 +406,7 @@ export function LessonPage() {
             <div className="pt-8 space-y-6">
               {hasQuiz ? (
                 // QUIZ MODE RENDER
-                <div className="rounded-3xl border-4 border-black bg-white p-6 shadow-card dark:bg-[#1f1c18] dark:border-[#2e2924]">
+                <div ref={quizRef} className="rounded-3xl border-4 border-black bg-white p-6 shadow-card dark:bg-[#1f1c18] dark:border-[#2e2924]">
                   <div className="flex items-center justify-between mb-4">
                     <span className="font-mono text-xs text-primary uppercase tracking-widest font-black">
                       Knowledge Check: Question {currentQuizIndex + 1} of {lesson.quizzes!.length}
@@ -437,13 +451,13 @@ export function LessonPage() {
                   </div>
 
                   {quizFeedback === "correct" && (
-                    <div className="mt-4 p-4 bg-green-50 text-green-800 border-4 border-green-600 rounded-xl font-bold text-sm">
+                    <div role="status" aria-live="polite" className="mt-4 p-4 bg-green-50 text-green-800 border-4 border-green-600 rounded-xl font-bold text-sm">
                       🎉 Correct! {lesson.quizzes![currentQuizIndex].explanation}
                     </div>
                   )}
 
                   {quizFeedback === "incorrect" && (
-                    <div className="mt-4 p-4 bg-red-50 text-red-800 border-4 border-red-600 rounded-xl font-bold text-sm">
+                    <div role="alert" aria-live="assertive" className="mt-4 p-4 bg-red-50 text-red-800 border-4 border-red-600 rounded-xl font-bold text-sm">
                       ❌ Not quite. Try reviewing the lesson text or options again.
                     </div>
                   )}
@@ -475,7 +489,7 @@ export function LessonPage() {
                 </div>
               ) : (
                 // TERMINAL INTERACTIVE COMMAND MODE
-                <div className="rounded-3xl border-4 border-black bg-surface-low p-6 shadow-card dark:bg-[#1f1c18] dark:border-[#2e2924]">
+                <div ref={terminalRef} className="rounded-3xl border-4 border-black bg-white p-6 shadow-card dark:bg-[#1f1c18] dark:border-[#2e2924]">
                   <h3 className="text-xl font-black mb-4 flex items-center gap-2 text-text dark:text-[#f0ebe2]">
                     <span>💻</span> Sandbox terminal check
                   </h3>
@@ -513,13 +527,13 @@ export function LessonPage() {
                     )}
 
                     {feedback === "correct" && (
-                      <div className="text-green-700 font-bold bg-green-50 p-4 rounded-xl border-4 border-green-600 animate-bounce">
+                      <div role="status" aria-live="polite" className="text-green-700 font-bold bg-green-50 p-4 rounded-xl border-4 border-green-600 animate-bounce">
                         ✅ Correct! Progress synchronized to the Atelier server.
                       </div>
                     )}
 
                     {feedback === "error" && (
-                      <div className="text-red-700 font-bold bg-red-50 p-4 rounded-xl border-4 border-red-600">
+                      <div role="alert" aria-live="assertive" className="text-red-700 font-bold bg-red-50 p-4 rounded-xl border-4 border-red-600">
                         ❌ Not quite. Command output did not match sandbox expectations.
                       </div>
                     )}

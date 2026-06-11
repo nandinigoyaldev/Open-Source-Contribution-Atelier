@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { RotateCcw, Terminal, ChevronRight } from "lucide-react";
 import { useGitShell } from "../../hooks/useGitShell";
 import type { TerminalLine } from "../../hooks/useGitShell";
+import { useFailureAnimation } from '../../hooks/useFailureAnimation';
 
 interface GitTerminalProps {
   /** Called when a lesson-objective command succeeds */
@@ -70,10 +71,23 @@ export function GitTerminal({
     historyIdx,
   } = useGitShell({ onObjectiveComplete: handleComplete });
 
+  // animation hook for terminal wrapper
+  const { ref: termRef, trigger: triggerTerm } = useFailureAnimation<HTMLDivElement>();
+
   // Auto-scroll to bottom
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [lines]);
+
+  // Trigger animations when an error line is appended
+  useEffect(() => {
+    const last = lines[lines.length - 1];
+    if (last && last.kind === "error") {
+      // animate-shake and animate-flash are Tailwind animation classes we added in tailwind.config
+      triggerTerm('animate-shake');
+      triggerTerm('animate-flash');
+    }
+  }, [lines, triggerTerm]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -102,7 +116,7 @@ export function GitTerminal({
   };
 
   return (
-    <div className="rounded-3xl border-4 border-black overflow-hidden shadow-card dark:border-[#2e2924]">
+    <div ref={termRef} className="flex flex-col bg-[#0f0f1d] rounded-lg shadow-card-lg border-2 border-black">
       {/* ── Title bar ─────────────────────────────────────────────── */}
       <div className="flex items-center justify-between px-4 py-2 bg-[#1a1a2e] border-b-4 border-black dark:border-[#2e2924]">
         <div className="flex items-center gap-3">
