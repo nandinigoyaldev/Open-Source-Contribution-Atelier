@@ -1,6 +1,5 @@
 import type { Config } from "tailwindcss";
 
-
 export default {
   darkMode: "class",
   content: ["./index.html", "./src/**/*.{ts,tsx}"],
@@ -29,7 +28,10 @@ export default {
         card: "4px 4px 0px 0px rgba(0, 0, 0, 1)",
         "card-lg": "8px 8px 0px 0px rgba(0, 0, 0, 1)",
         "card-sm": "2px 2px 0px 0px rgba(0, 0, 0, 1)",
-        "gel": "0px 8px 0px 0px rgba(230, 40, 20, 1), 0px -4px 0px 0px rgba(255,100,80,1) inset",
+        gel: "0px 8px 0px 0px rgba(230, 40, 20, 1), 0px -4px 0px 0px rgba(255,100,80,1) inset",
+      },
+      scale: {
+        "102": "1.02",
       },
     },
   },
