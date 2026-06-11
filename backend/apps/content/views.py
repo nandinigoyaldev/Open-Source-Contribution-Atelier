@@ -1,5 +1,6 @@
 from rest_framework import viewsets, views, response, permissions
 from django.db.models import Q
+from django.core.cache import cache
 
 from .models import Lesson
 from .serializers import LessonSerializer
@@ -7,9 +8,23 @@ from apps.challenges.models import Challenge
 from apps.challenges.serializers import ChallengeSerializer
 from apps.progress.models import LessonProgress
 
+
+def get_active_lessons():
+    lessons = cache.get("active_lessons_list")
+    if lessons is None:
+        lessons = list(Lesson.objects.prefetch_related("exercises").all())
+        cache.set("active_lessons_list", lessons, 60 * 60 * 24)
+    return lessons
+
+
 class LessonViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = Lesson.objects.prefetch_related("exercises").all()
     serializer_class = LessonSerializer
+
+    def list(self, request, *args, **kwargs):
+        lessons = get_active_lessons()
+        serializer = self.get_serializer(lessons, many=True)
+        return response.Response(serializer.data)
 
 class SearchView(views.APIView):
     def get(self, request):
@@ -32,7 +47,7 @@ class RoadmapView(views.APIView):
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
 
     def get(self, request):
-        lessons = list(Lesson.objects.prefetch_related("exercises").all())
+        lessons = get_active_lessons()
 
         progress_by_slug = {}
         if request.user and request.user.is_authenticated:
