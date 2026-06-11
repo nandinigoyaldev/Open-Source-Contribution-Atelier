@@ -1,4 +1,5 @@
 import os
+import dj_database_url
 from datetime import timedelta
 from pathlib import Path
 
@@ -20,7 +21,7 @@ def load_dotenv(dotenv_path: Path) -> None:
 
 load_dotenv(BASE_DIR / ".env")
 
-SECRET_KEY = os.getenv("SECRET_KEY", "change-me")
+SECRET_KEY = os.getenv("SECRET_KEY", "django-insecure-dev-key-not-for-production-use-32bytes!!")
 DEBUG = os.getenv("DEBUG", "False") == "True"
 ALLOWED_HOSTS = [
     host.strip()
@@ -61,6 +62,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "apps.sandbox.middleware.SandboxExecutionLogMiddleware",
 ]
 
 ROOT_URLCONF = "config.urls"
@@ -84,10 +86,11 @@ WSGI_APPLICATION = "config.wsgi.application"
 ASGI_APPLICATION = "config.asgi.application"
 
 DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
-    }
+    "default": dj_database_url.config(
+        default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}",
+        conn_max_age=600,
+        conn_health_checks=True,
+    )
 }
 
 AUTH_PASSWORD_VALIDATORS = [
@@ -107,10 +110,13 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 REST_FRAMEWORK = {
     # ── Sandbox Rate Limiting (10 requests/minute) ──────────────────────────
     # Scoped throttling: ONLY affects sandbox endpoints, not global API routes.
-    "DEFAULT_THROTTLE_RATES": {
-        "sandbox_anon": "10/minute",   # Anonymous users — throttled by IP
-        "sandbox_user": "10/minute",   # Authenticated users — throttled by user ID
-    },
+
+"DEFAULT_THROTTLE_RATES": {
+    "sandbox_anon": "10/minute",
+    "sandbox_user": "10/minute",
+    "help_request": "5/hour",
+},
+
 
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework_simplejwt.authentication.JWTAuthentication",
@@ -133,16 +139,72 @@ INSTALLED_APPS += [
     "channels",
     "apps.notifications.apps.NotificationsConfig",
     "drf_spectacular",
+    "apps.dashboard.apps.DashboardConfig",
 ]
 
 
-CHANNEL_LAYERS = {
-    "default": {
-        "BACKEND": "channels_redis.core.RedisChannelLayer",
-        "CONFIG": {
-            "hosts": [os.getenv("REDIS_URL", "redis://127.0.0.1:6379")],
-            "capacity":  1500,
-            "expiry":    10,
+# ──────────────────────────────────────────
+# Redis Availability and Configuration (Dynamic Fallbacks)
+# ──────────────────────────────────────────
+import socket
+
+def is_redis_available(url):
+    try:
+        if not url:
+            return False
+        clean_url = url.replace("redis://", "")
+        host_port = clean_url.split("/")[0]
+        if "@" in host_port:
+            host_port = host_port.split("@")[1]
+        if ":" in host_port:
+            host, port = host_port.split(":")
+            port = int(port)
+        else:
+            host = host_port
+            port = 6379
+        
+        # Test connection with a very short timeout
+        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        s.settimeout(0.5)
+        s.connect((host, port))
+        s.close()
+        return True
+    except Exception:
+        return False
+
+# Candidates check: use REDIS_URL if set, or default to standard local redis host for check
+ENV_REDIS_URL = os.getenv("REDIS_URL", "")
+CHECK_REDIS_URL = ENV_REDIS_URL or "redis://127.0.0.1:6379"
+
+if is_redis_available(CHECK_REDIS_URL):
+    REDIS_URL = CHECK_REDIS_URL
+    CHANNEL_LAYERS = {
+        "default": {
+            "BACKEND": "channels_redis.core.RedisChannelLayer",
+            "CONFIG": {
+                "hosts": [REDIS_URL],
+                "capacity": 1500,
+                "expiry": 10,
+            },
         },
-    },
-}
+    }
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.redis.RedisCache",
+            "LOCATION": REDIS_URL,
+        }
+    }
+else:
+    CHANNEL_LAYERS = {
+        "default": {
+            "BACKEND": "channels.layers.InMemoryChannelLayer",
+        },
+    }
+    CACHES = {
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            "LOCATION": "atelier-unique-cache",
+        }
+    }
+
+
