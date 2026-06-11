@@ -42,7 +42,7 @@ describe("AuthContext", () => {
     render(
       <AuthProvider>
         <TestComponent />
-      </AuthProvider>
+      </AuthProvider>,
     );
 
     // trigger login
@@ -60,7 +60,7 @@ describe("AuthContext", () => {
     render(
       <AuthProvider>
         <TestComponent />
-      </AuthProvider>
+      </AuthProvider>,
     );
 
     // set tokens manually
@@ -88,7 +88,7 @@ describe("AuthContext", () => {
     render(
       <AuthProvider>
         <TestComponent />
-      </AuthProvider>
+      </AuthProvider>,
     );
 
     await waitFor(() => {
@@ -102,7 +102,7 @@ describe("AuthContext", () => {
     render(
       <AuthProvider>
         <TestComponent />
-      </AuthProvider>
+      </AuthProvider>,
     );
 
     await waitFor(() => {

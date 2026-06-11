@@ -1,10 +1,7 @@
 name: Community Automation
 
 on:
-  issues:
-    types: [opened]
-  pull_request:
-    types: [opened, reopened]
+  workflow_dispatch:
 
 jobs:
   issue-etiquette:
@@ -114,9 +111,3 @@ jobs:
           days-before-close: 7
           stale-issue-label: "stale"
           stale-pr-label: "stale"
-
-  dependabot-reminder:
-    name: Dependabot Reminder
-    runs-on: ubuntu-latest
-    steps:
-      - run: echo "Ensure .github/dependabot.yml is configured for npm and pip updates."

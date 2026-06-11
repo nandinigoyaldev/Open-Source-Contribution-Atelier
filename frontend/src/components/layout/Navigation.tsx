@@ -15,43 +15,76 @@ import {
 import { Link, NavLink } from "react-router-dom";
 import { fetchApi } from "../../lib/api";
 import { useTheme } from "../../hooks/useTheme";
+import { useAuth } from "../../features/auth/AuthContext";
+import { fetchLessonsApi } from "../../lib/lessons";
+import LogoutButtonWithConfirm from "./LogoutButtonWithConfirm";
 
 const navItems = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutGrid },
-  { to: "/lessons/intro", label: "Lessons", icon: BookOpen },
+  { to: "/lessons/what-is-open-source", label: "Lessons", icon: BookOpen },
   { to: "/challenges", label: "Challenges", icon: Trophy },
   { to: "/community", label: "Community", icon: BriefcaseBusiness },
 ];
 
 export function Navigation() {
   const { theme, toggleTheme } = useTheme();
+  const { user, logout } = useAuth();
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<{
     lessons: any[];
     challenges: any[];
   } | null>(null);
   const [isSearching, setIsSearching] = useState(false);
-  const [badgeCount, setBadgeCount] = useState(0);
+  const [lessonsCatalog, setLessonsCatalog] = useState<any[]>([]);
 
   useEffect(() => {
-    const delayDebounceFn = setTimeout(async () => {
-      if (searchQuery.length > 1) {
+    fetchLessonsApi().then((data) => setLessonsCatalog(data));
+  }, []);
+
+  useEffect(() => {
+    const delayDebounceFn = setTimeout(() => {
+      if (searchQuery.trim().length > 1) {
         setIsSearching(true);
-        try {
-          const results = await fetchApi(`/content/search/?q=${searchQuery}`);
-          setSearchResults(results);
-        } catch (error) {
-          console.error("Search failed:", error);
-        } finally {
-          setIsSearching(false);
-        }
+        const query = searchQuery.toLowerCase();
+
+        const filteredLessons = lessonsCatalog.filter(
+          (lesson) =>
+            lesson.title.toLowerCase().includes(query) ||
+            lesson.description.toLowerCase().includes(query),
+        );
+
+        const mockChallenges = [
+          {
+            title: "Hacktoberfest Warmup",
+            summary:
+              "Guide contributors through issue triage, branch naming, and clean commits.",
+            slug: "hacktoberfest-warmup",
+          },
+          {
+            title: "Git Recovery Lab",
+            summary:
+              "Practice safe undo flows, rebases, and fixing a messy working tree.",
+            slug: "git-recovery-lab",
+          },
+        ];
+        const filteredChallenges = mockChallenges.filter(
+          (ch) =>
+            ch.title.toLowerCase().includes(query) ||
+            ch.summary.toLowerCase().includes(query),
+        );
+
+        setSearchResults({
+          lessons: filteredLessons,
+          challenges: filteredChallenges,
+        });
+        setIsSearching(false);
       } else {
         setSearchResults(null);
       }
-    }, 300);
+    }, 200);
 
     return () => clearTimeout(delayDebounceFn);
-  }, [searchQuery]);
+  }, [searchQuery, lessonsCatalog]);
 
   useEffect(() => {
     async function loadBadges() {
@@ -95,7 +128,7 @@ export function Navigation() {
                   to={item.to}
                   className={({ isActive }) =>
                     [
-                      "flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition",
+                      "flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all duration-200 ease-in-out hover:scale-102 hover:shadow-card",
                       isActive
                         ? "bg-[linear-gradient(135deg,rgba(79,70,229,0.28),rgba(195,192,255,0.16))] text-text shadow-card dark:text-[#f0ebe2]"
                         : "text-muted hover:bg-surface-low hover:text-text dark:text-[#c4bbae] dark:hover:bg-[#151411] dark:hover:text-[#f0ebe2]",
@@ -117,7 +150,7 @@ export function Navigation() {
                 Run guided Git practice without exposing the real shell.
               </p>
               <Link
-                to="/lessons/intro"
+                to="/lessons/what-is-open-source"
                 className="mt-4 flex items-center justify-center gap-2 rounded-xl bg-primary-container px-4 py-3 text-sm font-semibold text-white shadow-card"
               >
                 <TerminalSquare size={15} />
@@ -234,26 +267,34 @@ export function Navigation() {
             <button
               className="rounded-xl bg-surface-low p-2 text-muted hover:text-text dark:bg-[#151411] dark:text-[#c4bbae] dark:hover:text-[#f0ebe2]"
               onClick={toggleTheme}
+              aria-label={theme === "light" ? "Switch to dark mode" : "Switch to light mode"}
             >
               {theme === "light" ? <Moon size={16} /> : <Sun size={16} />}
             </button>
             <button className="rounded-xl bg-surface-low p-2 text-muted hover:text-text dark:bg-[#151411] dark:text-[#c4bbae] dark:hover:text-[#f0ebe2]">
               <Bell size={16} />
             </button>
-            <div className="relative">
+            {user ? (
+              <div className="flex items-center gap-2">
+                <span className="font-bold text-sm text-text bg-white px-3 py-2 rounded-xl border-2 border-black dark:bg-[#151411] dark:text-[#f0ebe2] dark:border-[#2e2924] flex items-center gap-1.5 shadow-card-sm">
+                  👤{" "}
+                  <span className="max-w-[80px] truncate">{user.username}</span>
+                  {user.is_staff && (
+                    <span className="font-black text-[9px] bg-primary text-white px-1.5 py-0.5 rounded border border-black dark:border-none">
+                      ADMIN
+                    </span>
+                  )}
+                </span>
+                <LogoutButtonWithConfirm />
+              </div>
+            ) : (
               <Link
                 to="/login"
                 className="rounded-xl bg-[linear-gradient(135deg,#4f46e5,#7c72ff)] px-4 py-2 text-sm font-semibold text-white shadow-card"
               >
                 Admin Login
               </Link>
-
-              {badgeCount > 0 && (
-                <span className="absolute -top-2 -right-2 flex h-6 min-w-6 items-center justify-center rounded-full bg-red-500 px-2 text-xs font-bold text-white">
-                  {badgeCount}
-                </span>
-              )}
-            </div>
+            )}
           </div>
         </div>
       </header>

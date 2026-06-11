@@ -5,6 +5,7 @@ type User = {
   id: number;
   username: string;
   email: string;
+  is_staff: boolean;
 };
 
 type AuthContextType = {
@@ -36,13 +37,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const checkUser = async () => {
     try {
-      if (!localStorage.getItem("accessToken")) {
+      const token = localStorage.getItem("accessToken");
+      if (!token) {
         setUser(null);
-      } else {
+        return;
+      }
+
+      // Some setups can temporarily fail right after login (network hiccup / token not yet accepted).
+      // Avoid logging the user out on the first failure.
+      try {
+        const data = await fetchApi("/auth/me/");
+        setUser(data);
+        return;
+      } catch {
         const data = await fetchApi("/auth/me/");
         setUser(data);
       }
-    } catch (e) {
+    } catch {
       setUser(null);
     } finally {
       setIsLoading(false);
@@ -54,7 +65,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated: !!user, isLoading, login, logout, checkUser }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        isAuthenticated: !!user,
+        isLoading,
+        login,
+        logout,
+        checkUser,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
