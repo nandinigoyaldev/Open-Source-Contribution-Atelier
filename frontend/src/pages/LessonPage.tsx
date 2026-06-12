@@ -21,6 +21,7 @@ export function LessonPage() {
   const [input, setInput] = useState("");
   const [feedback, setFeedback] = useState<string>("");
   const [showHint, setShowHint] = useState(false);
+  const [copied, setCopied] = useState(false);
   const [isHelpPanelOpen, setIsHelpPanelOpen] = useState(false);
   const [helpMessage, setHelpMessage] = useState("");
   const [helpSuccessMessage, setHelpSuccessMessage] = useState("");
@@ -89,6 +90,22 @@ export function LessonPage() {
       navigate(`/lessons/${previousLesson.slug}`, { replace: true });
     }
   }, [lesson, lessonsList, isLoading, isLessonCompleted, navigate]);
+  const handleCopy = async () => {
+    if (!lesson) return;
+
+    const command =
+      typeof lesson.expected === "string"
+        ? lesson.expected
+        : String(lesson.expected);
+
+    await navigator.clipboard.writeText(command);
+
+    setCopied(true);
+
+    setTimeout(() => {
+      setCopied(false);
+    }, 1500);
+  };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -156,7 +173,9 @@ export function LessonPage() {
   return (
     <div className="max-w-3xl mx-auto p-6 space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-4xl font-black text-text drop-shadow-[2px_2px_0_#FF3B30]">{lesson.title}</h1>
+        <h1 className="text-4xl font-black text-text drop-shadow-[2px_2px_0_#FF3B30]">
+          {lesson.title}
+        </h1>
         {isLessonCompleted(lesson.slug) && (
           <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-black border-2 border-green-700">
             COMPLETED ✅
@@ -167,8 +186,12 @@ export function LessonPage() {
       <p className="text-xl text-muted">{lesson.description}</p>
 
       <div className="flex items-center gap-3 text-sm font-black uppercase">
-        <span className="px-3 py-1 rounded-full border-2 border-black bg-white">{lesson.difficulty || "beginner"}</span>
-        <span className="px-3 py-1 rounded-full border-2 border-black bg-surface-low">{lesson.estimatedMinutes || 10} min</span>
+        <span className="px-3 py-1 rounded-full border-2 border-black bg-white">
+          {lesson.difficulty || "beginner"}
+        </span>
+        <span className="px-3 py-1 rounded-full border-2 border-black bg-surface-low">
+          {lesson.estimatedMinutes || 10} min
+        </span>
       </div>
 
       <div className="p-4 bg-surface-low rounded-2xl border-4 border-black shadow-card">
@@ -206,13 +229,20 @@ export function LessonPage() {
           <h2 className="text-2xl font-black mb-4">Lesson Exercises</h2>
           <div className="space-y-3">
             {lesson.exercises.map((exercise, i) => (
-              <div key={`${lesson.slug}-${exercise.title}-${i}`} className="rounded-xl border-2 border-black bg-white p-4">
+              <div
+                key={`${lesson.slug}-${exercise.title}-${i}`}
+                className="rounded-xl border-2 border-black bg-white p-4"
+              >
                 <div className="flex items-start justify-between gap-4">
                   <h3 className="font-black text-base">{exercise.title}</h3>
-                  <span className="text-xs font-black px-2 py-1 border-2 border-black rounded-full">{exercise.points || 10} XP</span>
+                  <span className="text-xs font-black px-2 py-1 border-2 border-black rounded-full">
+                    {exercise.points || 10} XP
+                  </span>
                 </div>
                 <p className="text-sm text-muted mt-2">{exercise.prompt}</p>
-                {exercise.explanation && <p className="text-xs mt-2 italic">{exercise.explanation}</p>}
+                {exercise.explanation && (
+                  <p className="text-xs mt-2 italic">{exercise.explanation}</p>
+                )}
               </div>
             ))}
           </div>
@@ -222,6 +252,14 @@ export function LessonPage() {
       <form onSubmit={handleSubmit} className="space-y-4">
         <div className="flex items-center gap-2">
           <span className="font-mono text-primary">$</span>
+
+          <button
+            type="button"
+            onClick={handleCopy}
+            className="px-2 py-1 rounded-lg border-2 border-black bg-white text-xs font-bold hover:bg-surface-low"
+          >
+            {copied ? "✓ Copied" : "Copy"}
+          </button>
           <input
             className="flex-1 rounded-xl border-4 border-black bg-surface-lowest px-4 py-2 text-text font-bold outline-none placeholder:text-muted/60"
             placeholder="Type your git command here"
@@ -290,9 +328,12 @@ export function LessonPage() {
           <aside className="h-full w-full max-w-md bg-surface-lowest border-l-4 border-black p-6 shadow-card space-y-4">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h2 className="text-2xl font-black">Need help on this lesson?</h2>
+                <h2 className="text-2xl font-black">
+                  Need help on this lesson?
+                </h2>
                 <p className="text-sm text-muted mt-1">
-                  Send context to mentors and we&apos;ll add it to the community support queue.
+                  Send context to mentors and we&apos;ll add it to the community
+                  support queue.
                 </p>
               </div>
               <button
@@ -334,7 +375,9 @@ export function LessonPage() {
                 className="w-full px-4 py-2 bg-primary text-white font-bold rounded-xl border-4 border-black shadow-gel hover:bg-[#E62814] disabled:opacity-60"
                 disabled={!helpMessage.trim() || helpRequestMutation.isPending}
               >
-                {helpRequestMutation.isPending ? "Submitting..." : "Submit help request"}
+                {helpRequestMutation.isPending
+                  ? "Submitting..."
+                  : "Submit help request"}
               </button>
             </form>
           </aside>
