@@ -156,7 +156,9 @@ export function LessonPage() {
   return (
     <div className="max-w-3xl mx-auto p-6 space-y-6">
       <div className="flex items-center justify-between">
-        <h1 className="text-4xl font-black text-text drop-shadow-[2px_2px_0_#FF3B30]">{lesson.title}</h1>
+        <h1 className="text-4xl font-black text-text drop-shadow-[2px_2px_0_#FF3B30]">
+          {lesson.title}
+        </h1>
         {isLessonCompleted(lesson.slug) && (
           <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-black border-2 border-green-700">
             COMPLETED ✅
@@ -167,8 +169,12 @@ export function LessonPage() {
       <p className="text-xl text-muted">{lesson.description}</p>
 
       <div className="flex items-center gap-3 text-sm font-black uppercase">
-        <span className="px-3 py-1 rounded-full border-2 border-black bg-white">{lesson.difficulty || "beginner"}</span>
-        <span className="px-3 py-1 rounded-full border-2 border-black bg-surface-low">{lesson.estimatedMinutes || 10} min</span>
+        <span className="px-3 py-1 rounded-full border-2 border-black bg-white">
+          {lesson.difficulty || "beginner"}
+        </span>
+        <span className="px-3 py-1 rounded-full border-2 border-black bg-surface-low">
+          {lesson.estimatedMinutes || 10} min
+        </span>
       </div>
 
       <div className="p-4 bg-surface-low rounded-2xl border-4 border-black shadow-card">
@@ -176,7 +182,7 @@ export function LessonPage() {
       </div>
 
       {lesson.learningObjectives && lesson.learningObjectives.length > 0 && (
-        <div className="p-4 bg-white rounded-2xl border-4 border-black shadow-card">
+        <div className="p-4 bg-white rounded-2xl border-4 border-black shadow-card transition-all duration-200 hover:scale-[1.02] hover:border-primary">
           <h2 className="font-bold text-lg mb-2">Learning Objectives</h2>
           <ul className="list-disc list-inside space-y-1">
             {lesson.learningObjectives.map((objective, i) => (
@@ -189,7 +195,7 @@ export function LessonPage() {
       )}
 
       {lesson.tips && lesson.tips.length > 0 && (
-        <div className="p-4 bg-white rounded-2xl border-4 border-black shadow-card">
+        <div className="p-4 bg-white rounded-2xl border-4 border-black shadow-card transition-all duration-200 hover:scale-[1.02] hover:border-primary">
           <h2 className="font-bold text-lg mb-2">Tips & Common Mistakes</h2>
           <ul className="list-disc list-inside space-y-1">
             {lesson.tips.map((tip, i) => (
@@ -206,13 +212,20 @@ export function LessonPage() {
           <h2 className="text-2xl font-black mb-4">Lesson Exercises</h2>
           <div className="space-y-3">
             {lesson.exercises.map((exercise, i) => (
-              <div key={`${lesson.slug}-${exercise.title}-${i}`} className="rounded-xl border-2 border-black bg-white p-4">
+              <div
+                key={`${lesson.slug}-${exercise.title}-${i}`}
+                className="rounded-xl border-4 border-black bg-white p-4 transition-all duration-200 hover:scale-[1.02] hover:border-primary"
+              >
                 <div className="flex items-start justify-between gap-4">
                   <h3 className="font-black text-base">{exercise.title}</h3>
-                  <span className="text-xs font-black px-2 py-1 border-2 border-black rounded-full">{exercise.points || 10} XP</span>
+                  <span className="text-xs font-black px-2 py-1 border-2 border-black rounded-full">
+                    {exercise.points || 10} XP
+                  </span>
                 </div>
                 <p className="text-sm text-muted mt-2">{exercise.prompt}</p>
-                {exercise.explanation && <p className="text-xs mt-2 italic">{exercise.explanation}</p>}
+                {exercise.explanation && (
+                  <p className="text-xs mt-2 italic">{exercise.explanation}</p>
+                )}
               </div>
             ))}
           </div>
@@ -290,9 +303,12 @@ export function LessonPage() {
           <aside className="h-full w-full max-w-md bg-surface-lowest border-l-4 border-black p-6 shadow-card space-y-4">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h2 className="text-2xl font-black">Need help on this lesson?</h2>
+                <h2 className="text-2xl font-black">
+                  Need help on this lesson?
+                </h2>
                 <p className="text-sm text-muted mt-1">
-                  Send context to mentors and we&apos;ll add it to the community support queue.
+                  Send context to mentors and we&apos;ll add it to the community
+                  support queue.
                 </p>
               </div>
               <button
@@ -334,7 +350,9 @@ export function LessonPage() {
                 className="w-full px-4 py-2 bg-primary text-white font-bold rounded-xl border-4 border-black shadow-gel hover:bg-[#E62814] disabled:opacity-60"
                 disabled={!helpMessage.trim() || helpRequestMutation.isPending}
               >
-                {helpRequestMutation.isPending ? "Submitting..." : "Submit help request"}
+                {helpRequestMutation.isPending
+                  ? "Submitting..."
+                  : "Submit help request"}
               </button>
             </form>
           </aside>
