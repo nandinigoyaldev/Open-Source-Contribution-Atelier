@@ -8,6 +8,8 @@ class Badge(models.Model):
     name = models.CharField(max_length=120)
     slug = models.SlugField(unique=True)
     description = models.TextField()
+    category = models.CharField(max_length=100, default="general")
+    icon_asset_url = models.URLField(blank=True, default="")
 
 
 class LessonProgress(models.Model):
