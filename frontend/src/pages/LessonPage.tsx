@@ -1,11 +1,15 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, Link } from "react-router-dom";
+import { ChevronLeft, ChevronRight, Menu, X, BookOpen, CheckCircle2, Lock } from "lucide-react";
 
 import SkeletonLesson from "../components/ui/skeletons/SkeletonLesson";
 import { useUserProgress } from "../hooks/useUserProgress";
 import { fetchApi } from "../lib/api";
-import { Lesson, fetchLessonsApi } from "../lib/lessons";
+import { Lesson, fetchLessonsApi, fetchLessonContent } from "../lib/lessons";
+import { MarkdownRenderer } from "../components/ui/MarkdownRenderer";
+import { GitGraph } from "../components/ui/GitGraph";
+import { createInitialRepo, parseGitCommand, RepoState } from "../lib/gitSimulator";
 
 function normalizeCommand(value: string) {
   return value.trim().replace(/\s+/g, " ").toLowerCase();
@@ -15,24 +19,59 @@ export function LessonPage() {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
   const { syncProgress, isLessonCompleted, isLoading } = useUserProgress();
+  const queryClient = useQueryClient();
 
   const [lesson, setLesson] = useState<Lesson | undefined>(undefined);
   const [lessonsList, setLessonsList] = useState<Lesson[]>([]);
+  const [markdownContent, setMarkdownContent] = useState("");
+  
+  // Curriculum modules list for sidebar
+  const [modules, setModules] = useState<{ id: string; title: string; lessons: { slug: string; title: string; difficulty?: string }[] }[]>([]);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const sidebarRef = useRef<HTMLElement>(null);
+
+  const closeSidebar = useCallback(() => setIsSidebarOpen(false), []);
+
+  // Close sidebar on click-outside (mobile drawer)
+  useEffect(() => {
+    if (!isSidebarOpen) return;
+
+    const handleClickOutside = (e: MouseEvent) => {
+      if (sidebarRef.current && !sidebarRef.current.contains(e.target as Node)) {
+        closeSidebar();
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isSidebarOpen, closeSidebar]);
+
+  // Command-based exercises
   const [input, setInput] = useState("");
   const [feedback, setFeedback] = useState<string>("");
   const [showHint, setShowHint] = useState(false);
-  const [copied, setCopied] = useState(false);
+  const [terminalOutput, setTerminalOutput] = useState("");
+  const [repoState, setRepoState] = useState<RepoState>(createInitialRepo());
+
+  // Quiz-based exercises
+  const [currentQuizIndex, setCurrentQuizIndex] = useState(0);
+  const [selectedOption, setSelectedOption] = useState<number | null>(null);
+  const [quizFeedback, setQuizFeedback] = useState<"correct" | "incorrect" | null>(null);
+
+  // Help Request panel
   const [isHelpPanelOpen, setIsHelpPanelOpen] = useState(false);
   const [helpMessage, setHelpMessage] = useState("");
   const [helpSuccessMessage, setHelpSuccessMessage] = useState("");
-  const queryClient = useQueryClient();
+
+  // Reading progress scroll ref
+  const mainContentRef = useRef<HTMLDivElement>(null);
+  const [scrollProgress, setScrollProgress] = useState(0);
 
   const helpRequestMutation = useMutation({
     mutationFn: (message: string) => {
       if (!lesson) {
         throw new Error("No lesson context available");
       }
-
       return fetchApi("/progress/help-requests/", {
         method: "POST",
         body: JSON.stringify({
@@ -48,69 +87,95 @@ export function LessonPage() {
     },
   });
 
+  // 1. Fetch modules catalog & lessons
   useEffect(() => {
-    let mounted = true;
+    fetch("/content/curriculum.json")
+      .then((res) => res.json())
+      .then((data) => {
+        if (data && data.modules) {
+          setModules(data.modules);
+        }
+      })
+      .catch((err) => console.error("Error fetching curriculum catalog:", err));
 
     fetchLessonsApi()
       .then((data) => {
-        if (!mounted) return;
         setLessonsList(data);
         const found = data.find((l) => l.slug === slug);
         if (!found) {
           navigate("/dashboard", { replace: true });
           return;
         }
-
         setLesson(found);
-        setFeedback("");
-        setInput("");
-        setShowHint(false);
       })
       .catch(() => {
-        // fallback: no lessons loaded
         navigate("/dashboard", { replace: true });
       });
-
-    return () => {
-      mounted = false;
-    };
   }, [slug, navigate]);
 
+  // 2. Fetch markdown content and reset interactive state when lesson changes
   useEffect(() => {
-    if (!lesson || isLoading) {
-      return;
-    }
-
-    const lessonIdx = lessonsList.findIndex((l) => l.slug === lesson.slug);
-    if (lessonIdx === 0) {
-      return;
-    }
-    const previousLesson = lessonsList[lessonIdx - 1];
-    if (previousLesson && !isLessonCompleted(previousLesson.slug)) {
-      navigate(`/lessons/${previousLesson.slug}`, { replace: true });
-    }
-  }, [lesson, lessonsList, isLoading, isLessonCompleted, navigate]);
-  const handleCopy = async () => {
     if (!lesson) return;
 
-    const command =
-      typeof lesson.expected === "string"
-        ? lesson.expected
-        : String(lesson.expected);
+    setFeedback("");
+    setInput("");
+    setShowHint(false);
+    setTerminalOutput("");
+    setRepoState(createInitialRepo());
+    
+    // Reset Quiz state
+    setCurrentQuizIndex(0);
+    setSelectedOption(null);
+    setQuizFeedback(null);
 
-    await navigator.clipboard.writeText(command);
+    if (lesson.filePath) {
+      fetchLessonContent(lesson.filePath).then((content) => {
+        setMarkdownContent(content);
+      });
+    } else {
+      setMarkdownContent(`# ${lesson.title}\n\n${lesson.explanation}`);
+    }
+  }, [lesson]);
 
-    setCopied(true);
+  // 3. Scroll tracking for reading progress
+  useEffect(() => {
+    const handleScroll = () => {
+      if (!mainContentRef.current) return;
+      const element = mainContentRef.current;
+      const totalHeight = element.scrollHeight - element.clientHeight;
+      if (totalHeight <= 0) {
+        setScrollProgress(100);
+        return;
+      }
+      const scrollPercent = (element.scrollTop / totalHeight) * 100;
+      setScrollProgress(Math.min(100, Math.max(0, Math.round(scrollPercent))));
+    };
 
-    setTimeout(() => {
-      setCopied(false);
-    }, 1500);
-  };
+    const container = mainContentRef.current;
+    if (container) {
+      container.addEventListener("scroll", handleScroll);
+    }
+    return () => {
+      if (container) {
+        container.removeEventListener("scroll", handleScroll);
+      }
+    };
+  }, [markdownContent]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  // Command submission handler
+  const handleCommandSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!lesson) {
-      return;
+    if (!lesson) return;
+
+    const result = parseGitCommand(input, repoState);
+    if (result.error) {
+       setTerminalOutput(result.error);
+       setFeedback("error");
+       setShowHint(true);
+       return; // Stop processing further for invalid commands
+    } else {
+       setTerminalOutput(result.output || "");
+       setRepoState(result.newState);
     }
 
     const expected = lesson.expected;
@@ -121,202 +186,421 @@ export function LessonPage() {
     } else {
       try {
         isCorrect = expected.test(input.trim());
-      } catch (e) {
+      } catch {
         isCorrect = input.trim() === String(expected);
       }
     }
+
     if (isCorrect) {
       setFeedback("correct");
-
       syncProgress({
         lesson_slug: lesson.slug,
-        score: 100,
+        score: lesson.points || 20,
         completed: true,
       });
-
-      setTimeout(() => {
-        const currentIdx = lessonsList.findIndex((l) => l.slug === lesson.slug);
-        const nextLesson = lessonsList[currentIdx + 1];
-
-        if (nextLesson) {
-          navigate(`/lessons/${nextLesson.slug}`);
-        } else {
-          navigate("/dashboard");
-        }
-      }, 1500);
     } else {
       setFeedback("error");
       setShowHint(true);
     }
+    
+    setInput(""); // Clear input after running
+  };
+
+  // Quiz submission handler
+  const handleQuizOptionCheck = () => {
+    if (selectedOption === null || !lesson || !lesson.quizzes) return;
+    const currentQuiz = lesson.quizzes[currentQuizIndex];
+
+    if (selectedOption === currentQuiz.answer) {
+      setQuizFeedback("correct");
+      if (currentQuizIndex === lesson.quizzes.length - 1) {
+        setFeedback("correct");
+        syncProgress({
+          lesson_slug: lesson.slug,
+          score: lesson.points || 15,
+          completed: true,
+        });
+      }
+    } else {
+      setQuizFeedback("incorrect");
+    }
+  };
+
+  const handleNextQuizQuestion = () => {
+    setSelectedOption(null);
+    setQuizFeedback(null);
+    setCurrentQuizIndex((prev) => prev + 1);
   };
 
   const handleHelpRequestSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!lesson || !helpMessage.trim()) {
-      return;
-    }
+    if (!lesson || !helpMessage.trim()) return;
     helpRequestMutation.mutate(helpMessage.trim());
   };
 
   if (isLoading) {
     return (
-      <div aria-busy="true" role="status">
-        <SkeletonLesson />
+      <div className="pt-20 h-screen w-full flex items-center justify-center" aria-busy="true" role="status">
+        <div className="w-full max-w-3xl">
+          <SkeletonLesson />
+        </div>
       </div>
     );
   }
 
-  if (!lesson) {
-    return null;
-  }
+  if (!lesson) return null;
+
+  const currentLessonIndex = lessonsList.findIndex((l) => l.slug === lesson.slug);
+  const previousLesson = lessonsList[currentLessonIndex - 1];
+  const nextLesson = lessonsList[currentLessonIndex + 1];
+
+  const hasQuiz = lesson.quizzes && lesson.quizzes.length > 0;
+  const isCompleted = isLessonCompleted(lesson.slug);
+  const activeModuleId = modules.find((mod) =>
+  mod.lessons.some((les) => les.slug === lesson.slug)
+)?.id;
 
   return (
-    <div className="max-w-3xl mx-auto p-6 space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-4xl font-black text-text drop-shadow-[2px_2px_0_#FF3B30]">
-          {lesson.title}
-        </h1>
-        {isLessonCompleted(lesson.slug) && (
-          <span className="bg-green-100 text-green-700 px-3 py-1 rounded-full text-xs font-black border-2 border-green-700">
-            COMPLETED ✅
-          </span>
-        )}
-      </div>
-
-      <p className="text-xl text-muted">{lesson.description}</p>
-
-      <div className="flex items-center gap-3 text-sm font-black uppercase">
-        <span className="px-3 py-1 rounded-full border-2 border-black bg-white">
-          {lesson.difficulty || "beginner"}
-        </span>
-        <span className="px-3 py-1 rounded-full border-2 border-black bg-surface-low">
-          {lesson.estimatedMinutes || 10} min
+    <div className="min-h-screen pt-20 flex flex-col lg:flex-row relative">
+      {/* 1. Mobile Sidebar Toggle */}
+      <div className="lg:hidden bg-white border-b-4 border-black dark:bg-[#151411] dark:border-[#2e2924] p-4 flex items-center justify-between z-10">
+        <button
+          onClick={() => setIsSidebarOpen((prev) => !prev)}
+          aria-expanded={isSidebarOpen}
+          aria-controls="course-sidebar"
+          className="flex items-center gap-2 font-black text-sm uppercase px-3 py-2 bg-surface-low border-2 border-black rounded-xl text-black"
+        >
+          {isSidebarOpen ? <X size={16} /> : <Menu size={16} />}
+          {isSidebarOpen ? "Close Outline" : "Course Directory"}
+        </button>
+        <span className="font-mono text-xs font-black bg-black text-white px-3 py-1 rounded-full dark:bg-[#2e2924]">
+          XP Bounties: {lesson.points || 15}
         </span>
       </div>
 
-      <div className="p-4 bg-surface-low rounded-2xl border-4 border-black shadow-card">
-        <p className="text-text">{lesson.explanation}</p>
-      </div>
-
-      {lesson.learningObjectives && lesson.learningObjectives.length > 0 && (
-        <div className="p-4 bg-white rounded-2xl border-4 border-black shadow-card">
-          <h2 className="font-bold text-lg mb-2">Learning Objectives</h2>
-          <ul className="list-disc list-inside space-y-1">
-            {lesson.learningObjectives.map((objective, i) => (
-              <li key={i} className="text-sm text-muted">
-                {objective}
-              </li>
-            ))}
-          </ul>
-        </div>
+      {/* Backdrop overlay — closes drawer on click-outside on mobile */}
+      {isSidebarOpen && (
+        <div
+          className="fixed inset-0 z-10 bg-black/40 lg:hidden"
+          aria-hidden="true"
+          onClick={closeSidebar}
+        />
       )}
 
-      {lesson.tips && lesson.tips.length > 0 && (
-        <div className="p-4 bg-white rounded-2xl border-4 border-black shadow-card">
-          <h2 className="font-bold text-lg mb-2">Tips & Common Mistakes</h2>
-          <ul className="list-disc list-inside space-y-1">
-            {lesson.tips.map((tip, i) => (
-              <li key={i} className="text-sm text-muted">
-                {tip}
-              </li>
-            ))}
-          </ul>
+      {/* 2. Side Course Directory Menu */}
+      <aside
+        id="course-sidebar"
+        ref={sidebarRef}
+        className={`fixed top-0 left-0 h-full w-[300px] border-r-4 border-black bg-white dark:bg-[#151411] dark:border-[#2e2924] overflow-y-auto p-6 transition-transform duration-300 ease-in-out z-20 pt-20
+          ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"}
+          lg:relative lg:top-auto lg:left-auto lg:h-auto lg:w-[320px] lg:flex-shrink-0 lg:translate-x-0 lg:block lg:max-h-[calc(100vh-80px)]`}
+      >
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-xl font-black uppercase flex items-center gap-2">
+            <BookOpen size={18} className="text-primary" />
+            Curriculum
+          </h2>
+          {isSidebarOpen && (
+            <button onClick={closeSidebar} aria-label="Close course outline" className="lg:hidden border-2 border-black p-1 rounded-lg">
+              <X size={16} />
+            </button>
+          )}
         </div>
-      )}
 
-      {lesson.exercises && lesson.exercises.length > 0 && (
-        <div className="rounded-3xl border-4 border-black bg-surface-low p-6 shadow-card">
-          <h2 className="text-2xl font-black mb-4">Lesson Exercises</h2>
-          <div className="space-y-3">
-            {lesson.exercises.map((exercise, i) => (
-              <div
-                key={`${lesson.slug}-${exercise.title}-${i}`}
-                className="rounded-xl border-2 border-black bg-white p-4"
-              >
-                <div className="flex items-start justify-between gap-4">
-                  <h3 className="font-black text-base">{exercise.title}</h3>
-                  <span className="text-xs font-black px-2 py-1 border-2 border-black rounded-full">
-                    {exercise.points || 10} XP
-                  </span>
-                </div>
-                <p className="text-sm text-muted mt-2">{exercise.prompt}</p>
-                {exercise.explanation && (
-                  <p className="text-xs mt-2 italic">{exercise.explanation}</p>
-                )}
+        <div className="space-y-6">
+          {modules.map((mod, modIdx) => (
+            <div key={mod.id} className="space-y-2">
+            
+              <h3
+                    className={`font-mono text-[10px] uppercase tracking-wider font-bold px-2 py-1.5 rounded-lg border-2 transition-all
+                         ${mod.id === activeModuleId
+                      ? "bg-yellow-300 text-black border-black shadow-[2px_2px_0px_#000]"
+                          : "text-muted dark:text-[#c4bbae] border-transparent"
+                        }`}>
+                     Module {modIdx + 1}: {mod.title}
+              </h3>
+              <div className="space-y-1">
+                {mod.lessons.map((les: { slug: string; title: string; difficulty?: string }) => {
+                  const active = les.slug === lesson.slug;
+                  const completed = isLessonCompleted(les.slug);
+                  return (
+                    <Link
+                      key={les.slug}
+                      to={`/lessons/${les.slug}`}
+                      onClick={closeSidebar}
+                      className={`w-full flex items-center justify-between p-2.5 rounded-xl border-2 transition-all text-xs font-bold ${
+                        active
+                          ? "bg-surface-low border-black shadow-card-sm text-text"
+                          : "border-transparent hover:bg-surface-lowest hover:border-black/10 dark:text-[#c4bbae]"
+                      }`}
+                    >
+                      <div className="flex items-center gap-2 truncate">
+                        {completed ? (
+                          <CheckCircle2 size={14} className="text-green-600 flex-shrink-0" />
+                        ) : (
+                          <div className="w-3.5 h-3.5 rounded-full border-2 border-black/35 flex-shrink-0" />
+                        )}
+                        <span className="truncate">{les.title}</span>
+                      </div>
+                      {les.difficulty === "advanced" && (
+                        <span className="text-[8px] bg-red-100 text-red-700 px-1 py-0.5 rounded border border-red-700">ADV</span>
+                      )}
+                    </Link>
+                  );
+                })}
               </div>
-            ))}
-          </div>
+            </div>
+          ))}
         </div>
-      )}
+      </aside>
 
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div className="flex items-center gap-2">
-          <span className="font-mono text-primary">$</span>
-
-          <button
-            type="button"
-            onClick={handleCopy}
-            className="px-2 py-1 rounded-lg border-2 border-black bg-white text-xs font-bold hover:bg-surface-low"
-          >
-            {copied ? "✓ Copied" : "Copy"}
-          </button>
-          <input
-            className="flex-1 rounded-xl border-4 border-black bg-surface-lowest px-4 py-2 text-text font-bold outline-none placeholder:text-muted/60"
-            placeholder="Type your git command here"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            disabled={feedback === "correct"}
-            autoFocus
-          />
-          <button
-            type="submit"
-            className="px-4 py-2 bg-primary text-white font-bold rounded-xl border-4 border-black shadow-gel hover:bg-[#E62814] disabled:opacity-50"
-            disabled={feedback === "correct"}
-          >
-            Run
-          </button>
+      {/* 3. Main Reading Panel */}
+      <div className="flex-1 flex flex-col max-h-[calc(100vh-80px)] overflow-hidden">
+        {/* Top scroll reading progress indicator */}
+        <div className="h-2 w-full bg-surface-low border-b-2 border-black dark:bg-[#151411] dark:border-[#2e2924] relative flex-shrink-0">
+          <div className="h-full bg-primary transition-all duration-150" style={{ width: `${scrollProgress}%` }} />
         </div>
 
-        {feedback === "correct" && (
-          <div className="text-green-700 font-bold bg-green-50 p-3 rounded-xl border-2 border-green-700 animate-bounce">
-            ✅ Correct! Progress synced to backend.
+        <div ref={mainContentRef} className="flex-1 overflow-y-auto p-6 sm:p-10 space-y-8">
+          <div className="max-w-3xl mx-auto space-y-6">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+              <div>
+                <span className="text-[10px] font-mono font-black bg-accent text-black px-3 py-1 rounded-full border-2 border-black rotate-[-1deg] inline-block shadow-card-sm uppercase">
+                  {lesson.difficulty || "beginner"}
+                </span>
+                <h1 className="text-4xl sm:text-5xl font-black text-text dark:text-[#f0ebe2] drop-shadow-[2.5px_2.5px_0_#FF3B30] mt-3">
+                  {lesson.title}
+                </h1>
+              </div>
+              {isCompleted && (
+                <div className="self-start sm:self-center bg-green-100 text-green-700 px-4 py-1.5 rounded-2xl text-xs font-black border-4 border-black shadow-card-sm">
+                  COMPLETED ✅
+                </div>
+              )}
+            </div>
+
+            <p className="text-xl font-bold text-muted dark:text-[#c4bbae]">{lesson.description}</p>
+
+            <hr className="border-2 border-black/10 dark:border-[#2e2924]/40" />
+
+            {/* Markdown rendering logic */}
+            <article className="prose max-w-none">
+              <MarkdownRenderer content={markdownContent} />
+            </article>
+
+            {/* Exercises & validation section */}
+            <div className="pt-8 space-y-6">
+              {hasQuiz ? (
+                // QUIZ MODE RENDER
+                <div className="rounded-3xl border-4 border-black bg-white p-6 shadow-card dark:bg-[#1f1c18] dark:border-[#2e2924]">
+                  <div className="flex items-center justify-between mb-4">
+                    <span className="font-mono text-xs text-primary uppercase tracking-widest font-black">
+                      Knowledge Check: Question {currentQuizIndex + 1} of {lesson.quizzes!.length}
+                    </span>
+                    <span className="text-xs font-black text-accent bg-black text-white px-2 py-0.5 rounded-full dark:bg-[#2e2924]">
+                      {lesson.points || 15} XP
+                    </span>
+                  </div>
+
+                  <h3 className="text-lg font-black mb-4 text-text dark:text-[#f0ebe2]">
+                    {lesson.quizzes![currentQuizIndex].question}
+                  </h3>
+
+                  <div className="space-y-3">
+                    {lesson.quizzes![currentQuizIndex].options.map((option, idx) => {
+                      const isSelected = selectedOption === idx;
+                      return (
+                        <button
+                          key={idx}
+                          onClick={() => {
+                            if (quizFeedback !== "correct") {
+                              setSelectedOption(idx);
+                              setQuizFeedback(null);
+                            }
+                          }}
+                          disabled={quizFeedback === "correct"}
+                          className={`w-full text-left p-4 rounded-xl border-4 border-black font-bold text-sm transition-all flex items-center justify-between ${
+                            isSelected
+                              ? "bg-accent shadow-card-sm -translate-y-0.5"
+                              : "bg-surface hover:bg-surface-low dark:bg-[#151411]"
+                          }`}
+                        >
+                          <span>{option}</span>
+                          <div
+                            className={`w-4 h-4 rounded-full border-2 border-black flex items-center justify-center ${
+                              isSelected ? "bg-black" : ""
+                            }`}
+                          />
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {quizFeedback === "correct" && (
+                    <div className="mt-4 p-4 bg-green-50 text-green-800 border-4 border-green-600 rounded-xl font-bold text-sm">
+                      🎉 Correct! {lesson.quizzes![currentQuizIndex].explanation}
+                    </div>
+                  )}
+
+                  {quizFeedback === "incorrect" && (
+                    <div className="mt-4 p-4 bg-red-50 text-red-800 border-4 border-red-600 rounded-xl font-bold text-sm">
+                      ❌ Not quite. Try reviewing the lesson text or options again.
+                    </div>
+                  )}
+
+                  <div className="mt-6 flex justify-end">
+                    {quizFeedback === "correct" ? (
+                      currentQuizIndex < lesson.quizzes!.length - 1 ? (
+                        <button
+                          onClick={handleNextQuizQuestion}
+                          className="px-5 py-2.5 bg-accent text-black font-black text-sm rounded-xl border-4 border-black shadow-card-sm hover:-translate-y-0.5 transition-all cursor-pointer"
+                        >
+                          Next Question
+                        </button>
+                      ) : (
+                        <div className="text-green-700 font-black flex items-center gap-2 bg-green-100 p-2.5 rounded-xl border-2 border-green-700">
+                          🏆 Course module completed! +{lesson.points || 15} XP
+                        </div>
+                      )
+                    ) : (
+                      <button
+                        onClick={handleQuizOptionCheck}
+                        disabled={selectedOption === null}
+                        className="px-5 py-2.5 bg-primary text-white font-black text-sm rounded-xl border-4 border-black shadow-card-sm hover:-translate-y-0.5 disabled:opacity-50 transition-all cursor-pointer"
+                      >
+                        Submit Answer
+                      </button>
+                    )}
+                  </div>
+                </div>
+              ) : (
+                // TERMINAL INTERACTIVE COMMAND MODE
+                <div className="rounded-3xl border-4 border-black bg-surface-low p-6 shadow-card dark:bg-[#1f1c18] dark:border-[#2e2924]">
+                  <h3 className="text-xl font-black mb-4 flex items-center gap-2 text-text dark:text-[#f0ebe2]">
+                    <span>💻</span> Sandbox terminal check
+                  </h3>
+                  
+                  <GitGraph state={repoState} />
+
+                  <p className="text-xs text-muted mb-4 dark:text-[#c4bbae]">
+                    Solve the drill by executing the appropriate git command below:
+                  </p>
+
+                  <form onSubmit={handleCommandSubmit} className="space-y-4">
+                    <div className="flex items-center gap-2">
+                      <span className="font-mono text-primary font-black">$</span>
+                      <input
+                        className="flex-1 rounded-xl border-4 border-black bg-surface-lowest px-4 py-2.5 text-text font-bold outline-none placeholder:text-muted/40 dark:bg-[#151411] dark:border-[#2e2924]"
+                        placeholder="Type your git command here"
+                        value={input}
+                        onChange={(e) => setInput(e.target.value)}
+                        disabled={feedback === "correct"}
+                        autoFocus
+                      />
+                      <button
+                        type="submit"
+                        className="px-5 py-2.5 bg-primary text-white font-black text-sm rounded-xl border-4 border-black shadow-card-sm hover:-translate-y-0.5 disabled:opacity-50 transition-all cursor-pointer"
+                        disabled={feedback === "correct" || !input.trim()}
+                      >
+                        Run
+                      </button>
+                    </div>
+
+                    {terminalOutput && (
+                       <pre className="p-4 bg-[#151411] text-[#f0ebe2] font-mono text-xs rounded-xl border-4 border-black whitespace-pre-wrap overflow-x-auto shadow-inner">
+                         {terminalOutput}
+                       </pre>
+                    )}
+
+                    {feedback === "correct" && (
+                      <div className="text-green-700 font-bold bg-green-50 p-4 rounded-xl border-4 border-green-600 animate-bounce">
+                        ✅ Correct! Progress synchronized to the Atelier server.
+                      </div>
+                    )}
+
+                    {feedback === "error" && (
+                      <div className="text-red-700 font-bold bg-red-50 p-4 rounded-xl border-4 border-red-600">
+                        ❌ Not quite. Command output did not match sandbox expectations.
+                      </div>
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={() => setShowHint(!showHint)}
+                      className="text-xs underline text-muted font-black dark:text-[#c4bbae] block"
+                    >
+                      {showHint ? "Hide Hints" : "Need a hint?"}
+                    </button>
+
+                    {showHint && (
+                      <div className="p-4 bg-white rounded-xl border-4 border-black italic text-xs font-bold dark:bg-[#151411] dark:border-[#2e2924] shadow-card-sm">
+                        💡 {lesson.hint}
+                      </div>
+                    )}
+                  </form>
+                </div>
+              )}
+            </div>
+
+            {/* Course Navigation Footer */}
+            <div className="flex items-center justify-between pt-10 pb-12">
+              {previousLesson ? (
+                <Link
+                  to={`/lessons/${previousLesson.slug}`}
+                  className="flex items-center gap-1 font-black text-sm uppercase px-4 py-2 bg-white border-4 border-black rounded-xl shadow-card-sm hover:-translate-y-0.5 transition-all"
+                >
+                  <ChevronLeft size={16} />
+                  Prev: {previousLesson.title}
+                </Link>
+              ) : (
+                <div />
+              )}
+
+              {nextLesson ? (
+                <Link
+                  to={`/lessons/${nextLesson.slug}`}
+                  className={`flex items-center gap-1 font-black text-sm uppercase px-4 py-2 border-4 border-black rounded-xl shadow-card-sm hover:-translate-y-0.5 transition-all ${
+                    isCompleted
+                      ? "bg-accent text-black"
+                      : "bg-[#e2e8f0] text-black/50 border-black/35 cursor-not-allowed opacity-75"
+                  }`}
+                  onClick={(e) => {
+                    if (!isCompleted) {
+                      e.preventDefault();
+                      alert("Complete the current lesson first to unlock the next module!");
+                    }
+                  }}
+                >
+                  Next: {nextLesson.title}
+                  {isCompleted ? <ChevronRight size={16} /> : <Lock size={14} className="ml-1" />}
+                </Link>
+              ) : (
+                <Link
+                  to="/dashboard"
+                  className="flex items-center gap-1 font-black text-sm uppercase px-4 py-2 bg-green-500 text-white border-4 border-black rounded-xl shadow-card-sm hover:-translate-y-0.5 transition-all"
+                >
+                  Graduate to Dashboard 🎓
+                </Link>
+              )}
+            </div>
           </div>
-        )}
+        </div>
 
-        {feedback === "error" && (
-          <div className="text-red-700 font-bold bg-red-50 p-3 rounded-xl border-2 border-red-700">
-            ❌ Not quite. Command didn't match requirements.
-          </div>
-        )}
-
-        <button
-          type="button"
-          onClick={() => setShowHint(!showHint)}
-          className="text-sm underline text-muted font-bold"
-        >
-          {showHint ? "Hide Hint" : "Show Hint?"}
-        </button>
-
-        {showHint && (
-          <div className="p-3 bg-surface-low rounded-xl border-2 border-black italic text-sm">
-            💡 {lesson.hint}
-          </div>
-        )}
-      </form>
-
-      <div className="flex justify-end">
-        <button
-          type="button"
-          onClick={() => {
-            setIsHelpPanelOpen(true);
-            setHelpSuccessMessage("");
-          }}
-          className="px-4 py-2 bg-white text-text font-bold rounded-xl border-4 border-black shadow-card hover:bg-surface-low"
-        >
-          Request help
-        </button>
+        {/* Mentor Help Trigger Row */}
+        <div className="border-t-4 border-black p-4 bg-white dark:bg-[#151411] dark:border-[#2e2924] flex justify-end flex-shrink-0">
+          <button
+            onClick={() => {
+              setIsHelpPanelOpen(true);
+              setHelpSuccessMessage("");
+            }}
+            className="px-4 py-2 bg-white text-text dark:bg-[#151411] dark:text-[#f0ebe2] font-black text-xs rounded-xl border-4 border-black shadow-card-sm hover:-translate-y-0.5 cursor-pointer"
+          >
+            Request Mentor Support 📬
+          </button>
+        </div>
       </div>
 
+      {/* Help support request Panel */}
       {isHelpPanelOpen && (
         <div className="fixed inset-0 z-50 flex justify-end bg-black/40">
           <button
@@ -325,47 +609,44 @@ export function LessonPage() {
             className="flex-1 cursor-default"
             onClick={() => setIsHelpPanelOpen(false)}
           />
-          <aside className="h-full w-full max-w-md bg-surface-lowest border-l-4 border-black p-6 shadow-card space-y-4">
+          <aside className="h-full w-full max-w-md bg-surface-lowest border-l-4 border-black p-6 shadow-card space-y-4 dark:bg-[#0f0e0c] dark:border-[#2e2924]">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h2 className="text-2xl font-black">
-                  Need help on this lesson?
-                </h2>
-                <p className="text-sm text-muted mt-1">
-                  Send context to mentors and we&apos;ll add it to the community
-                  support queue.
+                <h2 className="text-2xl font-black">Need assistance on this issue?</h2>
+                <p className="text-xs text-muted mt-1 dark:text-[#c4bbae]">
+                  Submit details to core maintainers, and we&apos;ll look at your local repo staging problems.
                 </p>
               </div>
               <button
                 type="button"
                 onClick={() => setIsHelpPanelOpen(false)}
-                className="text-sm font-bold underline"
+                className="text-xs font-black underline"
               >
                 Close
               </button>
             </div>
 
             <form className="space-y-3" onSubmit={handleHelpRequestSubmit}>
-              <label htmlFor="help-message" className="block text-sm font-bold">
-                What are you stuck on?
+              <label htmlFor="help-message" className="block text-xs font-black">
+                Describe the conflict or checkout issue:
               </label>
               <textarea
                 id="help-message"
-                className="w-full rounded-xl border-4 border-black bg-white px-3 py-2 text-sm outline-none min-h-36"
-                placeholder="Example: I keep getting a pathspec error when I run git checkout."
+                className="w-full rounded-xl border-4 border-black bg-white px-3 py-2 text-xs outline-none min-h-36 dark:bg-[#151411] dark:border-[#2e2924]"
+                placeholder="Example: I'm stuck trying to stage feat/add-readme-badges, git status throws pathspec errors."
                 value={helpMessage}
                 onChange={(e) => setHelpMessage(e.target.value)}
                 disabled={helpRequestMutation.isPending}
               />
 
               {helpRequestMutation.isError && (
-                <div className="text-red-700 text-sm font-bold bg-red-50 p-2 rounded-lg border-2 border-red-700">
-                  Couldn&apos;t submit your request. Please try again.
+                <div className="text-red-700 text-xs font-black bg-red-50 p-2 rounded-lg border-2 border-red-700">
+                  Couldn&apos;t submit request. Re-run backend server checks.
                 </div>
               )}
 
               {helpSuccessMessage && (
-                <div className="text-green-700 text-sm font-bold bg-green-50 p-2 rounded-lg border-2 border-green-700">
+                <div className="text-green-700 text-xs font-black bg-green-50 p-2 rounded-lg border-2 border-green-700">
                   {helpSuccessMessage}
                 </div>
               )}
@@ -375,24 +656,12 @@ export function LessonPage() {
                 className="w-full px-4 py-2 bg-primary text-white font-bold rounded-xl border-4 border-black shadow-gel hover:bg-[#E62814] disabled:opacity-60"
                 disabled={!helpMessage.trim() || helpRequestMutation.isPending}
               >
-                {helpRequestMutation.isPending
-                  ? "Submitting..."
-                  : "Submit help request"}
+                {helpRequestMutation.isPending ? "Connecting..." : "Submit to cohort queue"}
               </button>
             </form>
           </aside>
         </div>
       )}
-
-      <div className="mt-8 rounded-3xl border-4 border-black bg-white p-6 shadow-card">
-        <h2 className="text-2xl font-black mb-3">Contribution Checklist</h2>
-        <ul className="list-disc list-inside text-sm space-y-1">
-          <li>Read the issue carefully and confirm scope before coding.</li>
-          <li>Create a focused branch and keep commits atomic.</li>
-          <li>Run tests and mention results in your pull request.</li>
-          <li>Respond to review feedback with clear updates.</li>
-        </ul>
-      </div>
     </div>
   );
 }

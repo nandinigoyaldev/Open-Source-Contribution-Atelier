@@ -1,4 +1,7 @@
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api";
+import { queueProgressSync } from "./offlineQueue";
+
+const API_BASE =
+  import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api";
 
 type RequestOptions = RequestInit & {
   requireAuth?: boolean;
@@ -17,15 +20,47 @@ export async function fetchApi(endpoint: string, options: RequestOptions = {}) {
     }
   }
 
-  const response = await fetch(`${API_BASE}${endpoint}`, {
-    ...config,
-    headers,
-  });
+  try {
+    const response = await fetch(`${API_BASE}${endpoint}`, {
+      ...config,
+      headers,
+    });
 
-  if (!response.ok) {
-    const errorBody = await response.json().catch(() => ({}));
-    throw new Error(errorBody.detail || "An error occurred");
+    if (!response.ok) {
+      const errorBody = await response.json().catch(() => ({}));
+      throw new Error(errorBody.detail || "An error occurred");
+    }
+
+    return response.json().catch(() => ({}));
+  } catch (error) {
+    if (endpoint === "/progress/me/" && config.method === "POST") {
+      const isOfflineOrNetworkError = !navigator.onLine || error instanceof TypeError;
+      if (isOfflineOrNetworkError) {
+        const bodyStr = config.body as string;
+        try {
+          const bodyObj = JSON.parse(bodyStr || "{}");
+          const lesson_slug = bodyObj.lesson_slug;
+          if (lesson_slug) {
+            console.log(`[fetchApi] Offline/network error for ${lesson_slug}. Queuing for background sync.`);
+            await queueProgressSync({
+              lesson_slug,
+              score: bodyObj.score,
+              completed: bodyObj.completed,
+              headers: Object.fromEntries(headers.entries()),
+            });
+            // Return mock success response so callers (e.g. React Query mutation) succeed
+            return {
+              lesson_slug,
+              completed: bodyObj.completed ?? true,
+              score: bodyObj.score ?? 100,
+              status: "queued",
+            };
+          }
+        } catch (jsonErr) {
+          console.error("[fetchApi] Failed to parse body for offline queue:", jsonErr);
+        }
+      }
+    }
+    throw error;
   }
-
-  return response.json().catch(() => ({}));
 }

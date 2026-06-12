@@ -22,7 +22,8 @@ export function NotFoundPage() {
               This corridor doesn&apos;t exist.
             </h1>
             <p className="mt-4 text-muted text-lg">
-              The page you requested isn&apos;t in the atelier. Let&apos;s get you back to the home base.
+              The page you requested isn&apos;t in the atelier. Let&apos;s get
+              you back to the home base.
             </p>
 
             <div className="mt-8 flex flex-wrap items-center gap-4">

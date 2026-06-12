@@ -65,7 +65,6 @@ const ContributorProfileCard: React.FC<Props> = ({
 
   return (
     <article className="w-80 rounded-2xl bg-white shadow-lg border hover:shadow-xl transition">
-
       {/* HEADER */}
       <div className="h-24 bg-gradient-to-r from-blue-600 to-purple-600"></div>
 
@@ -86,7 +85,6 @@ const ContributorProfileCard: React.FC<Props> = ({
 
       {/* BODY */}
       <div className="p-4 text-center">
-
         <h2 className="text-lg font-bold">{name}</h2>
 
         <p className={`text-sm ${rankInfo.colour}`}>{displayRank}</p>
@@ -120,12 +118,8 @@ const ContributorProfileCard: React.FC<Props> = ({
         </div>
 
         {/* MODULES */}
-        <p className="mt-3 text-sm">
-          Modules Completed: {modulesCompleted}
-        </p>
-
+        <p className="mt-3 text-sm">Modules Completed: {modulesCompleted}</p>
       </div>
-
     </article>
   );
 };
