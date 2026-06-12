@@ -14,11 +14,9 @@ describe("LandingPage", () => {
             <LandingPage />
           </MemoryRouter>
         </AuthProvider>
-      </GoogleOAuthProvider>
+      </GoogleOAuthProvider>,
     );
 
-    expect(
-      screen.getByText(/Enter the Sandbox./i)
-    ).toBeInTheDocument();
+    expect(screen.getByText(/Enter the Sandbox./i)).toBeInTheDocument();
   });
 });

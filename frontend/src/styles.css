@@ -46,7 +46,7 @@ button {
 
 button:active {
   transform: translate(2px, 2px) !important;
-  box-shadow: 2px 2px 0px 0px rgba(0,0,0,1) !important;
+  box-shadow: 2px 2px 0px 0px rgba(0, 0, 0, 1) !important;
 }
 
 button,

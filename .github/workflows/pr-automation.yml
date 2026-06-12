@@ -1,0 +1,78 @@
+name: PR Automation
+
+on:
+  workflow_dispatch:
+
+jobs:
+  pr-automation:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Auto-label PR and Welcome Comment
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const prNumber = pr.number;
+            const repoOwner = context.repo.owner;
+            const repoName = context.repo.repo;
+            
+            // 1. Add default 'ssoc26' label
+            let labelsToAdd = ['ssoc26'];
+            
+            // 2. Parse PR body for linked issues
+            // Matches "Fixes #123", "Closes #123", "Resolves #123" (case-insensitive)
+            const issueRegex = /(?:fixes|closes|resolves)\s+#(\d+)/gi;
+            const body = pr.body || '';
+            let match;
+            let issueNumbers = [];
+            
+            while ((match = issueRegex.exec(body)) !== null) {
+              issueNumbers.push(parseInt(match[1], 10));
+            }
+            
+            // 3. Fetch tags from linked issues
+            for (const issueNumber of issueNumbers) {
+              try {
+                const issueInfo = await github.rest.issues.get({
+                  owner: repoOwner,
+                  repo: repoName,
+                  issue_number: issueNumber
+                });
+                
+                const issueLabels = issueInfo.data.labels.map(l => l.name.toLowerCase());
+                
+                // Add difficulty tags if present
+                for (const diff of ['easy', 'medium', 'hard']) {
+                  if (issueLabels.includes(diff)) {
+                    labelsToAdd.push(diff);
+                  }
+                }
+              } catch (e) {
+                console.log(`Could not fetch issue #${issueNumber}: ${e.message}`);
+              }
+            }
+            
+            // Remove duplicates
+            labelsToAdd = [...new Set(labelsToAdd)];
+            
+            // Add labels to PR
+            if (labelsToAdd.length > 0) {
+              await github.rest.issues.addLabels({
+                owner: repoOwner,
+                repo: repoName,
+                issue_number: prNumber,
+                labels: labelsToAdd
+              });
+            }
+            
+            // 4. Welcome comment (only on 'opened' to avoid spamming on edit)
+            if (context.payload.action === 'opened') {
+              const welcomeMessage = `Hi @${pr.user.login}! 👋\n\nThank you for your pull request and for contributing to this project under SSOC26!\n\nA maintainer will review your code shortly. In the meantime, please ensure your PR follows our [Contributing Guidelines](https://github.com/${repoOwner}/${repoName}/blob/main/CONTRIBUTING.md).\n\nIf you haven't already, please make sure your PR description includes \`Fixes #ISSUE_NUMBER\` so we can automatically link it to the issue you are solving!\n\nHappy coding! 🚀`;
+              
+              await github.rest.issues.createComment({
+                owner: repoOwner,
+                repo: repoName,
+                issue_number: prNumber,
+                body: welcomeMessage
+              });
+            }

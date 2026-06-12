@@ -1,0 +1,75 @@
+- name: "good first issue"
+  color: "70ffb2" # Neon Mint
+  description: "Beginner-friendly tasks, perfect for first-time contributors."
+
+- name: "easy"
+  color: "a0ffd0" # Light Mint
+  description: "Low complexity issues requiring minimal context."
+
+- name: "medium"
+  color: "ffea70" # Neon Yellow
+  description: "Moderate complexity issues requiring standard dev setup."
+
+- name: "hard"
+  color: "ff8c70" # Neon Red/Orange
+  description: "High complexity issues with architectural changes or core modules."
+
+- name: "bug"
+  color: "ff5555" # Red
+  description: "Something is broken in the client, server, or database."
+
+- name: "enhancement"
+  color: "c3c0ff" # Lavender
+  description: "Improvements or extensions to existing features."
+
+- name: "feature"
+  color: "8ae2ff" # Sky Blue
+  description: "New components, lessons, sandbox drills, or pathways."
+
+- name: "documentation"
+  color: "fcd3de" # Pastel Pink
+  description: "Improvements or additions to README, setup docs, or guide outlines."
+
+- name: "accessibility"
+  color: "bf55ec" # Purple
+  description: "Screen reader, keyboard navigation, contrast, or aria standards."
+
+- name: "performance"
+  color: "55ff55" # Light Green
+  description: "Caching optimizations, query optimizations, or load time fixes."
+
+- name: "testing"
+  color: "ffd085" # Soft Orange
+  description: "Adding unit, integration, or visual regression test coverage."
+
+- name: "ui/ux"
+  color: "ff85ff" # Pink/Magenta
+  description: "Micro-animations, layout responsiveness, neobrutalist styling fixes."
+
+- name: "authentication"
+  color: "ffc5c5" # Soft Red
+  description: "Signups, logins, JWT refreshes, or OAuth callbacks."
+
+- name: "deployment"
+  color: "d2d7d9" # Grey
+  description: "CI/CD pipelines, Docker container settings, or Render configs."
+
+- name: "help wanted"
+  color: "008672" # Teal
+  description: "Extra review needed or seeking community assistance."
+
+- name: "discussion needed"
+  color: "1d76db" # Blue
+  description: "Design decision or maintainer alignment required."
+
+- name: "priority-low"
+  color: "e0e0e0" # Light Grey
+  description: "Nice-to-have items with no immediate impact."
+
+- name: "priority-medium"
+  color: "ffaa00" # Orange
+  description: "Standard issues to be triaged for the current release."
+
+- name: "priority-high"
+  color: "d93f0b" # Deep Orange/Red
+  description: "Critical blocks or active bugs affecting cohort users."

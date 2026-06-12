@@ -1,7 +1,6 @@
 import { Outlet } from "react-router-dom";
 import { Navigation } from "./Navigation";
 
-
 export function AppLayout() {
   return (
     <div className="min-h-screen bg-surface text-text dark:bg-transparent dark:text-[#f0ebe2]">
