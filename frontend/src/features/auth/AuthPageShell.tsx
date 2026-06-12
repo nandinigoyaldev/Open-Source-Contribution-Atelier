@@ -7,19 +7,41 @@ type AuthPageShellProps = {
   children: React.ReactNode;
 };
 
-export function AuthPageShell({ title, subtitle, mode, children }: AuthPageShellProps) {
-  const highlightBox1 = mode === "login" 
-    ? { title: "Wait, you're back?", text: "We all know you're just here to procrastinate on your real homework.", color: "bg-tertiary" }
-    : { title: "Study like your life depends on it 💀", text: "Because it probably does. Let's get you set up.", color: "bg-tertiary" };
-    
-  const highlightBox2 = mode === "login"
-    ? { title: "Brain power 🧠", text: "Cramming 5 mins before the exam? We got you. Probably.", color: "bg-primary" }
-    : { title: "Lessgooo 🚀", text: "Create an account so we can guilt-trip you into studying every day.", color: "bg-accent" };
+export function AuthPageShell({
+  title,
+  subtitle,
+  mode,
+  children,
+}: AuthPageShellProps) {
+  const highlightBox1 =
+    mode === "login"
+      ? {
+          title: "Wait, you're back?",
+          text: "We all know you're just here to procrastinate on your real homework.",
+          color: "bg-tertiary",
+        }
+      : {
+          title: "Study like your life depends on it 💀",
+          text: "Because it probably does. Let's get you set up.",
+          color: "bg-tertiary",
+        };
+
+  const highlightBox2 =
+    mode === "login"
+      ? {
+          title: "Brain power 🧠",
+          text: "Cramming 5 mins before the exam? We got you. Probably.",
+          color: "bg-primary",
+        }
+      : {
+          title: "Lessgooo 🚀",
+          text: "Create an account so we can guilt-trip you into studying every day.",
+          color: "bg-accent",
+        };
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 sm:p-8 font-display bg-surface text-text overflow-hidden">
       <div className="mx-auto flex w-full max-w-6xl flex-col lg:flex-row gap-12 lg:gap-16 items-center relative z-10 py-12">
-        
         {/* LEFT SIDE: Description */}
         <div className="flex-1 flex flex-col justify-center py-6 order-2 lg:order-1">
           <div className="inline-block mb-6">
@@ -27,7 +49,7 @@ export function AuthPageShell({ title, subtitle, mode, children }: AuthPageShell
               {mode} MODE ACTIVATED 🔥
             </span>
           </div>
-          
+
           <h1 className="text-5xl lg:text-[5.5rem] font-black tracking-tight text-black mb-8 leading-[1.05] drop-shadow-[5px_5px_0_rgba(0,0,0,1)]">
             {title}
           </h1>
@@ -36,13 +58,25 @@ export function AuthPageShell({ title, subtitle, mode, children }: AuthPageShell
           </p>
 
           <div className="flex flex-col sm:flex-row gap-6 mt-auto max-w-xl">
-            <div className={`flex-1 rounded-2xl border-4 border-black ${highlightBox1.color} p-6 shadow-card hover:-translate-y-2 hover:shadow-card-lg transition-all`}>
-              <h3 className="font-black text-black text-xl mb-3">{highlightBox1.title}</h3>
-              <p className="text-black font-medium leading-relaxed">{highlightBox1.text}</p>
+            <div
+              className={`flex-1 rounded-2xl border-4 border-black ${highlightBox1.color} p-6 shadow-card hover:-translate-y-2 hover:shadow-card-lg transition-all`}
+            >
+              <h3 className="font-black text-black text-xl mb-3">
+                {highlightBox1.title}
+              </h3>
+              <p className="text-black font-medium leading-relaxed">
+                {highlightBox1.text}
+              </p>
             </div>
-            <div className={`flex-1 rounded-2xl border-4 border-black ${highlightBox2.color} p-6 shadow-card hover:-translate-y-2 hover:shadow-card-lg transition-all`}>
-              <h3 className="font-black text-black text-xl mb-3">{highlightBox2.title}</h3>
-              <p className="text-black font-medium leading-relaxed">{highlightBox2.text}</p>
+            <div
+              className={`flex-1 rounded-2xl border-4 border-black ${highlightBox2.color} p-6 shadow-card hover:-translate-y-2 hover:shadow-card-lg transition-all`}
+            >
+              <h3 className="font-black text-black text-xl mb-3">
+                {highlightBox2.title}
+              </h3>
+              <p className="text-black font-medium leading-relaxed">
+                {highlightBox2.text}
+              </p>
             </div>
           </div>
         </div>
@@ -55,7 +89,6 @@ export function AuthPageShell({ title, subtitle, mode, children }: AuthPageShell
             {children}
           </div>
         </div>
-
       </div>
     </div>
   );
