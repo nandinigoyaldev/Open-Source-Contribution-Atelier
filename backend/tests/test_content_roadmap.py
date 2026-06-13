@@ -4,9 +4,16 @@ from rest_framework.test import APIClient
 
 from apps.content.models import Lesson, Exercise
 from apps.progress.models import LessonProgress
+from django.core.cache import cache
+
+@pytest.fixture(autouse=True)
+def clear_cache_before_tests():
+    cache.clear()
+    yield
+    cache.clear()
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 def test_roadmap_endpoint_for_anonymous_user():
     lesson = Lesson.objects.create(
         difficulty="beginner",
@@ -37,7 +44,7 @@ def test_roadmap_endpoint_for_anonymous_user():
     assert response.data["track"][0]["score"] == 0
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 def test_roadmap_endpoint_includes_user_progress():
     lesson = Lesson.objects.create(
         difficulty="beginner",
