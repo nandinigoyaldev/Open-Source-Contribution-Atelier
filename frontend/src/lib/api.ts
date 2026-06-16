@@ -1,7 +1,8 @@
 import { queueProgressSync } from "./offlineQueue";
 
 const API_BASE =
-  import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api";
+  import.meta.env.VITE_API_BASE_URL?.trim() ||
+  `${window.location.origin}/api`;
 
 type RequestOptions = RequestInit & {
   requireAuth?: boolean;
