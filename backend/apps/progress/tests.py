@@ -7,7 +7,7 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 from django.contrib.auth.models import User
 
-from .models import Certificate, LessonProgress
+from .models import Certificate, LessonProgress, QuizAttempt
 from apps.content.models import Lesson
 
 # ---------------------------------------------------------------------------
@@ -441,3 +441,87 @@ class RecommendationsTests(APITestCase):
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data), 0)
+
+
+# ---------------------------------------------------------------------------
+# QuizAttemptView  (authenticated – POST/GET /api/progress/quiz-attempts/)
+# ---------------------------------------------------------------------------
+
+class QuizAttemptTests(APITestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="learner", password="password123")
+        self.url = reverse("quiz-attempts")
+
+    def test_unauthenticated_returns_401(self):
+        response = self.client.post(self.url, {})
+        self.assertEqual(response.status_code, status.HTTP_401_UNAUTHORIZED)
+
+    def test_post_valid_data_creates_attempt(self):
+        self.client.force_authenticate(user=self.user)
+        data = {
+            "question_id": "q1",
+            "question_text": "What is 2+2?",
+            "selected_answer": "4",
+            "correct_answer": "4",
+            "is_correct": True,
+            "time_taken_seconds": 15
+        }
+        response = self.client.post(self.url, data)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertIn("id", response.data)
+        self.assertEqual(response.data["question_id"], "q1")
+        self.assertTrue(response.data["is_correct"])
+
+        # Verify DB
+        self.assertEqual(QuizAttempt.objects.count(), 1)
+        attempt = QuizAttempt.objects.first()
+        self.assertEqual(attempt.user, self.user)
+        self.assertEqual(attempt.question_id, "q1")
+
+    def test_post_missing_required_fields_returns_400(self):
+        self.client.force_authenticate(user=self.user)
+        # Missing question_id, selected_answer, correct_answer
+        data = {"is_correct": True}
+        response = self.client.post(self.url, data)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("question_id", response.data)
+        self.assertIn("selected_answer", response.data)
+        self.assertIn("correct_answer", response.data)
+        self.assertEqual(QuizAttempt.objects.count(), 0)
+
+    def test_get_quiz_attempts_list(self):
+        self.client.force_authenticate(user=self.user)
+        QuizAttempt.objects.create(
+            user=self.user, question_id="q1", question_text="q1",
+            selected_answer="a", correct_answer="a", is_correct=True
+        )
+        QuizAttempt.objects.create(
+            user=self.user, question_id="q2", question_text="q2",
+            selected_answer="b", correct_answer="c", is_correct=False
+        )
+
+        response = self.client.get(self.url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["total_attempts"], 2)
+        self.assertEqual(response.data["correct"], 1)
+        self.assertEqual(response.data["incorrect"], 1)
+        self.assertEqual(response.data["accuracy_percent"], 50.0)
+        self.assertEqual(len(response.data["attempts"]), 2)
+
+    def test_get_quiz_attempts_filter_by_question_id(self):
+        self.client.force_authenticate(user=self.user)
+        QuizAttempt.objects.create(
+            user=self.user, question_id="q1", question_text="q1",
+            selected_answer="a", correct_answer="a", is_correct=True
+        )
+        QuizAttempt.objects.create(
+            user=self.user, question_id="q2", question_text="q2",
+            selected_answer="b", correct_answer="c", is_correct=False
+        )
+
+        response = self.client.get(f"{self.url}?question_id=q1")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(response.data["total_attempts"], 1)
+        self.assertEqual(len(response.data["attempts"]), 1)
+        self.assertEqual(response.data["attempts"][0]["question_id"], "q1")
+

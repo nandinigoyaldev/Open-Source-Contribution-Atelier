@@ -15,7 +15,7 @@ from .models import (
 )
 from apps.content.models import Lesson
 from apps.content.serializers import LessonSerializer
-from .serializers import BadgeSerializer, HelpRequestSerializer, LessonProgressSerializer, LessonProgressCreateSerializer, CertificateVerificationSerializer
+from .serializers import BadgeSerializer, HelpRequestSerializer, LessonProgressSerializer, LessonProgressCreateSerializer, CertificateVerificationSerializer, QuizAttemptSerializer
 from drf_spectacular.utils import extend_schema, extend_schema_view, OpenApiResponse
 from .throttles import HelpRequestRateThrottle
 from django.shortcuts import get_object_or_404
@@ -265,45 +265,19 @@ class QuizAttemptView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request):
-        question_id = request.data.get("question_id")
-        question_text = request.data.get("question_text", "")
-        selected_answer = request.data.get("selected_answer")
-        correct_answer = request.data.get("correct_answer")
-        is_correct = request.data.get("is_correct", False)
-        time_taken_seconds = request.data.get("time_taken_seconds", 0)
-
-        if not question_id:
-            return Response(
-                {"error": "question_id is required"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        if selected_answer is None:
-            return Response(
-                {"error": "selected_answer is required"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        if correct_answer is None:
-            return Response(
-                {"error": "correct_answer is required"},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-
-        attempt = QuizAttempt.objects.create(
-            user=request.user,
-            question_id=question_id,
-            question_text=question_text,
-            selected_answer=selected_answer,
-            correct_answer=correct_answer,
-            is_correct=is_correct,
-            time_taken_seconds=time_taken_seconds,
-        )
-
-        return Response({
-            "id": attempt.id,
-            "question_id": attempt.question_id,
-            "is_correct": attempt.is_correct,
-            "created_at": attempt.created_at,
-        }, status=status.HTTP_201_CREATED)
+        serializer = QuizAttemptSerializer(data=request.data)
+        if serializer.is_valid():
+            attempt = serializer.save(user=request.user)
+            return Response({
+                "id": attempt.id,
+                "question_id": attempt.question_id,
+                "is_correct": attempt.is_correct,
+                "created_at": attempt.created_at,
+            }, status=status.HTTP_201_CREATED)
+        
+        # If there are field errors, extract the first one generically to match typical client expectations
+        # Or return all errors. DRF will return a dict like {"selected_answer": ["This field is required."]}
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
     def get(self, request):
         attempts = QuizAttempt.objects.filter(user=request.user)
@@ -321,11 +295,7 @@ class QuizAttemptView(APIView):
             "correct": correct,
             "incorrect": incorrect,
             "accuracy_percent": round((correct / total) * 100, 1) if total > 0 else 0,
-            "attempts": list(attempts.values(
-                "id", "question_id", "question_text",
-                "selected_answer", "correct_answer",
-                "is_correct", "time_taken_seconds", "created_at"
-            ))
+            "attempts": QuizAttemptSerializer(attempts, many=True).data
         })
 
 class CertificateVerificationThrottle(AnonRateThrottle):
