@@ -51,6 +51,39 @@ def test_signup_and_login_flow():
     assert login_response.status_code == 200
     assert "access" in login_response.data
 
+@pytest.mark.django_db
+def test_refresh_token_returns_valid_access_token():
+    client = APIClient()
+
+    User.objects.create_user(
+        username="refresh_user",
+        email="refresh@example.com",
+        password="StrongPass123!",
+    )
+
+    login_response = client.post(
+        "/api/auth/login/",
+        {
+            "username": "refresh_user",
+            "password": "StrongPass123!",
+        },
+        format="json",
+    )
+
+    assert login_response.status_code == 200
+    assert "refresh" in login_response.data
+
+    refresh_response = client.post(
+        "/api/auth/refresh/",
+        {"refresh": login_response.data["refresh"]},
+        format="json",
+    )
+
+    assert refresh_response.status_code == 200
+    assert "access" in refresh_response.data
+    assert isinstance(refresh_response.data["access"], str)
+    assert len(refresh_response.data["access"]) > 0
+    assert refresh_response.data["access"].strip() != ""
 
 @pytest.mark.django_db
 def test_signup_saves_email_as_lowercase():
