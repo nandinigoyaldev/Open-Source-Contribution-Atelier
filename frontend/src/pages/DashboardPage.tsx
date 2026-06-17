@@ -426,8 +426,8 @@ export function DashboardPage() {
                         data={issueStatusData}
                         cx="50%"
                         cy="50%"
-                        innerRadius={50}
-                        outerRadius={75}
+                        innerRadius="45%"
+                        outerRadius="70%"
                         paddingAngle={5}
                         dataKey="value"
                       >
@@ -652,8 +652,8 @@ export function DashboardPage() {
                     ]}
                     cx="50%"
                     cy="50%"
-                    innerRadius={55}
-                    outerRadius={75}
+                    innerRadius="50%"
+                    outerRadius="72%"
                     paddingAngle={3}
                     dataKey="value"
                   >
