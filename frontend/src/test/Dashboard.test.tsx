@@ -249,7 +249,7 @@ describe("DashboardPage Dual-Role Views", () => {
     expect(
       screen.getByText("Welcome to the Atelier, bob_coder."),
     ).toBeInTheDocument();
-    expect(screen.getByText(/completed.*course modules/)).toBeInTheDocument();
+    expect(screen.getByText(/completed.*lessons/)).toBeInTheDocument();
 
     // Assert streak, xp, rank, and merged PR cards
     expect(screen.getByText("Streak Days")).toBeInTheDocument();

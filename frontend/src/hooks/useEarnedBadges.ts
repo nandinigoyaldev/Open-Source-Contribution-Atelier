@@ -1,4 +1,4 @@
-import { useEffect, useState, useMemo } from "react";
+import { useMemo } from "react";
 import { useAuth } from "../features/auth/AuthContext";
 import { useQuery } from "@tanstack/react-query";
 import { fetchLessonsApi, Lesson } from "../lib/lessons";
@@ -15,20 +15,16 @@ export function useEarnedBadges() {
   const { user } = useAuth();
   const { isLessonCompleted } = useUserProgress();
 
-  const [curriculumData, setCurriculumData] = useState<CurriculumModule[]>([]);
-
-  useEffect(() => {
-    if (user && !user.is_staff) {
-      fetch("/content/curriculum.json")
-        .then((res) => res.json())
-        .then((data) => {
-          if (data && data.modules) {
-            setCurriculumData(data.modules);
-          }
-        })
-        .catch((err) => console.error("Error loading curriculum context:", err));
-    }
-  }, [user]);
+  const { data: curriculumData = [], isLoading: isCurriculumLoading } = useQuery<CurriculumModule[]>({
+    queryKey: ["curriculum"],
+    queryFn: async () => {
+      const res = await fetch("/content/curriculum.json");
+      if (!res.ok) throw new Error("Failed to fetch curriculum");
+      const data = await res.json();
+      return data.modules || [];
+    },
+    enabled: !!user && !user.is_staff,
+  });
 
   const { data: lessons = [], isLoading: isLessonsLoading } = useQuery<Lesson[]>({
     queryKey: ["lessons"],
@@ -78,6 +74,6 @@ export function useEarnedBadges() {
     ...progressMetrics,
     lessons,
     curriculumData,
-    isLessonsLoading
+    isLessonsLoading: isLessonsLoading || isCurriculumLoading
   };
 }
