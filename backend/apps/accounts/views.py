@@ -93,7 +93,7 @@ class MyBadgesView(APIView):
         earned_badges = (
             UserBadge.objects.filter(user=request.user)
             .select_related("badge")
-            .order_by("-earned_at", "badge__name")
+            .order_by("-earned_at")
         )
         progress_points = (
             LessonProgress.objects.filter(user=request.user).aggregate(total=Sum("score"))["total"] or 0
