@@ -20,6 +20,8 @@ export function SignupPage() {
   const [error, setError] = useState("");
   const { login } = useAuth();
 
+  const isFormValid = username.trim() !== "" && email.trim() !== "" && password.length >= 8;
+
   const handleGithubSignIn = () => {
     window.location.href = githubAuthUrl;
   };

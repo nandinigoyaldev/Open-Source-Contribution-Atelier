@@ -29,6 +29,7 @@ export default defineConfig({
     baseURL: "http://localhost:5173",
     /* Capture a screenshot on failure for easier debugging */
     screenshot: "only-on-failure",
+    video: "retain-on-failure",
     trace: "on-first-retry",
   },
 
