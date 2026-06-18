@@ -39,6 +39,7 @@ class LessonProgress(models.Model):
         indexes = [
             models.Index(fields=["user", "completed"], name="idx_progress_user_completed"),
             models.Index(fields=["user", "score"], name="idx_progress_user_score"),
+            models.Index(fields=["user", "-updated_at"], name="idx_progress_user_updated"),
         ]
 
 
@@ -48,6 +49,12 @@ class ExerciseAttempt(models.Model):
     submitted_command = models.CharField(max_length=255)
     is_correct = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["user", "exercise", "is_correct"], name="idx_ex_attempt_user_correct"),
+            models.Index(fields=["user", "-created_at"], name="idx_ex_attempt_user_time"),
+        ]
 
 
 class HelpRequest(models.Model):
@@ -61,6 +68,12 @@ class HelpRequest(models.Model):
     status = models.CharField(max_length=20, choices=Status.choices, default=Status.OPEN, db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["user", "status"], name="idx_help_req_user_status"),
+            models.Index(fields=["status", "-created_at"], name="idx_help_req_status_time"),
+        ]
 class QuizAttempt(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="quiz_attempts")
     question_id = models.CharField(max_length=255)
@@ -73,6 +86,9 @@ class QuizAttempt(models.Model):
 
     class Meta:
         ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["user", "is_correct"], name="idx_quiz_user_correct"),
+        ]
 
     def __str__(self):
         return f"{self.user.username} - {self.question_id} - {'✓' if self.is_correct else '✗'}"

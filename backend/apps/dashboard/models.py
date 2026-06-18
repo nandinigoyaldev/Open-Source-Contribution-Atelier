@@ -30,6 +30,12 @@ class Issue(models.Model):
     def __str__(self):
         return f"{self.title} ({self.get_status_display()})"
 
+    class Meta:
+        indexes = [
+            models.Index(fields=["assigned_to", "status"], name="idx_issue_assignee_status"),
+            models.Index(fields=["status", "-created_at"], name="idx_issue_status_time"),
+        ]
+
 
 class PullRequest(models.Model):
     class Status(models.TextChoices):
@@ -62,3 +68,10 @@ class PullRequest(models.Model):
 
     def __str__(self):
         return f"{self.title} ({self.get_status_display()})"
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["user", "status"], name="idx_pr_user_status"),
+            models.Index(fields=["issue", "status"], name="idx_pr_issue_status"),
+            models.Index(fields=["status", "-created_at"], name="idx_pr_status_time"),
+        ]

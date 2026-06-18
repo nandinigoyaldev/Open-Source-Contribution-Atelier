@@ -88,10 +88,18 @@ ASGI_APPLICATION = "config.asgi.application"
 DATABASES = {
     "default": dj_database_url.config(
         default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}",
+        conn_max_age=600,  # Prepares for PgBouncer connection pooling
+        conn_health_checks=True,
+    ),
+    "replica": dj_database_url.config(
+        env="REPLICA_DATABASE_URL",
+        default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}", # Falls back to local sqlite in dev
         conn_max_age=600,
         conn_health_checks=True,
     )
 }
+
+DATABASE_ROUTERS = ['config.db_router.PrimaryReplicaRouter']
 
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
