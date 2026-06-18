@@ -4,7 +4,7 @@ on:
   schedule:
     # Run at 00:00 UTC every Sunday
     - cron: '0 0 * * 0'
-  workflow_dispatch: # Allow manual triggering
+  workflow_dispatch:
 
 jobs:
   link-checker:
@@ -15,19 +15,27 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Run Lychee Link Checker
-        id: lychee
-        uses: lycheeverse/lychee-action@v2
+      - name: Set up Python
+        uses: actions/setup-python@v4
         with:
-          args: --config lychee.toml --verbose --no-progress "frontend/public/content/**/*.md"
-          fail: false # Do not fail the workflow on the scheduled run
+          python-version: '3.11'
+
+      - name: Install Dependencies
+        run: |
+          pip install -r scripts/link_checker/requirements.txt
+
+      - name: Run Custom Async Link Checker
+        id: link_check
+        run: |
+          python scripts/link_checker/checker.py frontend/public/content/
+        continue-on-error: true # Do not fail the workflow on the scheduled run so we can generate the issue
 
       - name: Create GitHub Issue for Broken Links
-        if: steps.lychee.outputs.exit_code != 0
+        if: steps.link_check.outcome == 'failure'
         uses: peter-evans/create-issue-from-file@v5
         with:
           title: "🚨 Scheduled Link Audit: Broken Links Detected in Curriculum"
-          content-filepath: ./lychee/out.md
+          content-filepath: ./link_audit_report.md
           labels: |
             bug
             documentation

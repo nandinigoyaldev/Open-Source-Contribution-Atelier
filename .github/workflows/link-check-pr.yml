@@ -1,4 +1,4 @@
-name: CI - Link Checker (PR)
+name: CI - Async Link Checker (PR)
 
 on:
   pull_request:
@@ -16,16 +16,22 @@ jobs:
         with:
           fetch-depth: 0 # Needed to fetch all history for git diff
 
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Install Dependencies
+        run: |
+          pip install -r scripts/link_checker/requirements.txt
+
       - name: Get changed Markdown files
         id: changed-files
         uses: tj-actions/changed-files@v42
         with:
           files: frontend/public/content/**/*.md
 
-      - name: Run Lychee on changed files
+      - name: Run Custom Async Link Checker
         if: steps.changed-files.outputs.any_changed == 'true'
-        uses: lycheeverse/lychee-action@v2
-        with:
-          # Only pass the exact files that changed
-          args: --config lychee.toml --verbose --no-progress ${{ steps.changed-files.outputs.all_changed_files }}
-          fail: true
+        run: |
+          python scripts/link_checker/checker.py ${{ steps.changed-files.outputs.all_changed_files }}
