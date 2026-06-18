@@ -546,7 +546,14 @@ export function LessonPage() {
                 </div>
               ) : (
                 // TERMINAL INTERACTIVE COMMAND MODE
-                <div className="rounded-3xl border-4 border-black bg-surface-low p-6 shadow-card dark:bg-[#1f1c18] dark:border-[#2e2924]">
+                <div
+                  className={`rounded-3xl border-4 bg-surface-low p-6 shadow-card dark:bg-[#1f1c18] dark:border-[#2e2924]
+                    ${
+                      feedback === "error"
+                        ? "border-red-600 shake-error"
+                        : "border-black"
+                    }`}
+                >
                   <h3 className="text-xl font-black mb-4 flex items-center gap-2 text-text dark:text-[#f0ebe2]">
                     <span>💻</span> Sandbox terminal check
                   </h3>
