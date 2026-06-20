@@ -1,13 +1,13 @@
-import React from 'react';
-import { ORGS } from '../lib/organizations';
+import React from "react";
+import { ORGS } from "../lib/organizations";
 
 const OrganizationsGrid: React.FC = () => {
   return (
-    <section aria-labelledby="orgs-heading" className="mb-6">
-      <h3 id="orgs-heading" className="text-xs font-black uppercase tracking-wider text-muted mb-3 text-center">
-        Supported Orgs
+    <section aria-labelledby="orgs-heading" className="mt-8">
+      <h3 id="orgs-heading" className="text-lg font-semibold mb-4">
+        Open-source organizations
       </h3>
-      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 w-full">
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
         {ORGS.map((slug) => (
           <a
             key={slug}

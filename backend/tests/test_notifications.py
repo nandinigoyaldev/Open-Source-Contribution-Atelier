@@ -97,13 +97,15 @@ def test_lesson_completed_broadcasts_to_leaderboard_channel(db, user_a):
             score=100,
         )
 
-        mock_layer.group_send.assert_called_once()
-        call_args = mock_layer.group_send.call_args
-        assert call_args[0][0] == "leaderboard_updates"
-        payload = call_args[0][1]
-        assert payload["type"] == "leaderboard_update"
-        assert payload["event"] == "xp_update"
-        assert payload["user_id"] == user_a.id
-        assert payload["username"] == user_a.username
-        assert payload["xp"] >= 0
+        mock_layer.group_send.assert_called_once_with(
+            "leaderboard",
+            {
+                "type": "leaderboard_update",
+                "event": "xp_update",
+                "user_id": user_a.id,
+                "username": user_a.username,
+                "xp": 100,
+                "message": f"User {user_a.username} completed lesson {lesson.title}",
+            },
+        )
 

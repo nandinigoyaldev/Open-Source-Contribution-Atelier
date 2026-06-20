@@ -84,11 +84,15 @@ async function syncProgressQueue() {
         return;
       }
 
-      console.log(`[ServiceWorker] Found ${actions.length} pending actions to sync.`);
+      console.log(
+        `[ServiceWorker] Found ${actions.length} pending actions to sync.`,
+      );
 
       for (const action of actions) {
         try {
-          console.log(`[ServiceWorker] Replaying action: ${action.id} to ${action.url}`);
+          console.log(
+            `[ServiceWorker] Replaying action: ${action.id} to ${action.url}`,
+          );
           const response = await fetch(action.url, {
             method: action.method,
             headers: action.headers,
@@ -96,8 +100,14 @@ async function syncProgressQueue() {
           });
 
           // 200, 201 are success. 400 or 409 means bad request / already completed, so discard.
-          if (response.ok || response.status === 400 || response.status === 409) {
-            console.log(`[ServiceWorker] Action ${action.id} synced successfully (Status: ${response.status})`);
+          if (
+            response.ok ||
+            response.status === 400 ||
+            response.status === 409
+          ) {
+            console.log(
+              `[ServiceWorker] Action ${action.id} synced successfully (Status: ${response.status})`,
+            );
 
             // Delete from IndexedDB
             await deleteFromStore(db, action.id);
@@ -114,10 +124,15 @@ async function syncProgressQueue() {
               lesson_slug: bodyObj.lesson_slug,
             });
           } else {
-            console.warn(`[ServiceWorker] Action ${action.id} sync failed (Status: ${response.status}). Retrying later.`);
+            console.warn(
+              `[ServiceWorker] Action ${action.id} sync failed (Status: ${response.status}). Retrying later.`,
+            );
           }
         } catch (err) {
-          console.error(`[ServiceWorker] Fetch error for action ${action.id}:`, err);
+          console.error(
+            `[ServiceWorker] Fetch error for action ${action.id}:`,
+            err,
+          );
           // Keep in queue and resolve to try again later on network error
         }
       }
@@ -125,7 +140,10 @@ async function syncProgressQueue() {
     };
 
     request.onerror = () => {
-      console.error("[ServiceWorker] Failed to read IndexedDB store:", request.error);
+      console.error(
+        "[ServiceWorker] Failed to read IndexedDB store:",
+        request.error,
+      );
       reject(request.error);
     };
   });

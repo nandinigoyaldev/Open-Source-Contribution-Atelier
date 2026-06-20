@@ -32,12 +32,20 @@ class SignupSerializer(serializers.ModelSerializer):
         model = User
         fields = ("id", "username", "email", "password")
 
+    def validate_email(self, value):
+        """Reject signup if the email address is already registered (case-insensitive)."""
+        normalized = value.strip().lower()
+        if User.objects.filter(email__iexact=normalized).exists():
+            raise serializers.ValidationError(
+                "An account with this email address already exists."
+            )
+        return normalized
+
     def validate_password(self, value):
         return validate_strong_password(value)
 
     def create(self, validated_data):
-        if "email" in validated_data:
-            validated_data["email"] = validated_data["email"].lower()
+        # email is already normalized to lowercase by validate_email
         return User.objects.create_user(**validated_data)
 
 

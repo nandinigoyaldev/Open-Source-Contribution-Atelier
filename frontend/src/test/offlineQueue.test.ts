@@ -1,6 +1,7 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { queueProgressSync, syncOfflineQueue } from "../lib/offlineQueue";
-import { queryClient } from "../app/App";
+import { queryClient } from "../lib/queryClient";
 
 // Mock IndexedDB
 const mockStore = new Map();
@@ -84,7 +85,8 @@ describe("Offline Progress Queue", () => {
     };
     (globalThis.indexedDB.open as any).mockImplementation(() => {
       setTimeout(() => {
-        if (openReq.onsuccess) openReq.onsuccess({ target: { result: mockIDBDatabase } });
+        if (openReq.onsuccess)
+          openReq.onsuccess({ target: { result: mockIDBDatabase } });
       }, 0);
       return openReq;
     });
@@ -104,7 +106,9 @@ describe("Offline Progress Queue", () => {
     });
 
     // Check localStorage
-    const pendingLocal = JSON.parse(localStorage.getItem("atelier_pending_sync") || "[]");
+    const pendingLocal = JSON.parse(
+      localStorage.getItem("atelier_pending_sync") || "[]",
+    );
     expect(pendingLocal).toHaveLength(1);
     expect(pendingLocal[0].lesson_slug).toBe("git-basics");
     expect(pendingLocal[0].score).toBe(20);
@@ -134,7 +138,9 @@ describe("Offline Progress Queue", () => {
 
     // Verify queued
     expect(mockStore.size).toBe(1);
-    expect(JSON.parse(localStorage.getItem("atelier_pending_sync") || "[]")).toHaveLength(1);
+    expect(
+      JSON.parse(localStorage.getItem("atelier_pending_sync") || "[]"),
+    ).toHaveLength(1);
 
     // Mock successful fetch replay
     (globalThis.fetch as any).mockResolvedValue({
@@ -151,8 +157,12 @@ describe("Offline Progress Queue", () => {
 
     // Verify queue is empty now
     expect(mockStore.size).toBe(0);
-    expect(JSON.parse(localStorage.getItem("atelier_pending_sync") || "[]")).toHaveLength(0);
-    expect(queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: ["userProgress"] });
+    expect(
+      JSON.parse(localStorage.getItem("atelier_pending_sync") || "[]"),
+    ).toHaveLength(0);
+    expect(queryClient.invalidateQueries).toHaveBeenCalledWith({
+      queryKey: ["userProgress"],
+    });
   });
 
   it("should retain request in queue if replay fails with a network error", async () => {
@@ -166,7 +176,9 @@ describe("Offline Progress Queue", () => {
     await new Promise((resolve) => setTimeout(resolve, 10));
 
     // Mock fetch error (network failure)
-    (globalThis.fetch as any).mockRejectedValue(new TypeError("Failed to fetch"));
+    (globalThis.fetch as any).mockRejectedValue(
+      new TypeError("Failed to fetch"),
+    );
 
     await syncOfflineQueue();
 
@@ -174,6 +186,8 @@ describe("Offline Progress Queue", () => {
 
     // Verify it is still in queue
     expect(mockStore.size).toBe(1);
-    expect(JSON.parse(localStorage.getItem("atelier_pending_sync") || "[]")).toHaveLength(1);
+    expect(
+      JSON.parse(localStorage.getItem("atelier_pending_sync") || "[]"),
+    ).toHaveLength(1);
   });
 });

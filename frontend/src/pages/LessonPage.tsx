@@ -1,7 +1,15 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams, Link } from "react-router-dom";
-import { ChevronLeft, ChevronRight, Menu, X, BookOpen, CheckCircle2, Lock } from "lucide-react";
+import {
+  ChevronLeft,
+  ChevronRight,
+  Menu,
+  X,
+  BookOpen,
+  CheckCircle2,
+  Lock,
+} from "lucide-react";
 
 import SkeletonLesson from "../components/ui/skeletons/SkeletonLesson";
 import { useUserProgress } from "../hooks/useUserProgress";
@@ -10,7 +18,11 @@ import { Lesson, fetchLessonsApi, fetchLessonContent } from "../lib/lessons";
 import { MarkdownRenderer } from "../components/ui/MarkdownRenderer";
 import { GitGraph } from "../components/ui/GitGraph";
 import { ConflictSandbox } from "../components/ui/ConflictSandbox";
-import { createInitialRepo, parseGitCommand, RepoState } from "../lib/gitSimulator";
+import {
+  createInitialRepo,
+  parseGitCommand,
+  RepoState,
+} from "../lib/gitSimulator";
 
 function normalizeCommand(value: string) {
   return value.trim().replace(/\s+/g, " ").toLowerCase();
@@ -25,14 +37,38 @@ export function LessonPage() {
   const [lesson, setLesson] = useState<Lesson | undefined>(undefined);
   const [lessonsList, setLessonsList] = useState<Lesson[]>([]);
   const [markdownContent, setMarkdownContent] = useState("");
-  
+
   // Curriculum modules list for sidebar
-  const [modules, setModules] = useState<{ id: string; title: string; lessons: { slug: string; title: string; difficulty?: string }[] }[]>([]);
+  const [modules, setModules] = useState<
+    {
+      id: string;
+      title: string;
+      lessons: { slug: string; title: string; difficulty?: string }[];
+    }[]
+  >([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const closeSidebar = useCallback(() => setIsSidebarOpen(false), []);
 
+  // Close sidebar on click-outside (mobile drawer)
+  useEffect(() => {
+    if (!isSidebarOpen) return;
+
+    const handleClickOutside = (e: MouseEvent) => {
+      if (
+        sidebarRef.current &&
+        !sidebarRef.current.contains(e.target as Node)
+      ) {
+        closeSidebar();
+      }
+    };
+
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, [isSidebarOpen, closeSidebar]);
+
   // Command-based exercises
+  const [isExecuting, setIsExecuting] = useState(false);
   const [input, setInput] = useState("");
   const [feedback, setFeedback] = useState<string>("");
   const [showHint, setShowHint] = useState(false);
@@ -42,7 +78,9 @@ export function LessonPage() {
   // Quiz-based exercises
   const [currentQuizIndex, setCurrentQuizIndex] = useState(0);
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
-  const [quizFeedback, setQuizFeedback] = useState<"correct" | "incorrect" | null>(null);
+  const [quizFeedback, setQuizFeedback] = useState<
+    "correct" | "incorrect" | null
+  >(null);
 
   // Help Request panel
   const [isHelpPanelOpen, setIsHelpPanelOpen] = useState(false);
@@ -109,7 +147,7 @@ export function LessonPage() {
     setShowHint(false);
     setTerminalOutput("");
     setRepoState(createInitialRepo());
-    
+
     // Reset Quiz state
     setCurrentQuizIndex(0);
     setSelectedOption(null);
@@ -150,19 +188,25 @@ export function LessonPage() {
   }, [markdownContent]);
 
   // Command submission handler
-  const handleCommandSubmit = (e: React.FormEvent) => {
+  const handleCommandSubmit = async (
+    e: React.FormEvent | React.KeyboardEvent,
+  ) => {
     e.preventDefault();
-    if (!lesson) return;
+    if (!lesson || isExecuting) return;
+
+    setIsExecuting(true);
+    await new Promise((resolve) => setTimeout(resolve, 800));
 
     const result = parseGitCommand(input, repoState);
     if (result.error) {
-       setTerminalOutput(result.error);
-       setFeedback("error");
-       setShowHint(true);
-       return; // Stop processing further for invalid commands
+      setTerminalOutput(result.error);
+      setFeedback("error");
+      setShowHint(true);
+      setIsExecuting(false);
+      return; // Stop processing further for invalid commands
     } else {
-       setTerminalOutput(result.output || "");
-       setRepoState(result.newState);
+      setTerminalOutput(result.output || "");
+      setRepoState(result.newState);
     }
 
     const expected = lesson.expected;
@@ -189,8 +233,9 @@ export function LessonPage() {
       setFeedback("error");
       setShowHint(true);
     }
-    
+
     setInput(""); // Clear input after running
+    setIsExecuting(false);
   };
 
   // Quiz submission handler
@@ -227,7 +272,11 @@ export function LessonPage() {
 
   if (isLoading) {
     return (
-      <div className="pt-20 h-screen w-full flex items-center justify-center" aria-busy="true" role="status">
+      <div
+        className="pt-20 h-screen w-full flex items-center justify-center"
+        aria-busy="true"
+        role="status"
+      >
         <div className="w-full max-w-3xl">
           <SkeletonLesson />
         </div>
@@ -237,7 +286,9 @@ export function LessonPage() {
 
   if (!lesson) return null;
 
-  const currentLessonIndex = lessonsList.findIndex((l) => l.slug === lesson.slug);
+  const currentLessonIndex = lessonsList.findIndex(
+    (l) => l.slug === lesson.slug,
+  );
   const previousLesson = lessonsList[currentLessonIndex - 1];
   const nextLesson = lessonsList[currentLessonIndex + 1];
 
@@ -245,8 +296,8 @@ export function LessonPage() {
   const hasConflict = !!lesson.conflictScenario;
   const isCompleted = isLessonCompleted(lesson.slug);
   const activeModuleId = modules.find((mod) =>
-  mod.lessons.some((les) => les.slug === lesson.slug)
-)?.id;
+    mod.lessons.some((les) => les.slug === lesson.slug),
+  )?.id;
 
   return (
     <div className="min-h-screen pt-20 flex flex-col lg:flex-row relative">
@@ -288,7 +339,11 @@ export function LessonPage() {
             Curriculum
           </h2>
           {isSidebarOpen && (
-            <button onClick={closeSidebar} aria-label="Close course outline" className="lg:hidden border-2 border-black p-1 rounded-lg">
+            <button
+              onClick={closeSidebar}
+              aria-label="Close course outline"
+              className="lg:hidden border-2 border-black p-1 rounded-lg"
+            >
               <X size={16} />
             </button>
           )}
@@ -297,44 +352,56 @@ export function LessonPage() {
         <div className="space-y-6">
           {modules.map((mod, modIdx) => (
             <div key={mod.id} className="space-y-2">
-            
               <h3
-                    className={`font-mono text-[10px] uppercase tracking-wider font-bold px-2 py-1.5 rounded-lg border-2 transition-all
-                         ${mod.id === activeModuleId
-                      ? "bg-yellow-300 text-black border-black shadow-[2px_2px_0px_#000]"
-                          : "text-muted dark:text-[#c4bbae] border-transparent"
-                        }`}>
-                     Module {modIdx + 1}: {mod.title}
+                className={`font-mono text-[10px] uppercase tracking-wider font-bold px-2 py-1.5 rounded-lg border-2 transition-all
+                         ${
+                           mod.id === activeModuleId
+                             ? "bg-yellow-300 text-black border-black shadow-[2px_2px_0px_#000]"
+                             : "text-muted dark:text-[#c4bbae] border-transparent"
+                         }`}
+              >
+                Module {modIdx + 1}: {mod.title}
               </h3>
               <div className="space-y-1">
-                {mod.lessons.map((les: { slug: string; title: string; difficulty?: string }) => {
-                  const active = les.slug === lesson.slug;
-                  const completed = isLessonCompleted(les.slug);
-                  return (
-                    <Link
-                      key={les.slug}
-                      to={`/lessons/${les.slug}`}
-                      onClick={closeSidebar}
-                      className={`w-full flex items-center justify-between p-2.5 rounded-xl border-2 transition-all text-xs font-bold ${
-                        active
-                          ? "bg-surface-low border-black shadow-card-sm text-text"
-                          : "border-transparent hover:bg-surface-lowest hover:border-black/10 dark:text-[#c4bbae]"
-                      }`}
-                    >
-                      <div className="flex items-center gap-2 truncate">
-                        {completed ? (
-                          <CheckCircle2 size={14} className="text-green-600 flex-shrink-0" />
-                        ) : (
-                          <div className="w-3.5 h-3.5 rounded-full border-2 border-black/35 flex-shrink-0" />
+                {mod.lessons.map(
+                  (les: {
+                    slug: string;
+                    title: string;
+                    difficulty?: string;
+                  }) => {
+                    const active = les.slug === lesson.slug;
+                    const completed = isLessonCompleted(les.slug);
+                    return (
+                      <Link
+                        key={les.slug}
+                        to={`/lessons/${les.slug}`}
+                        onClick={closeSidebar}
+                        className={`w-full flex items-center justify-between p-2.5 rounded-xl border-2 transition-all text-xs font-bold ${
+                          active
+                            ? "bg-surface-low border-black shadow-card-sm text-text"
+                            : "border-transparent hover:bg-surface-lowest hover:border-black/10 dark:text-[#c4bbae]"
+                        }`}
+                      >
+                        <div className="flex items-center gap-2 truncate">
+                          {completed ? (
+                            <CheckCircle2
+                              size={14}
+                              className="text-green-600 flex-shrink-0"
+                            />
+                          ) : (
+                            <div className="w-3.5 h-3.5 rounded-full border-2 border-black/35 flex-shrink-0" />
+                          )}
+                          <span className="truncate">{les.title}</span>
+                        </div>
+                        {les.difficulty === "advanced" && (
+                          <span className="text-[8px] bg-red-100 text-red-700 px-1 py-0.5 rounded border border-red-700">
+                            ADV
+                          </span>
                         )}
-                        <span className="truncate">{les.title}</span>
-                      </div>
-                      {les.difficulty === "advanced" && (
-                        <span className="text-[8px] bg-red-100 text-red-700 px-1 py-0.5 rounded border border-red-700">ADV</span>
-                      )}
-                    </Link>
-                  );
-                })}
+                      </Link>
+                    );
+                  },
+                )}
               </div>
             </div>
           ))}
@@ -345,10 +412,16 @@ export function LessonPage() {
       <div className="flex-1 flex flex-col max-h-[calc(100vh-80px)] overflow-hidden">
         {/* Top scroll reading progress indicator */}
         <div className="h-2 w-full bg-surface-low border-b-2 border-black dark:bg-[#151411] dark:border-[#2e2924] relative flex-shrink-0">
-          <div className="h-full bg-primary transition-all duration-150" style={{ width: `${scrollProgress}%` }} />
+          <div
+            className="h-full bg-primary transition-all duration-150"
+            style={{ width: `${scrollProgress}%` }}
+          />
         </div>
 
-        <div ref={mainContentRef} className="flex-1 overflow-y-auto p-6 sm:p-10 space-y-8">
+        <div
+          ref={mainContentRef}
+          className="flex-1 overflow-y-auto p-6 sm:p-10 space-y-8"
+        >
           <div className="max-w-3xl mx-auto space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
@@ -366,7 +439,9 @@ export function LessonPage() {
               )}
             </div>
 
-            <p className="text-xl font-bold text-muted dark:text-[#c4bbae]">{lesson.description}</p>
+            <p className="text-xl font-bold text-muted dark:text-[#c4bbae]">
+              {lesson.description}
+            </p>
 
             <hr className="border-2 border-black/10 dark:border-[#2e2924]/40" />
 
@@ -382,7 +457,8 @@ export function LessonPage() {
                 <div className="rounded-3xl border-4 border-black bg-white p-6 shadow-card dark:bg-[#1f1c18] dark:border-[#2e2924]">
                   <div className="flex items-center justify-between mb-4">
                     <span className="font-mono text-xs text-primary uppercase tracking-widest font-black">
-                      Knowledge Check: Question {currentQuizIndex + 1} of {lesson.quizzes!.length}
+                      Knowledge Check: Question {currentQuizIndex + 1} of{" "}
+                      {lesson.quizzes!.length}
                     </span>
                     <span className="text-xs font-black text-accent bg-black text-white px-2 py-0.5 rounded-full dark:bg-[#2e2924]">
                       {lesson.points || 15} XP
@@ -394,61 +470,71 @@ export function LessonPage() {
                   </h3>
 
                   <div className="space-y-3">
-                    {lesson.quizzes![currentQuizIndex].options.map((option, idx) => {
-                      const isSelected = selectedOption === idx;
-                      const currentQuiz = lesson.quizzes![currentQuizIndex];
-                      const isCorrectOption = idx === currentQuiz.answer;
+                    {lesson.quizzes![currentQuizIndex].options.map(
+                      (option, idx) => {
+                        const isSelected = selectedOption === idx;
+                        const currentQuiz = lesson.quizzes![currentQuizIndex];
+                        const isCorrectOption = idx === currentQuiz.answer;
 
-                      // Determine background color based on quiz state
-                      let bgColor = "";
-                      if (quizFeedback !== null) {
-                        // After answer submitted: show green for correct, red for incorrect
-                        if (isCorrectOption) {
-                          bgColor = "bg-green-600 border-green-800 text-white";
-                        } else if (isSelected && quizFeedback === "incorrect") {
-                          bgColor = "bg-red-600 border-red-800 text-white";
+                        // Determine background color based on quiz state
+                        let bgColor = "";
+                        if (quizFeedback !== null) {
+                          // After answer submitted: show green for correct, red for incorrect
+                          if (isCorrectOption) {
+                            bgColor = "bg-green-600 border-black text-black";
+                          } else if (
+                            isSelected &&
+                            quizFeedback === "incorrect"
+                          ) {
+                            bgColor = "bg-red-600 border-red-800 text-white";
+                          }
                         }
-                      }
 
-                      // Fallback to original styling when no feedback is present
-                      if (!bgColor) {
-                        bgColor = isSelected
-                          ? "bg-accent shadow-card-sm -translate-y-0.5"
-                          : "bg-surface hover:bg-surface-low dark:bg-[#151411]";
-                      }
+                        // Fallback to original styling when no feedback is present
+                        if (!bgColor) {
+                          bgColor = isSelected
+                            ? "bg-accent shadow-card-sm -translate-y-0.5"
+                            : "bg-surface hover:bg-surface-low dark:bg-[#151411]";
+                        }
 
-                      return (
-                        <button
-                          key={idx}
-                          onClick={() => {
-                            if (quizFeedback !== null) return; // Already answered
-                            setSelectedOption(idx);
-                            // Immediately validate the answer
-                            const isCorrect = idx === currentQuiz.answer;
-                            setQuizFeedback(isCorrect ? "correct" : "incorrect");
-                            if (isCorrect) {
-                              if (currentQuizIndex === lesson.quizzes!.length - 1) {
-                                setFeedback("correct");
-                                syncProgress({
-                                  lesson_slug: lesson.slug,
-                                  score: lesson.points || 15,
-                                  completed: true,
-                                });
+                        return (
+                          <button
+                            key={idx}
+                            onClick={() => {
+                              if (quizFeedback !== null) return; // Already answered
+                              setSelectedOption(idx);
+                              // Immediately validate the answer
+                              const isCorrect = idx === currentQuiz.answer;
+                              setQuizFeedback(
+                                isCorrect ? "correct" : "incorrect",
+                              );
+                              if (isCorrect) {
+                                if (
+                                  currentQuizIndex ===
+                                  lesson.quizzes!.length - 1
+                                ) {
+                                  setFeedback("correct");
+                                  syncProgress({
+                                    lesson_slug: lesson.slug,
+                                    score: lesson.points || 15,
+                                    completed: true,
+                                  });
+                                }
                               }
-                            }
-                          }}
-                          disabled={quizFeedback !== null}
-                          className={`w-full text-left p-4 rounded-xl border-4 border-black font-bold text-sm transition-all flex items-center justify-between ${bgColor}`}
-                        >
-                          <span>{option}</span>
-                          <div
-                            className={`w-4 h-4 rounded-full border-2 border-black flex items-center justify-center ${
-                              isSelected ? "bg-black" : ""
-                            }`}
-                          />
-                        </button>
-                      );
-                    })}
+                            }}
+                            disabled={quizFeedback !== null}
+                            className={`w-full text-left p-4 rounded-xl border-4 border-black font-bold text-sm transition-all flex items-center justify-between ${bgColor}`}
+                          >
+                            <span>{option}</span>
+                            <div
+                              className={`w-4 h-4 rounded-full border-2 border-black flex items-center justify-center ${
+                                isSelected ? "bg-black" : ""
+                              }`}
+                            />
+                          </button>
+                        );
+                      },
+                    )}
                   </div>
 
                   {quizFeedback === "correct" && (
@@ -457,7 +543,8 @@ export function LessonPage() {
                       aria-live="assertive"
                       className="mt-4 p-4 bg-green-50 text-green-800 border-4 border-green-600 rounded-xl font-bold text-sm"
                     >
-                      🎉 Correct! {lesson.quizzes![currentQuizIndex].explanation}
+                      🎉 Correct!{" "}
+                      {lesson.quizzes![currentQuizIndex].explanation}
                     </div>
                   )}
 
@@ -467,7 +554,8 @@ export function LessonPage() {
                       aria-live="assertive"
                       className="mt-4 p-4 bg-red-50 text-red-800 border-4 border-red-600 rounded-xl font-bold text-sm"
                     >
-                      ❌ Not quite. Try reviewing the lesson text or options again.
+                      ❌ Not quite. Try reviewing the lesson text or options
+                      again.
                     </div>
                   )}
 
@@ -498,7 +586,7 @@ export function LessonPage() {
                       <button
                         onClick={handleQuizOptionCheck}
                         disabled={selectedOption === null}
-                        className="px-6 py-2 bg-black text-white font-bold rounded-xl border-2 border-black shadow-brutal transition-transform active:translate-y-0.5 disabled:opacity-50"
+                        className="px-5 py-2.5 bg-primary text-black font-black text-sm rounded-xl border-4 border-black shadow-card-sm hover:-translate-y-0.5 disabled:opacity-50 transition-all cursor-pointer"
                       >
                         Check Answer
                       </button>
@@ -510,28 +598,30 @@ export function LessonPage() {
                 <div className="mt-8">
                   <ConflictSandbox
                     baseBranchName={lesson.conflictScenario?.baseBranchName}
-                    featureBranchName={lesson.conflictScenario?.featureBranchName}
+                    featureBranchName={
+                      lesson.conflictScenario?.featureBranchName
+                    }
                     initialContent={lesson.conflictScenario?.fileContent || ""}
                     onResolved={(finalContent) => {
-                       // Expected resolved content validation
-                       const expected = lesson.expected;
-                       let isCorrect = false;
-                       if (typeof expected === "string") {
-                         isCorrect = finalContent.trim() === expected.trim();
-                       } else {
-                         isCorrect = expected.test(finalContent.trim());
-                       }
-                       
-                       if (isCorrect || !expected) {
-                         setFeedback("correct");
-                         syncProgress({
-                           lesson_slug: lesson.slug,
-                           score: lesson.points || 25,
-                           completed: true,
-                         });
-                       } else {
-                         setFeedback("error");
-                       }
+                      // Expected resolved content validation
+                      const expected = lesson.expected;
+                      let isCorrect = false;
+                      if (typeof expected === "string") {
+                        isCorrect = finalContent.trim() === expected.trim();
+                      } else {
+                        isCorrect = expected.test(finalContent.trim());
+                      }
+
+                      if (isCorrect || !expected) {
+                        setFeedback("correct");
+                        syncProgress({
+                          lesson_slug: lesson.slug,
+                          score: lesson.points || 25,
+                          completed: true,
+                        });
+                      } else {
+                        setFeedback("error");
+                      }
                     }}
                   />
                   {feedback === "correct" && (
@@ -541,7 +631,8 @@ export function LessonPage() {
                   )}
                   {feedback === "error" && (
                     <div className="mt-6 text-red-700 font-bold bg-red-50 p-4 rounded-xl border-4 border-red-600">
-                      ❌ The resolved output doesn't quite match what was expected. Try reviewing your selections.
+                      ❌ The resolved output doesn't quite match what was
+                      expected. Try reviewing your selections.
                     </div>
                   )}
                 </div>
@@ -558,16 +649,19 @@ export function LessonPage() {
                   <h3 className="text-xl font-black mb-4 flex items-center gap-2 text-text dark:text-[#f0ebe2]">
                     <span>💻</span> Sandbox terminal check
                   </h3>
-                  
+
                   <GitGraph state={repoState} />
 
                   <p className="text-xs text-muted mb-4 dark:text-[#c4bbae]">
-                    Solve the drill by executing the appropriate git command below:
+                    Solve the drill by executing the appropriate git command
+                    below:
                   </p>
 
                   <form onSubmit={handleCommandSubmit} className="space-y-4">
                     <div className="flex items-center gap-2">
-                      <span className="font-mono text-primary font-black">$</span>
+                      <span className="font-mono text-primary font-black">
+                        $
+                      </span>
                       <input
                         className="flex-1 rounded-xl border-4 border-black bg-surface-lowest px-4 py-2.5 text-text font-bold outline-none placeholder:text-muted/40 dark:bg-[#151411] dark:border-[#2e2924]"
                         placeholder={lesson.hint || "Type your git command here"}
@@ -576,25 +670,38 @@ export function LessonPage() {
                         onKeyDown={(e) => {
                           if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
                             e.preventDefault();
-                            handleCommandSubmit(e as any);
+                            handleCommandSubmit(e);
                           }
                         }}
-                        disabled={feedback === "correct"}
+                        disabled={feedback === "correct" || isExecuting}
                         autoFocus
                       />
                       <button
                         type="submit"
-                        className="px-5 py-2.5 bg-primary text-white font-black text-sm rounded-xl border-4 border-black shadow-card-sm hover:-translate-y-0.5 disabled:opacity-50 transition-all cursor-pointer"
-                        disabled={feedback === "correct" || !input.trim()}
+                        className="px-5 py-2.5 bg-primary text-black font-black text-sm rounded-xl border-4 border-black shadow-card-sm hover:-translate-y-0.5 disabled:opacity-50 transition-all cursor-pointer flex items-center justify-center gap-2 min-w-[72px]"
+                        disabled={
+                          feedback === "correct" || !input.trim() || isExecuting
+                        }
                       >
-                        Run
+                        {isExecuting ? (
+                          <span
+                            className="flex items-center gap-1 inline-flex"
+                            aria-hidden="true"
+                          >
+                            <span className="w-1.5 h-1.5 bg-current rounded-full animate-bounce [animation-delay:-0.3s]" />
+                            <span className="w-1.5 h-1.5 bg-current rounded-full animate-bounce [animation-delay:-0.15s]" />
+                            <span className="w-1.5 h-1.5 bg-current rounded-full animate-bounce" />
+                          </span>
+                        ) : (
+                          "Run"
+                        )}
                       </button>
                     </div>
 
                     {terminalOutput && (
-                       <pre className="p-4 bg-[#151411] text-[#f0ebe2] font-mono text-xs rounded-xl border-4 border-black whitespace-pre-wrap overflow-x-auto shadow-inner">
-                         {terminalOutput}
-                       </pre>
+                      <pre className="p-4 bg-[#151411] text-[#f0ebe2] font-mono text-xs rounded-xl border-4 border-black whitespace-pre-wrap overflow-x-auto shadow-inner">
+                        {terminalOutput}
+                      </pre>
                     )}
 
                     {feedback === "correct" && (
@@ -605,7 +712,8 @@ export function LessonPage() {
 
                     {feedback === "error" && (
                       <div className="text-red-700 font-bold bg-red-50 p-4 rounded-xl border-4 border-red-600">
-                        ❌ Not quite. Command output did not match sandbox expectations.
+                        ❌ Not quite. Command output did not match sandbox
+                        expectations.
                       </div>
                     )}
 
@@ -652,12 +760,18 @@ export function LessonPage() {
                   onClick={(e) => {
                     if (!isCompleted) {
                       e.preventDefault();
-                      alert("Complete the current lesson first to unlock the next module!");
+                      alert(
+                        "Complete the current lesson first to unlock the next module!",
+                      );
                     }
                   }}
                 >
                   Next: {nextLesson.title}
-                  {isCompleted ? <ChevronRight size={16} /> : <Lock size={14} className="ml-1" />}
+                  {isCompleted ? (
+                    <ChevronRight size={16} />
+                  ) : (
+                    <Lock size={14} className="ml-1" />
+                  )}
                 </Link>
               ) : (
                 <Link
@@ -697,9 +811,12 @@ export function LessonPage() {
           <aside className="h-full w-full max-w-md bg-surface-lowest border-l-4 border-black p-6 shadow-card space-y-4 dark:bg-[#0f0e0c] dark:border-[#2e2924]">
             <div className="flex items-start justify-between gap-4">
               <div>
-                <h2 className="text-2xl font-black">Need assistance on this issue?</h2>
+                <h2 className="text-2xl font-black">
+                  Need assistance on this issue?
+                </h2>
                 <p className="text-xs text-muted mt-1 dark:text-[#c4bbae]">
-                  Submit details to core maintainers, and we&apos;ll look at your local repo staging problems.
+                  Submit details to core maintainers, and we&apos;ll look at
+                  your local repo staging problems.
                 </p>
               </div>
               <button
@@ -712,7 +829,10 @@ export function LessonPage() {
             </div>
 
             <form className="space-y-3" onSubmit={handleHelpRequestSubmit}>
-              <label htmlFor="help-message" className="block text-xs font-black">
+              <label
+                htmlFor="help-message"
+                className="block text-xs font-black"
+              >
                 Describe the conflict or checkout issue:
               </label>
               <textarea
@@ -742,10 +862,12 @@ export function LessonPage() {
 
               <button
                 type="submit"
-                className="w-full px-4 py-2 bg-primary text-white font-bold rounded-xl border-4 border-black shadow-gel hover:bg-[#E62814] disabled:opacity-60"
-                disabled={!helpMessage.trim() || helpMessage.length > MAX_HELP_CHARS || helpRequestMutation.isPending}
+                className="w-full px-4 py-2 bg-primary text-black font-bold rounded-xl border-4 border-black shadow-gel hover:bg-[#E62814] disabled:opacity-60"
+                disabled={!helpMessage.trim() || helpRequestMutation.isPending}
               >
-                {helpRequestMutation.isPending ? "Connecting..." : "Submit to cohort queue"}
+                {helpRequestMutation.isPending
+                  ? "Connecting..."
+                  : "Submit to cohort queue"}
               </button>
             </form>
           </aside>

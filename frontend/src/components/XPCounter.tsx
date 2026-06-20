@@ -1,5 +1,5 @@
-import React from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React from "react";
+import { motion, AnimatePresence } from "framer-motion";
 
 // Define the expected prop types
 interface XPCounterProps {
@@ -12,7 +12,7 @@ const XPCounter: React.FC<XPCounterProps> = ({ xp = 0 }) => {
       <span className="text-sm font-bold tracking-widest text-gray-400 uppercase">
         XP
       </span>
-      
+
       {/* The container acts as a fixed 'window' for the animation */}
       <div className="relative h-10 w-20 overflow-hidden text-3xl font-black text-emerald-400 drop-shadow-[0_0_10px_rgba(16,185,129,0.5)]">
         <AnimatePresence mode="popLayout">

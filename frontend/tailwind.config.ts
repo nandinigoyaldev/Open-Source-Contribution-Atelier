@@ -35,20 +35,20 @@ export default {
       },
       keyframes: {
         shake: {
-          '0%': { transform: 'translateX(0)' },
-          '10%, 30%, 50%, 70%, 90%': { transform: 'translateX(-8px)' },
-          '20%, 40%, 60%, 80%': { transform: 'translateX(8px)' },
-          '100%': { transform: 'translateX(0)' },
+          "0%": { transform: "translateX(0)" },
+          "10%, 30%, 50%, 70%, 90%": { transform: "translateX(-8px)" },
+          "20%, 40%, 60%, 80%": { transform: "translateX(8px)" },
+          "100%": { transform: "translateX(0)" },
         },
         flash: {
-          '0%': { backgroundColor: 'transparent' },
-          '50%': { backgroundColor: 'rgba(255, 0, 0, 0.06)' }, // subtle red flash for errors
-          '100%': { backgroundColor: 'transparent' },
+          "0%": { backgroundColor: "transparent" },
+          "50%": { backgroundColor: "rgba(255, 0, 0, 0.06)" }, // subtle red flash for errors
+          "100%": { backgroundColor: "transparent" },
         },
       },
       animation: {
-        'shake': 'shake 600ms cubic-bezier(.36,.07,.19,.97)',
-        'flash': 'flash 350ms ease-in-out',
+        shake: "shake 600ms cubic-bezier(.36,.07,.19,.97)",
+        flash: "flash 350ms ease-in-out",
       },
     },
   },

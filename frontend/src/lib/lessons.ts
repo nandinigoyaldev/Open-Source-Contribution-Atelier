@@ -1,5 +1,3 @@
-import { fetchApi } from "./api";
-
 export interface Exercise {
   id?: number;
   title: string;

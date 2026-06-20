@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { VerifyCertificatePage } from "./VerifyCertificatePage";
@@ -16,7 +17,7 @@ describe("VerifyCertificatePage", () => {
         <Routes>
           <Route path="/verify/:hash" element={<VerifyCertificatePage />} />
         </Routes>
-      </MemoryRouter>
+      </MemoryRouter>,
     );
     expect(screen.getByText("Verifying Certificate...")).toBeInTheDocument();
   });
@@ -37,7 +38,7 @@ describe("VerifyCertificatePage", () => {
         <Routes>
           <Route path="/verify/:hash" element={<VerifyCertificatePage />} />
         </Routes>
-      </MemoryRouter>
+      </MemoryRouter>,
     );
 
     await waitFor(() => {
@@ -55,7 +56,7 @@ describe("VerifyCertificatePage", () => {
         <Routes>
           <Route path="/verify/:hash" element={<VerifyCertificatePage />} />
         </Routes>
-      </MemoryRouter>
+      </MemoryRouter>,
     );
 
     await waitFor(() => {

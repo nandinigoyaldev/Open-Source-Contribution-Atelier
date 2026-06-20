@@ -1,17 +1,8 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter } from "react-router-dom";
 import { AppRouter } from "./router";
 import ScrollToTop from "../components/ScrollToTop";
-import { CommandPalette } from "../components/CommandPalette";
-
-export const queryClient = new QueryClient({
-  defaultOptions: {
-    queries: {
-      staleTime: 1000 * 60 * 5,
-      retry: 1,
-    },
-  },
-});
+import { queryClient } from "../lib/queryClient";
 
 export function App() {
   return (

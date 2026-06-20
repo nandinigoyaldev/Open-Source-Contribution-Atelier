@@ -1,4 +1,5 @@
 import { openDB } from "./offlineDB";
+import { queryClient } from "./queryClient";
 import { queryClient } from "../app/App";
 
 export interface QueuedAction {
@@ -16,7 +17,8 @@ export async function queueProgressSync(data: {
   completed?: boolean;
   headers: Record<string, string>;
 }) {
-  const API_BASE = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api";
+  const API_BASE =
+    import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api";
   const id = `progress-sync-${data.lesson_slug}`;
 
   const action: QueuedAction = {
@@ -49,8 +51,10 @@ export async function queueProgressSync(data: {
 
   // 2. Save/mirror to localStorage for synchronous UI queries
   try {
-    const pending = JSON.parse(localStorage.getItem("atelier_pending_sync") || "[]");
-    const exists = pending.some((p: any) => p.lesson_slug === data.lesson_slug);
+    const pending = JSON.parse(
+      localStorage.getItem("atelier_pending_sync") || "[]",
+    ) as { lesson_slug: string; score: number; completed: boolean }[];
+    const exists = pending.some((p) => p.lesson_slug === data.lesson_slug);
     if (!exists) {
       pending.push({
         lesson_slug: data.lesson_slug,
@@ -59,7 +63,9 @@ export async function queueProgressSync(data: {
         timestamp: action.timestamp,
       });
       localStorage.setItem("atelier_pending_sync", JSON.stringify(pending));
-      console.log(`[OfflineQueue] Mirrored to localStorage: ${data.lesson_slug}`);
+      console.log(
+        `[OfflineQueue] Mirrored to localStorage: ${data.lesson_slug}`,
+      );
     }
   } catch (err) {
     console.error("[OfflineQueue] Failed to mirror to localStorage:", err);
@@ -70,16 +76,27 @@ export async function queueProgressSync(data: {
     try {
       const reg = await navigator.serviceWorker.ready;
       if ("sync" in reg) {
-        await (reg as any).sync.register("sync-progress");
-        console.log("[OfflineQueue] Registered background sync tag 'sync-progress'");
+        await (
+          reg as ServiceWorkerRegistration & {
+            sync: { register: (tag: string) => Promise<void> };
+          }
+        ).sync.register("sync-progress");
+        console.log(
+          "[OfflineQueue] Registered background sync tag 'sync-progress'",
+        );
       }
 
       // Send message to SW to trigger sync immediately if SW is active
       if (navigator.serviceWorker.controller) {
-        navigator.serviceWorker.controller.postMessage({ type: "TRIGGER_SYNC" });
+        navigator.serviceWorker.controller.postMessage({
+          type: "TRIGGER_SYNC",
+        });
       }
     } catch (err) {
-      console.warn("[OfflineQueue] Service worker sync registration failed/unsupported:", err);
+      console.warn(
+        "[OfflineQueue] Service worker sync registration failed/unsupported:",
+        err,
+      );
     }
   }
 }
@@ -99,7 +116,9 @@ export async function syncOfflineQueue() {
 
     if (actions.length === 0) return;
 
-    console.log(`[OfflineQueue] Found ${actions.length} pending actions, starting sync...`);
+    console.log(
+      `[OfflineQueue] Found ${actions.length} pending actions, starting sync...`,
+    );
 
     for (const action of actions) {
       try {
@@ -124,14 +143,23 @@ export async function syncOfflineQueue() {
           });
 
           // Remove from localStorage
-          const pending = JSON.parse(localStorage.getItem("atelier_pending_sync") || "[]");
-          const filtered = pending.filter((p: any) => p.lesson_slug !== bodyObj.lesson_slug);
-          localStorage.setItem("atelier_pending_sync", JSON.stringify(filtered));
+          const pending = JSON.parse(
+            localStorage.getItem("atelier_pending_sync") || "[]",
+          ) as { lesson_slug: string; score: number; completed: boolean }[];
+          const filtered = pending.filter(
+            (p) => p.lesson_slug !== bodyObj.lesson_slug,
+          );
+          localStorage.setItem(
+            "atelier_pending_sync",
+            JSON.stringify(filtered),
+          );
 
           // Invalidate React Query progress query
           queryClient.invalidateQueries({ queryKey: ["userProgress"] });
         } else {
-          console.warn(`[OfflineQueue] Action ${action.id} returned status ${response.status}. Will retry later.`);
+          console.warn(
+            `[OfflineQueue] Action ${action.id} returned status ${response.status}. Will retry later.`,
+          );
         }
       } catch (err) {
         console.error(`[OfflineQueue] Error syncing action ${action.id}:`, err);
@@ -157,14 +185,22 @@ if (typeof window !== "undefined") {
         console.log(`[OfflineQueue] SW synced ${lesson_slug}`);
 
         try {
-          const pending = JSON.parse(localStorage.getItem("atelier_pending_sync") || "[]");
-          const filtered = pending.filter((p: any) => p.lesson_slug !== lesson_slug);
-          localStorage.setItem("atelier_pending_sync", JSON.stringify(filtered));
+          const pending = JSON.parse(
+            localStorage.getItem("atelier_pending_sync") || "[]",
+          ) as { lesson_slug: string; score: number; completed: boolean }[];
+          const filtered = pending.filter((p) => p.lesson_slug !== lesson_slug);
+          localStorage.setItem(
+            "atelier_pending_sync",
+            JSON.stringify(filtered),
+          );
 
           // Invalidate React Query progress query
           queryClient.invalidateQueries({ queryKey: ["userProgress"] });
         } catch (e) {
-          console.error("[OfflineQueue] Error clearing sync'd item from localStorage", e);
+          console.error(
+            "[OfflineQueue] Error clearing sync'd item from localStorage",
+            e,
+          );
         }
       }
     });

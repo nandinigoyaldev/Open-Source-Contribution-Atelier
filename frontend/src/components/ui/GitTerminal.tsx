@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { RotateCcw, Terminal, ChevronRight } from "lucide-react";
 import { useGitShell } from "../../hooks/useGitShell";
 import type { TerminalLine } from "../../hooks/useGitShell";
-import { useFailureAnimation } from '../../hooks/useFailureAnimation';
+import { useFailureAnimation } from "../../hooks/useFailureAnimation";
 
 interface GitTerminalProps {
   /** Called when a lesson-objective command succeeds */
@@ -52,6 +52,7 @@ export function GitTerminal({
   title = "Git Sandbox Terminal",
   xp = 20,
 }: GitTerminalProps) {
+  const [isExecuting, setIsExecuting] = useState(false);
   const [inputVal, setInputVal] = useState("");
   const [editorVal, setEditorVal] = useState("");
   const [completed, setCompleted] = useState(false);
@@ -82,7 +83,8 @@ export function GitTerminal({
   }, [shellState.editorState]);
 
   // animation hook for terminal wrapper
-  const { ref: termRef, trigger: triggerTerm } = useFailureAnimation<HTMLDivElement>();
+  const { ref: termRef, trigger: triggerTerm } =
+    useFailureAnimation<HTMLDivElement>();
 
   // Auto-scroll to bottom
   useEffect(() => {
@@ -94,16 +96,19 @@ export function GitTerminal({
     const last = lines[lines.length - 1];
     if (last && last.kind === "error") {
       // animate-shake and animate-flash are Tailwind animation classes we added in tailwind.config
-      triggerTerm('animate-shake');
-      triggerTerm('animate-flash');
+      triggerTerm("animate-shake");
+      triggerTerm("animate-flash");
     }
   }, [lines, triggerTerm]);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!inputVal.trim()) return;
+    if (!inputVal.trim() || isExecuting) return;
+    setIsExecuting(true);
+    await new Promise((resolve) => setTimeout(resolve, 800));
     runCmd(inputVal);
     setInputVal("");
+    setIsExecuting(false);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -126,7 +131,10 @@ export function GitTerminal({
   };
 
   return (
-    <div ref={termRef} className="flex flex-col bg-[#0f0f1d] rounded-lg shadow-card-lg border-2 border-black">
+    <div
+      ref={termRef}
+      className="flex flex-col bg-[#0f0f1d] rounded-lg shadow-card-lg border-2 border-black"
+    >
       {/* ── Title bar ─────────────────────────────────────────────── */}
       <div className="flex items-center justify-between px-4 py-2 bg-[#1a1a2e] border-b-4 border-black dark:border-[#2e2924]">
         <div className="flex items-center gap-3">
@@ -243,16 +251,28 @@ export function GitTerminal({
           value={inputVal}
           onChange={(e) => setInputVal(e.target.value)}
           onKeyDown={handleKeyDown}
+          disabled={isExecuting}
           autoFocus
           autoComplete="off"
           spellCheck={false}
         />
         <button
           type="submit"
-          disabled={!inputVal.trim()}
-          className="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-30 text-white font-black text-xs rounded-lg border-2 border-black transition-all"
+          disabled={!inputVal.trim() || isExecuting}
+          className="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-30 text-white font-black text-xs rounded-lg border-2 border-black transition-all flex items-center justify-center min-w-[48px]"
         >
-          Run
+          {isExecuting ? (
+            <span
+              className="flex items-center gap-0.5 inline-flex"
+              aria-hidden="true"
+            >
+              <span className="w-1 h-1 bg-current rounded-full animate-bounce [animation-delay:-0.3s]" />
+              <span className="w-1 h-1 bg-current rounded-full animate-bounce [animation-delay:-0.15s]" />
+              <span className="w-1 h-1 bg-current rounded-full animate-bounce" />
+            </span>
+          ) : (
+            "Run"
+          )}
         </button>
       </form>
       )}

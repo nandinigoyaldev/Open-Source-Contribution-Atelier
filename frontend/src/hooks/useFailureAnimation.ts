@@ -1,6 +1,6 @@
-import { useRef, useCallback, RefObject } from 'react';
+import { useRef, useCallback, RefObject } from "react";
 
-type AnimName = 'animate-shake' | 'animate-flash' | string;
+type AnimName = "animate-shake" | "animate-flash" | string;
 
 /**
  * useFailureAnimation
@@ -12,25 +12,27 @@ type AnimName = 'animate-shake' | 'animate-flash' | string;
 export function useFailureAnimation<T extends HTMLElement>() {
   const ref = useRef<T | null>(null);
 
-  const trigger = useCallback((animClass: AnimName = 'animate-shake') => {
+  const trigger = useCallback((animClass: AnimName = "animate-shake") => {
     const el = ref.current;
     if (!el) return;
 
-    if (typeof window !== 'undefined') {
-      const reduced = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    if (typeof window !== "undefined") {
+      const reduced =
+        window.matchMedia &&
+        window.matchMedia("(prefers-reduced-motion: reduce)").matches;
       if (reduced) return;
     }
 
     el.classList.remove(animClass);
     // force reflow to allow the animation to restart
-    void (el.offsetWidth);
+    void el.offsetWidth;
     el.classList.add(animClass);
 
     const onEnd = () => {
       el.classList.remove(animClass);
-      el.removeEventListener('animationend', onEnd);
+      el.removeEventListener("animationend", onEnd);
     };
-    el.addEventListener('animationend', onEnd);
+    el.addEventListener("animationend", onEnd);
   }, []);
 
   return { ref: ref as RefObject<T>, trigger };

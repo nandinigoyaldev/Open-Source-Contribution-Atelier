@@ -1,8 +1,8 @@
 export const ORGS = [
-  'apache',
-  'cncf',
-  'linuxfoundation',
-  'nodejs',
-  'mozilla',
-  'github'
+  "apache",
+  "cncf",
+  "linuxfoundation",
+  "nodejs",
+  "mozilla",
+  "github",
 ];

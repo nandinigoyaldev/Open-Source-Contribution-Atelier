@@ -1,16 +1,16 @@
-import React from 'react';
-import { RepoState } from '../../lib/gitSimulator';
+import React from "react";
+import { RepoState } from "../../lib/gitSimulator";
 
 interface GitGraphProps {
   state: RepoState;
 }
 
 export const GitGraph: React.FC<GitGraphProps> = ({ state }) => {
-  const branchColumns: Record<string, number> = { 'main': 0 };
+  const branchColumns: Record<string, number> = { main: 0 };
   let nextCol = 1;
 
-  state.branches.forEach(b => {
-    if (b.name !== 'main' && branchColumns[b.name] === undefined) {
+  state.branches.forEach((b) => {
+    if (b.name !== "main" && branchColumns[b.name] === undefined) {
       branchColumns[b.name] = nextCol++;
     }
   });
@@ -23,7 +23,7 @@ export const GitGraph: React.FC<GitGraphProps> = ({ state }) => {
   const SPACING_X = 90;
   const SPACING_Y = 80;
 
-  const nodePositions = new Map<string, { x: number, y: number }>();
+  const nodePositions = new Map<string, { x: number; y: number }>();
 
   state.commits.forEach((commit, i) => {
     const col = branchColumns[commit.branch] || 0;
@@ -58,8 +58,8 @@ export const GitGraph: React.FC<GitGraphProps> = ({ state }) => {
         {state.commits.map((commit) => {
           const pos = nodePositions.get(commit.id);
           if (!pos) return null;
-          
-          return commit.parents.map(parentId => {
+
+          return commit.parents.map((parentId) => {
             const parentPos = nodePositions.get(parentId);
             if (!parentPos) return null;
 
@@ -77,9 +77,11 @@ export const GitGraph: React.FC<GitGraphProps> = ({ state }) => {
         })}
 
         {/* Draw Conflict Boundaries */}
-        {state.conflicts.length > 0 && (
+        {state.conflicts.length > 0 &&
           (() => {
-            const headBranch = state.branches.find(b => b.name === state.HEAD);
+            const headBranch = state.branches.find(
+              (b) => b.name === state.HEAD,
+            );
             const headTargetId = headBranch ? headBranch.target : state.HEAD;
             const pos = nodePositions.get(headTargetId);
             if (!pos) return null;
@@ -98,37 +100,64 @@ export const GitGraph: React.FC<GitGraphProps> = ({ state }) => {
                   rx="12"
                   className="animate-pulse"
                 />
-                <text x={pos.x} y={pos.y - 32} textAnchor="middle" fill="#ef4444" className="text-[10px] font-black pointer-events-none">
+                <text
+                  x={pos.x}
+                  y={pos.y - 32}
+                  textAnchor="middle"
+                  fill="#ef4444"
+                  className="text-[10px] font-black pointer-events-none"
+                >
                   MERGE CONFLICT
                 </text>
               </g>
             );
-          })()
-        )}
+          })()}
 
         {/* Draw Nodes */}
         {state.commits.map((commit) => {
           const pos = nodePositions.get(commit.id);
           if (!pos) return null;
 
-          const isHead = state.branches.find(b => b.name === state.HEAD)?.target === commit.id || state.HEAD === commit.id;
-          
+          const isHead =
+            state.branches.find((b) => b.name === state.HEAD)?.target ===
+              commit.id || state.HEAD === commit.id;
+
           return (
             <g key={`node-${commit.id}`} className="cursor-pointer group">
               <circle
                 cx={pos.x}
                 cy={pos.y}
                 r="14"
-                className={`transition-all duration-200 group-hover:scale-125 stroke-black dark:stroke-[#f0ebe2] ${isHead ? 'fill-[#FFD700] dark:fill-[#d4b300]' : 'fill-white dark:fill-[#2e2924]'}`}
+                className={`transition-all duration-200 group-hover:scale-125 stroke-black dark:stroke-[#f0ebe2] ${isHead ? "fill-[#FFD700] dark:fill-[#d4b300]" : "fill-white dark:fill-[#2e2924]"}`}
                 strokeWidth="4"
               />
               {/* Tooltip on hover */}
               <g className="opacity-0 group-hover:opacity-100 transition-opacity">
-                <rect x={pos.x - 50} y={pos.y + 20} width={100} height={40} fill="white" stroke="black" strokeWidth="2" rx="4" className="dark:fill-[#151411] dark:stroke-[#f0ebe2]" />
-                <text x={pos.x} y={pos.y + 35} textAnchor="middle" className="text-[10px] font-mono font-black fill-black dark:fill-white">
+                <rect
+                  x={pos.x - 50}
+                  y={pos.y + 20}
+                  width={100}
+                  height={40}
+                  fill="white"
+                  stroke="black"
+                  strokeWidth="2"
+                  rx="4"
+                  className="dark:fill-[#151411] dark:stroke-[#f0ebe2]"
+                />
+                <text
+                  x={pos.x}
+                  y={pos.y + 35}
+                  textAnchor="middle"
+                  className="text-[10px] font-mono font-black fill-black dark:fill-white"
+                >
                   {commit.id}
                 </text>
-                <text x={pos.x} y={pos.y + 50} textAnchor="middle" className="text-[9px] font-mono fill-muted dark:fill-[#c4bbae]">
+                <text
+                  x={pos.x}
+                  y={pos.y + 50}
+                  textAnchor="middle"
+                  className="text-[9px] font-mono fill-muted dark:fill-[#c4bbae]"
+                >
                   {commit.message.substring(0, 15)}...
                 </text>
               </g>
@@ -137,18 +166,22 @@ export const GitGraph: React.FC<GitGraphProps> = ({ state }) => {
         })}
 
         {/* Draw Branch Labels */}
-        {state.branches.map(branch => {
+        {state.branches.map((branch) => {
           const targetPos = nodePositions.get(branch.target);
           if (!targetPos) return null;
-          
+
           const isHeadBranch = state.HEAD === branch.name;
 
           // If multiple branches point to the same commit, we need to offset them to prevent complete overlap.
           // For simplicity, we just draw them. A more complex layout could stack them vertically.
           // Let's compute vertical offset based on index of branch at this node.
-          const branchesAtThisNode = state.branches.filter(b => b.target === branch.target);
-          const indexAtNode = branchesAtThisNode.findIndex(b => b.name === branch.name);
-          const yOffset = -45 - (indexAtNode * 24);
+          const branchesAtThisNode = state.branches.filter(
+            (b) => b.target === branch.target,
+          );
+          const indexAtNode = branchesAtThisNode.findIndex(
+            (b) => b.name === branch.name,
+          );
+          const yOffset = -45 - indexAtNode * 24;
 
           return (
             <g key={`branch-${branch.name}`}>
@@ -158,13 +191,13 @@ export const GitGraph: React.FC<GitGraphProps> = ({ state }) => {
                 width={70}
                 height={20}
                 rx="6"
-                className={`stroke-black stroke-[2px] ${isHeadBranch ? 'fill-black dark:fill-[#f0ebe2]' : 'fill-[#e2e8f0] dark:fill-[#2e2924]'}`}
+                className={`stroke-black stroke-[2px] ${isHeadBranch ? "fill-black dark:fill-[#f0ebe2]" : "fill-[#e2e8f0] dark:fill-[#2e2924]"}`}
               />
               <text
                 x={targetPos.x}
                 y={targetPos.y + yOffset + 14}
                 textAnchor="middle"
-                className={`text-[10px] font-black font-mono pointer-events-none ${isHeadBranch ? 'fill-white dark:fill-black' : 'fill-black dark:fill-[#c4bbae]'}`}
+                className={`text-[10px] font-black font-mono pointer-events-none ${isHeadBranch ? "fill-white dark:fill-black" : "fill-black dark:fill-[#c4bbae]"}`}
               >
                 {branch.name}
               </text>

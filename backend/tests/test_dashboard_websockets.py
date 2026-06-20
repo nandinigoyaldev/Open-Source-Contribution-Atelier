@@ -13,10 +13,14 @@ async def test_leaderboard_websocket_update():
     user = await User.objects.acreate(username="test_user", password="password")
     lesson = await Lesson.objects.acreate(title="Test Lesson", slug="test-lesson", estimated_minutes=10, order=1)
 
-    # Connect communicator with Origin header
+    # Generate a real JWT access token so JWTAuthMiddleware can authenticate the user
+    from rest_framework_simplejwt.tokens import AccessToken
+    token = str(AccessToken.for_user(user))
+
+    # Connect with the token in the query string (how JWTAuthMiddleware reads it)
     communicator = WebsocketCommunicator(
-        application, 
-        "/ws/leaderboard/", 
+        application,
+        f"/ws/leaderboard/?token={token}",
         headers=[(b"origin", b"http://localhost")]
     )
     connected, subprotocol = await communicator.connect()
@@ -39,3 +43,5 @@ async def test_leaderboard_websocket_update():
     assert response["xp"] >= 50
 
     await communicator.disconnect()
+
+

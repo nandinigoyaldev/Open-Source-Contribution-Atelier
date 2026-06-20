@@ -1,7 +1,17 @@
 import React, { useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { fetchApi } from "../lib/api";
-import { CheckCircle, XCircle, Award, Calendar, User, Hash, ArrowLeft, Search, AlertOctagon } from "lucide-react";
+import {
+  CheckCircle,
+  XCircle,
+  Award,
+  Calendar,
+  User,
+  Hash,
+  ArrowLeft,
+  Search,
+  AlertOctagon,
+} from "lucide-react";
 
 interface CertificateData {
   verification_hash: string;
@@ -32,13 +42,20 @@ export function VerifyCertificatePage() {
         if (response.certificate) {
           setData(response.certificate);
           if (!response.is_valid) {
-            setError(response.error || "This certificate has been revoked or deactivated.");
+            setError(
+              response.error ||
+                "This certificate has been revoked or deactivated.",
+            );
           }
         } else {
           setError("Invalid certificate response format.");
         }
-      } catch (err: any) {
-        setError(err.message || "Certificate Not Found or Invalid Hash.");
+      } catch (err: unknown) {
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Certificate Not Found or Invalid Hash.",
+        );
       } finally {
         setLoading(false);
       }
@@ -85,7 +102,10 @@ export function VerifyCertificatePage() {
             to="/"
             className="group flex items-center gap-2 font-bold text-black border-4 border-black bg-white px-4 py-2 rounded-xl shadow-card-sm transition-all hover:-translate-y-1 hover:shadow-card active:translate-y-0 active:shadow-none"
           >
-            <ArrowLeft className="h-5 w-5 transition-transform group-hover:-translate-x-1" strokeWidth={3} />
+            <ArrowLeft
+              className="h-5 w-5 transition-transform group-hover:-translate-x-1"
+              strokeWidth={3}
+            />
             Back Home
           </Link>
           <div className="text-xl font-black uppercase tracking-widest text-black">
@@ -97,17 +117,22 @@ export function VerifyCertificatePage() {
           <div className="absolute top-0 right-0 p-8 text-7xl opacity-10 pointer-events-none select-none">
             🎓
           </div>
-          
+
           <div className="flex flex-col items-center text-center space-y-6">
             <Award className="h-20 w-20 text-primary" strokeWidth={2} />
             <h1 className="text-4xl font-black text-black uppercase tracking-tight">
               Certificate Verification
             </h1>
             <p className="text-lg font-bold text-muted max-w-xl">
-              Verify the authenticity of graduation credentials issued by the Open Source Contribution Atelier. Enter a certificate verification hash below.
+              Verify the authenticity of graduation credentials issued by the
+              Open Source Contribution Atelier. Enter a certificate verification
+              hash below.
             </p>
 
-            <form onSubmit={handleSearchSubmit} className="w-full max-w-lg mt-6 space-y-4">
+            <form
+              onSubmit={handleSearchSubmit}
+              className="w-full max-w-lg mt-6 space-y-4"
+            >
               <div className="flex flex-col sm:flex-row gap-4">
                 <div className="relative flex-grow">
                   <Hash className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted" />
@@ -147,7 +172,10 @@ export function VerifyCertificatePage() {
           to="/verify"
           className="group flex items-center gap-2 font-bold text-black border-4 border-black bg-white px-4 py-2 rounded-xl shadow-card-sm transition-all hover:-translate-y-1 hover:shadow-card active:translate-y-0 active:shadow-none"
         >
-          <ArrowLeft className="h-5 w-5 transition-transform group-hover:-translate-x-1" strokeWidth={3} />
+          <ArrowLeft
+            className="h-5 w-5 transition-transform group-hover:-translate-x-1"
+            strokeWidth={3}
+          />
           New Search
         </Link>
         <div className="text-xl font-black uppercase tracking-widest text-black">
@@ -160,19 +188,27 @@ export function VerifyCertificatePage() {
           /* Case 3a: Non-existent hash (404 Error) */
           <div className="flex flex-col items-center text-center space-y-6">
             <XCircle className="h-24 w-24 text-red-500" strokeWidth={2} />
-            <h1 className="text-4xl font-black text-black uppercase">Invalid Certificate</h1>
+            <h1 className="text-4xl font-black text-black uppercase">
+              Invalid Certificate
+            </h1>
             <p className="text-lg font-bold text-muted">
-              We couldn't verify this certificate. The hash might be incorrect, expired, or tampered with.
+              We couldn't verify this certificate. The hash might be incorrect,
+              expired, or tampered with.
             </p>
             <div className="bg-red-50 border-4 border-red-500 rounded-2xl p-4 w-full max-w-md">
-              <span className="font-bold text-red-700 break-all">Hash: {hash}</span>
+              <span className="font-bold text-red-700 break-all">
+                Hash: {hash}
+              </span>
             </div>
           </div>
         ) : data && data.is_active === false ? (
           /* Case 3b: Revoked/Inactive Certificate */
           <div className="flex flex-col items-center space-y-10">
             <div className="flex flex-col items-center gap-2">
-              <AlertOctagon className="h-24 w-24 text-red-500 animate-bounce" strokeWidth={2} />
+              <AlertOctagon
+                className="h-24 w-24 text-red-500 animate-bounce"
+                strokeWidth={2}
+              />
               <h1 className="text-4xl font-black text-black uppercase tracking-tight text-center">
                 Revoked Certificate
               </h1>
@@ -182,9 +218,12 @@ export function VerifyCertificatePage() {
             </div>
 
             <div className="w-full bg-red-50 border-4 border-red-500 rounded-2xl p-6 shadow-card-sm text-center">
-              <p className="text-lg font-black text-red-700 uppercase mb-2">⚠️ Security Alert</p>
+              <p className="text-lg font-black text-red-700 uppercase mb-2">
+                ⚠️ Security Alert
+              </p>
               <p className="font-bold text-red-600">
-                {error || "This certificate has been explicitly revoked or deactivated by the maintainers."}
+                {error ||
+                  "This certificate has been explicitly revoked or deactivated by the maintainers."}
               </p>
             </div>
 
@@ -195,8 +234,12 @@ export function VerifyCertificatePage() {
                   <User className="h-6 w-6 text-black" strokeWidth={2.5} />
                 </div>
                 <div>
-                  <p className="text-sm font-bold text-muted uppercase tracking-wide">Issued To</p>
-                  <p className="text-2xl font-black text-black">{data.learner_name}</p>
+                  <p className="text-sm font-bold text-muted uppercase tracking-wide">
+                    Issued To
+                  </p>
+                  <p className="text-2xl font-black text-black">
+                    {data.learner_name}
+                  </p>
                 </div>
               </div>
 
@@ -206,8 +249,12 @@ export function VerifyCertificatePage() {
                   <Award className="h-6 w-6 text-black" strokeWidth={2.5} />
                 </div>
                 <div>
-                  <p className="text-sm font-bold text-muted uppercase tracking-wide">For Completion Of</p>
-                  <p className="text-2xl font-black text-black">{data.course_name}</p>
+                  <p className="text-sm font-bold text-muted uppercase tracking-wide">
+                    For Completion Of
+                  </p>
+                  <p className="text-2xl font-black text-black">
+                    {data.course_name}
+                  </p>
                 </div>
               </div>
 
@@ -215,15 +262,20 @@ export function VerifyCertificatePage() {
                 {/* Date Issued */}
                 <div className="bg-surface-low border-4 border-black rounded-2xl p-6 shadow-card-sm flex items-start gap-4">
                   <div className="bg-tertiary p-3 rounded-xl border-2 border-black">
-                    <Calendar className="h-6 w-6 text-black" strokeWidth={2.5} />
+                    <Calendar
+                      className="h-6 w-6 text-black"
+                      strokeWidth={2.5}
+                    />
                   </div>
                   <div>
-                    <p className="text-sm font-bold text-muted uppercase tracking-wide">Issue Date</p>
+                    <p className="text-sm font-bold text-muted uppercase tracking-wide">
+                      Issue Date
+                    </p>
                     <p className="text-lg font-black text-black">
                       {new Date(data.issued_at).toLocaleDateString(undefined, {
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric'
+                        year: "numeric",
+                        month: "long",
+                        day: "numeric",
                       })}
                     </p>
                   </div>
@@ -235,8 +287,13 @@ export function VerifyCertificatePage() {
                     <Hash className="h-6 w-6 text-black" strokeWidth={2.5} />
                   </div>
                   <div className="overflow-hidden">
-                    <p className="text-sm font-bold text-muted uppercase tracking-wide">Verification Hash</p>
-                    <p className="text-sm font-black text-black truncate" title={data.verification_hash}>
+                    <p className="text-sm font-bold text-muted uppercase tracking-wide">
+                      Verification Hash
+                    </p>
+                    <p
+                      className="text-sm font-black text-black truncate"
+                      title={data.verification_hash}
+                    >
                       {data.verification_hash}
                     </p>
                   </div>
@@ -248,7 +305,10 @@ export function VerifyCertificatePage() {
           /* Case 3c: Valid Certificate */
           <div className="flex flex-col items-center space-y-10">
             <div className="flex flex-col items-center gap-2">
-              <CheckCircle className="h-24 w-24 text-green-500" strokeWidth={2.5} />
+              <CheckCircle
+                className="h-24 w-24 text-green-500"
+                strokeWidth={2.5}
+              />
               <h1 className="text-4xl font-black text-black uppercase tracking-tight text-center">
                 Verified Certificate
               </h1>
@@ -264,8 +324,12 @@ export function VerifyCertificatePage() {
                   <User className="h-6 w-6 text-black" strokeWidth={2.5} />
                 </div>
                 <div>
-                  <p className="text-sm font-bold text-muted uppercase tracking-wide">Issued To</p>
-                  <p className="text-2xl font-black text-black">{data.learner_name}</p>
+                  <p className="text-sm font-bold text-muted uppercase tracking-wide">
+                    Issued To
+                  </p>
+                  <p className="text-2xl font-black text-black">
+                    {data.learner_name}
+                  </p>
                 </div>
               </div>
 
@@ -275,8 +339,12 @@ export function VerifyCertificatePage() {
                   <Award className="h-6 w-6 text-black" strokeWidth={2.5} />
                 </div>
                 <div>
-                  <p className="text-sm font-bold text-muted uppercase tracking-wide">For Completion Of</p>
-                  <p className="text-2xl font-black text-black">{data.course_name}</p>
+                  <p className="text-sm font-bold text-muted uppercase tracking-wide">
+                    For Completion Of
+                  </p>
+                  <p className="text-2xl font-black text-black">
+                    {data.course_name}
+                  </p>
                 </div>
               </div>
 
@@ -284,15 +352,20 @@ export function VerifyCertificatePage() {
                 {/* Date Issued */}
                 <div className="bg-surface-low border-4 border-black rounded-2xl p-6 shadow-card-sm flex items-start gap-4">
                   <div className="bg-tertiary p-3 rounded-xl border-2 border-black">
-                    <Calendar className="h-6 w-6 text-black" strokeWidth={2.5} />
+                    <Calendar
+                      className="h-6 w-6 text-black"
+                      strokeWidth={2.5}
+                    />
                   </div>
                   <div>
-                    <p className="text-sm font-bold text-muted uppercase tracking-wide">Issue Date</p>
+                    <p className="text-sm font-bold text-muted uppercase tracking-wide">
+                      Issue Date
+                    </p>
                     <p className="text-lg font-black text-black">
                       {new Date(data.issued_at).toLocaleDateString(undefined, {
-                        year: 'numeric',
-                        month: 'long',
-                        day: 'numeric'
+                        year: "numeric",
+                        month: "long",
+                        day: "numeric",
                       })}
                     </p>
                   </div>
@@ -304,8 +377,13 @@ export function VerifyCertificatePage() {
                     <Hash className="h-6 w-6 text-black" strokeWidth={2.5} />
                   </div>
                   <div className="overflow-hidden">
-                    <p className="text-sm font-bold text-muted uppercase tracking-wide">Verification Hash</p>
-                    <p className="text-sm font-black text-black truncate" title={data.verification_hash}>
+                    <p className="text-sm font-bold text-muted uppercase tracking-wide">
+                      Verification Hash
+                    </p>
+                    <p
+                      className="text-sm font-black text-black truncate"
+                      title={data.verification_hash}
+                    >
                       {data.verification_hash}
                     </p>
                   </div>

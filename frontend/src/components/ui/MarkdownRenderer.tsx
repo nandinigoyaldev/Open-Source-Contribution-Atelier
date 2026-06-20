@@ -7,13 +7,9 @@ interface MarkdownRendererProps {
 export function MarkdownRenderer({ content }: MarkdownRendererProps) {
   // Helper to parse inline formats: bold, inline code, links
   const parseInline = (text: string): React.ReactNode[] => {
-    const parts: React.ReactNode[] = [];
-    let currentText = text;
-    let index = 0;
-
     // Regular expressions for matching bold, code, and links
     const inlineRegex = /(\*\*.*?\*\*|`.*?`|\[.*?\]\(.*?\))/g;
-    const matches = currentText.split(inlineRegex);
+    const matches = text.split(inlineRegex);
 
     return matches.map((part, i) => {
       if (part.startsWith("**") && part.endsWith("**")) {
@@ -70,7 +66,6 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
 
     // 2. Code Blocks: ```lang
     if (line.trim().startsWith("```")) {
-      const lang = line.trim().slice(3);
       let codeContent = "";
       index++;
       while (index < lines.length && !lines[index].trim().startsWith("```")) {

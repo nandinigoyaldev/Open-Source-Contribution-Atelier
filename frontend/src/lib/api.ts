@@ -34,20 +34,25 @@ export async function fetchApi(endpoint: string, options: RequestOptions = {}) {
 
     if (!response.ok) {
       const errorBody = await response.json().catch(() => ({}));
-      throw new Error(errorBody.detail || errorBody.error || "An error occurred");
+      throw new Error(
+        errorBody.detail || errorBody.error || "An error occurred",
+      );
     }
 
     return response.json().catch(() => ({}));
   } catch (error) {
     if (endpoint === "/progress/me/" && config.method === "POST") {
-      const isOfflineOrNetworkError = !navigator.onLine || error instanceof TypeError;
+      const isOfflineOrNetworkError =
+        !navigator.onLine || error instanceof TypeError;
       if (isOfflineOrNetworkError) {
         const bodyStr = config.body as string;
         try {
           const bodyObj = JSON.parse(bodyStr || "{}");
           const lesson_slug = bodyObj.lesson_slug;
           if (lesson_slug) {
-            console.log(`[fetchApi] Offline/network error for ${lesson_slug}. Queuing for background sync.`);
+            console.log(
+              `[fetchApi] Offline/network error for ${lesson_slug}. Queuing for background sync.`,
+            );
             await queueProgressSync({
               lesson_slug,
               score: bodyObj.score,
@@ -63,7 +68,10 @@ export async function fetchApi(endpoint: string, options: RequestOptions = {}) {
             };
           }
         } catch (jsonErr) {
-          console.error("[fetchApi] Failed to parse body for offline queue:", jsonErr);
+          console.error(
+            "[fetchApi] Failed to parse body for offline queue:",
+            jsonErr,
+          );
         }
       }
     }

@@ -57,14 +57,19 @@ export function CommunityPage() {
     fetchApi("/leaderboard/")
       .then((data) => {
         if (data && Array.isArray(data.results)) {
-          const mapped = data.results.map((item: { username: string; prs_merged: number; xp: number }, idx: number) => ({
-            rank: idx + 1,
-            username: item.username,
-            avatar_url: `https://github.com/${item.username}.png`,
-            html_url: `https://github.com/${item.username}`,
-            contributions: item.prs_merged,
-            xp: item.xp,
-          }));
+          const mapped = data.results.map(
+            (
+              item: { username: string; prs_merged: number; xp: number },
+              idx: number,
+            ) => ({
+              rank: idx + 1,
+              username: item.username,
+              avatar_url: `https://github.com/${item.username}.png`,
+              html_url: `https://github.com/${item.username}`,
+              contributions: item.prs_merged,
+              xp: item.xp,
+            }),
+          );
           setLeaderboard(mapped.slice(0, 10));
         } else {
           throw new Error("Invalid results format");
@@ -114,7 +119,8 @@ export function CommunityPage() {
   useEffect(() => {
     fetchLeaderboard();
 
-    const apiBase = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api";
+    const apiBase =
+      import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api";
     const wsHost = apiBase.replace(/^https?:\/\//, "").replace(/\/api$/, "");
     const wsScheme = apiBase.startsWith("https") ? "wss" : "ws";
     // Do NOT include the auth token in the URL query string — it would be
@@ -145,7 +151,6 @@ export function CommunityPage() {
       socket.close();
     };
   }, []);
-
 
   const displayStats = [
     {

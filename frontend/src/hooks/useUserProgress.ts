@@ -41,17 +41,42 @@ export function useUserProgress() {
   });
 
   // 3. Convenience helpers
-  const isLessonCompleted = useCallback((slug: string) => {
-    const isCompletedInBackend = progress.some((p) => p.lesson_slug === slug && p.completed);
+  const isLessonCompleted = (slug: string) => {
+    const isCompletedInBackend = progress.some(
+      (p) => p.lesson_slug === slug && p.completed,
+    );
     if (isCompletedInBackend) return true;
 
-    return isLessonPendingCompleted(slug);
-  }, [progress, isLessonPendingCompleted]);
+    try {
+      const pending = JSON.parse(
+        localStorage.getItem("atelier_pending_sync") || "[]",
+      ) as { lesson_slug: string; score: number; completed: boolean }[];
+      return pending.some((p) => p.lesson_slug === slug && p.completed);
+    } catch {
+      return false;
+    }
+  };
 
-const totalXP = useMemo(() => {
-  const backendXP = progress.reduce((acc, p) => acc + p.score, 0);
-  return backendXP + getPendingXP(progress);
-}, [progress, getPendingXP]);
+  const totalXP = useMemo(() => {
+    const backendXP = progress.reduce((acc, p) => acc + p.score, 0);
+    let pendingXP = 0;
+    try {
+      const pending = JSON.parse(
+        localStorage.getItem("atelier_pending_sync") || "[]",
+      ) as { lesson_slug: string; score: number; completed: boolean }[];
+      pending.forEach((p) => {
+        const inBackend = progress.some(
+          (bp) => bp.lesson_slug === p.lesson_slug,
+        );
+        if (!inBackend) {
+          pendingXP += p.score || 0;
+        }
+      });
+    } catch {
+      // Ignore invalid JSON in localStorage
+    }
+    return backendXP + pendingXP;
+  }, [progress]);
 
   return {
     progress,

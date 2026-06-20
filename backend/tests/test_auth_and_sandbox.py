@@ -37,7 +37,7 @@ def test_signup_and_login_flow():
         {
             "username": "mentor",
             "email": "mentor@example.com",
-            "password": "StrongPass123!",
+            "password": "Strongpass123!",
         },
         format="json",
     )
@@ -45,7 +45,7 @@ def test_signup_and_login_flow():
 
     login_response = client.post(
         "/api/auth/login/",
-        {"username": "mentor", "password": "StrongPass123!"},
+        {"username": "mentor", "password": "Strongpass123!"},
         format="json",
     )
     assert login_response.status_code == 200
@@ -94,7 +94,7 @@ def test_signup_saves_email_as_lowercase():
         {
             "username": "mentor_lowercase",
             "email": "MENTOR@EXAMPLE.COM",
-            "password": "StrongPass123!",
+            "password": "Strongpass123!",
         },
         format="json",
     )
@@ -264,3 +264,58 @@ def test_progress_post_creates_dynamic_lesson_stub():
         user=user,
         lesson=lesson
     ).exists()
+
+
+@pytest.mark.django_db
+def test_signup_duplicate_email_returns_400():
+    """Registering with an already-used email address must return HTTP 400."""
+    client = APIClient()
+
+    # First signup – should succeed
+    User.objects.create_user(
+        username="existing_user",
+        email="taken@example.com",
+        password="AlreadyHere!9",
+    )
+
+    # Second signup with the same email – should be rejected
+    response = client.post(
+        "/api/auth/signup/",
+        {
+            "username": "new_user",
+            "email": "taken@example.com",
+            "password": "AnotherPass!9",
+        },
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert "email" in response.data
+    assert "already exists" in str(response.data["email"]).lower()
+
+
+@pytest.mark.django_db
+def test_signup_duplicate_email_is_case_insensitive():
+    """Email uniqueness check must be case-insensitive (TAKEN@EXAMPLE.COM == taken@example.com)."""
+    client = APIClient()
+
+    User.objects.create_user(
+        username="existing_user2",
+        email="taken@example.com",
+        password="AlreadyHere!9",
+    )
+
+    # Try to register with the same email in a different case
+    response = client.post(
+        "/api/auth/signup/",
+        {
+            "username": "new_user2",
+            "email": "TAKEN@EXAMPLE.COM",
+            "password": "AnotherPass!9",
+        },
+        format="json",
+    )
+
+    assert response.status_code == 400
+    assert "email" in response.data
+

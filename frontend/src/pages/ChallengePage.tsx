@@ -41,16 +41,16 @@ export function ChallengePage() {
           />
         </div>
 
-        <div className="flex gap-1.5">
+        <div className="flex gap-2">
           {difficulties.map((d) => (
             <button
               key={d}
               onClick={() => setDifficulty(difficulty === d ? null : d)}
               className={clsx(
-                "rounded-lg px-3 py-1.5 text-xs font-medium capitalize transition-colors",
+                "rounded-xl px-3 py-1.5 text-xs font-black capitalize transition-all border-2 border-black shadow-card-sm hover:-translate-y-0.5",
                 difficulty === d
-                  ? "bg-primary text-white"
-                  : "bg-surface-low text-muted hover:bg-surface-low/80 hover:text-text",
+                  ? "bg-primary text-black"
+                  : "bg-white text-muted hover:bg-surface-low hover:text-text",
               )}
             >
               {d}
@@ -63,7 +63,7 @@ export function ChallengePage() {
         {filtered.map((item) => (
           <SectionCard key={item.title} eyebrow={item.badge} title={item.title}>
             <p className="text-sm leading-6 text-muted">{item.summary}</p>
-            <button className="mt-5 rounded-xl bg-surface-low px-4 py-2 text-sm font-semibold text-primary">
+            <button className="mt-5 rounded-xl bg-surface-low border-2 border-black px-4 py-2 text-sm font-black text-black shadow-card-sm hover:-translate-y-0.5 active:translate-y-0 transition-all cursor-pointer">
               Open challenge
             </button>
           </SectionCard>

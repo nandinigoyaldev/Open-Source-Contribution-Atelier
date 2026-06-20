@@ -12,10 +12,11 @@ import {
   Sun,
   Moon,
 } from "lucide-react";
-import { Link, NavLink } from "react-router-dom";
+import { Link, NavLink, useNavigate } from "react-router-dom";
+import { fetchApi } from "../../lib/api";
 import { useTheme } from "../../hooks/useTheme";
 import { useAuth } from "../../features/auth/AuthContext";
-import { fetchLessonsApi } from "../../lib/lessons";
+import { fetchLessonsApi, Lesson } from "../../lib/lessons";
 import LogoutButtonWithConfirm from "./LogoutButtonWithConfirm";
 
 const navItems = [
@@ -26,16 +27,25 @@ const navItems = [
 ];
 
 export function Navigation() {
+  const navigate = useNavigate();
+  const [isStarting, setIsStarting] = useState(false);
   const { theme, toggleTheme } = useTheme();
-  const { user, logout } = useAuth();
+  const { user } = useAuth();
+
+  const handleStartSandbox = async () => {
+    if (isStarting) return;
+    setIsStarting(true);
+    await new Promise((resolve) => setTimeout(resolve, 800));
+    setIsStarting(false);
+    navigate("/lessons/what-is-open-source");
+  };
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<{
-    lessons: any[];
-    challenges: any[];
+    lessons: Lesson[];
+    challenges: { title: string; summary: string; slug: string }[];
   } | null>(null);
   const [isSearching, setIsSearching] = useState(false);
-  const [lessonsCatalog, setLessonsCatalog] = useState<any[]>([]);
-  const [badgeCount, setBadgeCount] = useState(0);
+  const [lessonsCatalog, setLessonsCatalog] = useState<Lesson[]>([]);
 
   useEffect(() => {
     fetchLessonsApi().then((data) => setLessonsCatalog(data));
@@ -138,13 +148,27 @@ export function Navigation() {
               <p className="mt-2 text-sm text-muted dark:text-[#c4bbae]">
                 Run guided Git practice without exposing the real shell.
               </p>
-              <Link
-                to="/lessons/what-is-open-source"
-                className="mt-4 flex items-center justify-center gap-2 rounded-xl bg-primary-container px-4 py-3 text-sm font-semibold text-white shadow-card"
+              <button
+                onClick={handleStartSandbox}
+                disabled={isStarting}
+                className="w-full mt-4 flex items-center justify-center gap-2 rounded-xl bg-primary text-white border-4 border-black dark:border-[#2e2924] px-4 py-3 text-sm font-black shadow-card hover:-translate-y-0.5 active:translate-y-0 transition-all cursor-pointer disabled:opacity-50"
               >
-                <TerminalSquare size={15} />
-                Start sandbox
-              </Link>
+                {isStarting ? (
+                  <span
+                    className="flex items-center gap-1.5 inline-flex"
+                    aria-hidden="true"
+                  >
+                    <span className="w-2 h-2 bg-current rounded-full animate-bounce [animation-delay:-0.3s]" />
+                    <span className="w-2 h-2 bg-current rounded-full animate-bounce [animation-delay:-0.15s]" />
+                    <span className="w-2 h-2 bg-current rounded-full animate-bounce" />
+                  </span>
+                ) : (
+                  <>
+                    <TerminalSquare size={15} />
+                    Start sandbox
+                  </>
+                )}
+              </button>
             </div>
           </div>
         </nav>
@@ -254,13 +278,17 @@ export function Navigation() {
               Dashboard
             </Link>
             <button
-              className="rounded-xl bg-surface-low p-2 text-muted hover:text-text dark:bg-[#151411] dark:text-[#c4bbae] dark:hover:text-[#f0ebe2]"
+              className="rounded-xl bg-surface-low p-2 text-muted hover:text-text border-2 border-black dark:border-[#2e2924] shadow-card-sm hover:-translate-y-0.5 active:translate-y-0 transition-all dark:bg-[#151411] dark:text-[#c4bbae] dark:hover:text-[#f0ebe2]"
               onClick={toggleTheme}
-              aria-label={theme === "light" ? "Switch to dark mode" : "Switch to light mode"}
+              aria-label={
+                theme === "light"
+                  ? "Switch to dark mode"
+                  : "Switch to light mode"
+              }
             >
               {theme === "light" ? <Moon size={16} /> : <Sun size={16} />}
             </button>
-            <button className="rounded-xl bg-surface-low p-2 text-muted hover:text-text dark:bg-[#151411] dark:text-[#c4bbae] dark:hover:text-[#f0ebe2]">
+            <button className="rounded-xl bg-surface-low p-2 text-muted hover:text-text border-2 border-black dark:border-[#2e2924] shadow-card-sm hover:-translate-y-0.5 active:translate-y-0 transition-all dark:bg-[#151411] dark:text-[#c4bbae] dark:hover:text-[#f0ebe2]">
               <Bell size={16} />
             </button>
             {user ? (
