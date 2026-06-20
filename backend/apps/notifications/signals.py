@@ -40,22 +40,24 @@ def _push_notification(notification: Notification):
 # ------------------------------------------------------------------ #
 # Badge signal                                                        #
 # ------------------------------------------------------------------ #
-# Uncomment and adjust once you have the Badge model
-#
-# from apps.badges.models import UserBadge   # <- your real import
-#
-# @receiver(post_save, sender=UserBadge)
-# def on_badge_awarded(sender, instance, created, **kwargs):
-#     if not created:
-#         return
-#     notif = Notification.objects.create(
-#         recipient  = instance.user,
-#         notif_type = "badge",
-#         title      = "🏅 New Badge Earned!",
-#         message    = f"You earned the '{instance.badge.name}' badge.",
-#         meta       = {"badge_id": instance.badge.id, "badge_name": instance.badge.name},
-#     )
-#     _push_notification(notif)
+from apps.progress.models import UserBadge
+
+@receiver(post_save, sender=UserBadge)
+def on_badge_awarded(sender, instance, created, **kwargs):
+    if not created:
+        return
+    notif = Notification.objects.create(
+        recipient  = instance.user,
+        notif_type = "badge",
+        title      = "🏅 New Badge Earned!",
+        message    = f"You earned the '{instance.badge.name}' badge.",
+        meta       = {
+            "badge_id": instance.badge.id,
+            "badge_name": instance.badge.name,
+            "badge_slug": instance.badge.slug
+        },
+    )
+    _push_notification(notif)
 
 
 # ------------------------------------------------------------------ #

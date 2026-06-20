@@ -1,0 +1,548 @@
+{
+  "modules": [
+    {
+      "id": "module-1",
+      "title": "Introduction to Open Source",
+      "description": "Learn what open source is, why it matters, and clarify common misconceptions.",
+      "lessons": [
+        {
+          "slug": "what-is-open-source",
+          "title": "What is Open Source?",
+          "description": "Understand the core philosophy of open source and collaboration.",
+          "difficulty": "beginner",
+          "estimatedMinutes": 5,
+          "points": 15,
+          "filePath": "module-1/what-is-open-source.md",
+          "quizzes": [
+            {
+              "question": "What is the primary defining characteristic of open-source software?",
+              "options": [
+                "It is always completely free of charge.",
+                "Its source code is publicly accessible, allowing anyone to view, modify, and distribute it.",
+                "It can only be developed by large non-profit foundations.",
+                "It has no copyright licenses associated with it."
+              ],
+              "answer": 1,
+              "explanation": "Open-source software is defined by its source code being publicly available for anyone to inspect, modify, and enhance under open licenses."
+            }
+          ]
+        },
+        {
+          "slug": "why-open-source-matters",
+          "title": "Why Open Source Matters",
+          "description": "Explore the societal and technical impacts of open source projects.",
+          "difficulty": "beginner",
+          "estimatedMinutes": 6,
+          "points": 15,
+          "filePath": "module-1/why-open-source-matters.md",
+          "quizzes": [
+            {
+              "question": "Which of these is a benefit of open-source collaboration for developers?",
+              "options": [
+                "Guaranteed immediate high salary.",
+                "It prevents other developers from seeing your code mistakes.",
+                "Peer review improves security, quality, and helps you learn from others.",
+                "You get exclusive ownership of the shared code."
+              ],
+              "answer": 2,
+              "explanation": "Collaborating openly exposes code to community reviews, improving quality, security, and accelerating learning."
+            }
+          ]
+        },
+        {
+          "slug": "history-of-open-source",
+          "title": "History of Open Source",
+          "description": "Discover the roots of the Free Software Movement and the transition to Open Source.",
+          "difficulty": "beginner",
+          "estimatedMinutes": 8,
+          "points": 15,
+          "filePath": "module-1/history-of-open-source.md",
+          "quizzes": [
+            {
+              "question": "Who founded the Free Software Foundation (FSF) and spearheaded the GNU Project?",
+              "options": [
+                "Linus Torvalds",
+                "Richard Stallman",
+                "Bill Gates",
+                "Ada Lovelace"
+              ],
+              "answer": 1,
+              "explanation": "Richard Stallman launched the GNU project in 1983 and founded the FSF in 1985 to promote computer user freedom."
+            }
+          ]
+        },
+        {
+          "slug": "benefits-of-contributing",
+          "title": "Benefits of Contributing",
+          "description": "How contributing to open source accelerates your personal and professional growth.",
+          "difficulty": "beginner",
+          "estimatedMinutes": 5,
+          "points": 15,
+          "filePath": "module-1/benefits-of-contributing.md",
+          "quizzes": [
+            {
+              "question": "Which is the most common professional benefit of maintaining a public open-source portfolio?",
+              "options": [
+                "It counts as official academic credit globally.",
+                "It shows employers real-world collaboration, code quality, and communication skills.",
+                "It automatically makes you immune to tech layoffs.",
+                "It grants you a license to bypass standard coding job interviews."
+              ],
+              "answer": 1,
+              "explanation": "A public contribution history demonstrates collaboration, coding capability, and active participation in community review processes."
+            }
+          ]
+        },
+        {
+          "slug": "common-misconceptions",
+          "title": "Common Misconceptions",
+          "description": "Debunking myths about code perfection and contribution types in open source.",
+          "difficulty": "beginner",
+          "estimatedMinutes": 7,
+          "points": 15,
+          "filePath": "module-1/common-misconceptions.md",
+          "quizzes": [
+            {
+              "question": "Is open source contribution limited only to writing code?",
+              "options": [
+                "Yes, non-code contributions are deleted by maintainers.",
+                "No, you can contribute through documentation, design, issue reviews, translations, and community management.",
+                "Yes, only pull requests containing backend files are counted.",
+                "No, but writing code is the only way to earn badges."
+              ],
+              "answer": 1,
+              "explanation": "Open source relies heavily on documentation, translations, design, bug triage, and mentoring, which are highly valued non-code contributions."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "module-2",
+      "title": "Git Fundamentals",
+      "description": "Master local version control, staging, commits, and local branches.",
+      "lessons": [
+        {
+          "slug": "repositories-and-commits",
+          "title": "Repositories & Commits",
+          "description": "How Git tracks project state. Initialize a repository.",
+          "difficulty": "beginner",
+          "estimatedMinutes": 8,
+          "points": 20,
+          "filePath": "module-2/repositories-and-commits.md",
+          "expected": "git init",
+          "hint": "Run the command to initialize a repository: git init"
+        },
+        {
+          "slug": "branches",
+          "title": "Branches",
+          "description": "Isolating code paths using local branches.",
+          "difficulty": "beginner",
+          "estimatedMinutes": 8,
+          "points": 20,
+          "filePath": "module-2/branches.md",
+          "expected": "git switch -c feat/add-readme",
+          "hint": "Create a branch named feat/add-readme and switch to it using: git switch -c feat/add-readme"
+        },
+        {
+          "slug": "merging",
+          "title": "Merging",
+          "description": "Integrating branch histories back together.",
+          "difficulty": "beginner",
+          "estimatedMinutes": 10,
+          "points": 20,
+          "filePath": "module-2/merging.md",
+          "expected": "git merge feat/add-readme",
+          "hint": "Merge the feat/add-readme branch into your current branch: git merge feat/add-readme"
+        },
+        {
+          "slug": "remotes",
+          "title": "Remotes",
+          "description": "Connecting your local workspace to remote hosting services.",
+          "difficulty": "beginner",
+          "estimatedMinutes": 8,
+          "points": 20,
+          "filePath": "module-2/remotes.md",
+          "expected": "git remote -v",
+          "hint": "List registered remote repositories to view URLs: git remote -v"
+        },
+        {
+          "slug": "git-workflow",
+          "title": "Staging & Reviewing Status",
+          "description": "Daily developer routine: check, stage, and commit.",
+          "difficulty": "beginner",
+          "estimatedMinutes": 8,
+          "points": 20,
+          "filePath": "module-2/git-workflow.md",
+          "expected": "git status",
+          "hint": "Type the status command to view modified files: git status"
+        }
+      ]
+    },
+    {
+      "id": "module-3",
+      "title": "GitHub Fundamentals",
+      "description": "Navigate issues, fork repos, create pull requests, and organize code.",
+      "lessons": [
+        {
+          "slug": "github-repositories",
+          "title": "GitHub Repositories",
+          "description": "Understand hosting, forks, stars, and pull request tabs.",
+          "difficulty": "beginner",
+          "estimatedMinutes": 6,
+          "points": 15,
+          "filePath": "module-3/github-repositories.md",
+          "quizzes": [
+            {
+              "question": "What is the primary difference between a local Git repository and a GitHub repository?",
+              "options": [
+                "Local Git repositories are only for private projects; GitHub is only for commercial teams.",
+                "Local Git is version control on your computer; GitHub is a cloud hosting platform with collaboration features.",
+                "GitHub doesn't track commits or branches.",
+                "Git is paid software, while GitHub is completely open-source."
+              ],
+              "answer": 1,
+              "explanation": "Git is the local command-line tool, whereas GitHub is a cloud-based web application facilitating shared repository management and social coding."
+            }
+          ]
+        },
+        {
+          "slug": "forks",
+          "title": "Forks",
+          "description": "Creating your own copy of an upstream repository to build features.",
+          "difficulty": "beginner",
+          "estimatedMinutes": 7,
+          "points": 15,
+          "filePath": "module-3/forks.md",
+          "quizzes": [
+            {
+              "question": "Why do open source contributors fork a repository instead of directly cloning it?",
+              "options": [
+                "Direct cloning is blocked by GitHub for security.",
+                "Forking copies it to your account, giving you write access to submit your pull request.",
+                "Forking deletes the original repository for security.",
+                "Forking translates the repository's code into your native language."
+              ],
+              "answer": 1,
+              "explanation": "Forking creates a personal copy of the project under your GitHub profile, allowing you to push branches and request reviews on the parent project."
+            }
+          ]
+        },
+        {
+          "slug": "pull-requests",
+          "title": "Pull Requests",
+          "description": "Proposing changes to a main branch for code review.",
+          "difficulty": "beginner",
+          "estimatedMinutes": 8,
+          "points": 15,
+          "filePath": "module-3/pull-requests.md",
+          "quizzes": [
+            {
+              "question": "What is a Pull Request (PR) on GitHub?",
+              "options": [
+                "A request to download a repository to your computer.",
+                "A formal proposal to merge code from one branch (often in a fork) to another repository's branch.",
+                "A command to force-push code to the main server.",
+                "A request to delete obsolete issues."
+              ],
+              "answer": 1,
+              "explanation": "A pull request is a request to pull changes from your feature branch into the target repository's code base."
+            }
+          ]
+        },
+        {
+          "slug": "issues",
+          "title": "GitHub Issues",
+          "description": "Reporting bugs, requesting features, and discussing repository state.",
+          "difficulty": "beginner",
+          "estimatedMinutes": 6,
+          "points": 15,
+          "filePath": "module-3/issues.md",
+          "quizzes": [
+            {
+              "question": "How are GitHub Issues used in open source projects?",
+              "options": [
+                "They are only for reporting security vulnerabilities.",
+                "They track bugs, request features, host task discussions, and guide project boards.",
+                "They represent lines of code that contain syntax errors.",
+                "They are personal notes that only administrators can see."
+              ],
+              "answer": 1,
+              "explanation": "GitHub Issues are the primary tracking mechanism for tasks, feature discussions, bug reports, and planning checklists."
+            }
+          ]
+        },
+        {
+          "slug": "discussions",
+          "title": "GitHub Discussions",
+          "description": "Participating in Q&A, community forums, and general chats.",
+          "difficulty": "beginner",
+          "estimatedMinutes": 5,
+          "points": 15,
+          "filePath": "module-3/discussions.md",
+          "quizzes": [
+            {
+              "question": "What makes GitHub Discussions different from GitHub Issues?",
+              "options": [
+                "Discussions allow you to run backend code directly.",
+                "Discussions are for open-ended community chat, ideas, and questions, while Issues track concrete work tasks.",
+                "Discussions require special licensing keys to access.",
+                "Discussions are automatically resolved after 24 hours."
+              ],
+              "answer": 1,
+              "explanation": "Discussions offer a forum-like space for open conversation, support, and brainstorming, keeping Issues focused strictly on project development tasks."
+            }
+          ]
+        },
+        {
+          "slug": "organizations",
+          "title": "GitHub Organizations",
+          "description": "Working with repositories under team structures.",
+          "difficulty": "beginner",
+          "estimatedMinutes": 5,
+          "points": 15,
+          "filePath": "module-3/organizations.md",
+          "quizzes": [
+            {
+              "question": "What is a GitHub Organization?",
+              "options": [
+                "A company that writes private code only.",
+                "A shared account that groups people and repositories under a single collaborative entity.",
+                "A local folder on your computer that organizes Git branches.",
+                "A standard that formats pull request descriptions."
+              ],
+              "answer": 1,
+              "explanation": "Organizations enable multiple people to manage shared projects and repositories together with fine-grained access permissions."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "module-4",
+      "title": "Open Source Etiquette",
+      "description": "Unwritten rules of professional communication and respect in open source communities.",
+      "lessons": [
+        {
+          "slug": "respect-and-communication",
+          "title": "Respect & Communication",
+          "description": "How to address maintainers and write professional comments.",
+          "difficulty": "beginner",
+          "estimatedMinutes": 6,
+          "points": 15,
+          "filePath": "module-4/respect-and-communication.md",
+          "quizzes": [
+            {
+              "question": "What is the best way to handle communication with open source maintainers?",
+              "options": [
+                "Tag them multiple times daily to force them to review your PR immediately.",
+                "Be polite, patient, constructive, and respect that most maintainers are volunteers working async.",
+                "Demand that they merge your code immediately.",
+                "Send private emails to their personal addresses."
+              ],
+              "answer": 1,
+              "explanation": "Open-source communication must be respectful, patient, and professional. Most maintainers contribute in their spare time and manage high loads."
+            }
+          ]
+        },
+        {
+          "slug": "read-readme-and-contributing",
+          "title": "Reading Guidelines First",
+          "description": "The importance of checking README, CONTRIBUTING, and Code of Conduct documents.",
+          "difficulty": "beginner",
+          "estimatedMinutes": 7,
+          "points": 15,
+          "filePath": "module-4/read-readme-and-contributing.md",
+          "quizzes": [
+            {
+              "question": "Where should you look to understand a project's setup and guidelines before opening a pull request?",
+              "options": [
+                "Directly message the creator on Twitter.",
+                "Open a blank issue asking how to run the project.",
+                "Read the README.md and CONTRIBUTING.md files in the repository root.",
+                "Search general forums for random setup tutorials."
+              ],
+              "answer": 2,
+              "explanation": "README.md explains what the project does and how to set it up, while CONTRIBUTING.md details specific branch rules, PR requirements, and styles."
+            }
+          ]
+        },
+        {
+          "slug": "professional-prs-and-issues",
+          "title": "Professional Submissions",
+          "description": "Avoid duplicate issues, spam PRs, and working without issue assignment.",
+          "difficulty": "beginner",
+          "estimatedMinutes": 8,
+          "points": 15,
+          "filePath": "module-4/professional-prs-and-issues.md",
+          "quizzes": [
+            {
+              "question": "Which of the following actions is considered poor etiquette in open source?",
+              "options": [
+                "Creating issues with detailed step-by-step reproduction guidelines.",
+                "Starting work on an issue without being assigned or communicating with the maintainers.",
+                "Linking your PR to a related open issue in the description.",
+                "Suggesting improvements to a layout's accessibility."
+              ],
+              "answer": 1,
+              "explanation": "Working without assignment or coordination can lead to duplicate effort and waste resources. Always ask to be assigned and outline your approach first."
+            }
+          ]
+        },
+        {
+          "slug": "maintainer-review-processes",
+          "title": "Review & Revision Habits",
+          "description": "Understand how code reviews work and how to handle revision requests.",
+          "difficulty": "beginner",
+          "estimatedMinutes": 6,
+          "points": 15,
+          "filePath": "module-4/maintainer-review-processes.md",
+          "quizzes": [
+            {
+              "question": "How should you respond to critical feedback on your pull request?",
+              "options": [
+                "Delete the PR immediately and close your GitHub account.",
+                "Argue that your code is perfect and the maintainer doesn't understand.",
+                "Review the comments constructively, apply necessary changes, and request another review.",
+                "Submit duplicate PRs in hopes of avoiding review."
+              ],
+              "answer": 2,
+              "explanation": "Code review is a standard collaborative practice. Revisions are normal and help align code quality with project architecture."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "module-5",
+      "title": "First Contribution Walkthrough",
+      "description": "A step-by-step interactive command line practice for setting up your first PR.",
+      "lessons": [
+        {
+          "slug": "first-contribution-walkthrough",
+          "title": "Submit a Mock PR",
+          "description": "Walk through cloning, branching, and pushing a commit to mock origin.",
+          "difficulty": "beginner",
+          "estimatedMinutes": 10,
+          "points": 25,
+          "filePath": "module-5/first-contribution-walkthrough.md",
+          "expected": "git push -u origin feat/my-first-pr",
+          "hint": "Set upstream and push the branch feat/my-first-pr: git push -u origin feat/my-first-pr"
+        }
+      ]
+    },
+    {
+      "id": "module-6",
+      "title": "Real Contribution Workflow",
+      "description": "Trace the step-by-step lifecycle of a professional contribution.",
+      "lessons": [
+        {
+          "slug": "contribution-lifecycle",
+          "title": "The PR Lifecycle",
+          "description": "From finding an issue to getting the PR merged.",
+          "difficulty": "intermediate",
+          "estimatedMinutes": 8,
+          "points": 20,
+          "filePath": "module-6/contribution-lifecycle.md",
+          "quizzes": [
+            {
+              "question": "Arrange the standard open source contribution workflow stages in order:",
+              "options": [
+                "PR -> Issue -> Coding -> Merge -> Code Review",
+                "Issue -> Assignment -> Branch -> Development -> PR -> Code Review -> Merge",
+                "Coding -> PR -> Issues -> Merge -> Discuss",
+                "Assignment -> PR -> Merge -> Create Branch -> Test"
+              ],
+              "answer": 1,
+              "explanation": "The standard sequence ensures consensus on the issue and proper review before code modification is integrated."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "module-7",
+      "title": "Advanced Open Source",
+      "description": "Syncing forks, rebasing, squashing, conflict resolution, and CI/CD checks.",
+      "lessons": [
+        {
+          "slug": "rebasing-and-squashing",
+          "title": "Rebasing & Squashing",
+          "description": "Keeping commit logs clean and history linear.",
+          "difficulty": "intermediate",
+          "estimatedMinutes": 10,
+          "points": 20,
+          "filePath": "module-7/rebasing-and-squashing.md",
+          "expected": "git rebase main",
+          "hint": "Rebase your current branch onto main: git rebase main"
+        },
+        {
+          "slug": "conflict-resolution",
+          "title": "Conflict Resolution",
+          "description": "Fixing code overlaps and continuing the rebase process.",
+          "difficulty": "advanced",
+          "estimatedMinutes": 12,
+          "points": 25,
+          "filePath": "module-7/conflict-resolution.md",
+          "expected": "function greet(name) { return `Hello, ${name}!`; }",
+          "conflictScenario": {
+            "baseBranchName": "main",
+            "featureBranchName": "feat/update-greeting",
+            "fileContent": "function greet(name) {\n<<<<<<< HEAD\n  return \"Greetings, \" + name;\n=======\n  return `Hello, ${name}!`;\n>>>>>>> feat/update-greeting\n}"
+          }
+        },
+        {
+          "slug": "code-reviews-and-cicd",
+          "title": "CI/CD and Check Lists",
+          "description": "Understanding test checks, lints, and pull request requirements.",
+          "difficulty": "intermediate",
+          "estimatedMinutes": 8,
+          "points": 15,
+          "filePath": "module-7/code-reviews-and-cicd.md",
+          "quizzes": [
+            {
+              "question": "What is the purpose of CI/CD checks on GitHub pull requests?",
+              "options": [
+                "They block community PRs to restrict outside edits.",
+                "They automatically run tests and lints to ensure PR code does not break the project.",
+                "They automatically merge all code changes immediately.",
+                "They delete branches that are more than 2 days old."
+              ],
+              "answer": 1,
+              "explanation": "Continuous Integration (CI) runs automated scripts (tests, styling checks) to guarantee new submissions adhere to quality guidelines."
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "id": "module-8",
+      "title": "Finding Projects",
+      "description": "Locating open source repositories and understanding labels.",
+      "lessons": [
+        {
+          "slug": "finding-projects",
+          "title": "Good First Issues",
+          "description": "Using search filters, discovering projects, and participating in Hacktoberfest.",
+          "difficulty": "beginner",
+          "estimatedMinutes": 8,
+          "points": 15,
+          "filePath": "module-8/finding-projects.md",
+          "quizzes": [
+            {
+              "question": "Which GitHub labels are most suitable for newcomers seeking their first contribution?",
+              "options": [
+                "critical-bug, security-alert, blocks-release",
+                "good-first-issue, first-timers-only, beginner-friendly",
+                "wontfix, duplicate, invalid",
+                "documentation-only, backend-refactor"
+              ],
+              "answer": 1,
+              "explanation": "Maintainers tag newcomer-friendly tasks with 'good first issue' or 'first-timers-only' to indicate they are self-contained and require minimal context."
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

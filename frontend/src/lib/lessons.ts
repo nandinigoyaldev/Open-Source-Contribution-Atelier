@@ -9,6 +9,12 @@ export interface Exercise {
   points?: number;
 }
 
+export interface ConflictScenario {
+  baseBranchName: string;
+  featureBranchName: string;
+  fileContent: string; // The file content containing Git conflict markers (<<<<<<< HEAD)
+}
+
 export interface Lesson {
   slug: string; // used for URL
   title: string;
@@ -17,11 +23,20 @@ export interface Lesson {
   expected: string | RegExp; // validation pattern or exact string
   hint: string;
   difficulty?: string;
+  points?: number;
   estimatedMinutes?: number;
   learningObjectives?: string[];
   tips?: string[]; // optional tips/mistakes guidance
   exercises?: Exercise[];
   order?: number;
+  filePath?: string;
+  quizzes?: Array<{
+    question: string;
+    options: string[];
+    answer: number;
+    explanation: string;
+  }>;
+  conflictScenario?: ConflictScenario;
 }
 
 // Small built-in fallback lessons (used if API unreachable)
@@ -48,49 +63,57 @@ export const lessons: Lesson[] = [
   },
 ];
 
-// Fetch lessons from backend API and map fields to frontend shape.
+// Fetch lessons from local curriculum JSON asset
 export async function fetchLessonsApi(): Promise<Lesson[]> {
   try {
-    const data = await fetchApi("/content/lessons/");
+    const response = await fetch("/content/curriculum.json");
+    if (!response.ok) {
+      throw new Error("Failed to load curriculum.json");
+    }
+    const data = await response.json();
+    if (!data || !Array.isArray(data.modules)) return lessons;
 
-    if (!Array.isArray(data)) return lessons;
+    const allLessons: Lesson[] = [];
+    let orderIndex = 0;
 
-    const mapped: Lesson[] = data.map((l: any) => {
-      const firstExercise: Exercise | undefined = (l.exercises && l.exercises[0]) || undefined;
-      let expected: string | RegExp = ".+";
-
-      if (firstExercise) {
-        if (firstExercise.expected_command && firstExercise.expected_command.trim().length > 0) {
-          // use exact match for expected_command when available
-          expected = firstExercise.expected_command;
-        } else {
-          // fallback for reflection-style lessons
-          expected = /.+/;
-        }
+    for (const mod of data.modules) {
+      if (!Array.isArray(mod.lessons)) continue;
+      for (const les of mod.lessons) {
+        allLessons.push({
+          slug: les.slug,
+          title: les.title,
+          description: les.description || "",
+          explanation: "", // Will load dynamically from markdown content
+          expected: les.expected || "",
+          hint: les.hint || "Read the lesson contents and solve the check.",
+          difficulty: les.difficulty || "beginner",
+          points: les.points || 15,
+          estimatedMinutes: les.estimatedMinutes || 10,
+          learningObjectives: les.learningObjectives || [],
+          tips: les.tips || [],
+          exercises: les.exercises || [],
+          quizzes: les.quizzes || [],
+          conflictScenario: les.conflictScenario || undefined,
+          order: orderIndex++,
+          filePath: les.filePath,
+        });
       }
-
-      return {
-        slug: l.slug,
-        title: l.title,
-        description: l.summary || l.description || "",
-        explanation: l.content || l.explanation || "",
-        expected,
-        hint: firstExercise?.prompt || "Read the lesson and run the expected command.",
-        difficulty: l.difficulty || "beginner",
-        estimatedMinutes: l.estimated_minutes || 10,
-        learningObjectives: Array.isArray(l.learning_objectives) ? l.learning_objectives : [],
-        tips: Array.isArray(l.tips) ? l.tips : [],
-        exercises: l.exercises || [],
-        order: l.order ?? 0,
-      };
-    });
-
-    // sort by order
-    mapped.sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
-
-    return mapped;
+    }
+    return allLessons;
   } catch (err) {
-    // fall back to built-in lessons
+    console.error("Error loading curriculum JSON:", err);
     return lessons;
+  }
+}
+
+// Fetch markdown text content for a lesson
+export async function fetchLessonContent(filePath: string): Promise<string> {
+  try {
+    const response = await fetch(`/content/${filePath}`);
+    if (!response.ok) throw new Error(`Markdown file not found: ${filePath}`);
+    return await response.text();
+  } catch (err) {
+    console.error("Error loading lesson markdown content:", err);
+    return "# Content not found\nCould not retrieve the detailed documentation for this lesson.";
   }
 }

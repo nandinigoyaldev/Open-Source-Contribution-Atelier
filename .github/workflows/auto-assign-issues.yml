@@ -1,0 +1,65 @@
+name: Auto-assign issues
+
+on:
+  workflow_dispatch:
+
+jobs:
+  auto-assign:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Assign issue based on comment
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const commentBody = context.payload.comment.body.toLowerCase();
+            const keywords = ['assign to me', 'assign me', 'i would like to work on this'];
+            
+            // Check if comment contains keyword
+            const shouldAssign = keywords.some(keyword => commentBody.includes(keyword));
+            
+            if (shouldAssign) {
+              const issueNumber = context.issue.number;
+              const commenter = context.payload.comment.user.login;
+              
+              // Get current assignees
+              const issueInfo = await github.rest.issues.get({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issueNumber
+              });
+              
+              const currentAssignees = issueInfo.data.assignees.map(a => a.login);
+              
+              if (currentAssignees.length === 0) {
+                // Assign to the commenter
+                await github.rest.issues.addAssignees({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issueNumber,
+                  assignees: [commenter]
+                });
+                
+                // Optional: add a reaction to the comment
+                await github.rest.reactions.createForIssueComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  comment_id: context.payload.comment.id,
+                  content: 'rocket'
+                });
+                
+                // Add a comment
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issueNumber,
+                  body: `Hi @${commenter}! I've assigned this issue to you. Happy coding! Please make sure to follow the [Contributing Guidelines](https://github.com/${context.repo.owner}/${context.repo.repo}/blob/main/CONTRIBUTING.md).`
+                });
+              } else if (!currentAssignees.includes(commenter)) {
+                 await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issueNumber,
+                  body: `Sorry @${commenter}, this issue is already assigned to @${currentAssignees.join(', @')}. Please look for an unassigned issue!`
+                });
+              }
+            }

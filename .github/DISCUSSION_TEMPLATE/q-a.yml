@@ -1,0 +1,14 @@
+title: "💡 General Q&A & Support"
+description: "Ask a question about lessons, exercises, setup, or Git fundamentals."
+labels: ["discussion needed", "help wanted"]
+body: |
+  ### What are you trying to accomplish?
+  Describe your goal or what module/exercise you are currently working on.
+
+  ### What is the issue or question?
+  Ask your question clearly. If you are experiencing an error:
+  - Paste the exact terminal commands and output logs.
+  - Attach screenshots if applicable.
+
+  ### What have you tried so far?
+  Outline what self-help steps or guides you have already checked.

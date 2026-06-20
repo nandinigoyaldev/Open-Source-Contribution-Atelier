@@ -1,0 +1,14 @@
+title: "🚀 Feature & Curriculum Suggestions"
+description: "Share suggestions for new lessons, badges, sandbox enhancements, or workflow improvements."
+labels: ["discussion needed", "enhancement"]
+body: |
+  ### Summary of Proposal
+  Provide a clear and concise description of your idea or enhancement.
+
+  ### Educational Value
+  Explain how this will help contributors or learners using the Atelier.
+
+  ### Technical Outline (Optional)
+  If you have an implementation approach, outline:
+  - Affected components (Frontend, Backend, Curriculum)
+  - Potential libraries, endpoints, or files

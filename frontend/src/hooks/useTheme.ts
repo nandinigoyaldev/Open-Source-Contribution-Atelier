@@ -1,12 +1,26 @@
 import { useState, useEffect } from "react";
 
-export function useTheme() {
-  const [theme, setTheme] = useState(() => {
+function getInitialTheme(): string {
+  try {
     return localStorage.getItem("theme") || "light";
-  });
+  } catch {
+    return "light";
+  }
+}
+
+function persistTheme(theme: string) {
+  try {
+    localStorage.setItem("theme", theme);
+  } catch {
+    // localStorage unavailable
+  }
+}
+
+export function useTheme() {
+  const [theme, setTheme] = useState(getInitialTheme);
 
   useEffect(() => {
-    localStorage.setItem("theme", theme);
+    persistTheme(theme);
     if (theme === "dark") {
       document.documentElement.classList.add("dark");
     } else {
