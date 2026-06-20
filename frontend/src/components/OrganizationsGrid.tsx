@@ -7,7 +7,7 @@ const OrganizationsGrid: React.FC = () => {
       <h3 id="orgs-heading" className="text-xs font-black uppercase tracking-wider text-muted mb-3 text-center">
         Supported Orgs
       </h3>
-      <div className="grid gap-3 grid-cols-2 sm:grid-cols-3">
+      <div className="grid gap-4 grid-cols-1 sm:grid-cols-2 md:grid-cols-3 w-full">
         {ORGS.map((slug) => (
           <a
             key={slug}
