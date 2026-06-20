@@ -18,6 +18,7 @@ export function SignupPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [emailError, setEmailError] = useState("");
   const { login } = useAuth();
 
   const isFormValid = username.trim() !== "" && email.trim() !== "" && password.length >= 8;
@@ -75,11 +76,26 @@ export function SignupPage() {
   // Text color for the label — keeps it consistent with the bar color.
   const labelColors = ["text-red-500", "text-yellow-600", "text-green-600"] as const;
   // ── END HELPER BLOCK ───────────────────────────────────────────────────────
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
-  const isFormValid = username.length > 0 && email.length > 0 && password.length > 0;
+const validateEmail = (value: string) => {
+  if (!value) {
+    setEmailError("");
+    return;
+  }
 
+  if (!emailRegex.test(value)) {
+    setEmailError("Please enter a valid email address.");
+  } else {
+    setEmailError("");
+  }
+};
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (!emailRegex.test(email)) {
+      setEmailError("Please enter a valid email address.");
+      return;
+    }
     setError("");
     try {
       // 1. Create the account
@@ -100,7 +116,10 @@ export function SignupPage() {
       setError(err.message || "Failed to create account");
     }
   };
-
+  const isFormValid =
+  username.trim() !== "" &&
+  password.trim() !== "" &&
+  emailRegex.test(email);
   return (
     <AuthPageShell
       title="Join the Club."
@@ -169,9 +188,17 @@ export function SignupPage() {
             type="email"
             placeholder="nerd@homework.com"
             value={email}
-            onChange={(e) => setEmail(e.target.value)}
+            onChange={(e) => {
+              setEmail(e.target.value);
+              validateEmail(e.target.value);
+            }}
             required
           />
+          {emailError && (
+            <p className="text-red-500 text-sm font-bold ml-1">
+              {emailError}
+            </p>
+          )}
         </div>
 
         {/* ── PASSWORD ── */}
