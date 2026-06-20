@@ -71,3 +71,39 @@ def test_mark_all_read(user_a, notif_for_a):
     assert response.data["marked_read"] >= 1
     notif_for_a.refresh_from_db()
     assert notif_for_a.is_read is True
+
+
+def test_lesson_completed_broadcasts_to_leaderboard_channel(db, user_a):
+    from unittest.mock import patch, MagicMock, AsyncMock
+    from apps.progress.models import LessonProgress
+    from apps.content.models import Lesson
+
+    lesson = Lesson.objects.create(
+        slug="test-lesson-broadcast",
+        title="Test Lesson Broadcast",
+        summary="Test Summary",
+        content="Test Content",
+        difficulty="beginner",
+    )
+
+    mock_layer = MagicMock()
+    mock_layer.group_send = AsyncMock()
+
+    with patch("apps.dashboard.signals.get_channel_layer", return_value=mock_layer):
+        LessonProgress.objects.create(
+            user=user_a,
+            lesson=lesson,
+            completed=True,
+            score=100,
+        )
+
+        mock_layer.group_send.assert_called_once()
+        call_args = mock_layer.group_send.call_args
+        assert call_args[0][0] == "leaderboard_updates"
+        payload = call_args[0][1]
+        assert payload["type"] == "leaderboard_update"
+        assert payload["event"] == "xp_update"
+        assert payload["user_id"] == user_a.id
+        assert payload["username"] == user_a.username
+        assert payload["xp"] >= 0
+

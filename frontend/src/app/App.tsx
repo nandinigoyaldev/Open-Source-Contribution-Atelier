@@ -3,7 +3,14 @@ import { BrowserRouter } from "react-router-dom";
 import { AppRouter } from "./router";
 import ScrollToTop from "../components/ScrollToTop";
 
-const queryClient = new QueryClient();
+export const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      staleTime: 1000 * 60 * 5,
+      retry: 1,
+    },
+  },
+});
 
 export function App() {
   return (
@@ -16,3 +23,4 @@ export function App() {
   );
 }
 
+export default App;

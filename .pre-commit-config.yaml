@@ -1,0 +1,20 @@
+repos:
+  - repo: https://github.com/psf/black
+    rev: 24.10.0
+    hooks:
+      - id: black
+        files: ^backend/
+
+  - repo: https://github.com/pycqa/isort
+    rev: 5.13.2
+    hooks:
+      - id: isort
+        files: ^backend/
+
+  - repo: local
+    hooks:
+      - id: frontend-eslint-fix
+        name: frontend-eslint-fix
+        entry: sh -c "cd frontend && npm run lint -- --fix"
+        language: system
+        pass_filenames: false

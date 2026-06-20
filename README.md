@@ -2,167 +2,154 @@
 
 ![Status](https://img.shields.io/badge/status-active-brightgreen?style=for-the-badge) ![License](https://img.shields.io/github/license/goyaljiiiiii/Open-Source-Contribution-Atelier?style=for-the-badge) ![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB) ![Django](https://img.shields.io/badge/Django-092E20?style=for-the-badge&logo=django&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white) ![Docker](https://img.shields.io/badge/Docker-2CA5E0?style=for-the-badge&logo=docker&logoColor=white) [![Live Demo](https://img.shields.io/badge/Live%20Demo-Visit-blue?style=for-the-badge)](https://contribution-atelier-frontend.onrender.com/)
 
-A full-stack learning and operations platform for teaching open source contribution from beginner to advanced levels. The repository is structured for public collaboration and is designed for lesson delivery, challenge tracking, contributor progress, and safe Git practice.
+Welcome to the **Open Source Contribution Atelier** — a complete Open Source Learning Platform designed to help a beginner confidently transition from *"I know nothing about Open Source"* to *"I can confidently contribute to real open source repositories."*
 
-## Stack
+The platform preserves a playful, neobrutalist developer console aesthetic while delivering a structured, gamified curriculum.
 
-- Backend: Django, Django REST framework, Simple JWT, PostgreSQL
-- Frontend: React, TypeScript, Vite, Tailwind CSS, React Router
-- Infra: Docker, Docker Compose
-- Testing: Django test suite, Pytest, Vitest, React Testing Library
+---
 
-## Architecture Overview
+## Technical Stack
 
-```mermaid
-graph LR
-    User([🌐 User/Browser]) -->|HTTPS Requests| frontend
-    
-    subgraph Infrastructure ["Infrastructure (Docker)"]
-        frontend[💻 React Frontend] -->|API Requests| api
-        api[⚙️ Django REST API<br/>incl. Sandbox Verification] -->|Database Queries| db[(🗄️ PostgreSQL)]
-    end
-```
+- **Frontend**: React 19, TypeScript, Vite, Tailwind CSS (Neobrutalist Theme), React Router 7, TanStack React Query
+- **Backend**: Django, Django REST Framework, Simple JWT, PostgreSQL, Redis (Caching)
+- **Deployment**: Configured for monorepo environments (e.g. Netlify for static frontend, Render/Docker for backend)
 
-## Monorepo Structure
+---
+
+## Key Features
+
+1. **Structured Learning Curriculum**: 8 core modules going from mindset basics to advanced conflict resolution.
+2. **Markdown-Driven Content**: Lessons and metadata are parsed dynamically. Adding content requires no code changes. See the [Content Guide](CONTENT_GUIDE.md).
+3. **Interactive Quizzes**: Theoretical modules feature multiple-choice checking dashboards.
+4. **Sandbox Terminal**: Practical Git lessons incorporate a mock-up sandbox terminal that validates inputs.
+5. **Gamification & Badges Cabinet**: Locked and unlocked milestone rewards mapping directly to module progress.
+6. **Printable Completion Certificates**: Generates a gorgeous A4 neobrutalist certificate with verification hashes once the curriculum hits 100%.
+7. **Hall of Fame & Leaderboard**: Cohort stats, active streak calendars, and GitHub contributor APIs recognition boards.
+8. **Onboarding Guide Tour**: Walkthrough sliders introduce the sandbox console to newcomers.
+
+---
+
+## Learning Curriculum Overview
+
+- **Module 1: Introduction to Open Source**: Mindset, Why it matters, History, and Misconceptions.
+- **Module 2: Git Fundamentals**: Repos, Commits, Branching, Merging, and Remotes.
+- **Module 3: GitHub Fundamentals**: Forks, Pull Requests, Issues, Discussions, and Organizations.
+- **Module 4: Open Source Etiquette**: Respectful communication, Reading README & CONTRIBUTING files first, and Review processes.
+- **Module 5: First Contribution**: Interactive step-by-step mock PR setup drill.
+- **Module 6: Real Contribution Workflow**: Tracing Issue -> Assignment -> Develop -> PR -> Review -> Merge cycles.
+- **Module 7: Advanced Open Source**: Rebasing, Squashing, Conflict resolution, and CI/CD checks.
+- **Module 8: Finding Projects**: Discovering issues using filters, Hacktoberfest, and good first issues.
+
+---
+
+## Directory Structure
 
 ```text
-backend/     Django REST API, domain apps, tests, seed script
-frontend/    React + TypeScript UI
-infra/       Deployment and environment references
-scripts/     Repository automation helpers
-.github/     Community health files and issue templates
+├── backend/            # Django REST API, views, tests, and caching logic
+├── frontend/           # React SPA frontend UI
+│   ├── public/         
+│   │   ├── content/    # Static Markdown files and curriculum.json metadata catalog
+│   │   └── _redirects  # Netlify single page application redirect configuration
+│   └── src/            # Components, pages, hooks, state
+├── netlify.toml        # Root Netlify configuration mapping monorepo builds
+└── CONTENT_GUIDE.md    # Playbook on how to write/add lessons, modules, and quizzes
 ```
 
-## Product Scope
-
-The platform includes:
-
-- Admin-ready lesson and challenge management
-- JWT authentication with optional GitHub OAuth extension points
-- Progress tracking, badges, scoring, and recommendations
-- Interactive web terminal exercises verified by a safe backend sandbox service
-- Community metrics and leaderboards
-- Repository health files and contributor guidance suitable for public GitHub collaboration
+---
 
 ## Quick Start
 
-### Docker
-
+### Docker Setup
+To boot both the Django backend and React frontend:
 ```bash
 docker compose up --build
 ```
+- Backend REST API: `http://localhost:8000/api/`
+- Frontend SPA: `http://localhost:5173/`
 
-Backend is available at `http://localhost:8000/api/` and frontend at `http://localhost:5173`.
+### Manual Development Setup
 
-### Local Development
+Follow these steps to run the client and server locally on your system.
 
-1. Copy environment files:
-
+#### 1. Setup Environment Files
 ```bash
 cp backend/.env.example backend/.env
 cp frontend/.env.example frontend/.env
 ```
 
-2. Configure Google OAuth client (required for Google sign in):
+> [!WARNING]
+> **Google OAuth login will not work without a valid `VITE_GOOGLE_CLIENT_ID`.**
+> If this variable is missing or incorrect in `frontend/.env`, the app will load but Google Sign-In will fail with an OAuth configuration error.
+>
+> **How to set up your Google OAuth Client ID:**
+>
+> 1. Go to [Google Cloud Console](https://console.cloud.google.com/) and sign in.
+> 2. Create a new project or select an existing one.
+> 3. In the left sidebar, go to **APIs & Services → OAuth consent screen**.
+> 4. Select **External** (recommended for local/dev setups).
+> 5. Fill in the required app details and add test users if needed.
+> 6. Continue through the setup screens until the configuration is complete.
+> 7. Next, go to **APIs & Services → Credentials** in the sidebar.
+> 8. Click **Create Credentials → OAuth Client ID**.
+> 9. Set the application type to **Web application**.
+> 10. Under **Authorised JavaScript origins**, add:
+>     ```
+>     http://localhost:5173
+>     ```
+> 11. Under **Authorised redirect URIs**, add:
+>     ```
+>     http://localhost:5173
+>     ```
+> 12. Click **Create** and copy the generated **Client ID**.
+> 13. Open `frontend/.env` and set:
+>     ```
+>     VITE_GOOGLE_CLIENT_ID=your-client-id-here
+>     ```
+>
+> ⚠️ Never commit your `.env` file — it is already covered by `.gitignore`.
 
-```bash
-# frontend/.env
-VITE_GOOGLE_CLIENT_ID=your-google-oauth-client-id.apps.googleusercontent.com
-```
-
-In Google Cloud Console, add `http://localhost:5173` under **Authorized JavaScript origins**.
-
-3. Backend:
-
+#### 2. Initialize Backend
+The Django backend supports **Python 3.9+** and defaults to a local SQLite database for effortless onboarding without needing PostgreSQL or Redis.
 ```bash
 cd backend
-python -m venv .venv
+python3 -m venv .venv
 source .venv/bin/activate
+pip install --upgrade pip
 pip install -r requirements.txt
 python manage.py migrate
 python manage.py seed_lessons
+python manage.py seed_dashboard
 python manage.py runserver
 ```
+- Backend REST API: `http://localhost:8000/api/`
+- Interactive API Docs: `http://localhost:8000/api/docs/`
 
-4. Frontend:
-
+#### 3. Run Frontend
+The frontend uses Vite and React. Ensure you are using **Node 20+**. We recommend using **NVM** to manage Node versions.
 ```bash
 cd frontend
+# If using NVM, load it and switch to Node 20
+source ~/.nvm/nvm.sh && nvm use 20
 npm install
 npm run dev
 ```
+- Frontend SPA: `http://localhost:5173/`
 
-## Testing
+---
 
-```bash
-cd backend && pytest
-cd frontend && npm test
-```
+## 🧪 Testing
 
-## CI/CD
+Run tests locally to prevent regressions:
+- **Backend tests**: `cd backend && pytest`
+- **Frontend tests**: `cd frontend && npm run test`
 
-This repository ships with a GitHub Actions workflow that runs:
+---
 
-- Backend tests (`pytest`)
-- Frontend tests (`npm test`)
-- Frontend production build (`npm run build`)
+## 🧑‍💻 Contributing & Community Guides
 
-Every push and pull request to `main` is validated automatically.
-
-## Contribution Workflow
-
-Contributors should work on branches, not on `main`.
-
-```bash
-git pull origin main
-git switch -c feature/short-description
-```
-
-After finishing a change:
-
-```bash
-git add .
-git commit -m "Add concise change summary"
-git push -u origin feature/short-description
-```
-
-Open a pull request from that branch into `main`.
-
-### Code of Conduct
-
-We are committed to fostering a welcoming and inclusive community. Please read and follow our [Code of Conduct](CODE_OF_CONDUCT.md) to understand the expectations for behavior and reporting guidelines.
-
-## Issue Triage Workflow
-
-To keep the project healthy for new contributors, maintainers should triage issues weekly:
-
-1. Tag new issues with `needs-triage` and classify (`bug`, `enhancement`, `curriculum`).
-2. Close duplicates and stale reports; link them to the canonical active issue.
-3. Add acceptance criteria before assigning any issue.
-4. Mark newcomer-friendly tasks with `good first issue`.
-
-## Repository Safety
-
-- Secrets are excluded from version control
-- JWT auth is configured with secure defaults for production
-- Sandbox exercise verification is rule-driven and does not execute arbitrary shell commands
-- Contribution guides and code ownership expectations are included for public collaboration
-
-## Next Build Steps
-
-This scaffold includes the initial application structure, baseline models, API routes, and UI shell. The next iteration should add full CRUD flows, richer admin moderation tools, stateful sandbox progression, OAuth wiring, and production deployment settings.
-
-## Seeding Sample Lessons
-
-For local development you can populate example lessons and exercises with the management command:
-
-```bash
-cd backend
-python -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-python manage.py migrate
-python manage.py seed_lessons
-```
-
-This creates the basic lesson track used by the frontend; re-running is safe and idempotent.
+We welcome contributions of all levels suitable for **SSOC 2026** and long-term participation! Please review our guides:
+- **[CONTRIBUTING.md](CONTRIBUTING.md)**: Forking, branching guidelines, commit conventions, and review cycles.
+- **[SUPPORT.md](SUPPORT.md)**: How to get help, community channels, and asking questions.
+- **[CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)**: Community participation guidelines.
+- **[SECURITY.md](SECURITY.md)**: Responsible vulnerability disclosure rules.
+- **[CONTENT_GUIDE.md](CONTENT_GUIDE.md)**: Write new modules, markdown lessons, or interactive quizzes without modifying code.

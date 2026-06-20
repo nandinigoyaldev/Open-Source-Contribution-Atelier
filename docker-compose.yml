@@ -8,17 +8,16 @@ services:
       POSTGRES_DB: contribution_atelier
       POSTGRES_USER: contribution_atelier
       POSTGRES_PASSWORD: contribution_atelier
-    
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
   redis:
     image: redis:7-alpine
     container_name: contribution_atelier_redis
     ports:
       - "6379:6379"
-
-volumes:
-      - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
 
   backend:
     build:
@@ -27,14 +26,7 @@ volumes:
     command: sh -c "python manage.py migrate && python manage.py seed_data && python manage.py runserver 0.0.0.0:8000"
     env_file:
       - ./backend/.env.example
-    
-  redis:
-    image: redis:7-alpine
-    container_name: contribution_atelier_redis
-    ports:
-      - "6379:6379"
-
-volumes:
+    volumes:
       - ./backend:/app
     ports:
       - "8000:8000"
@@ -49,27 +41,13 @@ volumes:
     command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
     env_file:
       - ./frontend/.env.example
-    
-  redis:
-    image: redis:7-alpine
-    container_name: contribution_atelier_redis
-    ports:
-      - "6379:6379"
-
-volumes:
+    volumes:
       - ./frontend:/app
       - /app/node_modules
     ports:
       - "5173:5173"
     depends_on:
       - backend
-
-
-  redis:
-    image: redis:7-alpine
-    container_name: contribution_atelier_redis
-    ports:
-      - "6379:6379"
 
 volumes:
   postgres_data:

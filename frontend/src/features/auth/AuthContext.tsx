@@ -5,6 +5,7 @@ type User = {
   id: number;
   username: string;
   email: string;
+  is_staff: boolean;
 };
 
 type AuthContextType = {
@@ -22,27 +23,47 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  function safeGetItem(key: string): string | null {
+    try { return localStorage.getItem(key); } catch { return null; }
+  }
+  function safeSetItem(key: string, value: string) {
+    try { localStorage.setItem(key, value); } catch { /* localStorage unavailable */ }
+  }
+  function safeRemoveItem(key: string) {
+    try { localStorage.removeItem(key); } catch { /* localStorage unavailable */ }
+  }
+
   const login = (tokens: { access: string; refresh: string }) => {
-    localStorage.setItem("accessToken", tokens.access);
-    localStorage.setItem("refreshToken", tokens.refresh);
+    safeSetItem("accessToken", tokens.access);
+    safeSetItem("refreshToken", tokens.refresh);
     checkUser();
   };
 
   const logout = () => {
-    localStorage.removeItem("accessToken");
-    localStorage.removeItem("refreshToken");
+    safeRemoveItem("accessToken");
+    safeRemoveItem("refreshToken");
     setUser(null);
   };
 
   const checkUser = async () => {
     try {
-      if (!localStorage.getItem("accessToken")) {
+      const token = safeGetItem("accessToken");
+      if (!token) {
         setUser(null);
-      } else {
+        return;
+      }
+
+      // Some setups can temporarily fail right after login (network hiccup / token not yet accepted).
+      // Avoid logging the user out on the first failure.
+      try {
+        const data = await fetchApi("/auth/me/");
+        setUser(data);
+        return;
+      } catch {
         const data = await fetchApi("/auth/me/");
         setUser(data);
       }
-    } catch (e) {
+    } catch {
       setUser(null);
     } finally {
       setIsLoading(false);
@@ -54,7 +75,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated: !!user, isLoading, login, logout, checkUser }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        isAuthenticated: !!user,
+        isLoading,
+        login,
+        logout,
+        checkUser,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

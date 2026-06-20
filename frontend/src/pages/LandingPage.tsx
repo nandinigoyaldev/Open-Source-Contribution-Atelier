@@ -1,7 +1,17 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useGoogleLogin } from "@react-oauth/google";
+import { Github } from "lucide-react";
 import { fetchApi } from "../lib/api";
 import { useAuth } from "../features/auth/AuthContext";
+import OrganizationsGrid from '../components/OrganizationsGrid';
+
+const githubAuthUrl =
+  import.meta.env.VITE_GITHUB_OAUTH_URL ||
+  `${import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api"}/auth/github/`;
+
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error ? error.message : fallback;
+}
 
 export function LandingPage() {
   const { login } = useAuth();
@@ -9,6 +19,16 @@ export function LandingPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+
+  useEffect(() => {
+    const authError = new URLSearchParams(window.location.search).get(
+      "auth_error"
+    );
+    if (authError) {
+      setError(authError);
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+  }, []);
 
   const handleStandardLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -21,9 +41,13 @@ export function LandingPage() {
       });
       login(tokens);
       window.location.href = "/dashboard";
-    } catch (err: any) {
-      setError(err.message || "Failed to login");
+    } catch (err: unknown) {
+      setError(getErrorMessage(err, "Failed to login"));
     }
+  };
+
+  const handleGithubSignIn = () => {
+    window.location.href = githubAuthUrl;
   };
 
   const googleLoginHandler = useGoogleLogin({
@@ -36,8 +60,8 @@ export function LandingPage() {
         });
         login(tokens);
         window.location.href = "/dashboard";
-      } catch (err: any) {
-        setError(err.message || "Google Auth Failed. Check Backend.");
+      } catch (err: unknown) {
+        setError(getErrorMessage(err, "Google Auth Failed. Check Backend."));
       }
     },
     onError: () => {
@@ -76,7 +100,7 @@ export function LandingPage() {
           </h2>
           
           {error && <div className="text-black font-bold text-sm bg-primary p-3 rounded-xl border-4 border-black shadow-card-sm mb-4">{error}</div>}
-
+          <OrganizationsGrid />
           <form onSubmit={handleStandardLogin} className="space-y-4">
             <button 
               type="button" 
@@ -91,7 +115,17 @@ export function LandingPage() {
               </svg>
               Sign in with Google
             </button>
-            
+
+            <button
+              type="button"
+              onClick={handleGithubSignIn}
+              className="group relative w-full overflow-hidden bg-black text-white border-4 border-black rounded-2xl p-4 flex items-center justify-center gap-3 font-black shadow-card-sm transition-all duration-300 hover:-translate-y-1 hover:bg-text hover:shadow-card-lg active:translate-y-1 active:shadow-none uppercase before:absolute before:inset-0 before:-translate-x-full before:bg-gradient-to-r before:from-transparent before:via-white/25 before:to-transparent before:transition-transform before:duration-500 hover:before:translate-x-full"
+              aria-label="Sign in with GitHub"
+            >
+              <Github className="relative h-6 w-6 transition-transform duration-300 group-hover:rotate-[-8deg] group-hover:scale-110" strokeWidth={2.75} aria-hidden="true" />
+              <span className="relative">Sign in with GitHub</span>
+            </button>
+
             <div className="flex items-center gap-4 my-6">
               <div className="flex-1 h-1 bg-black"></div>
               <span className="font-black text-muted text-sm uppercase">OR</span>

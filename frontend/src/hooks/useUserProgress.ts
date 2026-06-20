@@ -1,5 +1,7 @@
+import { useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchApi } from "../lib/api";
+import { useLocalSync } from "./useLocalSync";
 
 export interface ProgressEntry {
   id: number;
@@ -12,6 +14,7 @@ export interface ProgressEntry {
 
 export function useUserProgress() {
   const queryClient = useQueryClient();
+  const { isLessonPendingCompleted, getPendingXP } = useLocalSync();
 
   // 1. Query to fetch all progress
   const { data: progress = [], isLoading } = useQuery<ProgressEntry[]>({
@@ -22,7 +25,11 @@ export function useUserProgress() {
 
   // 2. Mutation to sync completion
   const syncMutation = useMutation({
-    mutationFn: (vars: { lesson_slug: string; score?: number; completed?: boolean }) =>
+    mutationFn: (vars: {
+      lesson_slug: string;
+      score?: number;
+      completed?: boolean;
+    }) =>
       fetchApi("/progress/me/", {
         method: "POST",
         body: JSON.stringify(vars),
@@ -35,12 +42,19 @@ export function useUserProgress() {
 
   // 3. Convenience helpers
   const isLessonCompleted = (slug: string) => {
-    // Assuming backend returns related lesson data or slug
-    // If not, we might need to adjust the serializer
-    return progress.some((p) => p.lesson_slug === slug && p.completed);
+    const isCompletedInBackend = progress.some((p) => p.lesson_slug === slug && p.completed);
+    if (isCompletedInBackend) return true;
+
+    return isLessonPendingCompleted(slug);
   };
 
-  const totalXP = progress.reduce((acc, p) => acc + p.score, 0);
+const totalXP = useMemo(() => {
+  const backendXP = progress.reduce((acc, p) => acc + p.score, 0);
+  console.log("Backend XP:", backendXP, "Pending XP:", getPendingXP(progress));
+  return backendXP + getPendingXP(progress);
+}, [progress, getPendingXP]);
+
+console.log("Total XP:", totalXP);
 
   return {
     progress,
