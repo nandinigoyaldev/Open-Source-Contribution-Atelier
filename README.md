@@ -166,3 +166,16 @@ python manage.py seed_lessons
 ```
 
 This creates the basic lesson track used by the frontend; re-running is safe and idempotent.
+
+## Open Source Learning Path
+
+This dependency graph shows the recommended order for learning open source concepts.
+
+```mermaid
+graph TD
+    A[Git Basics] --> B[GitHub Fundamentals]
+    B --> C[Issues]
+    C --> D[Pull Requests]
+    D --> E[Collaboration]
+    E --> F[Advanced Open Source Programs]
+```
