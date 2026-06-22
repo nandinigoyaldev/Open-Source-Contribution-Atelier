@@ -18,7 +18,11 @@ import { Lesson, fetchLessonsApi, fetchLessonContent } from "../lib/lessons";
 import { MarkdownRenderer } from "../components/ui/MarkdownRenderer";
 import { GitGraph } from "../components/ui/GitGraph";
 
-import { createInitialRepo, parseGitCommand, RepoState } from "../lib/gitSimulator";
+import {
+  createInitialRepo,
+  parseGitCommand,
+  RepoState,
+} from "../lib/gitSimulator";
 
 function normalizeCommand(value: string) {
   return value.trim().replace(/\s+/g, " ").toLowerCase();
@@ -499,26 +503,8 @@ export function LessonPage() {
                           <button
                             key={idx}
                             onClick={() => {
-                              if (quizFeedback !== null) return; // Already answered
+                              if (quizFeedback !== null) return; // Already submitted — lock selection
                               setSelectedOption(idx);
-                              // Immediately validate the answer
-                              const isCorrect = idx === currentQuiz.answer;
-                              setQuizFeedback(
-                                isCorrect ? "correct" : "incorrect",
-                              );
-                              if (isCorrect) {
-                                if (
-                                  currentQuizIndex ===
-                                  lesson.quizzes!.length - 1
-                                ) {
-                                  setFeedback("correct");
-                                  syncProgress({
-                                    lesson_slug: lesson.slug,
-                                    score: lesson.points || 15,
-                                    completed: true,
-                                  });
-                                }
-                              }
                             }}
                             disabled={quizFeedback !== null}
                             className={`w-full text-left p-4 rounded-xl border-4 border-black font-bold text-sm transition-all flex items-center justify-between ${bgColor}`}
@@ -586,7 +572,7 @@ export function LessonPage() {
                         disabled={selectedOption === null}
                         className="px-5 py-2.5 bg-primary text-black font-black text-sm rounded-xl border-4 border-black shadow-card-sm hover:-translate-y-0.5 disabled:opacity-50 transition-all cursor-pointer"
                       >
-                        Check Answer
+                        Submit Answer
                       </button>
                     )}
                   </div>
@@ -594,7 +580,6 @@ export function LessonPage() {
               ) : hasConflict ? (
                 // CONFLICT SANDBOX MODE
                 <div className="mt-8">
-                  
                   {feedback === "correct" && (
                     <div className="mt-6 text-green-700 font-bold bg-green-50 p-4 rounded-xl border-4 border-green-600 animate-bounce">
                       ✅ Correct! You successfully resolved the merge conflict.
@@ -817,7 +802,9 @@ export function LessonPage() {
                 disabled={helpRequestMutation.isPending}
                 maxLength={MAX_HELP_CHARS}
               />
-              <p className={`text-xs font-black text-right ${helpMessage.length > MAX_HELP_CHARS ? "text-red-600" : "text-muted dark:text-[#c4bbae]"}`}>
+              <p
+                className={`text-xs font-black text-right ${helpMessage.length > MAX_HELP_CHARS ? "text-red-600" : "text-muted dark:text-[#c4bbae]"}`}
+              >
                 {helpMessage.length} / {MAX_HELP_CHARS} characters
               </p>
 

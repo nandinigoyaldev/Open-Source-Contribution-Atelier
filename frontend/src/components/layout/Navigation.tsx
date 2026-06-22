@@ -92,7 +92,10 @@ export function Navigation() {
         );
 
         setSearchResults({
-          lessons: filteredLessons.map(l => ({ ...l, summary: l.description })),
+          lessons: filteredLessons.map((l) => ({
+            ...l,
+            summary: l.description,
+          })),
           challenges: filteredChallenges,
         });
         setIsSearching(false);
@@ -103,8 +106,6 @@ export function Navigation() {
 
     return () => clearTimeout(delayDebounceFn);
   }, [searchQuery, lessonsCatalog]);
-
-
 
   return (
     <>

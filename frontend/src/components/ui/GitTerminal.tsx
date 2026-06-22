@@ -78,7 +78,7 @@ export function GitTerminal({
 
   useEffect(() => {
     if (shellState.editorState) {
-        setEditorVal(shellState.editorState.content);
+      setEditorVal(shellState.editorState.content);
     }
   }, [shellState.editorState]);
 
@@ -164,30 +164,40 @@ export function GitTerminal({
       {/* ── Output area / Editor Overlay ───────────────────────────── */}
       {shellState.editorState ? (
         <div className="bg-[#1e1e1e] min-h-[260px] max-h-[380px] p-0 flex flex-col relative">
-            <div className="bg-gray-800 text-gray-300 text-xs px-3 py-1 font-mono flex justify-between items-center border-b border-gray-700">
-               <span>GNU nano - {shellState.editorState.file}</span>
-               <div className="flex gap-2">
-                 <button onClick={closeEditor} className="hover:text-red-400 font-bold px-1 transition-colors">^C Exit</button>
-                 <button onClick={() => saveEditor(editorVal)} className="hover:text-green-400 font-bold px-1 transition-colors">^X Save & Exit</button>
-               </div>
+          <div className="bg-gray-800 text-gray-300 text-xs px-3 py-1 font-mono flex justify-between items-center border-b border-gray-700">
+            <span>GNU nano - {shellState.editorState.file}</span>
+            <div className="flex gap-2">
+              <button
+                onClick={closeEditor}
+                className="hover:text-red-400 font-bold px-1 transition-colors"
+              >
+                ^C Exit
+              </button>
+              <button
+                onClick={() => saveEditor(editorVal)}
+                className="hover:text-green-400 font-bold px-1 transition-colors"
+              >
+                ^X Save & Exit
+              </button>
             </div>
-            <textarea
-               className="flex-1 w-full bg-transparent text-white font-mono text-sm p-4 outline-none resize-none min-h-[235px]"
-               value={editorVal}
-               onChange={(e) => setEditorVal(e.target.value)}
-               autoFocus
-               spellCheck={false}
-               onKeyDown={(e) => {
-                 if (e.ctrlKey && e.key.toLowerCase() === 'x') {
-                     e.preventDefault();
-                     saveEditor(editorVal);
-                 }
-                 if (e.ctrlKey && e.key.toLowerCase() === 'c') {
-                     e.preventDefault();
-                     closeEditor();
-                 }
-               }}
-            />
+          </div>
+          <textarea
+            className="flex-1 w-full bg-transparent text-white font-mono text-sm p-4 outline-none resize-none min-h-[235px]"
+            value={editorVal}
+            onChange={(e) => setEditorVal(e.target.value)}
+            autoFocus
+            spellCheck={false}
+            onKeyDown={(e) => {
+              if (e.ctrlKey && e.key.toLowerCase() === "x") {
+                e.preventDefault();
+                saveEditor(editorVal);
+              }
+              if (e.ctrlKey && e.key.toLowerCase() === "c") {
+                e.preventDefault();
+                closeEditor();
+              }
+            }}
+          />
         </div>
       ) : (
         <div
@@ -237,44 +247,44 @@ export function GitTerminal({
           onSubmit={handleSubmit}
           className="flex items-center gap-2 bg-[#0f0f1d] border-t-4 border-black dark:border-[#2e2924] px-4 py-3"
         >
-        <ChevronRight size={14} className="text-emerald-400 shrink-0" />
-        <input
-          ref={inputRef}
-          id="git-terminal-input"
-          aria-label="Enter git command"
-          className="flex-1 bg-transparent font-mono text-sm text-white outline-none placeholder:text-gray-600 caret-emerald-400"
-          placeholder={
-            completed
-              ? "✅ Objective done – try more commands freely!"
-              : "Type a command…"
-          }
-          value={inputVal}
-          onChange={(e) => setInputVal(e.target.value)}
-          onKeyDown={handleKeyDown}
-          disabled={isExecuting}
-          autoFocus
-          autoComplete="off"
-          spellCheck={false}
-        />
-        <button
-          type="submit"
-          disabled={!inputVal.trim() || isExecuting}
-          className="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-30 text-white font-black text-xs rounded-lg border-2 border-black transition-all flex items-center justify-center min-w-[48px]"
-        >
-          {isExecuting ? (
-            <span
-              className="flex items-center gap-0.5 inline-flex"
-              aria-hidden="true"
-            >
-              <span className="w-1 h-1 bg-current rounded-full animate-bounce [animation-delay:-0.3s]" />
-              <span className="w-1 h-1 bg-current rounded-full animate-bounce [animation-delay:-0.15s]" />
-              <span className="w-1 h-1 bg-current rounded-full animate-bounce" />
-            </span>
-          ) : (
-            "Run"
-          )}
-        </button>
-      </form>
+          <ChevronRight size={14} className="text-emerald-400 shrink-0" />
+          <input
+            ref={inputRef}
+            id="git-terminal-input"
+            aria-label="Enter git command"
+            className="flex-1 bg-transparent font-mono text-sm text-white outline-none placeholder:text-gray-600 caret-emerald-400"
+            placeholder={
+              completed
+                ? "✅ Objective done – try more commands freely!"
+                : "Type a command…"
+            }
+            value={inputVal}
+            onChange={(e) => setInputVal(e.target.value)}
+            onKeyDown={handleKeyDown}
+            disabled={isExecuting}
+            autoFocus
+            autoComplete="off"
+            spellCheck={false}
+          />
+          <button
+            type="submit"
+            disabled={!inputVal.trim() || isExecuting}
+            className="px-3 py-1 bg-emerald-600 hover:bg-emerald-500 disabled:opacity-30 text-white font-black text-xs rounded-lg border-2 border-black transition-all flex items-center justify-center min-w-[48px]"
+          >
+            {isExecuting ? (
+              <span
+                className="flex items-center gap-0.5 inline-flex"
+                aria-hidden="true"
+              >
+                <span className="w-1 h-1 bg-current rounded-full animate-bounce [animation-delay:-0.3s]" />
+                <span className="w-1 h-1 bg-current rounded-full animate-bounce [animation-delay:-0.15s]" />
+                <span className="w-1 h-1 bg-current rounded-full animate-bounce" />
+              </span>
+            ) : (
+              "Run"
+            )}
+          </button>
+        </form>
       )}
     </div>
   );

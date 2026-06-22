@@ -61,7 +61,10 @@ export function BadgeToast({ badge, onDismiss }: BadgeToastProps) {
       <div className="absolute top-0 left-0 h-full w-1.5 rounded-l-xl bg-accent" />
 
       {/* Badge icon */}
-      <div className="ml-1 flex-shrink-0 text-4xl leading-none" aria-hidden="true">
+      <div
+        className="ml-1 flex-shrink-0 text-4xl leading-none"
+        aria-hidden="true"
+      >
         {badge.icon}
       </div>
 
@@ -73,7 +76,9 @@ export function BadgeToast({ badge, onDismiss }: BadgeToastProps) {
             Badge Unlocked
           </span>
         </div>
-        <p className="font-black text-sm text-text dark:text-[#f0ebe2] break-words">{badge.name}</p>
+        <p className="font-black text-sm text-text dark:text-[#f0ebe2] break-words">
+          {badge.name}
+        </p>
         <p className="font-bold text-[11px] text-muted dark:text-[#c4bbae] leading-snug mt-0.5 line-clamp-2">
           {badge.desc}
         </p>
@@ -100,7 +105,10 @@ interface BadgeToastContainerProps {
   onDismiss: (id: string) => void;
 }
 
-export function BadgeToastContainer({ toasts, onDismiss }: BadgeToastContainerProps) {
+export function BadgeToastContainer({
+  toasts,
+  onDismiss,
+}: BadgeToastContainerProps) {
   if (toasts.length === 0) return null;
 
   return (

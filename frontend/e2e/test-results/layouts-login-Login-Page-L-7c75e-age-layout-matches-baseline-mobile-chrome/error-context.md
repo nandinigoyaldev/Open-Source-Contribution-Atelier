@@ -19,50 +19,50 @@ Error: A snapshot doesn't exist at X:\SSOC\Open-Source-Contribution-Atelier\fron
 
 ```yaml
 - generic [ref=e4]:
-  - generic [ref=e5]:
-    - generic [ref=e7]: login MODE ACTIVATED 🔥
-    - heading "Oh, you again?" [level=1] [ref=e8]
-    - paragraph [ref=e9]: Welcome back to your favorite distraction-free zone. Drop your details below.
-    - generic [ref=e10]:
-      - generic [ref=e11]:
-        - heading "Wait, you're back?" [level=3] [ref=e12]
-        - paragraph [ref=e13]: We all know you're just here to procrastinate on your real homework.
-      - generic [ref=e14]:
-        - heading "Brain power 🧠" [level=3] [ref=e15]
-        - paragraph [ref=e16]: Cramming 5 mins before the exam? We got you. Probably.
-  - generic [ref=e20]:
-    - button "Sign in with GitHub" [ref=e21] [cursor=pointer]:
-      - img [ref=e22]
-      - generic [ref=e25]: Sign in with GitHub
-    - generic [ref=e28]: OR
-    - generic [ref=e30]:
-      - text: Username / Email
-      - textbox "the_smartest@kid.com" [ref=e31]
-    - generic [ref=e32]:
-      - text: Password
-      - textbox "••••••••" [ref=e33]
-    - button "Let Me In!" [ref=e34] [cursor=pointer]
-    - paragraph [ref=e35]:
-      - text: New here?
-      - link "Join the chaos" [ref=e36] [cursor=pointer]:
-        - /url: /signup
+    - generic [ref=e5]:
+        - generic [ref=e7]: login MODE ACTIVATED 🔥
+        - heading "Oh, you again?" [level=1] [ref=e8]
+        - paragraph [ref=e9]: Welcome back to your favorite distraction-free zone. Drop your details below.
+        - generic [ref=e10]:
+            - generic [ref=e11]:
+                - heading "Wait, you're back?" [level=3] [ref=e12]
+                - paragraph [ref=e13]: We all know you're just here to procrastinate on your real homework.
+            - generic [ref=e14]:
+                - heading "Brain power 🧠" [level=3] [ref=e15]
+                - paragraph [ref=e16]: Cramming 5 mins before the exam? We got you. Probably.
+    - generic [ref=e20]:
+        - button "Sign in with GitHub" [ref=e21] [cursor=pointer]:
+            - img [ref=e22]
+            - generic [ref=e25]: Sign in with GitHub
+        - generic [ref=e28]: OR
+        - generic [ref=e30]:
+            - text: Username / Email
+            - textbox "the_smartest@kid.com" [ref=e31]
+        - generic [ref=e32]:
+            - text: Password
+            - textbox "••••••••" [ref=e33]
+        - button "Let Me In!" [ref=e34] [cursor=pointer]
+        - paragraph [ref=e35]:
+            - text: New here?
+            - link "Join the chaos" [ref=e36] [cursor=pointer]:
+                - /url: /signup
 ```
 
 # Test source
 
 ```ts
   1  | import { Page, expect } from "@playwright/test";
-  2  | 
+  2  |
   3  | /**
   4  |  * Shared helpers for visual regression tests.
   5  |  * Keeps individual test files focused on scenarios rather than boilerplate.
   6  |  */
-  7  | 
+  7  |
   8  | /** Wait for all images and fonts to finish loading before taking a screenshot. */
   9  | export async function waitForPageReady(page: Page): Promise<void> {
   10 |   // Wait for network to be idle (no in-flight requests for 500ms)
   11 |   await page.waitForLoadState("networkidle");
-  12 | 
+  12 |
   13 |   // Wait for all images to decode
   14 |   await page.evaluate(async () => {
   15 |     const images = Array.from(document.querySelectorAll("img"));
@@ -78,11 +78,11 @@ Error: A snapshot doesn't exist at X:\SSOC\Open-Source-Contribution-Atelier\fron
   25 |         ),
   26 |     );
   27 |   });
-  28 | 
+  28 |
   29 |   // Let CSS transitions / animations settle
   30 |   await page.waitForTimeout(300);
   31 | }
-  32 | 
+  32 |
   33 | /**
   34 |  * Take a full-page screenshot and compare it against the stored baseline.
   35 |  * @param page   - Playwright Page object
@@ -99,7 +99,7 @@ Error: A snapshot doesn't exist at X:\SSOC\Open-Source-Contribution-Atelier\fron
   45 |     animations: "disabled",
   46 |   });
   47 | }
-  48 | 
+  48 |
   49 | /**
   50 |  * Take a screenshot of a specific element and compare against baseline.
   51 |  * @param page     - Playwright Page object
@@ -117,5 +117,5 @@ Error: A snapshot doesn't exist at X:\SSOC\Open-Source-Contribution-Atelier\fron
   63 |     animations: "disabled",
   64 |   });
   65 | }
-  66 | 
+  66 |
 ```

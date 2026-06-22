@@ -11,7 +11,11 @@ export function BadgeToastNotifier() {
   // Wait for lessons and curriculum data to load before checking for new badges.
   const isDataReady = !isLessonsLoading && curriculumData.length > 0;
 
-  const { toasts, dismissToast } = useBadgeToast(earnedBadges, BADGES, isDataReady);
+  const { toasts, dismissToast } = useBadgeToast(
+    earnedBadges,
+    BADGES,
+    isDataReady,
+  );
 
   if (!user || user.is_staff) return null;
 

@@ -3,9 +3,9 @@ import { Link } from "react-router-dom";
 
 export default function VerifyNoticePage() {
   return (
-    <AuthPageShell 
-      title="Check your email." 
-      subtitle="We've sent a verification link to your inbox. You need to click it before you can join the club." 
+    <AuthPageShell
+      title="Check your email."
+      subtitle="We've sent a verification link to your inbox. You need to click it before you can join the club."
       mode="login"
     >
       <div className="text-center pt-4">

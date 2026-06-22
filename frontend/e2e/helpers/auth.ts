@@ -15,8 +15,8 @@ export async function mockLogin(page: Page, userData = {}) {
         id: 1,
         username: "testuser",
         email: "test@example.com",
-        ...userData
-      }
+        ...userData,
+      },
     };
     await route.fulfill({ status: 200, json });
   });
@@ -25,7 +25,7 @@ export async function mockLogin(page: Page, userData = {}) {
     const json = {
       username: "testuser",
       email: "test@example.com",
-      ...userData
+      ...userData,
     };
     await route.fulfill({ status: 200, json });
   });
@@ -34,7 +34,7 @@ export async function mockLogin(page: Page, userData = {}) {
 /**
  * Sets the auth token in local storage to bypass the login page in tests.
  * This should be called before `page.goto` or similar navigation.
- * 
+ *
  * @param page - Playwright Page object
  */
 export async function setAuthenticatedState(page: Page) {

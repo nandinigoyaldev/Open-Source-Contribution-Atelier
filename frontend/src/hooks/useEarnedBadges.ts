@@ -15,18 +15,21 @@ export function useEarnedBadges() {
   const { user } = useAuth();
   const { isLessonCompleted } = useUserProgress();
 
-  const { data: curriculumData = [], isLoading: isCurriculumLoading } = useQuery<CurriculumModule[]>({
-    queryKey: ["curriculum"],
-    queryFn: async () => {
-      const res = await fetch("/content/curriculum.json");
-      if (!res.ok) throw new Error("Failed to fetch curriculum");
-      const data = await res.json();
-      return data.modules || [];
-    },
-    enabled: !!user && !user.is_staff,
-  });
+  const { data: curriculumData = [], isLoading: isCurriculumLoading } =
+    useQuery<CurriculumModule[]>({
+      queryKey: ["curriculum"],
+      queryFn: async () => {
+        const res = await fetch("/content/curriculum.json");
+        if (!res.ok) throw new Error("Failed to fetch curriculum");
+        const data = await res.json();
+        return data.modules || [];
+      },
+      enabled: !!user && !user.is_staff,
+    });
 
-  const { data: lessons = [], isLoading: isLessonsLoading } = useQuery<Lesson[]>({
+  const { data: lessons = [], isLoading: isLessonsLoading } = useQuery<
+    Lesson[]
+  >({
     queryKey: ["lessons"],
     queryFn: fetchLessonsApi,
     enabled: !!user && !user.is_staff,
@@ -39,7 +42,7 @@ export function useEarnedBadges() {
         totalLessonsCount: 0,
         completionPercentage: 0,
         activeLessonsQueue: [],
-        earnedBadges: []
+        earnedBadges: [],
       };
     }
 
@@ -51,7 +54,9 @@ export function useEarnedBadges() {
 
     const earned: string[] = [];
     curriculumData.forEach((mod, index) => {
-      const allCompleted = mod.lessons.every((les) => isLessonCompleted(les.slug));
+      const allCompleted = mod.lessons.every((les) =>
+        isLessonCompleted(les.slug),
+      );
       if (allCompleted) {
         earned.push(`mod-${index + 1}`);
       }
@@ -66,7 +71,7 @@ export function useEarnedBadges() {
       totalLessonsCount: total,
       completionPercentage: percentage,
       activeLessonsQueue: queue,
-      earnedBadges: earned
+      earnedBadges: earned,
     };
   }, [lessons, curriculumData, isLessonCompleted, user]);
 
@@ -74,6 +79,6 @@ export function useEarnedBadges() {
     ...progressMetrics,
     lessons,
     curriculumData,
-    isLessonsLoading: isLessonsLoading || isCurriculumLoading
+    isLessonsLoading: isLessonsLoading || isCurriculumLoading,
   };
 }

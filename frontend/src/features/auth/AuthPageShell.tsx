@@ -25,16 +25,16 @@ export function AuthPageShell({
           color: "bg-tertiary",
         }
       : mode === "info"
-      ? {
-          title: "Verify your email",
-          text: "Just one more step. We sent a link to your inbox.",
-          color: "bg-tertiary",
-        }
-      : {
-          title: "Study like your life depends on it 💀",
-          text: "Because it probably does. Let's get you set up.",
-          color: "bg-tertiary",
-        };
+        ? {
+            title: "Verify your email",
+            text: "Just one more step. We sent a link to your inbox.",
+            color: "bg-tertiary",
+          }
+        : {
+            title: "Study like your life depends on it 💀",
+            text: "Because it probably does. Let's get you set up.",
+            color: "bg-tertiary",
+          };
 
   const highlightBox2 =
     mode === "login"
@@ -44,16 +44,16 @@ export function AuthPageShell({
           color: "bg-primary",
         }
       : mode === "info"
-      ? {
-          title: "Almost there",
-          text: "You can't skip this, don't even try.",
-          color: "bg-accent",
-        }
-      : {
-          title: "Lessgooo 🚀",
-          text: "Create an account so we can guilt-trip you into studying every day.",
-          color: "bg-accent",
-        };
+        ? {
+            title: "Almost there",
+            text: "You can't skip this, don't even try.",
+            color: "bg-accent",
+          }
+        : {
+            title: "Lessgooo 🚀",
+            text: "Create an account so we can guilt-trip you into studying every day.",
+            color: "bg-accent",
+          };
 
   return (
     <div className="min-h-screen flex items-center justify-center p-4 sm:p-8 font-display bg-surface text-text overflow-hidden dark:bg-[#0f0e0c] dark:text-[#f0ebe2]">

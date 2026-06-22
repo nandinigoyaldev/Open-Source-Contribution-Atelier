@@ -10,7 +10,7 @@ interface UseBadgeToastReturn {
 export function useBadgeToast(
   earnedBadgeIds: string[],
   allBadges: BadgeDefinition[],
-  isDataReady: boolean = false
+  isDataReady: boolean = false,
 ): UseBadgeToastReturn {
   const [toasts, setToasts] = useState<BadgeToastData[]>([]);
 
@@ -27,7 +27,7 @@ export function useBadgeToast(
     }
 
     const newlyEarned = earnedBadgeIds.filter(
-      (id) => !sessionBaselineRef.current!.has(id)
+      (id) => !sessionBaselineRef.current!.has(id),
     );
     if (newlyEarned.length === 0) return;
 
@@ -56,7 +56,10 @@ export function useBadgeToast(
       const { id } = (e as CustomEvent<{ id: string }>).detail;
       const badge = allBadges.find((b) => b.id === id);
       if (!badge) {
-        console.warn(`[badge:test] Unknown badge id "${id}". Valid:`, allBadges.map((b) => b.id));
+        console.warn(
+          `[badge:test] Unknown badge id "${id}". Valid:`,
+          allBadges.map((b) => b.id),
+        );
         return;
       }
       setToasts((prev) => {

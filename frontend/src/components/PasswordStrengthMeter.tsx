@@ -1,5 +1,5 @@
-import React from 'react';
-import zxcvbn from 'zxcvbn';
+import React from "react";
+import zxcvbn from "zxcvbn";
 
 interface PasswordStrengthMeterProps {
   password: string;

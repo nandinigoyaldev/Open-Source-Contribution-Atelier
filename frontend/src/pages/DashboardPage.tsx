@@ -5,8 +5,8 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchApi } from "../lib/api";
 import { Link } from "react-router-dom";
 import SkeletonCard from "../components/ui/skeletons/SkeletonCard";
-import { useRef } from 'react';
-import { useElementSize } from '../hooks/useElementSize';
+import { useRef } from "react";
+import { useElementSize } from "../hooks/useElementSize";
 import { fetchLessonsApi, Lesson } from "../lib/lessons";
 import { useUserProgress } from "../hooks/useUserProgress";
 import { BADGES } from "../constants/badges";
@@ -77,27 +77,26 @@ interface AssignedIssue {
 }
 
 export function DashboardPage() {
-    const taskDistRef = useRef<HTMLDivElement>(null);
-    const { width: taskDistWidth } = useElementSize(taskDistRef as any);
-    const completionRef = useRef<HTMLDivElement>(null);
-    const { width: completionWidth } = useElementSize(completionRef as any);
-
+  const taskDistRef = useRef<HTMLDivElement>(null);
+  const { width: taskDistWidth } = useElementSize(taskDistRef);
+  const completionRef = useRef<HTMLDivElement>(null);
+  const { width: completionWidth } = useElementSize(completionRef);
 
   const { user } = useAuth();
   const { isLessonCompleted } = useUserProgress();
   const [showScrollTop, setShowScrollTop] = useState(false);
 
-useEffect(() => {
-  const handleScroll = () => {
-    setShowScrollTop(window.scrollY > 300);
-  };
+  useEffect(() => {
+    const handleScroll = () => {
+      setShowScrollTop(window.scrollY > 300);
+    };
 
-  window.addEventListener("scroll", handleScroll);
+    window.addEventListener("scroll", handleScroll);
 
-  return () => {
-    window.removeEventListener("scroll", handleScroll);
-  };
-}, []);
+    return () => {
+      window.removeEventListener("scroll", handleScroll);
+    };
+  }, []);
   // 1. Fetch static modules catalog
   const [curriculumData, setCurriculumData] = useState<ModuleData[]>([]);
   useEffect(() => {
@@ -112,8 +111,6 @@ useEffect(() => {
         console.error("Error loading dashboard curriculum:", err),
       );
   }, []);
-
-
 
   // 2. Fetch Admin Dashboard stats (only queries if user is staff)
   const {
@@ -848,10 +845,11 @@ useEffect(() => {
             return (
               <div
                 key={badge.id}
-                className={`relative rounded-2xl border-4 border-black p-5 flex flex-col items-center text-center shadow-card-sm transition-all ${isEarned
+                className={`relative rounded-2xl border-4 border-black p-5 flex flex-col items-center text-center shadow-card-sm transition-all ${
+                  isEarned
                     ? "bg-white dark:bg-[#1f1c18] hover:-translate-y-1"
                     : "bg-surface-low/30 opacity-60 dark:bg-black/20"
-                  }`}
+                }`}
               >
                 <div className={`text-5xl mb-3 ${isEarned ? "" : "grayscale"}`}>
                   {badge.icon}
@@ -1126,7 +1124,7 @@ useEffect(() => {
           </div>
         </div>
       )}
-            {showScrollTop && (
+      {showScrollTop && (
         <button
           onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
           aria-label="Scroll to top"
