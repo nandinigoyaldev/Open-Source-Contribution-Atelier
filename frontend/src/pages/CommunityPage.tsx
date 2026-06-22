@@ -5,6 +5,7 @@ import { fetchApi } from "../lib/api";
 import SkeletonStatGrid from "../components/ui/skeletons/SkeletonStatGrid";
 import { Trophy, Award } from "lucide-react";
 import { useAuth } from "../features/auth/AuthContext";
+import { ResponsiveTable } from "../components/ui/ResponsiveTable";
 
 interface LeaderboardItem {
   rank: number;
@@ -226,79 +227,57 @@ export function CommunityPage() {
               Assembling standings...
             </p>
           ) : (
-            <div className="overflow-x-auto rounded-2xl border-4 border-black shadow-card-sm dark:border-[#2e2924]">
-              <table className="w-full border-collapse bg-white dark:bg-[#1f1c18] text-left text-sm font-bold">
-                <thead>
-                  <tr className="bg-surface-low border-b-4 border-black dark:bg-[#151411] dark:border-[#2e2924]">
-                    <th className="px-4 py-3 text-xs uppercase tracking-wider border-r-2 border-black dark:border-[#2e2924]">
-                      Rank
-                    </th>
-                    <th className="px-4 py-3 text-xs uppercase tracking-wider border-r-2 border-black dark:border-[#2e2924]">
-                      Contributor
-                    </th>
-                    <th className="px-4 py-3 text-xs uppercase tracking-wider border-r-2 border-black dark:border-[#2e2924]">
-                      Commits
-                    </th>
-                    <th className="px-4 py-3 text-xs uppercase tracking-wider">
-                      Estimated XP
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredLeaderboard.map((item, idx) => (
-                    <tr
-                      key={item.username}
-                      className={`border-b-2 border-black last:border-b-0 hover:bg-surface-lowest transition dark:border-[#2e2924] dark:hover:bg-black/10 ${
-                        user?.username === item.username ? "bg-accent/20" : ""
-                      }`}
-                    >
-                      <td className="px-4 py-3 border-r-2 border-black dark:border-[#2e2924] text-center font-black">
-                        {idx + 1 === 1 && "🥇"}
-                        {idx + 1 === 2 && "🥈"}
-                        {idx + 1 === 3 && "🥉"}
-                        {idx + 1 > 3 && `#${idx + 1}`}
-                      </td>
-                      <td className="px-4 py-3 border-r-2 border-black dark:border-[#2e2924] flex items-center gap-2">
-                        <img
-                          src={item.avatar_url}
-                          alt={item.username}
-                          className="w-6 h-6 rounded-full border border-black"
-                        />
-                        <a
-                          href={item.html_url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="text-primary hover:underline"
-                        >
-                          @{item.username}
-                        </a>
-                        {user?.username === item.username && (
-                          <span className="text-[8px] bg-black text-white px-1.5 py-0.5 rounded uppercase font-black tracking-wider dark:bg-[#2e2924]">
-                            You
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-4 py-3 border-r-2 border-black dark:border-[#2e2924]">
-                        {item.contributions}
-                      </td>
-                      <td className="px-4 py-3 text-primary font-black">
-                        {item.xp} XP
-                      </td>
-                    </tr>
-                  ))}
-                  {filteredLeaderboard.length === 0 && (
-                    <tr>
-                      <td
-                        colSpan={4}
-                        className="px-4 py-8 text-center text-muted font-bold"
+            <ResponsiveTable
+              data={filteredLeaderboard}
+              keyExtractor={(item) => item.username}
+              emptyMessage="No matching contributors found."
+              rowClassName={(item) => user?.username === item.username ? "bg-accent/20" : ""}
+              columns={[
+                {
+                  header: "Rank",
+                  accessor: (item, idx) => {
+                    if (idx === 0) return "🥇";
+                    if (idx === 1) return "🥈";
+                    if (idx === 2) return "🥉";
+                    return `#${idx + 1}`;
+                  },
+                  className: "text-center font-black",
+                },
+                {
+                  header: "Contributor",
+                  accessor: (item) => (
+                    <div className="flex items-center gap-2 overflow-hidden w-full">
+                      <img
+                        src={item.avatar_url}
+                        alt={item.username}
+                        className="w-6 h-6 rounded-full border border-black flex-shrink-0"
+                      />
+                      <a
+                        href={item.html_url}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-primary hover:underline truncate"
                       >
-                        No matching contributors found.
-                      </td>
-                    </tr>
-                  )}
-                </tbody>
-              </table>
-            </div>
+                        @{item.username}
+                      </a>
+                      {user?.username === item.username && (
+                        <span className="text-[8px] bg-black text-white px-1.5 py-0.5 rounded uppercase font-black tracking-wider dark:bg-[#2e2924] flex-shrink-0">
+                          You
+                        </span>
+                      )}
+                    </div>
+                  ),
+                },
+                {
+                  header: "Commits",
+                  accessor: "contributions",
+                },
+                {
+                  header: "Estimated XP",
+                  accessor: (item) => <span className="text-primary font-black">{item.xp} XP</span>,
+                },
+              ]}
+            />
           )}
         </div>
 
