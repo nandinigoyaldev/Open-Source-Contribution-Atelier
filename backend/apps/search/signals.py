@@ -3,6 +3,8 @@ from django.dispatch import receiver
 import sys
 from django.contrib.auth import get_user_model
 from apps.content.models import Lesson
+from apps.challenges.models import Challenge
+from apps.dashboard.models import Issue
 from .tasks import index_model_for_search, remove_model_from_search
 
 User = get_user_model()
@@ -53,6 +55,58 @@ def index_user(sender, instance, **kwargs):
 
 @receiver(post_delete, sender=User)
 def remove_user_index(sender, instance, **kwargs):
+    if 'test' in sys.argv:
+        return
+    remove_model_from_search.delay(
+        app_label=sender._meta.app_label,
+        model_name=sender._meta.model_name,
+        object_id=instance.pk
+    )
+
+# --- Challenge Indexing ---
+
+@receiver(post_save, sender=Challenge)
+def index_challenge(sender, instance, **kwargs):
+    if 'test' in sys.argv:
+        return
+    title = instance.title
+    body_text = instance.summary
+    index_model_for_search.delay(
+        app_label=sender._meta.app_label,
+        model_name=sender._meta.model_name,
+        object_id=instance.pk,
+        title=title,
+        body_text=body_text
+    )
+
+@receiver(post_delete, sender=Challenge)
+def remove_challenge_index(sender, instance, **kwargs):
+    if 'test' in sys.argv:
+        return
+    remove_model_from_search.delay(
+        app_label=sender._meta.app_label,
+        model_name=sender._meta.model_name,
+        object_id=instance.pk
+    )
+
+# --- Issue Indexing ---
+
+@receiver(post_save, sender=Issue)
+def index_issue(sender, instance, **kwargs):
+    if 'test' in sys.argv:
+        return
+    title = instance.title
+    body_text = instance.description
+    index_model_for_search.delay(
+        app_label=sender._meta.app_label,
+        model_name=sender._meta.model_name,
+        object_id=instance.pk,
+        title=title,
+        body_text=body_text
+    )
+
+@receiver(post_delete, sender=Issue)
+def remove_issue_index(sender, instance, **kwargs):
     if 'test' in sys.argv:
         return
     remove_model_from_search.delay(

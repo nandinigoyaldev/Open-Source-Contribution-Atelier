@@ -19,4 +19,8 @@ class SearchDocumentSerializer(serializers.ModelSerializer):
             return f"/api/content/lessons/{obj.object_id}/"
         elif model_name == 'user':
             return f"/api/users/{obj.object_id}/"
+        elif model_name == 'challenge':
+            return f"/api/challenges/{obj.object_id}/"
+        elif model_name == 'issue':
+            return f"/api/dashboard/issues/{obj.object_id}/"
         return f"/api/{model_name}/{obj.object_id}/"
