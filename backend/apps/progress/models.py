@@ -1,5 +1,6 @@
 from django.contrib.auth.models import User
 from django.db import models
+from apps.organizations.models import Organization
 from django.core.exceptions import ObjectDoesNotExist
 from apps.content.models import Exercise, Lesson
 
@@ -30,6 +31,12 @@ class UserBadge(models.Model):
 
 class LessonProgress(models.Model):
     objects = models.Manager()
+    organization = models.ForeignKey(
+        Organization,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True
+    )
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     lesson = models.ForeignKey(Lesson, on_delete=models.CASCADE)
     completed = models.BooleanField(default=False)
@@ -53,6 +60,12 @@ class LessonProgress(models.Model):
 
 class ExerciseAttempt(models.Model):
     objects = models.Manager()
+    organization = models.ForeignKey(
+        Organization,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True
+    )
     user = models.ForeignKey(User, on_delete=models.CASCADE)
     exercise = models.ForeignKey(Exercise, on_delete=models.CASCADE)
     submitted_command = models.CharField(max_length=255)
@@ -75,10 +88,22 @@ class HelpRequest(models.Model):
         OPEN = "open", "Open"
         RESOLVED = "resolved", "Resolved"
 
+    organization = models.ForeignKey(
+        Organization,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True
+    )
+
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="help_requests")
     lesson = models.ForeignKey(Lesson, on_delete=models.CASCADE, related_name="help_requests")
     message = models.TextField()
-    status = models.CharField(max_length=20, choices=Status.choices, default=Status.OPEN, db_index=True)
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.OPEN,
+        db_index=True
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

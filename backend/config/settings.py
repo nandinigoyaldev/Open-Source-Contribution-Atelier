@@ -51,6 +51,7 @@ INSTALLED_APPS = [
     "apps.progress",
     "apps.challenges",
     "apps.sandbox",
+    "apps.organizations",
     "apps.webhooks",
     "rest_framework_simplejwt.token_blacklist",
 ]

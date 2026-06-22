@@ -1,16 +1,22 @@
 from django.core.validators import MinValueValidator, MaxValueValidator
 from django.db import models
 from django.contrib.auth import get_user_model
+from django.core.exceptions import ObjectDoesNotExist
 
 User = get_user_model()
-
-from django.core.exceptions import ObjectDoesNotExist
 
 class Lesson(models.Model):
     class DoesNotExist(ObjectDoesNotExist):
         pass
 
     objects = models.Manager()
+
+    organization = models.ForeignKey(
+        "Organization",
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True
+    )
     difficulty = models.CharField(max_length=32)
     title = models.CharField(max_length=255)
     slug = models.SlugField(unique=True)
@@ -30,7 +36,6 @@ class Lesson(models.Model):
 
     class Meta:
         ordering = ["order", "id"]
-
 
 class Exercise(models.Model):
     objects = models.Manager()

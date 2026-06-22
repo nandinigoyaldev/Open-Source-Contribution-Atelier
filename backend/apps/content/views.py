@@ -22,7 +22,6 @@ def get_active_lessons():
 
 # --- Existing Views ---
 class LessonViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = Lesson.objects.prefetch_related("exercises").all()
     serializer_class = LessonSerializer
 
     def list(self, request, *args, **kwargs):
@@ -53,9 +52,10 @@ class SearchView(views.APIView):
             if not object_ids:
                 return []
                 
-            objects = model_class.objects.filter(id__in=object_ids)
+            objects = model_class.objects.filter(id__in=object_ids, organization=request.user.organization)
             # Sort them in the exact order returned by FTS
-            return sorted(objects, key=lambda x: object_ids.index(x.id))
+            ordered_objects = sorted(objects, key=lambda x: object_ids.index(x.id))
+            return ordered_objects
 
         lessons = get_fts_objects(Lesson, lesson_ct)
         challenges = get_fts_objects(Challenge, challenge_ct)
@@ -73,12 +73,19 @@ class RoadmapView(views.APIView):
         lessons = get_active_lessons()
 
         progress_by_slug = {}
+
         if request.user and request.user.is_authenticated:
-            progress_rows = LessonProgress.objects.filter(
-                user=request.user,
-                lesson__in=lessons,
-            ).select_related("lesson")
-            progress_by_slug = {p.lesson.slug: p for p in progress_rows}
+            progress_rows = (
+                LessonProgress.objects.filter(
+                    user=request.user,
+                    organization=request.user.organization,
+                    lesson__in=lessons,
+                ).select_related("lesson")
+            )
+
+            progress_by_slug = {
+                p.lesson.slug: p for p in progress_rows
+            }
 
         track = []
         completed_count = 0

@@ -10,8 +10,13 @@ from .throttles import SandboxAnonRateThrottle, SandboxUserRateThrottle
 
 class ChallengeViewSet(viewsets.ReadOnlyModelViewSet):
     """Existing view — untouched."""
-    queryset = Challenge.objects.all()
+
     serializer_class = ChallengeSerializer
+
+    def get_queryset(self):
+        return Challenge.objects.filter(
+            organization=self.request.user.organization
+        )
 
 
 class SandboxExecutionView(APIView):
@@ -34,6 +39,7 @@ class SandboxExecutionView(APIView):
         Expected body: { "code": "...", "language": "python" }
         Wire this to your actual sandbox execution logic.
         """
+
         code = request.data.get("code", "")
         language = request.data.get("language", "python")
 
@@ -48,6 +54,9 @@ class SandboxExecutionView(APIView):
         # return Response(result, status=status.HTTP_200_OK)
 
         return Response(
-            {"detail": "Sandbox execution triggered.", "language": language},
+            {
+                "detail": "Sandbox execution triggered.",
+                "language": language,
+            },
             status=status.HTTP_200_OK,
         )
