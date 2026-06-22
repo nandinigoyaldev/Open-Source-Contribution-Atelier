@@ -6,42 +6,35 @@ interface PasswordStrengthMeterProps {
 }
 
 const PasswordStrengthMeter: React.FC<PasswordStrengthMeterProps> = ({ password }) => {
-  const testResult = zxcvbn(password);
-  const score = testResult.score; // 0-4
+  if (!password) return null;
 
-  const getStrengthLabel = (score: number) => {
-    switch (score) {
-      case 0:
-        return { label: 'Weak', color: 'bg-red-500' };
-      case 1:
-        return { label: 'Weak', color: 'bg-red-400' };
-      case 2:
-        return { label: 'Medium', color: 'bg-yellow-500' };
-      case 3:
-        return { label: 'Strong', color: 'bg-green-400' };
-      case 4:
-        return { label: 'Strong', color: 'bg-green-600' };
-      default:
-        return { label: '', color: 'bg-gray-300' };
-    }
-  };
+  const { score } = zxcvbn(password);
 
-  const strength = getStrengthLabel(score);
-  const width = password.length > 0 ? (score / 4) * 100 : 0;
+  const tiers = [
+    { label: 'Weak password',      barColor: 'bg-red-500',    textColor: 'text-red-500'    },
+    { label: 'Weak password',      barColor: 'bg-red-400',    textColor: 'text-red-400'    },
+    { label: 'Medium password',    barColor: 'bg-yellow-400', textColor: 'text-yellow-600' },
+    { label: 'Strong password',    barColor: 'bg-green-500',  textColor: 'text-green-600'  },
+    { label: 'Strong password 💪', barColor: 'bg-green-600',  textColor: 'text-green-600'  },
+  ];
+
+  const { label, barColor, textColor } = tiers[score];
+  const filledBars = score <= 1 ? 1 : score <= 3 ? 2 : 3;
 
   return (
-    <div className="mt-2">
-      <div className="w-full h-2 bg-gray-200 rounded-full overflow-hidden">
-        <div
-          className={`h-full transition-all duration-300 ${strength.color}`}
-          style={{ width: `${width}%` }}
-        />
+    <div className="ml-1 mt-2">
+      <div className="flex gap-1.5 mb-1">
+        {[0, 1, 2].map((i) => (
+          <div
+            key={i}
+            className={[
+              'h-2 flex-1 rounded-full border-2 border-black transition-all duration-300',
+              i < filledBars ? barColor : 'bg-gray-200',
+            ].join(' ')}
+          />
+        ))}
       </div>
-      {password.length > 0 && (
-        <p className="text-sm mt-1 text-gray-600">
-          Password strength: <span className="font-medium">{strength.label}</span>
-        </p>
-      )}
+      <p className={`text-xs font-bold ml-0.5 ${textColor}`}>{label}</p>
     </div>
   );
 };

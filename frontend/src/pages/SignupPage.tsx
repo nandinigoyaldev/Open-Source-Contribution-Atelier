@@ -4,6 +4,7 @@ import { fetchApi } from "../lib/api";
 import { useAuth } from "../features/auth/AuthContext";
 import { useGoogleLogin } from "@react-oauth/google";
 import { Github } from "lucide-react";
+import PasswordStrengthMeter from "../components/PasswordStrengthMeter";
 
 const githubAuthUrl =
   import.meta.env.VITE_GITHUB_OAUTH_URL ||
@@ -42,45 +43,6 @@ export function SignupPage() {
       setError("Google Login Failed / Cancelled.");
     },
   });
-
-  // ── PASSWORD STRENGTH HELPER ───────────────────────────────────────────────
-  // Scores the password 0–4 based on 4 criteria:
-  //   +1  length is at least 8 characters
-  //   +1  contains at least one uppercase letter (A-Z)
-  //   +1  contains at least one digit (0-9)
-  //   +1  contains at least one special character (!@#$ etc.)
-  // Returns the numeric score so the JSX below can derive bar color + label.
-  const getPasswordScore = (pwd: string): number =>
-    (pwd.length >= 8 ? 1 : 0) +
-    (/[A-Z]/.test(pwd) ? 1 : 0) +
-    (/[0-9]/.test(pwd) ? 1 : 0) +
-    (/[^A-Za-z0-9]/.test(pwd) ? 1 : 0);
-
-  // Maps a score to which of the 3 strength tiers we are in:
-  //   0-1  → index 0  (Weak)
-  //   2-3  → index 1  (Medium)
-  //   4    → index 2  (Strong)
-  const getStrengthIndex = (score: number): number =>
-    score <= 1 ? 0 : score <= 3 ? 1 : 2;
-
-  // One Tailwind color class per tier, applied to the filled bars.
-  // Matches the red / yellow / green traffic-light convention users expect.
-  const barColors = ["bg-red-500", "bg-yellow-400", "bg-green-500"] as const;
-
-  // Human-readable label shown below the bars.
-  const strengthLabels = [
-    "Weak password",
-    "Medium password",
-    "Strong password 💪",
-  ] as const;
-
-  // Text color for the label — keeps it consistent with the bar color.
-  const labelColors = [
-    "text-red-500",
-    "text-yellow-600",
-    "text-green-600",
-  ] as const;
-  // ── END HELPER BLOCK ───────────────────────────────────────────────────────
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -210,47 +172,7 @@ export function SignupPage() {
             required
           />
 
-          {/* ── PASSWORD STRENGTH INDICATOR ────────────────────────────────────
-              Only rendered once the user starts typing (password is non-empty).
-              Three segmented bars + a text label give instant visual feedback.
-          ──────────────────────────────────────────────────────────────────── */}
-          {password &&
-            (() => {
-              // Compute score and tier index once; reuse in bars + label below.
-              const score = getPasswordScore(password);
-              const tierIndex = getStrengthIndex(score);
-
-              return (
-                <div className="ml-1 mt-2">
-                  {/* Three segmented bars — one per tier (Weak / Medium / Strong).
-                    A bar is "filled" (colored) when its index ≤ the current tier.
-                    All bars share the same active color so the whole group reads
-                    as a single progress indicator, not three separate lights.     */}
-                  <div className="flex gap-1.5 mb-1">
-                    {(["Weak", "Medium", "Strong"] as const).map((_, i) => (
-                      <div
-                        key={i}
-                        className={[
-                          "h-2 flex-1 rounded-full border-2 border-black",
-                          "transition-all duration-300",
-                          // Fill bars up to and including the current tier index;
-                          // leave bars beyond the tier a neutral gray.
-                          i <= tierIndex ? barColors[tierIndex] : "bg-gray-200",
-                        ].join(" ")}
-                      />
-                    ))}
-                  </div>
-
-                  {/* Text label — matches the bar color so they feel connected. */}
-                  <p
-                    className={`text-xs font-bold ml-0.5 ${labelColors[tierIndex]}`}
-                  >
-                    {strengthLabels[tierIndex]}
-                  </p>
-                </div>
-              );
-            })()}
-          {/* ── END PASSWORD STRENGTH INDICATOR ────────────────────────────── */}
+          <PasswordStrengthMeter password={password} />
         </div>
 
         <button

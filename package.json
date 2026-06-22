@@ -1,5 +1,9 @@
 {
   "dependencies": {
-    "framer-motion": "^12.40.0"
+    "framer-motion": "^12.40.0",
+    "zxcvbn": "^4.4.2"
+  },
+  "devDependencies": {
+    "@types/zxcvbn": "^4.4.5"
   }
 }
