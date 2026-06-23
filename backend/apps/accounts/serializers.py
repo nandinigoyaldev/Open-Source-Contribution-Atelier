@@ -1,7 +1,10 @@
 import re
+from datetime import timedelta
 
 from django.contrib.auth.models import User
+from django.utils import timezone
 from rest_framework import serializers
+from rest_framework.exceptions import AuthenticationFailed
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
 
@@ -50,10 +53,11 @@ class SignupSerializer(serializers.ModelSerializer):
 class UserUpdateSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, required=False, min_length=8)
     avatar = serializers.ImageField(required=False)
+    timezone = serializers.CharField(required=False)
 
     class Meta:
         model = User
-        fields = ("email", "password", "avatar")
+        fields = ("email", "password", "avatar", "timezone")
         extra_kwargs = {
             "email": {"required": False},
         }
@@ -61,34 +65,47 @@ class UserUpdateSerializer(serializers.ModelSerializer):
     def validate_password(self, value):
         return validate_strong_password(value)
 
+    def validate_timezone(self, value):
+        from zoneinfo import available_timezones
+
+        if value not in available_timezones():
+            raise serializers.ValidationError("Unknown timezone.")
+        return value
+
     def update(self, instance, validated_data):
         password = validated_data.pop("password", None)
         avatar = validated_data.pop("avatar", None)
+        tz = validated_data.pop("timezone", None)
 
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         if password:
             instance.set_password(password)
+            if hasattr(instance, "profile"):
+                instance.profile.last_password_change = timezone.now()
+                instance.profile.save(update_fields=["last_password_change"])
         instance.save()
 
-        if avatar is not None:
-            if hasattr(instance, "profile"):
-                instance.profile.avatar = avatar
-                instance.profile.save()
-            else:
-                from apps.accounts.models import UserProfile
+        if avatar is not None or tz is not None:
+            from apps.accounts.models import UserProfile
 
-                UserProfile.objects.create(user=instance, avatar=avatar)
+            profile, _ = UserProfile.objects.get_or_create(user=instance)
+            if avatar is not None:
+                profile.avatar = avatar
+            if tz is not None:
+                profile.timezone = tz
+            profile.save()
 
         return instance
 
 
 class UserListSerializer(serializers.ModelSerializer):
     avatar_url = serializers.SerializerMethodField()
+    timezone = serializers.SerializerMethodField()
 
     class Meta:
         model = User
-        fields = ("id", "username", "email", "is_staff", "avatar_url")
+        fields = ("id", "username", "email", "is_staff", "avatar_url", "timezone")
 
     def get_avatar_url(self, obj):
         if hasattr(obj, "profile") and obj.profile.avatar:
@@ -97,6 +114,11 @@ class UserListSerializer(serializers.ModelSerializer):
                 return request.build_absolute_uri(obj.profile.avatar.url)
             return obj.profile.avatar.url
         return None
+
+    def get_timezone(self, obj):
+        if hasattr(obj, "profile"):
+            return obj.profile.timezone
+        return "UTC"
 
 
 class EmailOrUsernameTokenObtainPairSerializer(TokenObtainPairSerializer):
@@ -111,7 +133,18 @@ class EmailOrUsernameTokenObtainPairSerializer(TokenObtainPairSerializer):
             if user:
                 attrs = {**attrs, username_key: user.username}
 
-        return super().validate(attrs)
+        result = super().validate(attrs)
+
+        if hasattr(self.user, "profile") and self.user.profile.last_password_change:
+            if timezone.now() > self.user.profile.last_password_change + timedelta(
+                days=90
+            ):
+                raise AuthenticationFailed(
+                    "Password has expired. Please reset your password.",
+                    code="password_expired",
+                )
+
+        return result
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -151,3 +184,20 @@ class OtpVerifySerializer(serializers.Serializer):
 
     email = serializers.EmailField()
     otp = serializers.UUIDField()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Magic Link serializers
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+class MagicLinkRequestSerializer(serializers.Serializer):
+    """Accept an email address to trigger a magic link login email."""
+
+    email = serializers.EmailField()
+
+
+class MagicLinkVerifySerializer(serializers.Serializer):
+    """Accept a magic link token to verify and login the user."""
+
+    token = serializers.UUIDField()

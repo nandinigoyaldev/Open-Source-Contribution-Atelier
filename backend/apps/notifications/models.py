@@ -10,6 +10,8 @@ class Notification(models.Model):
         ("comment", "New Comment"),
     ]
 
+    objects = models.Manager()
+
     recipient = models.ForeignKey(
         User, on_delete=models.CASCADE, related_name="notifications"
     )
@@ -23,7 +25,7 @@ class Notification(models.Model):
     notif_type = models.CharField(max_length=20, choices=NOTIFICATION_TYPES)
     title = models.CharField(max_length=255)
     message = models.TextField()
-    is_read = models.BooleanField(default=False)
+    is_read = models.BooleanField(default=False) # type: ignore
     created_at = models.DateTimeField(auto_now_add=True)
     meta = models.JSONField(default=dict, blank=True)  # extra payload
 
@@ -33,3 +35,16 @@ class Notification(models.Model):
 
     def __str__(self):
         return f"[{self.notif_type}] → {self.recipient} | {self.title}"
+
+
+class PushSubscription(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="push_subscriptions")
+    endpoint = models.URLField(max_length=500, unique=True)
+    p256dh = models.CharField(max_length=255)
+    auth = models.CharField(max_length=255)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    objects = models.Manager()
+
+    def __str__(self):
+        return f"PushSubscription(user={self.user.username})" # type: ignore

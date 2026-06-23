@@ -15,6 +15,7 @@ from django.dispatch import receiver
 
 from .models import Notification
 from .serializers import NotificationSerializer
+from .tasks import send_web_push_notification
 
 logger = logging.getLogger(__name__)
 
@@ -24,9 +25,9 @@ channel_layer = get_channel_layer()
 def _push_notification(notification: Notification):
     """Send a notification object to the user's WebSocket group."""
     data = NotificationSerializer(notification).data
-    group_name = f"notifications_{notification.recipient_id}"
+    group_name = f"notifications_{notification.recipient_id}" # type: ignore
     try:
-        async_to_sync(channel_layer.group_send)(
+        async_to_sync(channel_layer.group_send)( # type: ignore
             group_name,
             {
                 "type": "send_notification",  # matches consumer method
@@ -34,10 +35,27 @@ def _push_notification(notification: Notification):
             },
         )
         logger.info(
-            "Pushed notification id=%s to group=%s", notification.id, group_name
+            "Pushed notification id=%s to group=%s", notification.id, group_name # type: ignore
         )
     except Exception as exc:
         logger.error("Failed to push notification: %s", exc)
+
+    # Dispatch web push notification asynchronously
+    try:
+        url = "/"
+        if notification.notif_type == "badge":
+            url = "/profile"
+        elif notification.meta and "contribution_id" in notification.meta: # type: ignore
+            url = f"/contributions/{notification.meta['contribution_id']}" # type: ignore
+            
+        send_web_push_notification.delay( # type: ignore
+            user_id=notification.recipient_id, # type: ignore
+            title=notification.title,
+            message=notification.message,
+            url=url
+        )
+    except Exception as exc:
+        logger.error("Failed to enqueue web push notification: %s", exc)
 
 
 # ------------------------------------------------------------------ #
@@ -65,6 +83,7 @@ def on_badge_awarded(sender, instance, created, **kwargs):
 
     # Offload bulk email or notification digest to the independent worker
     import sys
+
     if "test" in sys.argv or any("pytest" in arg for arg in sys.argv):
         return
 

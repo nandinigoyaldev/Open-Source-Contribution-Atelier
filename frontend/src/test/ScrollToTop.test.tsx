@@ -4,8 +4,8 @@ import { ScrollToTop } from '../components/ui/ScrollToTop';
 
 describe('ScrollToTop Component', () => {
   beforeEach(() => {
-    // Mock window.scrollTo
-    vi.stubGlobal('scrollTo', vi.fn());
+    vi.spyOn(window, 'scrollY', 'get').mockReturnValue(0);
+    vi.spyOn(window, 'scrollTo').mockImplementation(() => {});
   });
 
   afterEach(() => {

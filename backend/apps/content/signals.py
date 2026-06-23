@@ -32,7 +32,6 @@ def invalidate_lesson_cache(sender, instance, **kwargs):
     transaction.on_commit(lambda: clear_curriculum_caches())
 
 
-
 @receiver(post_save, sender=Lesson)
 def update_lesson_embedding(sender, instance, **kwargs):
     transaction.on_commit(lambda: _update_embedding(instance))

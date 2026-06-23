@@ -1,6 +1,7 @@
 """
 Custom DRF exception handler that produces user-friendly API responses.
 """
+
 import logging
 
 from rest_framework import status
@@ -72,7 +73,7 @@ def throttle_exception_handler(exc, context):
                 code = codes["detail"]
             elif isinstance(codes, dict) and "code" in codes:
                 code = codes["code"]
-        
+
         # SimpleJWT sometimes puts code in detail dict directly
         if isinstance(getattr(exc, "detail", None), dict) and "code" in exc.detail:
             code = exc.detail["code"]
@@ -135,7 +136,7 @@ def throttle_exception_handler(exc, context):
                     break
 
         message = _THROTTLE_MESSAGES.get(scope, _DEFAULT_MESSAGE)
-        retry_after = getattr(exc, 'wait', None)
+        retry_after = getattr(exc, "wait", None)
 
         return Response(
             {

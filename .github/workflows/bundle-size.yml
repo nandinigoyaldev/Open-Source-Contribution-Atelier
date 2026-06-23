@@ -1,0 +1,77 @@
+name: Performance Budget
+
+on:
+  pull_request:
+    paths:
+      - 'frontend/**'
+
+jobs:
+  check-bundle-size:
+    name: Check JS Bundle Bloat
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR Branch
+        uses: actions/checkout@v4
+        with:
+          path: pr
+
+      - name: Checkout Base Branch
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.base_ref }}
+          path: base
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: 'pr/frontend/package-lock.json'
+
+      - name: Build PR Branch
+        run: |
+          cd pr/frontend
+          npm ci
+          npm run build
+          PR_SIZE=$(find dist/assets -name '*.js' -type f -print0 | xargs -0 stat -c %s | awk '{s+=$1} END {print s+0}')
+          echo "PR_SIZE=$PR_SIZE" >> $GITHUB_ENV
+
+      - name: Build Base Branch
+        run: |
+          cd base/frontend
+          npm ci
+          if ! npm run build; then
+            echo "BASE_BUILD_FAILED=true" >> $GITHUB_ENV
+            echo "BASE_SIZE=0" >> $GITHUB_ENV
+          else
+            BASE_SIZE=$(find dist/assets -name '*.js' -type f -print0 | xargs -0 stat -c %s | awk '{s+=$1} END {print s+0}')
+            echo "BASE_SIZE=$BASE_SIZE" >> $GITHUB_ENV
+          fi
+
+      - name: Compare Bundle Sizes
+        run: |
+          if [ "$BASE_BUILD_FAILED" = "true" ]; then
+            echo "Base branch failed to build. Skipping bundle size comparison to prevent PR blockage."
+            exit 0
+          fi
+          
+          echo "Base Branch JS Size: $BASE_SIZE bytes"
+          echo "PR Branch JS Size: $PR_SIZE bytes"
+          
+          DIFF=$((PR_SIZE - BASE_SIZE))
+          echo "Difference: $DIFF bytes"
+          
+          # 50 KB = 51200 bytes
+          LIMIT=51200
+          
+          if [ "$DIFF" -gt "$LIMIT" ]; then
+            echo "::error::JavaScript bundle size increased by $(($DIFF / 1024)) KB! This exceeds the maximum allowed increase of 50 KB."
+            exit 1
+          else
+            if [ "$DIFF" -gt 0 ]; then
+              echo "JavaScript bundle size increased by $(($DIFF / 1024)) KB, which is within the 50 KB budget."
+            else
+              echo "JavaScript bundle size decreased or remained the same! Great job!"
+            fi
+            exit 0
+          fi

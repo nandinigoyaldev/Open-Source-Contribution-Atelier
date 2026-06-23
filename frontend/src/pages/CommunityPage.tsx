@@ -6,6 +6,7 @@ import SkeletonStatGrid from "../components/ui/skeletons/SkeletonStatGrid";
 import { Trophy, Award } from "lucide-react";
 import { useAuth } from "../features/auth/AuthContext";
 import { ResponsiveTable } from "../components/ui/ResponsiveTable";
+import { ChatContainer } from "../components/chat/ChatContainer";
 
 
 export function CommunityPage() {
@@ -101,7 +102,7 @@ export function CommunityPage() {
 
   const observerRef = useRef<IntersectionObserver | null>(null);
   const lastElementRef = useCallback(
-    (node: HTMLElement | null) => {
+    (node: Element | null) => {
       if (isFetchingNextPage || loadingLeaderboard) return;
       if (observerRef.current) observerRef.current.disconnect();
       
@@ -309,6 +310,10 @@ export function CommunityPage() {
 
           <div className="mt-6 p-4 rounded-lg border-2 border-dashed border-black/30 bg-surface-low/30 text-center font-bold text-xs dark:text-[#c4bbae]">
             ✨ Tip: PR approvals on practice issues double your XP points!
+          </div>
+
+          <div className="mt-8 flex-1">
+            <ChatContainer />
           </div>
         </div>
       </div>
