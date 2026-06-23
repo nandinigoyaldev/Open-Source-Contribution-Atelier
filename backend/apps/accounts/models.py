@@ -96,6 +96,7 @@ class UserProfile(models.Model):
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="profile"
     )
     avatar = models.ImageField(upload_to="avatars/", null=True, blank=True)
+    last_password_change = models.DateTimeField(auto_now_add=True)
 
     organization = models.ForeignKey(
         "organizations.Organization",
@@ -122,6 +123,11 @@ def save_user_profile(sender, instance, **kwargs):
     else:
         UserProfile.objects.create(user=instance)
 
+
 from django.contrib.auth import get_user_model
+
 User = get_user_model()
-User.add_to_class("organization", property(lambda u: u.profile.organization if hasattr(u, "profile") else None))
+User.add_to_class(
+    "organization",
+    property(lambda u: u.profile.organization if hasattr(u, "profile") else None),
+)

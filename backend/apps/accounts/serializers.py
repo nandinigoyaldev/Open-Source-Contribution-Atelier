@@ -1,7 +1,10 @@
 import re
+from datetime import timedelta
 
 from django.contrib.auth.models import User
+from django.utils import timezone
 from rest_framework import serializers
+from rest_framework.exceptions import AuthenticationFailed
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
 
@@ -69,6 +72,9 @@ class UserUpdateSerializer(serializers.ModelSerializer):
             setattr(instance, attr, value)
         if password:
             instance.set_password(password)
+            if hasattr(instance, "profile"):
+                instance.profile.last_password_change = timezone.now()
+                instance.profile.save(update_fields=["last_password_change"])
         instance.save()
 
         if avatar is not None:
@@ -111,7 +117,18 @@ class EmailOrUsernameTokenObtainPairSerializer(TokenObtainPairSerializer):
             if user:
                 attrs = {**attrs, username_key: user.username}
 
-        return super().validate(attrs)
+        result = super().validate(attrs)
+
+        if hasattr(self.user, "profile") and self.user.profile.last_password_change:
+            if timezone.now() > self.user.profile.last_password_change + timedelta(
+                days=90
+            ):
+                raise AuthenticationFailed(
+                    "Password has expired. Please reset your password.",
+                    code="password_expired",
+                )
+
+        return result
 
 
 # ─────────────────────────────────────────────────────────────────────────────
