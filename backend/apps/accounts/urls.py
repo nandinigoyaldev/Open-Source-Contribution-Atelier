@@ -1,8 +1,9 @@
 from django.urls import path
 
-from .views import (ExportDataView, GitHubOAuthCallbackView, GitHubOAuthStartView,
-                    GoogleLoginView, LoginView, MeView, OtpRequestView,
-                    OtpVerifyView, PasswordResetConfirmView,
+from .views import (ExportDataView, GitHubOAuthCallbackView,
+                    GitHubOAuthStartView, GoogleLoginView, LoginView,
+                    MagicLinkRequestView, MagicLinkVerifyView, MeView,
+                    OtpRequestView, OtpVerifyView, PasswordResetConfirmView,
                     PasswordResetRequestView, RefreshView, SignupView,
                     UserListView, UserStatisticsView)
 
@@ -33,4 +34,9 @@ urlpatterns = [
     # ── OTP / Email Verification ───────────────────────────────────────────────
     path("otp/request/", OtpRequestView.as_view(), name="otp-request"),
     path("otp/verify/", OtpVerifyView.as_view(), name="otp-verify"),
+    # ── Magic Link ─────────────────────────────────────────────────────────────
+    path(
+        "magic-link/request/", MagicLinkRequestView.as_view(), name="magic-link-request"
+    ),
+    path("magic-link/verify/", MagicLinkVerifyView.as_view(), name="magic-link-verify"),
 ]

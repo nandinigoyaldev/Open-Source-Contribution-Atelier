@@ -151,3 +151,20 @@ class OtpVerifySerializer(serializers.Serializer):
 
     email = serializers.EmailField()
     otp = serializers.UUIDField()
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Magic Link serializers
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+class MagicLinkRequestSerializer(serializers.Serializer):
+    """Accept an email address to trigger a magic link login email."""
+
+    email = serializers.EmailField()
+
+
+class MagicLinkVerifySerializer(serializers.Serializer):
+    """Accept a magic link token to verify and login the user."""
+
+    token = serializers.UUIDField()

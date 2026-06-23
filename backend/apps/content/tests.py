@@ -1,7 +1,6 @@
 import pytest
-from rest_framework.test import APIClient
-
 from apps.content.models import Lesson
+from rest_framework.test import APIClient
 
 
 @pytest.mark.django_db
@@ -20,7 +19,9 @@ def test_lesson_pdf_returns_pdf_for_existing_lesson():
 
     assert response.status_code == 200
     assert response["Content-Type"] == "application/pdf"
-    assert response["Content-Disposition"] == f'attachment; filename="{lesson.slug}.pdf"'
+    assert (
+        response["Content-Disposition"] == f'attachment; filename="{lesson.slug}.pdf"'
+    )
     assert response.content.startswith(b"%PDF")
 
 

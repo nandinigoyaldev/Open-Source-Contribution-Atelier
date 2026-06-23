@@ -65,6 +65,7 @@ def on_badge_awarded(sender, instance, created, **kwargs):
 
     # Offload bulk email or notification digest to the independent worker
     import sys
+
     if "test" in sys.argv or any("pytest" in arg for arg in sys.argv):
         return
 

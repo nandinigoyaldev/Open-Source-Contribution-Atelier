@@ -169,6 +169,10 @@ REST_FRAMEWORK = {
         "auth_otp_verify": os.getenv("RATE_AUTH_OTP_VERIFY", "5/minute"),
         "auth_password_reset": os.getenv("RATE_AUTH_PASSWORD_RESET", "3/hour"),
         "auth_oauth": os.getenv("RATE_AUTH_OAUTH", "20/minute"),
+        "auth_magic_link_request": os.getenv(
+            "RATE_AUTH_MAGIC_LINK_REQUEST", "3/minute"
+        ),
+        "auth_magic_link_verify": os.getenv("RATE_AUTH_MAGIC_LINK_VERIFY", "5/minute"),
     },
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework_simplejwt.authentication.JWTAuthentication",

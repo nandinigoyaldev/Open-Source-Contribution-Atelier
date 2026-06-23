@@ -65,6 +65,7 @@ class StrictIdentityLoginThrottle(AnonRateThrottle):
             return str(identity).strip().lower()
         return _get_real_ip(request)
 
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Login – strict IP-based limit to block brute-force credential attacks
 # ─────────────────────────────────────────────────────────────────────────────
@@ -109,6 +110,7 @@ class StrictIdentityPasswordResetThrottle(AnonRateThrottle):
             return str(email).strip().lower()
         return _get_real_ip(request)
 
+
 class StrictIdentityPasswordResetThrottle(AnonRateThrottle):
     scope = "auth_password_reset"
 
@@ -118,11 +120,33 @@ class StrictIdentityPasswordResetThrottle(AnonRateThrottle):
             return str(email).strip().lower()
         return _get_real_ip(request)
 
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Password reset – prevent email bombing / enumeration attacks
 # ─────────────────────────────────────────────────────────────────────────────
 class PasswordResetThrottle(_ProxyAwareThrottle):
     scope = "auth_password_reset"
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Magic link – prevent email bombing and token guessing
+# ─────────────────────────────────────────────────────────────────────────────
+class MagicLinkRequestThrottle(_ProxyAwareThrottle):
+    scope = "auth_magic_link_request"
+
+
+class StrictIdentityMagicLinkThrottle(AnonRateThrottle):
+    scope = "auth_magic_link_request"
+
+    def get_ident(self, request):
+        email = request.data.get("email")
+        if email:
+            return str(email).strip().lower()
+        return _get_real_ip(request)
+
+
+class MagicLinkVerifyThrottle(_ProxyAwareThrottle):
+    scope = "auth_magic_link_verify"
 
 
 # ─────────────────────────────────────────────────────────────────────────────
