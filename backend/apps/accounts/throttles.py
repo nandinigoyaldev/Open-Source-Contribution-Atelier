@@ -56,6 +56,15 @@ class _ProxyAwareThrottle(AnonRateThrottle):
         return _get_real_ip(request)
 
 
+class StrictIdentityLoginThrottle(AnonRateThrottle):
+    scope = "auth_login"
+
+    def get_ident(self, request):
+        identity = request.data.get("email") or request.data.get("username")
+        if identity:
+            return str(identity).strip().lower()
+        return _get_real_ip(request)
+
 # ─────────────────────────────────────────────────────────────────────────────
 # Login – strict IP-based limit to block brute-force credential attacks
 # ─────────────────────────────────────────────────────────────────────────────
@@ -90,6 +99,24 @@ class OtpGenerateThrottle(_ProxyAwareThrottle):
 class OtpVerifyThrottle(_ProxyAwareThrottle):
     scope = "auth_otp_verify"
 
+
+class StrictIdentityPasswordResetThrottle(AnonRateThrottle):
+    scope = "auth_password_reset"
+
+    def get_ident(self, request):
+        email = request.data.get("email")
+        if email:
+            return str(email).strip().lower()
+        return _get_real_ip(request)
+
+class StrictIdentityPasswordResetThrottle(AnonRateThrottle):
+    scope = "auth_password_reset"
+
+    def get_ident(self, request):
+        email = request.data.get("email")
+        if email:
+            return str(email).strip().lower()
+        return _get_real_ip(request)
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Password reset – prevent email bombing / enumeration attacks

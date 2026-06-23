@@ -80,7 +80,7 @@ export function SignupPage() {
     >
       <form className="space-y-6 pt-2" onSubmit={handleSubmit}>
         {error && (
-          <div className="text-black font-bold text-sm bg-primary p-4 rounded-xl border-4 border-black shadow-card-sm">
+          <div className="text-black font-bold text-sm bg-primary p-4 rounded-lg border-4 border-black shadow-card-sm">
             {error}
           </div>
         )}
@@ -115,7 +115,7 @@ export function SignupPage() {
         <button
           type="button"
           onClick={handleGithubSignIn}
-          className="group relative w-full overflow-hidden bg-black text-white border-4 border-black rounded-2xl p-4 flex items-center justify-center gap-3 font-black shadow-card-sm transition-all duration-300 hover:-translate-y-1 hover:bg-text hover:shadow-card-lg active:translate-y-1 active:shadow-none uppercase before:absolute before:inset-0 before:-translate-x-full before:bg-gradient-to-r before:from-transparent before:via-white/25 before:to-transparent before:transition-transform before:duration-500 hover:before:translate-x-full"
+          className="group relative w-full overflow-hidden bg-black text-white border-4 border-black rounded-lg p-4 flex items-center justify-center gap-3 font-black shadow-card-sm transition-all duration-300 hover:-translate-y-1 hover:bg-text hover:shadow-card-lg active:translate-y-1 active:shadow-none uppercase before:absolute before:inset-0 before:-translate-x-full before:bg-gradient-to-r before:from-transparent before:via-white/25 before:to-transparent before:transition-transform before:duration-500 hover:before:translate-x-full"
           aria-label="Sign up with GitHub"
         >
           <Github

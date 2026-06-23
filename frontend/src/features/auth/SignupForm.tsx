@@ -32,7 +32,7 @@ export function SignupForm() {
   return (
     <form className="space-y-6 pt-2" onSubmit={handleSubmit}>
       {error && (
-        <div className="text-black font-bold text-sm bg-primary p-4 rounded-xl border-4 border-black shadow-card-sm">
+        <div className="text-black font-bold text-sm bg-primary p-4 rounded-lg border-4 border-black shadow-card-sm">
           {error}
         </div>
       )}

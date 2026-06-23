@@ -409,7 +409,7 @@ E           kombu.exceptions.OperationalError: Error 10061 connecting to 127.0.0
 
 .venv\Lib\site-packages\kombu\connection.py:478: OperationalError
 ---------------------------- Captured stderr setup ----------------------------
-Creating test database for alias 'default'...
+Creating test database for alias 'default'...
 ------------------------------ Captured log call ------------------------------
 ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (0/20) now.
 ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (1/20) in 1.00 second.
@@ -2509,7 +2509,7 @@ ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (19/
 CRITICAL celery.backends.redis:redis.py:132 
 Retry limit exceeded while trying to reconnect to the Celery redis result store backend. The Celery application must be restarted.
 -------------------------- Captured stderr teardown ---------------------------
-Destroying test database for alias 'default'...
+Destroying test database for alias 'default'...
 =========================== short test summary info ===========================
 FAILED apps/progress/test_bulk_update.py::BulkProgressUpdateTests::test_duplicate_entries_rejected
 FAILED apps/progress/test_bulk_update.py::BulkProgressUpdateTests::test_invalid_lesson_id_rolls_back_transaction

@@ -3,6 +3,7 @@ import { RotateCcw, Terminal, ChevronRight } from "lucide-react";
 import { useGitShell } from "../../hooks/useGitShell";
 import type { TerminalLine } from "../../hooks/useGitShell";
 import { useFailureAnimation } from "../../hooks/useFailureAnimation";
+import { Textarea } from "./Textarea";
 
 interface GitTerminalProps {
   /** Called when a lesson-objective command succeeds */
@@ -181,12 +182,13 @@ export function GitTerminal({
               </button>
             </div>
           </div>
-          <textarea
-            className="flex-1 w-full bg-transparent text-white font-mono text-sm p-4 outline-none resize-none min-h-[235px]"
+          <Textarea
+            className="flex-1 w-full bg-transparent text-white font-mono text-sm p-4 outline-none min-h-[235px]"
             value={editorVal}
             onChange={(e) => setEditorVal(e.target.value)}
             autoFocus
             spellCheck={false}
+            autoResize={false}
             onKeyDown={(e) => {
               if (e.ctrlKey && e.key.toLowerCase() === "x") {
                 e.preventDefault();

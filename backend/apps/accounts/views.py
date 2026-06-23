@@ -32,8 +32,8 @@ from .serializers import (EmailOrUsernameTokenObtainPairSerializer,
                           PasswordResetRequestSerializer, SignupSerializer,
                           UserListSerializer, UserUpdateSerializer)
 from .tasks import send_otp_email_task, send_password_reset_email_task
-from .throttles import (LoginThrottle, OAuthThrottle, OtpGenerateThrottle,
-                        OtpVerifyThrottle, PasswordResetThrottle,
+from .throttles import (LoginThrottle, StrictIdentityLoginThrottle, OAuthThrottle, OtpGenerateThrottle,
+                        OtpVerifyThrottle, PasswordResetThrottle, StrictIdentityPasswordResetThrottle,
                         SignupThrottle, TokenRefreshThrottle)
 
 
@@ -153,7 +153,7 @@ class UserStatisticsView(APIView):
 class LoginView(TokenObtainPairView):
     permission_classes = [permissions.AllowAny]
     serializer_class = EmailOrUsernameTokenObtainPairSerializer
-    throttle_classes = [LoginThrottle]
+    throttle_classes = [LoginThrottle, StrictIdentityLoginThrottle]
 
 
 class RefreshView(TokenRefreshView):
@@ -390,7 +390,7 @@ class PasswordResetRequestView(APIView):
     """
 
     permission_classes = [permissions.AllowAny]
-    throttle_classes = [PasswordResetThrottle]
+    throttle_classes = [PasswordResetThrottle, StrictIdentityPasswordResetThrottle]
 
     def post(self, request):
         serializer = PasswordResetRequestSerializer(data=request.data)

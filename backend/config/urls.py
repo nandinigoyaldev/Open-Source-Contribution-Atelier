@@ -1,11 +1,14 @@
 from apps.dashboard.views import LeaderboardView
 from django.contrib import admin
 from django.urls import include, path
-from drf_spectacular.views import SpectacularAPIView  # Add this line
+from drf_spectacular.views import SpectacularAPIView
 from drf_spectacular.views import SpectacularSwaggerView
+
+from .version_view import version_view
 
 urlpatterns = [
     path("admin/", admin.site.urls),
+    path("api/version/", version_view, name="version"),
     path("api/leaderboard/", LeaderboardView.as_view(), name="leaderboard"),
     path("api/auth/", include("apps.accounts.urls")),
     path("api/users/", include("apps.accounts.user_urls")),
@@ -17,7 +20,6 @@ urlpatterns = [
     path("api/dashboard/", include("apps.dashboard.urls")),
     path("api/search/", include("apps.search.urls")),
     path("api/webhooks/", include("apps.webhooks.urls")),
-    # Add these two paths below:
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
     path(
         "api/docs/",

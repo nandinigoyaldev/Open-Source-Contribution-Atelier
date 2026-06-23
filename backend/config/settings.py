@@ -199,6 +199,7 @@ INSTALLED_APPS += [
     "apps.notifications.apps.NotificationsConfig",
     "drf_spectacular",
     "apps.dashboard.apps.DashboardConfig",
+    "apps.chat.apps.ChatConfig",
     "django.contrib.postgres",
     "apps.search.apps.SearchConfig",
 ]

@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Play, RefreshCcw } from "lucide-react";
+import { Textarea } from "./Textarea";
 
 export function CodeSandbox() {
   const [code, setCode] = useState('console.log("Hello, World!");');
@@ -85,11 +86,12 @@ export function CodeSandbox() {
       </div>
       <div className="flex flex-col lg:flex-row flex-1">
         <div className="flex-1 border-b-4 lg:border-b-0 lg:border-r-4 border-black dark:border-[#2e2924]">
-          <textarea
+          <Textarea
             value={code}
             onChange={(e) => setCode(e.target.value)}
-            className="w-full h-full p-4 bg-white dark:bg-[#0f0e0c] text-text dark:text-[#f0ebe2] font-mono text-sm resize-none outline-none focus:ring-inset focus:ring-2 focus:ring-primary/50"
+            className="w-full h-full p-4 bg-white dark:bg-[#0f0e0c] text-text dark:text-[#f0ebe2] font-mono text-sm outline-none focus:ring-inset focus:ring-2 focus:ring-primary/50"
             spellCheck="false"
+            autoResize={false}
           />
         </div>
         <div className="flex-1 bg-[#1a1b26] p-4 font-mono text-sm overflow-auto text-[#a9b1d6]">

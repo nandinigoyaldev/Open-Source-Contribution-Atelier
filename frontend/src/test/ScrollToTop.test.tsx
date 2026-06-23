@@ -24,7 +24,7 @@ describe('ScrollToTop Component', () => {
     
     // Simulate scrolling down
     Object.defineProperty(window, 'scrollY', { value: 350, writable: true });
-    fireEvent.scroll(window);
+    window.dispatchEvent(new Event('scroll'));
 
     const button = screen.getByTestId('scroll-to-top');
     expect(button).toBeInTheDocument();
@@ -35,12 +35,12 @@ describe('ScrollToTop Component', () => {
     
     // Scroll down
     Object.defineProperty(window, 'scrollY', { value: 350, writable: true });
-    fireEvent.scroll(window);
+    window.dispatchEvent(new Event('scroll'));
     expect(screen.getByTestId('scroll-to-top')).toBeInTheDocument();
 
     // Scroll up
     Object.defineProperty(window, 'scrollY', { value: 100, writable: true });
-    fireEvent.scroll(window);
+    window.dispatchEvent(new Event('scroll'));
     expect(screen.queryByTestId('scroll-to-top')).not.toBeInTheDocument();
   });
 
@@ -48,7 +48,7 @@ describe('ScrollToTop Component', () => {
     render(<ScrollToTop />);
     
     Object.defineProperty(window, 'scrollY', { value: 400, writable: true });
-    fireEvent.scroll(window);
+    window.dispatchEvent(new Event('scroll'));
 
     const button = screen.getByTestId('scroll-to-top');
     fireEvent.click(button);

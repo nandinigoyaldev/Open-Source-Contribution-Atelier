@@ -17,7 +17,7 @@ export function ProfileSettingsPage() {
       </div>
 
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-2">
-        <div className="rounded-3xl border-4 border-black bg-[#E8F0FE] p-8 shadow-card">
+        <div className="rounded-2xl border-4 border-black bg-[#E8F0FE] p-8 shadow-card">
           <h2 className="mb-6 text-2xl font-bold uppercase tracking-tight text-black flex items-center gap-3">
             <span className="text-3xl">⚙️</span> Settings
           </h2>
@@ -25,7 +25,7 @@ export function ProfileSettingsPage() {
         </div>
         
         {/* Additional information card or future settings */}
-        <div className="rounded-3xl border-4 border-black bg-[#FFF0E5] p-8 shadow-card flex flex-col justify-center items-center text-center">
+        <div className="rounded-2xl border-4 border-black bg-[#FFF0E5] p-8 shadow-card flex flex-col justify-center items-center text-center">
           <div className="text-6xl mb-6">🔒</div>
           <h2 className="text-2xl font-bold uppercase tracking-tight text-black mb-4">
             Security & Privacy

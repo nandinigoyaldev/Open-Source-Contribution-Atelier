@@ -172,7 +172,7 @@ export const CommandPalette: React.FC = () => {
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: -20 }}
             transition={{ duration: 0.15 }}
-            className="relative w-full max-w-2xl bg-gray-900 border border-gray-700 shadow-2xl rounded-xl overflow-hidden flex flex-col max-h-[80vh]"
+            className="relative w-full max-w-2xl bg-gray-900 border border-gray-700 shadow-2xl rounded-lg overflow-hidden flex flex-col max-h-[80vh]"
           >
             {/* Search Input Header */}
             <div className="flex items-center px-4 py-3 border-b border-gray-800">

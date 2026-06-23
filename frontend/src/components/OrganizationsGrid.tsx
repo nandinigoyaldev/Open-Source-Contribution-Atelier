@@ -48,7 +48,7 @@ const OrganizationsGrid: React.FC = () => {
             href={`https://github.com/${org.slug}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="border-2 border-black rounded-xl p-2.5 flex items-center gap-2 hover:-translate-y-0.5 transition-all bg-white"
+            className="border-2 border-black rounded-lg p-2.5 flex items-center gap-2 hover:-translate-y-0.5 transition-all bg-white"
           >
             <img
               src={org.logo_url || `https://github.com/${org.slug}.png?size=80`}

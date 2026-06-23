@@ -1,0 +1,43 @@
+# Normalize text files and enforce LF line endings
+* text=auto eol=lf
+
+# Source code
+*.py text eol=lf
+*.js text eol=lf
+*.jsx text eol=lf
+*.ts text eol=lf
+*.tsx text eol=lf
+*.mjs text eol=lf
+*.cjs text eol=lf
+
+# Config files
+*.json text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.toml text eol=lf
+*.ini text eol=lf
+
+# Documentation
+*.md text eol=lf
+*.txt text eol=lf
+
+# Web assets
+*.html text eol=lf
+*.css text eol=lf
+*.scss text eol=lf
+*.svg text
+*.xml text eol=lf
+
+# Scripts
+*.sh text eol=lf
+
+# Binary files
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.webp binary
+*.ico binary
+*.pdf binary
+*.zip binary
+*.webm binary

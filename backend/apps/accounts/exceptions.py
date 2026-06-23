@@ -1,6 +1,7 @@
 """
 Custom DRF exception handler that produces user-friendly API responses.
 """
+import logging
 
 from rest_framework import status
 from rest_framework.exceptions import (AuthenticationFailed, NotAuthenticated,
@@ -8,6 +9,8 @@ from rest_framework.exceptions import (AuthenticationFailed, NotAuthenticated,
                                        ValidationError)
 from rest_framework.response import Response
 from rest_framework.views import exception_handler
+
+logger = logging.getLogger(__name__)
 
 # Map throttle scope names → human-readable messages
 _THROTTLE_MESSAGES = {
@@ -30,6 +33,16 @@ def throttle_exception_handler(exc, context):
 
     response = exception_handler(exc, context)
 
+    if response is None:
+        request = context.get("request")
+
+        logger.exception(
+            "Internal server error",
+            extra={
+                "path": request.path if request else None,
+                "method": request.method if request else None,
+            },
+        )
     # Authentication required
     if isinstance(exc, NotAuthenticated):
         code = "authentication_required"
@@ -110,6 +123,7 @@ def throttle_exception_handler(exc, context):
         )
 
     # Rate limiting
+    # Rate limiting
     if isinstance(exc, Throttled):
         view = context.get("view")
         scope = None
@@ -121,6 +135,7 @@ def throttle_exception_handler(exc, context):
                     break
 
         message = _THROTTLE_MESSAGES.get(scope, _DEFAULT_MESSAGE)
+        retry_after = getattr(exc, 'wait', None)
 
         return Response(
             {

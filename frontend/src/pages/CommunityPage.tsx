@@ -195,7 +195,7 @@ export function CommunityPage() {
 
       {/* Leaderboard Table Grid */}
       <div className="grid gap-6 lg:grid-cols-[1.3fr_0.7fr]">
-        <div className="rounded-3xl border-4 border-black bg-white p-6 shadow-card dark:bg-[#1f1c18] dark:border-[#2e2924]">
+        <div className="rounded-2xl border-4 border-black bg-white p-6 shadow-card dark:bg-[#1f1c18] dark:border-[#2e2924]">
           <h3 className="text-2xl font-black mb-6 flex items-center gap-2 text-text dark:text-[#f0ebe2]">
             <Trophy className="text-accent w-6 h-6 animate-bounce" />{" "}
             Contributor Leaderboard
@@ -207,12 +207,12 @@ export function CommunityPage() {
               placeholder="Search contributor..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="border-4 border-black px-4 py-2 rounded-xl text-sm font-black bg-white text-black shadow-card-sm focus:outline-none focus:translate-x-0.5 focus:translate-y-0.5 focus:shadow-none transition-all dark:bg-[#151411] dark:border-[#2e2924] dark:text-[#f0ebe2] placeholder-muted"
+              className="border-4 border-black px-4 py-2 rounded-lg text-sm font-black bg-white text-black shadow-card-sm focus:outline-none focus:translate-x-0.5 focus:translate-y-0.5 focus:shadow-none transition-all dark:bg-[#151411] dark:border-[#2e2924] dark:text-[#f0ebe2] placeholder-muted"
             />
             <select
               value={sortOrder}
               onChange={(e) => setSortOrder(e.target.value as "desc" | "asc")}
-              className="border-4 border-black px-4 py-2 rounded-xl text-sm font-black bg-[#ffb5e8] text-black shadow-card-sm focus:outline-none cursor-pointer dark:bg-[#151411] dark:border-[#2e2924] dark:text-[#f0ebe2]"
+              className="border-4 border-black px-4 py-2 rounded-lg text-sm font-black bg-[#ffb5e8] text-black shadow-card-sm focus:outline-none cursor-pointer dark:bg-[#151411] dark:border-[#2e2924] dark:text-[#f0ebe2]"
             >
               <option value="desc">Highest XP</option>
               <option value="asc">Lowest XP</option>
@@ -281,7 +281,7 @@ export function CommunityPage() {
         </div>
 
         {/* Dynamic Cohort Ranks Card */}
-        <div className="rounded-3xl border-4 border-black bg-accent p-6 shadow-card dark:bg-[#1f1c18] dark:border-[#2e2924] dark:shadow-none flex flex-col justify-between">
+        <div className="rounded-2xl border-4 border-black bg-accent p-6 shadow-card dark:bg-[#1f1c18] dark:border-[#2e2924] dark:shadow-none flex flex-col justify-between">
           <div className="space-y-4">
             <h3 className="text-2xl font-black flex items-center gap-2 text-black dark:text-[#f0ebe2]">
               <Award size={22} /> Your Standings
@@ -307,7 +307,7 @@ export function CommunityPage() {
             </div>
           </div>
 
-          <div className="mt-6 p-4 rounded-xl border-2 border-dashed border-black/30 bg-surface-low/30 text-center font-bold text-xs dark:text-[#c4bbae]">
+          <div className="mt-6 p-4 rounded-lg border-2 border-dashed border-black/30 bg-surface-low/30 text-center font-bold text-xs dark:text-[#c4bbae]">
             ✨ Tip: PR approvals on practice issues double your XP points!
           </div>
         </div>

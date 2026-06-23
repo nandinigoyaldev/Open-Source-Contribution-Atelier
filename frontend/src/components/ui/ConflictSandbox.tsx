@@ -159,7 +159,7 @@ export function ConflictSandbox({
   };
 
   return (
-    <div className="flex flex-col border-4 border-black rounded-3xl bg-surface-lowest shadow-card overflow-hidden w-full max-w-5xl mx-auto dark:bg-[#151411] dark:border-[#2e2924]">
+    <div className="flex flex-col border-4 border-black rounded-2xl bg-surface-lowest shadow-card overflow-hidden w-full max-w-5xl mx-auto dark:bg-[#151411] dark:border-[#2e2924]">
       {/* Visual Git Timeline Header */}
       <div className="bg-white border-b-4 border-black p-6 relative overflow-hidden dark:bg-[#1f1c18] dark:border-[#2e2924]">
         <h3 className="text-xl font-black mb-4 flex items-center gap-2 text-text dark:text-[#f0ebe2] uppercase tracking-tight">
@@ -301,7 +301,7 @@ export function ConflictSandbox({
               key={block.id}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              className={`my-4 border-4 rounded-xl overflow-hidden shadow-card-sm transition-all ${
+              className={`my-4 border-4 rounded-lg overflow-hidden shadow-card-sm transition-all ${
                 isResolved
                   ? "border-green-500 shadow-[4px_4px_0_#22c55e]"
                   : "border-yellow-400 shadow-[4px_4px_0_#facc15]"
@@ -342,7 +342,7 @@ export function ConflictSandbox({
                     {!isResolved && (
                       <button
                         onClick={() => handleResolve(block.id, "current")}
-                        className="bg-blue-600 text-white px-3 py-1 rounded-xl border-2 border-black shadow-card-sm hover:-translate-y-0.5 active:translate-y-0 transition-all font-black"
+                        className="bg-blue-600 text-white px-3 py-1 rounded-lg border-2 border-black shadow-card-sm hover:-translate-y-0.5 active:translate-y-0 transition-all font-black"
                       >
                         Accept Current
                       </button>
@@ -362,7 +362,7 @@ export function ConflictSandbox({
                     {!isResolved && (
                       <button
                         onClick={() => handleResolve(block.id, "incoming")}
-                        className="bg-green-600 text-black px-3 py-1 rounded-xl border-2 border-black shadow-card-sm hover:-translate-y-0.5 active:translate-y-0 transition-all font-black"
+                        className="bg-green-600 text-black px-3 py-1 rounded-lg border-2 border-black shadow-card-sm hover:-translate-y-0.5 active:translate-y-0 transition-all font-black"
                       >
                         Accept Incoming
                       </button>
@@ -385,7 +385,7 @@ export function ConflictSandbox({
                   >
                     <button
                       onClick={() => handleResolve(block.id, "both")}
-                      className="bg-black text-white px-6 py-2 rounded-xl font-bold border-2 border-transparent hover:bg-gray-800 shadow-card-sm transition-all"
+                      className="bg-black text-white px-6 py-2 rounded-lg font-bold border-2 border-transparent hover:bg-gray-800 shadow-card-sm transition-all"
                     >
                       Accept Both Changes
                     </button>
@@ -401,7 +401,7 @@ export function ConflictSandbox({
       <div className="bg-white border-t-4 border-black p-6 flex flex-col sm:flex-row items-center justify-between gap-4 dark:bg-[#1f1c18] dark:border-[#2e2924]">
         <div className="flex items-center gap-3">
           {allResolved ? (
-            <div className="flex items-center gap-2 text-green-600 font-black px-4 py-2 bg-green-100 rounded-xl border-2 border-green-600">
+            <div className="flex items-center gap-2 text-green-600 font-black px-4 py-2 bg-green-100 rounded-lg border-2 border-green-600">
               <Check size={20} /> All conflicts resolved
             </div>
           ) : (
@@ -413,7 +413,7 @@ export function ConflictSandbox({
         <button
           onClick={handleComplete}
           disabled={!allResolved}
-          className="px-8 py-3 bg-primary text-white font-black uppercase tracking-wider rounded-xl border-4 border-black shadow-card hover:-translate-y-1 active:translate-y-0 disabled:opacity-50 disabled:shadow-none disabled:translate-y-0 transition-all"
+          className="px-8 py-3 bg-primary text-white font-black uppercase tracking-wider rounded-lg border-4 border-black shadow-card hover:-translate-y-1 active:translate-y-0 disabled:opacity-50 disabled:shadow-none disabled:translate-y-0 transition-all"
         >
           Complete Merge
         </button>

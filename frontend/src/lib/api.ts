@@ -5,6 +5,7 @@ const API_BASE =
 
 type RequestOptions = RequestInit & {
   requireAuth?: boolean;
+  responseType?: "json" | "blob";
 };
 
 export async function fetchApi(endpoint: string, options: RequestOptions = {}) {
@@ -38,6 +39,10 @@ export async function fetchApi(endpoint: string, options: RequestOptions = {}) {
       throw new Error(
         errorBody.detail || errorBody.error || "An error occurred",
       );
+    }
+
+    if (options.responseType === "blob") {
+      return response.blob();
     }
 
     return response.json().catch(() => ({}));

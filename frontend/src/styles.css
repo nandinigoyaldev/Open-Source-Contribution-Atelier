@@ -112,3 +112,56 @@ input {
     display: none !important;
   }
 }
+
+/* EasyMDE Custom Styles */
+.editor-toolbar {
+  border: none !important;
+  border-bottom: 4px solid #000 !important;
+  border-radius: 0 !important;
+  background-color: #fdfbf7 !important;
+  opacity: 1 !important;
+}
+html.dark .editor-toolbar {
+  background-color: #151411 !important;
+  border-bottom: 4px solid #2e2924 !important;
+}
+.editor-toolbar > button {
+  color: #000 !important;
+}
+html.dark .editor-toolbar > button {
+  color: #c4bbae !important;
+}
+html.dark .editor-toolbar > button:hover, html.dark .editor-toolbar > button.active {
+  background: #2e2924 !important;
+  border-color: #2e2924 !important;
+  color: #f0ebe2 !important;
+}
+.CodeMirror {
+  border: none !important;
+  border-radius: 0 !important;
+  background-color: #fff !important;
+  color: #000 !important;
+  font-family: 'JetBrains Mono', monospace !important;
+  font-size: 0.875rem !important;
+}
+html.dark .CodeMirror {
+  background-color: #151411 !important;
+  color: #f0ebe2 !important;
+}
+.editor-preview {
+  background-color: #fff !important;
+}
+html.dark .editor-preview {
+  background-color: #151411 !important;
+}
+.editor-statusbar {
+  padding: 8px 12px !important;
+  border-top: 4px solid #000 !important;
+  font-family: 'Outfit', sans-serif !important;
+  font-weight: 900 !important;
+}
+html.dark .editor-statusbar {
+  border-top: 4px solid #2e2924 !important;
+  color: #c4bbae !important;
+}
+

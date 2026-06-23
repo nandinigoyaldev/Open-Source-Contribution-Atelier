@@ -79,7 +79,7 @@ export function LandingPage() {
         </div>
 
         <div className="bg-white rounded-[2rem] border-4 border-black shadow-card-lg p-6 sm:p-10 relative">
-          <div className="flex gap-2 p-1 bg-surface-low rounded-xl border-2 border-black mb-6">
+          <div className="flex gap-2 p-1 bg-surface-low rounded-lg border-2 border-black mb-6">
             <button
               onClick={() => setAuthRole("student")}
               className={`flex-1 py-2 font-bold rounded-lg transition-all border-2 ${
@@ -109,7 +109,7 @@ export function LandingPage() {
           </h2>
 
           {error && (
-            <div className="text-black font-bold text-sm bg-primary p-3 rounded-xl border-4 border-black shadow-card-sm mb-4">
+            <div className="text-black font-bold text-sm bg-primary p-3 rounded-lg border-4 border-black shadow-card-sm mb-4">
               {error}
             </div>
           )}
@@ -144,7 +144,7 @@ export function LandingPage() {
             <button
               type="button"
               onClick={handleGithubSignIn}
-              className="group relative w-full overflow-hidden bg-black text-white border-4 border-black rounded-2xl p-4 flex items-center justify-center gap-3 font-black shadow-card-sm transition-all duration-300 hover:-translate-y-1 hover:bg-text hover:shadow-card-lg active:translate-y-1 active:shadow-none uppercase before:absolute before:inset-0 before:-translate-x-full before:bg-gradient-to-r before:from-transparent before:via-white/25 before:to-transparent before:transition-transform before:duration-500 hover:before:translate-x-full"
+              className="group relative w-full overflow-hidden bg-black text-white border-4 border-black rounded-lg p-4 flex items-center justify-center gap-3 font-black shadow-card-sm transition-all duration-300 hover:-translate-y-1 hover:bg-text hover:shadow-card-lg active:translate-y-1 active:shadow-none uppercase before:absolute before:inset-0 before:-translate-x-full before:bg-gradient-to-r before:from-transparent before:via-white/25 before:to-transparent before:transition-transform before:duration-500 hover:before:translate-x-full"
               aria-label="Sign in with GitHub"
             >
               <Github
@@ -165,7 +165,7 @@ export function LandingPage() {
 
             <div>
               <input
-                className="w-full rounded-xl border-4 border-black bg-surface-lowest px-4 py-4 text-text font-bold outline-none placeholder:text-muted/60 focus:bg-surface-low focus:ring-0 transition-colors shadow-sm"
+                className="w-full rounded-lg border-4 border-black bg-surface-lowest px-4 py-4 text-text font-bold outline-none placeholder:text-muted/60 focus:bg-surface-low focus:ring-0 transition-colors shadow-sm"
                 placeholder="Username or Email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -174,7 +174,7 @@ export function LandingPage() {
             </div>
             <div>
               <input
-                className="w-full rounded-xl border-4 border-black bg-surface-lowest px-4 py-4 text-text font-bold outline-none placeholder:text-muted/60 focus:bg-surface-low focus:ring-0 transition-colors shadow-sm"
+                className="w-full rounded-lg border-4 border-black bg-surface-lowest px-4 py-4 text-text font-bold outline-none placeholder:text-muted/60 focus:bg-surface-low focus:ring-0 transition-colors shadow-sm"
                 type="password"
                 placeholder="••••••••"
                 value={password}

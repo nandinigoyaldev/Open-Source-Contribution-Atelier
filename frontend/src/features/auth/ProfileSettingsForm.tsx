@@ -24,6 +24,7 @@ export function ProfileSettingsForm() {
   const { user, checkUser } = useAuth();
   const { addToast } = useToast();
   const [loading, setLoading] = useState(false);
+  const [downloading, setDownloading] = useState(false);
   const [selectedAvatar, setSelectedAvatar] = useState<File | null>(null);
 
   const {
@@ -88,6 +89,30 @@ export function ProfileSettingsForm() {
     }
   };
 
+  const handleDownloadData = async () => {
+    setDownloading(true);
+    try {
+      const blob = await fetchApi("/auth/me/export/?export_format=csv", {
+        requireAuth: true,
+        responseType: "blob",
+      });
+      const url = window.URL.createObjectURL(blob as Blob);
+      const a = document.createElement("a");
+      a.style.display = "none";
+      a.href = url;
+      a.download = `data_export_${user?.username || "data"}.zip`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+      addToast("Data archive downloaded successfully!", "success");
+    } catch (err: unknown) {
+      addToast("Failed to download data archive.", "error");
+    } finally {
+      setDownloading(false);
+    }
+  };
+
   return (
     <form className="space-y-6 pt-2" onSubmit={handleSubmit(onSubmit)}>
       <AvatarUploadDropzone
@@ -135,12 +160,30 @@ export function ProfileSettingsForm() {
         )}
       </div>
 
-      <button
-        className="w-full rounded-2xl border-4 border-black bg-accent px-5 py-5 font-black text-black text-xl shadow-card hover:bg-tertiary transition-colors cursor-pointer mt-4 uppercase disabled:opacity-50"
-        disabled={loading}
-      >
-        {loading ? "Updating..." : "Save Settings"}
-      </button>
+    <div className="space-y-4 mt-8">
+        <button
+          className="w-full rounded-2xl border-4 border-black bg-accent px-5 py-5 font-black text-black text-xl shadow-card hover:bg-tertiary transition-colors cursor-pointer uppercase disabled:opacity-50"
+          disabled={loading}
+        >
+          {loading ? "Updating..." : "Save Settings"}
+        </button>
+
+        <hr className="border-2 border-black/10 my-8" />
+
+        <div className="space-y-2">
+          <label className="font-bold text-black ml-2 uppercase tracking-wide text-sm">
+            Data Privacy (GDPR)
+          </label>
+          <button
+            type="button"
+            onClick={handleDownloadData}
+            disabled={downloading}
+            className="w-full rounded-2xl border-4 border-black bg-white px-5 py-4 font-black text-black text-lg shadow-card-sm hover:-translate-y-1 hover:shadow-card transition-all cursor-pointer uppercase disabled:opacity-50 flex items-center justify-center gap-2"
+          >
+            {downloading ? "Compiling Archive..." : "Download All My Data"}
+          </button>
+        </div>
+      </div>
     </form>
   );
 }

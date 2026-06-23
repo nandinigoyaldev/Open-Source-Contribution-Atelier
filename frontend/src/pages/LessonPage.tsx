@@ -16,6 +16,7 @@ import { useUserProgress } from "../hooks/useUserProgress";
 import { fetchApi } from "../lib/api";
 import { Lesson, fetchLessonsApi, fetchLessonContent } from "../lib/lessons";
 import { MarkdownRenderer } from "../components/ui/MarkdownRenderer";
+import { RichTextEditor } from "../components/ui/RichTextEditor";
 import { GitGraph } from "../components/ui/GitGraph";
 
 import {
@@ -307,7 +308,7 @@ export function LessonPage() {
           onClick={() => setIsSidebarOpen((prev) => !prev)}
           aria-expanded={isSidebarOpen}
           aria-controls="course-sidebar"
-          className="flex items-center gap-2 font-black text-sm uppercase px-3 py-2 bg-surface-low border-2 border-black rounded-xl text-black"
+          className="flex items-center gap-2 font-black text-sm uppercase px-3 py-2 bg-surface-low border-2 border-black rounded-lg text-black"
         >
           {isSidebarOpen ? <X size={16} /> : <Menu size={16} />}
           {isSidebarOpen ? "Close Outline" : "Course Directory"}
@@ -377,7 +378,7 @@ export function LessonPage() {
                         key={les.slug}
                         to={`/lessons/${les.slug}`}
                         onClick={closeSidebar}
-                        className={`w-full flex items-center justify-between p-2.5 rounded-xl border-2 transition-all text-xs font-bold ${
+                        className={`w-full flex items-center justify-between p-2.5 rounded-lg border-2 transition-all text-xs font-bold ${
                           active
                             ? "bg-surface-low border-black shadow-card-sm text-text"
                             : "border-transparent hover:bg-surface-lowest hover:border-black/10 dark:text-[#c4bbae]"
@@ -455,7 +456,7 @@ export function LessonPage() {
             <div className="pt-8 space-y-6">
               {hasQuiz ? (
                 // QUIZ MODE RENDER
-                <div className="rounded-3xl border-4 border-black bg-white p-6 shadow-card dark:bg-[#1f1c18] dark:border-[#2e2924]">
+                <div className="rounded-2xl border-4 border-black bg-white p-6 shadow-card dark:bg-[#1f1c18] dark:border-[#2e2924]">
                   <div className="flex items-center justify-between mb-4">
                     <span className="font-mono text-xs text-primary uppercase tracking-widest font-black">
                       Knowledge Check: Question {currentQuizIndex + 1} of{" "}
@@ -507,7 +508,7 @@ export function LessonPage() {
                               setSelectedOption(idx);
                             }}
                             disabled={quizFeedback !== null}
-                            className={`w-full text-left p-4 rounded-xl border-4 border-black font-bold text-sm transition-all flex items-center justify-between ${bgColor}`}
+                            className={`w-full text-left p-4 rounded-lg border-4 border-black font-bold text-sm transition-all flex items-center justify-between ${bgColor}`}
                           >
                             <span>{option}</span>
                             <div
@@ -525,7 +526,7 @@ export function LessonPage() {
                     <div
                       role="alert"
                       aria-live="assertive"
-                      className="mt-4 p-4 bg-green-50 text-green-800 border-4 border-green-600 rounded-xl font-bold text-sm"
+                      className="mt-4 p-4 bg-green-50 text-green-800 border-4 border-green-600 rounded-lg font-bold text-sm"
                     >
                       🎉 Correct!{" "}
                       {lesson.quizzes![currentQuizIndex].explanation}
@@ -536,7 +537,7 @@ export function LessonPage() {
                     <div
                       role="alert"
                       aria-live="assertive"
-                      className="mt-4 p-4 bg-red-50 text-red-800 border-4 border-red-600 rounded-xl font-bold text-sm"
+                      className="mt-4 p-4 bg-red-50 text-red-800 border-4 border-red-600 rounded-lg font-bold text-sm"
                     >
                       ❌ Not quite. Try reviewing the lesson text or options
                       again.
@@ -548,7 +549,7 @@ export function LessonPage() {
                       currentQuizIndex < lesson.quizzes!.length - 1 ? (
                         <button
                           onClick={handleNextQuizQuestion}
-                          className="px-5 py-2.5 bg-accent text-black font-black text-sm rounded-xl border-4 border-black shadow-card-sm hover:-translate-y-0.5 transition-all cursor-pointer"
+                          className="px-5 py-2.5 bg-accent text-black font-black text-sm rounded-lg border-4 border-black shadow-card-sm hover:-translate-y-0.5 transition-all cursor-pointer"
                         >
                           Next Question
                         </button>
@@ -561,7 +562,7 @@ export function LessonPage() {
                               completed: true,
                             });
                           }}
-                          className="px-6 py-2 bg-black text-white font-bold rounded-xl border-2 border-black shadow-brutal transition-transform active:translate-y-0.5"
+                          className="px-6 py-2 bg-black text-white font-bold rounded-lg border-2 border-black shadow-brutal transition-transform active:translate-y-0.5"
                         >
                           Finish Lesson
                         </button>
@@ -570,7 +571,7 @@ export function LessonPage() {
                       <button
                         onClick={handleQuizOptionCheck}
                         disabled={selectedOption === null}
-                        className="px-5 py-2.5 bg-primary text-black font-black text-sm rounded-xl border-4 border-black shadow-card-sm hover:-translate-y-0.5 disabled:opacity-50 transition-all cursor-pointer"
+                        className="px-5 py-2.5 bg-primary text-black font-black text-sm rounded-lg border-4 border-black shadow-card-sm hover:-translate-y-0.5 disabled:opacity-50 transition-all cursor-pointer"
                       >
                         Submit Answer
                       </button>
@@ -581,12 +582,12 @@ export function LessonPage() {
                 // CONFLICT SANDBOX MODE
                 <div className="mt-8">
                   {feedback === "correct" && (
-                    <div className="mt-6 text-green-700 font-bold bg-green-50 p-4 rounded-xl border-4 border-green-600 animate-bounce">
+                    <div className="mt-6 text-green-700 font-bold bg-green-50 p-4 rounded-lg border-4 border-green-600 animate-bounce">
                       ✅ Correct! You successfully resolved the merge conflict.
                     </div>
                   )}
                   {feedback === "error" && (
-                    <div className="mt-6 text-red-700 font-bold bg-red-50 p-4 rounded-xl border-4 border-red-600">
+                    <div className="mt-6 text-red-700 font-bold bg-red-50 p-4 rounded-lg border-4 border-red-600">
                       ❌ The resolved output doesn't quite match what was
                       expected. Try reviewing your selections.
                     </div>
@@ -595,7 +596,7 @@ export function LessonPage() {
               ) : (
                 // TERMINAL INTERACTIVE COMMAND MODE
                 <div
-                  className={`rounded-3xl border-4 bg-surface-low p-6 shadow-card dark:bg-[#1f1c18] dark:border-[#2e2924]
+                  className={`rounded-2xl border-4 bg-surface-low p-6 shadow-card dark:bg-[#1f1c18] dark:border-[#2e2924]
                     ${
                       feedback === "error"
                         ? "border-red-600 shake-error"
@@ -619,7 +620,7 @@ export function LessonPage() {
                         $
                       </span>
                       <input
-                        className="flex-1 min-w-0 rounded-xl border-4 border-black bg-surface-lowest px-4 py-2.5 text-text font-bold outline-none placeholder:text-muted/40 dark:bg-[#151411] dark:border-[#2e2924]"
+                        className="flex-1 min-w-0 rounded-lg border-4 border-black bg-surface-lowest px-4 py-2.5 text-text font-bold outline-none placeholder:text-muted/40 dark:bg-[#151411] dark:border-[#2e2924]"
                         placeholder={lesson.hint || "Type your git command here"}
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
@@ -636,7 +637,7 @@ export function LessonPage() {
                       />
                       <button
                         type="submit"
-                        className="px-5 py-2.5 bg-primary text-black font-black text-sm rounded-xl border-4 border-black shadow-card-sm hover:-translate-y-0.5 disabled:opacity-50 transition-all cursor-pointer flex items-center justify-center gap-2 min-w-[72px]"
+                        className="px-5 py-2.5 bg-primary text-black font-black text-sm rounded-lg border-4 border-black shadow-card-sm hover:-translate-y-0.5 disabled:opacity-50 transition-all cursor-pointer flex items-center justify-center gap-2 min-w-[72px]"
                         disabled={
                           feedback === "correct" || !input.trim() || isExecuting
                         }
@@ -657,19 +658,19 @@ export function LessonPage() {
                     </div>
 
                     {terminalOutput && (
-                      <pre className="p-4 bg-[#151411] text-[#f0ebe2] font-mono text-xs rounded-xl border-4 border-black whitespace-pre-wrap overflow-x-auto shadow-inner">
+                      <pre className="p-4 bg-[#151411] text-[#f0ebe2] font-mono text-xs rounded-lg border-4 border-black whitespace-pre-wrap overflow-x-auto shadow-inner">
                         {terminalOutput}
                       </pre>
                     )}
 
                     {feedback === "correct" && (
-                      <div className="text-green-700 font-bold bg-green-50 p-4 rounded-xl border-4 border-green-600 animate-bounce">
+                      <div className="text-green-700 font-bold bg-green-50 p-4 rounded-lg border-4 border-green-600 animate-bounce">
                         ✅ Correct! Progress synchronized to the Atelier server.
                       </div>
                     )}
 
                     {feedback === "error" && (
-                      <div className="text-red-700 font-bold bg-red-50 p-4 rounded-xl border-4 border-red-600">
+                      <div className="text-red-700 font-bold bg-red-50 p-4 rounded-lg border-4 border-red-600">
                         ❌ Not quite. Command output did not match sandbox
                         expectations.
                       </div>
@@ -684,7 +685,7 @@ export function LessonPage() {
                     </button>
 
                     {showHint && (
-                      <div className="p-4 bg-white rounded-xl border-4 border-black italic text-xs font-bold dark:bg-[#151411] dark:border-[#2e2924] shadow-card-sm">
+                      <div className="p-4 bg-white rounded-lg border-4 border-black italic text-xs font-bold dark:bg-[#151411] dark:border-[#2e2924] shadow-card-sm">
                         💡 {lesson.hint}
                       </div>
                     )}
@@ -698,7 +699,7 @@ export function LessonPage() {
               {previousLesson ? (
                 <Link
                   to={`/lessons/${previousLesson.slug}`}
-                  className="flex items-center gap-1 font-black text-sm uppercase px-4 py-2 bg-white border-4 border-black rounded-xl shadow-card-sm hover:-translate-y-0.5 transition-all"
+                  className="flex items-center gap-1 font-black text-sm uppercase px-4 py-2 bg-white border-4 border-black rounded-lg shadow-card-sm hover:-translate-y-0.5 transition-all"
                 >
                   <ChevronLeft size={16} />
                   Prev: {previousLesson.title}
@@ -710,7 +711,7 @@ export function LessonPage() {
               {nextLesson ? (
                 <Link
                   to={`/lessons/${nextLesson.slug}`}
-                  className={`flex items-center gap-1 font-black text-sm uppercase px-4 py-2 border-4 border-black rounded-xl shadow-card-sm hover:-translate-y-0.5 transition-all ${
+                  className={`flex items-center gap-1 font-black text-sm uppercase px-4 py-2 border-4 border-black rounded-lg shadow-card-sm hover:-translate-y-0.5 transition-all ${
                     isCompleted
                       ? "bg-accent text-black"
                       : "bg-[#e2e8f0] text-black/50 border-black/35 cursor-not-allowed opacity-75"
@@ -734,7 +735,7 @@ export function LessonPage() {
               ) : (
                 <Link
                   to="/dashboard"
-                  className="flex items-center gap-1 font-black text-sm uppercase px-4 py-2 bg-green-500 text-white border-4 border-black rounded-xl shadow-card-sm hover:-translate-y-0.5 transition-all"
+                  className="flex items-center gap-1 font-black text-sm uppercase px-4 py-2 bg-green-500 text-white border-4 border-black rounded-lg shadow-card-sm hover:-translate-y-0.5 transition-all"
                 >
                   Graduate to Dashboard 🎓
                 </Link>
@@ -750,7 +751,7 @@ export function LessonPage() {
               setIsHelpPanelOpen(true);
               setHelpSuccessMessage("");
             }}
-            className="px-4 py-2 bg-white text-text dark:bg-[#151411] dark:text-[#f0ebe2] font-black text-xs rounded-xl border-4 border-black shadow-card-sm hover:-translate-y-0.5 cursor-pointer"
+            className="px-4 py-2 bg-white text-text dark:bg-[#151411] dark:text-[#f0ebe2] font-black text-xs rounded-lg border-4 border-black shadow-card-sm hover:-translate-y-0.5 cursor-pointer"
           >
             Request Mentor Support 📬
           </button>
@@ -793,20 +794,15 @@ export function LessonPage() {
               >
                 Describe the conflict or checkout issue:
               </label>
-              <textarea
+              <RichTextEditor
                 id="help-message"
-                className="w-full rounded-xl border-4 border-black bg-white px-3 py-2 text-xs outline-none min-h-36 dark:bg-[#151411] dark:border-[#2e2924]"
+                className="w-full rounded-lg border-4 border-black bg-white px-3 py-2 text-xs outline-none min-h-36 dark:bg-[#151411] dark:border-[#2e2924]"
                 placeholder="Example: I'm stuck trying to stage feat/add-readme-badges, git status throws pathspec errors."
                 value={helpMessage}
-                onChange={(e) => setHelpMessage(e.target.value)}
+                onChange={setHelpMessage}
                 disabled={helpRequestMutation.isPending}
                 maxLength={MAX_HELP_CHARS}
               />
-              <p
-                className={`text-xs font-black text-right ${helpMessage.length > MAX_HELP_CHARS ? "text-red-600" : "text-muted dark:text-[#c4bbae]"}`}
-              >
-                {helpMessage.length} / {MAX_HELP_CHARS} characters
-              </p>
 
               {helpRequestMutation.isError && (
                 <div className="text-red-700 text-xs font-black bg-red-50 p-2 rounded-lg border-2 border-red-700">
@@ -822,7 +818,7 @@ export function LessonPage() {
 
               <button
                 type="submit"
-                className="w-full px-4 py-2 bg-primary text-black font-bold rounded-xl border-4 border-black shadow-gel hover:bg-[#E62814] disabled:opacity-60"
+                className="w-full px-4 py-2 bg-primary text-black font-bold rounded-lg border-4 border-black shadow-gel hover:bg-[#E62814] disabled:opacity-60"
                 disabled={!helpMessage.trim() || helpRequestMutation.isPending}
               >
                 {helpRequestMutation.isPending

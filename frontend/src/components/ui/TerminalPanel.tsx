@@ -65,14 +65,14 @@ export function TerminalPanel({
         <div className="mt-4 flex gap-3">
           <button
             type="submit"
-            className="rounded-xl bg-[linear-gradient(135deg,#4f46e5,#7c72ff)] px-4 py-2 text-sm font-semibold text-white shadow-card"
+            className="rounded-lg bg-[linear-gradient(135deg,#4f46e5,#7c72ff)] px-4 py-2 text-sm font-semibold text-white shadow-card"
           >
             Verify Command
           </button>
           <button
             type="button"
             onClick={() => setCommand("git status")}
-            className="rounded-xl border border-outline bg-surface-low px-4 py-2 text-sm font-semibold text-muted"
+            className="rounded-lg border border-outline bg-surface-low px-4 py-2 text-sm font-semibold text-muted"
           >
             Autofill hint
           </button>

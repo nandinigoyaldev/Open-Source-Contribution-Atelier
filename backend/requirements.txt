@@ -18,3 +18,4 @@ drf-spectacular>=0.29.0
 dj-database-url>=2.1.0
 celery==5.4.0
 Pillow>=11.0.0
+reportlab>=4.0.0

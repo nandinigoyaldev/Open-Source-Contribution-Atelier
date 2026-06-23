@@ -37,7 +37,7 @@ export function ChallengePage() {
             placeholder="Search challenges…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full rounded-xl border border-outline bg-surface-high/60 py-2.5 pl-10 pr-4 text-sm text-text placeholder-muted backdrop-blur-xl focus:outline-none focus:ring-2 focus:ring-primary/40"
+            className="w-full rounded-lg border border-outline bg-surface-high/60 py-2.5 pl-10 pr-4 text-sm text-text placeholder-muted backdrop-blur-xl focus:outline-none focus:ring-2 focus:ring-primary/40"
           />
         </div>
 
@@ -47,7 +47,7 @@ export function ChallengePage() {
               key={d}
               onClick={() => setDifficulty(difficulty === d ? null : d)}
               className={clsx(
-                "rounded-xl px-3 py-1.5 text-xs font-black capitalize transition-all border-2 border-black shadow-card-sm hover:-translate-y-0.5",
+                "rounded-lg px-3 py-1.5 text-xs font-black capitalize transition-all border-2 border-black shadow-card-sm hover:-translate-y-0.5",
                 difficulty === d
                   ? "bg-primary text-black"
                   : "bg-white text-muted hover:bg-surface-low hover:text-text",
@@ -63,7 +63,7 @@ export function ChallengePage() {
         {filtered.map((item) => (
           <SectionCard key={item.title} eyebrow={item.badge} title={item.title}>
             <p className="text-sm leading-6 text-muted">{item.summary}</p>
-            <button className="mt-5 rounded-xl bg-surface-low border-2 border-black px-4 py-2 text-sm font-black text-black shadow-card-sm hover:-translate-y-0.5 active:translate-y-0 transition-all cursor-pointer">
+            <button className="mt-5 rounded-lg bg-surface-low border-2 border-black px-4 py-2 text-sm font-black text-black shadow-card-sm hover:-translate-y-0.5 active:translate-y-0 transition-all cursor-pointer">
               Open challenge
             </button>
           </SectionCard>

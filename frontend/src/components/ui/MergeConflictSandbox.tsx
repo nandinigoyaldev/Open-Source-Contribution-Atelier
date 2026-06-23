@@ -23,7 +23,7 @@ export function MergeConflictSandbox() {
   };
 
   return (
-    <div className="w-full rounded-3xl border-4 border-black bg-white shadow-card overflow-hidden dark:bg-[#1f1c18] dark:border-[#2e2924] flex flex-col my-8">
+    <div className="w-full rounded-2xl border-4 border-black bg-white shadow-card overflow-hidden dark:bg-[#1f1c18] dark:border-[#2e2924] flex flex-col my-8">
       {/* Header */}
       <div className="bg-accent p-4 border-b-4 border-black dark:bg-[#2e2924] dark:border-black flex items-center justify-between">
         <div className="flex items-center gap-2">
@@ -118,7 +118,7 @@ export function MergeConflictSandbox() {
           {!isMerged ? (
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
               {/* Conflict Editor view */}
-              <div className="rounded-xl border-4 border-black overflow-hidden shadow-card-sm bg-[#1e1e1e] font-mono text-sm">
+              <div className="rounded-lg border-4 border-black overflow-hidden shadow-card-sm bg-[#1e1e1e] font-mono text-sm">
                 <div className="bg-[#2d2d2d] px-4 py-2 border-b-2 border-black flex justify-between items-center text-white/50 text-xs font-black uppercase">
                   <span>api.ts</span>
                   <span>Git Merge Editor</span>
@@ -181,7 +181,7 @@ export function MergeConflictSandbox() {
 
               {/* Action & Preview */}
               <div className="flex flex-col gap-4">
-                <div className="flex-1 bg-surface-lowest border-4 border-black rounded-xl p-6 shadow-card-sm flex flex-col justify-center items-center text-center gap-4 dark:bg-[#151411] dark:border-[#2e2924]">
+                <div className="flex-1 bg-surface-lowest border-4 border-black rounded-lg p-6 shadow-card-sm flex flex-col justify-center items-center text-center gap-4 dark:bg-[#151411] dark:border-[#2e2924]">
                   <h5 className="font-black">Preview Merged Output</h5>
                   {resolvedStatus === "unresolved" ? (
                     <div className="text-muted text-sm font-bold flex flex-col items-center gap-2">
@@ -189,7 +189,7 @@ export function MergeConflictSandbox() {
                       Select a change to preview
                     </div>
                   ) : (
-                    <div className="w-full text-left font-mono text-sm bg-[#1e1e1e] text-white p-4 rounded-xl border-4 border-black shadow-inner">
+                    <div className="w-full text-left font-mono text-sm bg-[#1e1e1e] text-white p-4 rounded-lg border-4 border-black shadow-inner">
                       <div className="text-white/50">{"function init() {"}</div>
                       {(resolvedStatus === "current" ||
                         resolvedStatus === "both") && (
@@ -213,7 +213,7 @@ export function MergeConflictSandbox() {
                 <button
                   onClick={handleMerge}
                   disabled={resolvedStatus === "unresolved"}
-                  className="w-full py-4 rounded-xl border-4 border-black font-black uppercase text-lg transition-all shadow-card-sm disabled:opacity-50 disabled:cursor-not-allowed hover:-translate-y-1 active:translate-y-0 flex items-center justify-center gap-2 bg-primary text-black cursor-pointer"
+                  className="w-full py-4 rounded-lg border-4 border-black font-black uppercase text-lg transition-all shadow-card-sm disabled:opacity-50 disabled:cursor-not-allowed hover:-translate-y-1 active:translate-y-0 flex items-center justify-center gap-2 bg-primary text-black cursor-pointer"
                 >
                   Complete Merge <ArrowRight size={20} />
                 </button>
@@ -232,7 +232,7 @@ export function MergeConflictSandbox() {
                 the code. In a real repository, you would now commit this
                 resolution.
               </p>
-              <div className="mt-4 text-left font-mono text-sm bg-black text-white p-6 rounded-xl border-4 border-black w-full max-w-lg shadow-inner">
+              <div className="mt-4 text-left font-mono text-sm bg-black text-white p-6 rounded-lg border-4 border-black w-full max-w-lg shadow-inner">
                 <div className="text-green-400 font-black mb-2 border-b border-white/20 pb-2">
                   Output code:
                 </div>

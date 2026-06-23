@@ -2,6 +2,7 @@ import React from "react";
 import { Route, Routes, Navigate } from "react-router-dom";
 import { AppLayout } from "../components/layout/AppLayout";
 import { ChallengePage } from "../pages/ChallengePage";
+import { ChatPage } from "../pages/ChatPage";
 import { CommunityPage } from "../pages/CommunityPage";
 import { DashboardPage } from "../pages/DashboardPage";
 import { GitHubAuthCallbackPage } from "../pages/GitHubAuthCallbackPage";
@@ -96,6 +97,14 @@ export function AppRouter() {
           }
         />
         <Route
+          path="/chat"
+          element={
+            <ProtectedRoute>
+              <ChatPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/challenges"
           element={
             <ProtectedRoute>
@@ -103,7 +112,7 @@ export function AppRouter() {
             </ProtectedRoute>
           }
         />
-        <Routex
+        <Route
           path="/community"
           element={
             <ProtectedRoute>

@@ -354,7 +354,7 @@ export function DashboardPage() {
             <h1 className="text-4xl sm:text-5xl font-black text-white drop-shadow-[3px_3px_0_#000] mb-4 dark:drop-shadow-none">
               Project Health & Cohort Monitor
             </h1>
-            <p className="text-lg font-bold text-black bg-white/95 p-4 rounded-xl border-4 border-black shadow-card-sm inline-block max-w-lg leading-relaxed dark:bg-[#151411] dark:border-[#2e2924] dark:text-[#f0ebe2]">
+            <p className="text-lg font-bold text-black bg-white/95 p-4 rounded-lg border-4 border-black shadow-card-sm inline-block max-w-lg leading-relaxed dark:bg-[#151411] dark:border-[#2e2924] dark:text-[#f0ebe2]">
               Track triage tasks, review practice codebases, and approve pending
               pull requests.
             </p>
@@ -422,7 +422,7 @@ export function DashboardPage() {
 
         {/* Charts & Analytics */}
         <section className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
-          <div className="rounded-3xl border-4 border-black bg-white p-6 shadow-card dark:bg-[#1f1c18] dark:border-[#2e2924] dark:shadow-none">
+          <div className="rounded-2xl border-4 border-black bg-white p-6 shadow-card dark:bg-[#1f1c18] dark:border-[#2e2924] dark:shadow-none">
             <h2 className="text-2xl font-black mb-6 flex items-center gap-2">
               <span>📊</span> Active Contributor Activity
             </h2>
@@ -477,7 +477,7 @@ export function DashboardPage() {
             </div>
           </div>
 
-          <div className="rounded-3xl border-4 border-black bg-white p-6 shadow-card dark:bg-[#1f1c18] dark:border-[#2e2924] dark:shadow-none flex flex-col justify-between">
+          <div className="rounded-2xl border-4 border-black bg-white p-6 shadow-card dark:bg-[#1f1c18] dark:border-[#2e2924] dark:shadow-none flex flex-col justify-between">
             <div>
               <h2 className="text-2xl font-black mb-6 flex items-center gap-2">
                 <span>🎯</span> Task Distribution
@@ -525,7 +525,7 @@ export function DashboardPage() {
               {issueStatusData.map((item, index) => (
                 <div
                   key={item.name}
-                  className="p-2 rounded-xl border-2 border-black"
+                  className="p-2 rounded-lg border-2 border-black"
                   style={{ backgroundColor: `${COLORS[index]}15` }}
                 >
                   <span
@@ -544,7 +544,7 @@ export function DashboardPage() {
         </section>
 
         {/* PR Queue */}
-        <section className="rounded-3xl border-4 border-black bg-accent p-6 shadow-card dark:bg-[#1f1c18] dark:border-[#2e2924] dark:shadow-none">
+        <section className="rounded-2xl border-4 border-black bg-accent p-6 shadow-card dark:bg-[#1f1c18] dark:border-[#2e2924] dark:shadow-none">
           <h2 className="text-3xl font-black mb-6 flex items-center gap-2 text-black dark:text-[#f0ebe2]">
             <span>📬</span> Pending Pull Requests ({pending_prs.length})
           </h2>
@@ -581,10 +581,10 @@ export function DashboardPage() {
                       </p>
                     </div>
                     <div className="flex gap-2 w-full md:w-auto">
-                      <button className="grow md:grow-0 rounded-xl bg-surface-low border-2 border-black px-4 py-2 text-xs font-black hover:-translate-y-0.5 shadow-card-sm transition-all dark:bg-[#0f0e0c] dark:text-[#f0ebe2]">
+                      <button className="grow md:grow-0 rounded-lg bg-surface-low border-2 border-black px-4 py-2 text-xs font-black hover:-translate-y-0.5 shadow-card-sm transition-all dark:bg-[#0f0e0c] dark:text-[#f0ebe2]">
                         Comment
                       </button>
-                      <button className="grow md:grow-0 rounded-xl bg-[#c3c0ff] border-2 border-black px-4 py-2 text-xs font-black hover:-translate-y-0.5 shadow-card-sm transition-all">
+                      <button className="grow md:grow-0 rounded-lg bg-[#c3c0ff] border-2 border-black px-4 py-2 text-xs font-black hover:-translate-y-0.5 shadow-card-sm transition-all">
                         Approve & Merge
                       </button>
                     </div>
@@ -635,7 +635,7 @@ export function DashboardPage() {
             <h1 className="text-4xl sm:text-5xl font-black text-white drop-shadow-[3.5px_3.5px_0_#000] mb-4 dark:text-[#f0ebe2] dark:drop-shadow-none">
               Welcome to the Atelier, {user?.username}.
             </h1>
-            <p className="text-lg font-bold text-black bg-white/95 p-4 rounded-xl border-4 border-black shadow-card-sm inline-block max-w-xl leading-relaxed dark:bg-[#151411] dark:border-[#2e2924] dark:text-[#f0ebe2]">
+            <p className="text-lg font-bold text-black bg-white/95 p-4 rounded-lg border-4 border-black shadow-card-sm inline-block max-w-xl leading-relaxed dark:bg-[#151411] dark:border-[#2e2924] dark:text-[#f0ebe2]">
               You have completed {completedLessonsCount} of {totalLessonsCount}{" "}
               course modules, earning{" "}
               <span className="text-primary font-black">
@@ -695,7 +695,7 @@ export function DashboardPage() {
 
       {/* 2. Fact of the Day and Certificate Unlock */}
       <section className="grid gap-6 md:grid-cols-[1.3fr_0.7fr]">
-        <div id="tour-fact" className="rounded-3xl border-4 border-black bg-surface-low p-6 shadow-card dark:bg-[#1f1c18] dark:border-[#2e2924] dark:shadow-none flex items-start gap-4">
+        <div id="tour-fact" className="rounded-2xl border-4 border-black bg-surface-low p-6 shadow-card dark:bg-[#1f1c18] dark:border-[#2e2924] dark:shadow-none flex items-start gap-4">
           <div className="bg-white p-3 rounded-2xl border-2 border-black flex-shrink-0 text-2xl dark:bg-[#151411] dark:border-[#2e2924]">
             💡
           </div>
@@ -710,7 +710,7 @@ export function DashboardPage() {
         </div>
 
         {/* Certificate Card */}
-        <div id="tour-certificate" className="rounded-3xl border-4 border-black bg-white p-6 shadow-card dark:bg-[#1f1c18] dark:border-[#2e2924] dark:shadow-none flex flex-col justify-between">
+        <div id="tour-certificate" className="rounded-2xl border-4 border-black bg-white p-6 shadow-card dark:bg-[#1f1c18] dark:border-[#2e2924] dark:shadow-none flex flex-col justify-between">
           <div className="flex items-center gap-2">
             <span className="text-2xl">🎓</span>
             <div>
@@ -725,12 +725,12 @@ export function DashboardPage() {
           {completionPercentage === 100 ? (
             <button
               onClick={() => setShowCertificate(true)}
-              className="mt-4 w-full flex items-center justify-center gap-2 rounded-xl bg-green-500 text-black font-black py-3 border-4 border-black shadow-card-sm hover:-translate-y-0.5 transition-all cursor-pointer uppercase tracking-wider text-xs"
+              className="mt-4 w-full flex items-center justify-center gap-2 rounded-lg bg-green-500 text-black font-black py-3 border-4 border-black shadow-card-sm hover:-translate-y-0.5 transition-all cursor-pointer uppercase tracking-wider text-xs"
             >
               <Download size={14} /> Download Certificate
             </button>
           ) : (
-            <div className="mt-4 text-xs font-black text-muted bg-surface-low p-3 rounded-xl border-2 border-dashed border-black/35 text-center dark:bg-[#151411] dark:border-[#2e2924]">
+            <div className="mt-4 text-xs font-black text-muted bg-surface-low p-3 rounded-lg border-2 border-dashed border-black/35 text-center dark:bg-[#151411] dark:border-[#2e2924]">
               🔒 Locked ({completionPercentage}% progress)
             </div>
           )}
@@ -739,7 +739,7 @@ export function DashboardPage() {
 
       {/* 3. Learning Queue Sidebar & Course Completion Chart */}
       <section className="grid gap-6 xl:grid-cols-[1.3fr_0.7fr]">
-        <div id="tour-learning-queue" className="rounded-3xl border-4 border-black bg-white p-6 shadow-card dark:bg-[#1f1c18] dark:border-[#2e2924] dark:shadow-none">
+        <div id="tour-learning-queue" className="rounded-2xl border-4 border-black bg-white p-6 shadow-card dark:bg-[#1f1c18] dark:border-[#2e2924] dark:shadow-none">
           <h2 className="text-3xl font-black mb-6 flex items-center gap-3">
             <span className="bg-primary text-white w-10 h-10 rounded-full border-2 border-black flex items-center justify-center text-lg dark:bg-primary/20 dark:text-primary">
               📚
@@ -752,7 +752,7 @@ export function DashboardPage() {
                 <Link
                   key={lesson.slug}
                   to={`/lessons/${lesson.slug}`}
-                  className="flex flex-col gap-2 p-5 rounded-2xl border-4 border-black bg-surface-lowest shadow-card-sm hover:shadow-card hover:-translate-y-1 transition-all cursor-pointer dark:bg-[#151411] dark:border-[#2e2924] dark:hover:bg-[#1f1c18]"
+                  className="flex flex-col gap-2 p-5 rounded-lg border-4 border-black bg-surface-lowest shadow-card-sm hover:shadow-card hover:-translate-y-1 transition-all cursor-pointer dark:bg-[#151411] dark:border-[#2e2924] dark:hover:bg-[#1f1c18]"
                 >
                   <div className="flex justify-between items-end">
                     <h3 className="font-black text-xl dark:text-[#f0ebe2]">
@@ -785,7 +785,7 @@ export function DashboardPage() {
         </div>
 
         {/* Circular Progress Gauge */}
-        <div className="rounded-3xl border-4 border-black bg-white p-6 shadow-card dark:bg-[#1f1c18] dark:border-[#2e2924] dark:shadow-none flex flex-col justify-between">
+        <div className="rounded-2xl border-4 border-black bg-white p-6 shadow-card dark:bg-[#1f1c18] dark:border-[#2e2924] dark:shadow-none flex flex-col justify-between">
           <div>
             <h2 className="text-2xl font-black mb-4 flex items-center gap-2">
               <span>🎯</span> Completion Progress
@@ -879,7 +879,7 @@ export function DashboardPage() {
       {/* 5. Contributor Recognition & Assigned Issues */}
       <section className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
         {/* Contributor recognition */}
-        <div className="rounded-3xl border-4 border-black bg-white p-6 shadow-card dark:bg-[#1f1c18] dark:border-[#2e2924] dark:shadow-none">
+        <div className="rounded-2xl border-4 border-black bg-white p-6 shadow-card dark:bg-[#1f1c18] dark:border-[#2e2924] dark:shadow-none">
           <h2 className="text-2xl font-black mb-4 flex items-center gap-2">
             <Users className="w-6 h-6 text-primary" />
             GitHub Contributor Hall of Fame
@@ -895,7 +895,7 @@ export function DashboardPage() {
                 href={contrib.html_url}
                 target="_blank"
                 rel="noreferrer"
-                className="flex items-center gap-2 p-3 rounded-xl border-2 border-black bg-surface hover:-translate-y-0.5 shadow-card-sm transition-all dark:bg-[#151411] dark:border-[#2e2924]"
+                className="flex items-center gap-2 p-3 rounded-lg border-2 border-black bg-surface hover:-translate-y-0.5 shadow-card-sm transition-all dark:bg-[#151411] dark:border-[#2e2924]"
               >
                 <img
                   src={contrib.avatar_url}
@@ -911,7 +911,7 @@ export function DashboardPage() {
         </div>
 
         {/* Local Assigned Issues */}
-        <div className="rounded-3xl border-4 border-black bg-[#ffb5e8] p-6 shadow-card dark:bg-[#1f1c18] dark:border-[#2e2924] dark:shadow-none flex flex-col justify-between">
+        <div className="rounded-2xl border-4 border-black bg-[#ffb5e8] p-6 shadow-card dark:bg-[#1f1c18] dark:border-[#2e2924] dark:shadow-none flex flex-col justify-between">
           <div>
             <h2 className="text-2xl font-black mb-3 flex items-center gap-2">
               <span>🚨</span> Assigned Issues
@@ -922,7 +922,7 @@ export function DashboardPage() {
                   (issue: { id: number; title: string; points: number }) => (
                     <div
                       key={issue.id}
-                      className="p-3 bg-white rounded-xl border-2 border-black dark:bg-[#151411] dark:border-[#2e2924]"
+                      className="p-3 bg-white rounded-lg border-2 border-black dark:bg-[#151411] dark:border-[#2e2924]"
                     >
                       <span className="text-[9px] font-black uppercase text-primary">
                         XP Bounty: {issue.points}
@@ -932,7 +932,7 @@ export function DashboardPage() {
                   ),
                 )
               ) : (
-                <div className="p-6 text-center bg-white rounded-xl border-2 border-dashed border-black/35 text-xs font-bold text-muted dark:bg-[#151411]">
+                <div className="p-6 text-center bg-white rounded-lg border-2 border-dashed border-black/35 text-xs font-bold text-muted dark:bg-[#151411]">
                   All issues resolved! Go grab a task in the Challenges board.
                 </div>
               )}
@@ -940,7 +940,7 @@ export function DashboardPage() {
           </div>
           <Link
             to="/challenges"
-            className="mt-4 block text-center rounded-xl bg-white border-4 border-black py-2.5 font-black text-xs shadow-card-sm hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-card-sm cursor-pointer dark:bg-[#151411] dark:border-[#2e2924]"
+            className="mt-4 block text-center rounded-lg bg-white border-4 border-black py-2.5 font-black text-xs shadow-card-sm hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-card-sm cursor-pointer dark:bg-[#151411] dark:border-[#2e2924]"
           >
             Browse Issues Board
           </Link>
@@ -950,7 +950,7 @@ export function DashboardPage() {
       {/* --- MODAL 1: ONBOARDING GUIDED TOUR --- */}
       {showOnboarding && (
         <div className="fixed inset-0 bg-black/60 z-50 flex items-center justify-center p-4">
-          <div className="w-full max-w-lg bg-white rounded-3xl border-4 border-black shadow-card p-6 sm:p-8 space-y-6 relative dark:bg-[#0f0e0c] dark:border-[#2e2924]">
+          <div className="w-full max-w-lg bg-white rounded-2xl border-4 border-black shadow-card p-6 sm:p-8 space-y-6 relative dark:bg-[#0f0e0c] dark:border-[#2e2924]">
             {onboardingStep === 0 && (
               <div className="space-y-4">
                 <div className="text-5xl text-center">👋 Welcome!</div>
@@ -1001,7 +1001,7 @@ export function DashboardPage() {
                 {onboardingStep > 0 && (
                   <button
                     onClick={() => setOnboardingStep((prev) => prev - 1)}
-                    className="px-4 py-2 border-2 border-black rounded-xl text-xs font-black hover:bg-surface-low"
+                    className="px-4 py-2 border-2 border-black rounded-lg text-xs font-black hover:bg-surface-low"
                   >
                     Back
                   </button>
@@ -1009,14 +1009,14 @@ export function DashboardPage() {
                 {onboardingStep < 2 ? (
                   <button
                     onClick={() => setOnboardingStep((prev) => prev + 1)}
-                    className="px-4 py-2 bg-accent text-black border-2 border-black rounded-xl text-xs font-black shadow-card-sm hover:-translate-y-0.5"
+                    className="px-4 py-2 bg-accent text-black border-2 border-black rounded-lg text-xs font-black shadow-card-sm hover:-translate-y-0.5"
                   >
                     Continue
                   </button>
                 ) : (
                   <button
                     onClick={handleFinishOnboarding}
-                    className="px-4 py-2 bg-green-500 text-black border-2 border-black rounded-xl text-xs font-black shadow-card-sm hover:-translate-y-0.5"
+                    className="px-4 py-2 bg-green-500 text-black border-2 border-black rounded-lg text-xs font-black shadow-card-sm hover:-translate-y-0.5"
                   >
                     Let's Go!
                   </button>
@@ -1110,13 +1110,13 @@ export function DashboardPage() {
             <div className="mt-8 flex gap-3 print:hidden">
               <button
                 onClick={() => window.print()}
-                className="flex items-center gap-2 rounded-xl bg-primary text-black border-4 border-black px-6 py-3 font-black text-sm shadow-card-sm hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-card-sm cursor-pointer"
+                className="flex items-center gap-2 rounded-lg bg-primary text-black border-4 border-black px-6 py-3 font-black text-sm shadow-card-sm hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-card-sm cursor-pointer"
               >
                 <Printer size={16} /> Print Certificate
               </button>
               <button
                 onClick={() => setShowCertificate(false)}
-                className="rounded-xl bg-white border-4 border-black px-6 py-3 font-black text-sm shadow-card-sm hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-card-sm cursor-pointer"
+                className="rounded-lg bg-white border-4 border-black px-6 py-3 font-black text-sm shadow-card-sm hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-card-sm cursor-pointer"
               >
                 Return to Dashboard
               </button>
@@ -1128,7 +1128,7 @@ export function DashboardPage() {
         <button
           onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
           aria-label="Scroll to top"
-          className="fixed bottom-6 right-6 z-50 rounded-xl bg-primary text-white border-4 border-black px-4 py-3 font-black shadow-card-sm hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-card-sm cursor-pointer"
+          className="fixed bottom-6 right-6 z-50 rounded-lg bg-primary text-white border-4 border-black px-4 py-3 font-black shadow-card-sm hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-card-sm cursor-pointer"
         >
           ↑ Top
         </button>
