@@ -85,9 +85,12 @@ class MeView(APIView):
             request.user, data=request.data, partial=True, context={"request": request}
         )
         serializer.is_valid(raise_exception=True)
-        serializer.save()
+        instance = serializer.save()
+        instance.refresh_from_db()
+        if hasattr(instance, "profile"):
+            instance.profile.refresh_from_db()
         response_serializer = UserListSerializer(
-            request.user, context={"request": request}
+            instance, context={"request": request}
         )
         return Response(response_serializer.data)
 

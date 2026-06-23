@@ -1,3 +1,18 @@
+import { precacheAndRoute, cleanupOutdatedCaches } from "workbox-precaching";
+import { registerRoute } from "workbox-routing";
+import { NetworkFirst } from "workbox-strategies";
+
+cleanupOutdatedCaches();
+precacheAndRoute(self.__WB_MANIFEST);
+
+// Cache curriculum content dynamically if not precached
+registerRoute(
+  ({ url }) => url.pathname.startsWith("/content/"),
+  new NetworkFirst({
+    cacheName: "content-runtime-cache",
+  }),
+);
+
 const DB_NAME = "atelier-offline-db";
 const STORE_NAME = "sync-queue";
 const DB_VERSION = 1;

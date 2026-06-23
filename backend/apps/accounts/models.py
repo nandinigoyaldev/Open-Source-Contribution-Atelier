@@ -86,6 +86,11 @@ class OTPToken(models.Model):
         return f"OTPToken(user={self.user.username}, used={self.is_used})"
 
 
+import os
+from io import BytesIO
+from PIL import Image
+from django.core.files.base import ContentFile
+
 class UserProfile(models.Model):
     """
     Standard user profile linking to the main User model.
@@ -108,6 +113,24 @@ class UserProfile(models.Model):
 
     def __str__(self):
         return f"UserProfile({self.user.username})"
+
+    def save(self, *args, **kwargs):
+        if self.avatar and not self.avatar.name.lower().endswith('.webp'):
+            img = Image.open(self.avatar)
+            
+            if img.mode != 'RGBA' and img.mode != 'RGB':
+                img = img.convert('RGBA')
+            
+            output = BytesIO()
+            img.save(output, format='WEBP', quality=85)
+            output.seek(0)
+            
+            base_name = os.path.splitext(os.path.basename(self.avatar.name))[0]
+            new_filename = f"{base_name}.webp"
+            
+            self.avatar.save(new_filename, ContentFile(output.read()), save=False)
+            
+        super().save(*args, **kwargs)
 
 
 @receiver(post_save, sender=settings.AUTH_USER_MODEL)

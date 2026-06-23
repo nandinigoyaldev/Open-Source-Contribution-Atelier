@@ -24,6 +24,7 @@ export function RichTextEditor({ value, onChange, placeholder, disabled, maxLeng
         "preview", "side-by-side", "fullscreen", "|",
         "guide"
       ],
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any;
   }, [placeholder]);
 

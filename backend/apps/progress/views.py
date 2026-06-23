@@ -74,9 +74,9 @@ class MyProgressView(APIView):
             },
         )
 
-        from .badge_evaluator import BadgeEvaluator
+        from .tasks import evaluate_user_badges_task
 
-        BadgeEvaluator.evaluate(request.user)
+        evaluate_user_badges_task.delay(request.user.id)
 
         serializer = LessonProgressSerializer(progress)
 
@@ -121,9 +121,9 @@ class BulkSyncProgressView(APIView):
 
                 synced.append(progress.id)
 
-            from .badge_evaluator import BadgeEvaluator
+            from .tasks import evaluate_user_badges_task
 
-            BadgeEvaluator.evaluate(request.user)
+            evaluate_user_badges_task.delay(request.user.id)
 
         return Response(
             {"synced_count": len(synced), "progress_ids": synced},
@@ -246,9 +246,9 @@ class BulkProgressUpdateView(APIView):
                     )
                     success_ids.extend([p.id for p in progress_to_update])
 
-                from .badge_evaluator import BadgeEvaluator
+                from .tasks import evaluate_user_badges_task
 
-                BadgeEvaluator.evaluate(request.user)
+                evaluate_user_badges_task.delay(request.user.id)
 
         except ValueError as ve:
             return Response(

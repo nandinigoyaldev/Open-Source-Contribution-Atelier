@@ -14,6 +14,7 @@ type User = {
   email: string;
   is_staff: boolean;
   avatar_url?: string | null;
+  timezone?: string;
 };
 
 type AuthContextType = {
