@@ -571,7 +571,7 @@ export function LessonPage() {
                       <button
                         onClick={handleQuizOptionCheck}
                         disabled={selectedOption === null}
-                        className="px-5 py-2.5 bg-primary text-black font-black text-sm rounded-lg border-4 border-black shadow-card-sm hover:-translate-y-0.5 disabled:opacity-50 transition-all cursor-pointer"
+                        className="px-5 py-2.5 bg-primary text-black font-black text-sm rounded-lg border-4 border-black shadow-card-sm hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-card-sm disabled:opacity-50 transition-all cursor-pointer"
                       >
                         Submit Answer
                       </button>
@@ -621,7 +621,9 @@ export function LessonPage() {
                       </span>
                       <input
                         className="flex-1 min-w-0 rounded-lg border-4 border-black bg-surface-lowest px-4 py-2.5 text-text font-bold outline-none placeholder:text-muted/40 dark:bg-[#151411] dark:border-[#2e2924]"
-                        placeholder={lesson.hint || "Type your git command here"}
+                        placeholder={
+                          lesson.hint || "Type your git command here"
+                        }
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
                         onKeyDown={(e) => {
@@ -637,7 +639,7 @@ export function LessonPage() {
                       />
                       <button
                         type="submit"
-                        className="px-5 py-2.5 bg-primary text-black font-black text-sm rounded-lg border-4 border-black shadow-card-sm hover:-translate-y-0.5 disabled:opacity-50 transition-all cursor-pointer flex items-center justify-center gap-2 min-w-[72px]"
+                        className="px-5 py-2.5 bg-primary text-black font-black text-sm rounded-lg border-4 border-black shadow-card-sm hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-card-sm disabled:opacity-50 transition-all cursor-pointer flex items-center justify-center gap-2 min-w-[72px]"
                         disabled={
                           feedback === "correct" || !input.trim() || isExecuting
                         }
@@ -818,7 +820,7 @@ export function LessonPage() {
 
               <button
                 type="submit"
-                className="w-full px-4 py-2 bg-primary text-black font-bold rounded-lg border-4 border-black shadow-gel hover:bg-[#E62814] disabled:opacity-60"
+                className="w-full px-4 py-2 bg-primary text-black font-bold rounded-lg border-4 border-black shadow-card hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-card-sm transition-all disabled:opacity-60"
                 disabled={!helpMessage.trim() || helpRequestMutation.isPending}
               >
                 {helpRequestMutation.isPending
