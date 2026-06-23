@@ -88,6 +88,18 @@ class ChatConsumer(AsyncWebsocketConsumer):
                 },
             )
 
+        elif action == "public_key":
+            await self.channel_layer.group_send(
+                self.group_name,
+                {
+                    "type": "public_key_broadcast",
+                    "username": self.user.username,
+                    "user_id": self.user.id,
+                    "public_key": data.get("public_key"),
+                    "sender_channel": self.channel_name,
+                },
+            )
+
         elif action == "send_message":
             await self.channel_layer.group_send(
                 self.group_name,
@@ -110,6 +122,20 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     "action": event["action"],
                     "username": event["username"],
                     "user_id": event["user_id"],
+                }
+            )
+        )
+
+    async def public_key_broadcast(self, event):
+        if event["sender_channel"] == self.channel_name:
+            return
+        await self.send(
+            text_data=json.dumps(
+                {
+                    "type": "public_key",
+                    "username": event["username"],
+                    "user_id": event["user_id"],
+                    "public_key": event["public_key"],
                 }
             )
         )

@@ -1,11 +1,12 @@
 import { describe, it, expect, vi, afterEach } from 'vitest';
 import { render, screen, fireEvent, cleanup } from '@testing-library/react';
-import userEvent from '@testing-library/user-event';
+
 import { RichTextEditor } from '../components/ui/RichTextEditor';
 
 // Mock the SimpleMdeReact component to avoid loading actual CodeMirror in JSDOM,
 // which can sometimes cause layout measurement errors in simple test environments.
 vi.mock('react-simplemde-editor', () => ({
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   default: ({ value, onChange, options }: any) => (
     <div data-testid="mock-mde">
       <textarea
@@ -36,7 +37,6 @@ describe('RichTextEditor Component', () => {
   });
 
   it('calls onChange when typing', async () => {
-    const user = userEvent.setup();
     const handleChange = vi.fn();
     render(<RichTextEditor value="" onChange={handleChange} />);
 

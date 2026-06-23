@@ -106,7 +106,7 @@ export function ProfileSettingsForm() {
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
       addToast("Data archive downloaded successfully!", "success");
-    } catch (err: unknown) {
+    } catch {
       addToast("Failed to download data archive.", "error");
     } finally {
       setDownloading(false);
