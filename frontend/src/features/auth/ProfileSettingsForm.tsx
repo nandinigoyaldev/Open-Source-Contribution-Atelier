@@ -6,6 +6,7 @@ import { fetchApi } from "../../lib/api";
 import { useAuth } from "./AuthContext";
 import { useToast } from "../ui/ToastContext";
 import { AvatarUploadDropzone } from "../../components/ui/AvatarUploadDropzone";
+import { useWebPush } from "../../hooks/useWebPush";
 
 const profileSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email address" }),
@@ -26,6 +27,8 @@ export function ProfileSettingsForm() {
   const [loading, setLoading] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [selectedAvatar, setSelectedAvatar] = useState<File | null>(null);
+
+  const { isSupported, isSubscribed, subscribe, unsubscribe } = useWebPush();
 
   const {
     register,
@@ -106,7 +109,7 @@ export function ProfileSettingsForm() {
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
       addToast("Data archive downloaded successfully!", "success");
-    } catch (err: unknown) {
+    } catch {
       addToast("Failed to download data archive.", "error");
     } finally {
       setDownloading(false);
@@ -167,6 +170,27 @@ export function ProfileSettingsForm() {
         >
           {loading ? "Updating..." : "Save Settings"}
         </button>
+
+        <div className="space-y-2 mt-6">
+          <label className="font-bold text-black ml-2 uppercase tracking-wide text-sm">
+            Browser Notifications
+          </label>
+          {isSupported ? (
+            <button
+              type="button"
+              onClick={isSubscribed ? unsubscribe : subscribe}
+              className={`w-full rounded-2xl border-4 border-black px-5 py-4 font-black text-black text-lg shadow-card-sm transition-all cursor-pointer uppercase flex items-center justify-center gap-2 ${
+                isSubscribed ? "bg-red-200 hover:bg-red-300" : "bg-[#E8F0FE] hover:bg-blue-200"
+              }`}
+            >
+              {isSubscribed ? "🔕 Disable Notifications" : "🔔 Enable Notifications"}
+            </button>
+          ) : (
+            <p className="text-muted ml-2 text-sm italic">
+              Push notifications are not supported in this browser.
+            </p>
+          )}
+        </div>
 
         <hr className="border-2 border-black/10 my-8" />
 
