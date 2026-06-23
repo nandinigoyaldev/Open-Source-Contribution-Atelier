@@ -77,9 +77,9 @@ interface AssignedIssue {
 }
 
 export function DashboardPage() {
-  const taskDistRef = useRef<HTMLDivElement>(null);
+  const taskDistRef = useRef<HTMLElement>(null);
   const { width: taskDistWidth } = useElementSize(taskDistRef);
-  const completionRef = useRef<HTMLDivElement>(null);
+  const completionRef = useRef<HTMLElement>(null);
   const { width: completionWidth } = useElementSize(completionRef);
 
   const { user } = useAuth();

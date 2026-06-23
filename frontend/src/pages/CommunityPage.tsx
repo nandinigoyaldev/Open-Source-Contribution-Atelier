@@ -101,7 +101,7 @@ export function CommunityPage() {
 
   const observerRef = useRef<IntersectionObserver | null>(null);
   const lastElementRef = useCallback(
-    (node: HTMLElement | null) => {
+    (node: Element | null) => {
       if (isFetchingNextPage || loadingLeaderboard) return;
       if (observerRef.current) observerRef.current.disconnect();
       
