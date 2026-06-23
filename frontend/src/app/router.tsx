@@ -1,6 +1,7 @@
 import React from "react";
 import { Route, Routes, Navigate } from "react-router-dom";
 import { AppLayout } from "../components/layout/AppLayout";
+import { PublicLayout } from "../components/layout/PublicLayout";
 import { ChallengePage } from "../pages/ChallengePage";
 import { ChatPage } from "../pages/ChatPage";
 import { CommunityPage } from "../pages/CommunityPage";
@@ -64,19 +65,30 @@ function PublicOnlyRoute({ children }: { children: React.ReactNode }) {
 export function AppRouter() {
   return (
     <Routes>
-      {/* Standalone Route without AppLayout (No Navbar) */}
-      <Route
-        path="/"
-        element={
-          <PublicOnlyRoute>
-            <LandingPage />
-          </PublicOnlyRoute>
-        }
-      />
-      <Route
-        path="/auth/github/callback"
-        element={<GitHubAuthCallbackPage />}
-      />
+      {/* Public Routes with Animation Layout */}
+      <Route element={<PublicLayout />}>
+        {/* Standalone Route without AppLayout (No Navbar) */}
+        <Route
+          path="/"
+          element={
+            <PublicOnlyRoute>
+              <LandingPage />
+            </PublicOnlyRoute>
+          }
+        />
+        <Route
+          path="/auth/github/callback"
+          element={<GitHubAuthCallbackPage />}
+        />
+
+        {/* Public auth routes */}
+        <Route path="/login" element={<LoginPage />} />
+        <Route path="/signup" element={<SignupPage />} />
+        <Route path="/verify" element={<VerifyCertificatePage />} />
+        <Route path="/verify/:hash" element={<VerifyCertificatePage />} />
+
+        <Route path="*" element={<NotFoundPage />} />
+      </Route>
 
       {/* Authenticated Routes with Navbar Layout */}
       <Route element={<AppLayout />}>
@@ -137,14 +149,6 @@ export function AppRouter() {
           }
         />
       </Route>
-
-      {/* Public auth routes */}
-      <Route path="/login" element={<LoginPage />} />
-      <Route path="/signup" element={<SignupPage />} />
-      <Route path="/verify" element={<VerifyCertificatePage />} />
-      <Route path="/verify/:hash" element={<VerifyCertificatePage />} />
-
-      <Route path="*" element={<NotFoundPage />} />
     </Routes>
   );
 }

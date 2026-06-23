@@ -17,6 +17,7 @@ const profileSchema = z.object({
     .refine((val) => !val || val.length >= 8, {
       message: "Password must be at least 8 characters long if provided",
     }),
+  timezone: z.string(),
 });
 
 type ProfileFormValues = z.input<typeof profileSchema>;
@@ -40,12 +41,17 @@ export function ProfileSettingsForm() {
     defaultValues: {
       email: user?.email || "",
       password: "",
+      timezone: user?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
     },
   });
 
   useEffect(() => {
     if (user?.email) {
-      reset({ email: user.email, password: "" });
+      reset({
+        email: user.email,
+        password: "",
+        timezone: user.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
+      });
     }
   }, [user, reset]);
 
@@ -54,7 +60,7 @@ export function ProfileSettingsForm() {
 
     try {
       let body: FormData | string;
-      
+
       // If we have a file, we MUST use FormData
       if (selectedAvatar) {
         const formData = new FormData();
@@ -62,11 +68,15 @@ export function ProfileSettingsForm() {
         if (data.password) {
           formData.append("password", data.password);
         }
+        formData.append("timezone", data.timezone);
         formData.append("avatar", selectedAvatar);
         body = formData;
       } else {
         // Fallback to JSON payload if no file is selected (cleaner for simple updates)
-        const payload: Record<string, string> = { email: data.email };
+        const payload: Record<string, string> = {
+          email: data.email,
+          timezone: data.timezone,
+        };
         if (data.password) {
           payload.password = data.password;
         }
@@ -78,10 +88,10 @@ export function ProfileSettingsForm() {
         requireAuth: true,
         body: body,
       });
-      
+
       await checkUser(); // Refresh global user context to show new avatar instantly
       addToast("Profile settings updated successfully!", "success");
-      reset({ email: data.email, password: "" });
+      reset({ email: data.email, password: "", timezone: data.timezone });
     } catch (err: unknown) {
       addToast(
         err instanceof Error ? err.message : "Failed to update profile settings.",
@@ -129,15 +139,14 @@ export function ProfileSettingsForm() {
         </label>
         <input
           {...register("email")}
-          className={`w-full rounded-2xl border-4 border-black bg-white px-5 py-4 text-black font-bold outline-none placeholder:text-muted/60 focus:bg-accent shadow-card-sm transition-all focus:-translate-y-1 focus:shadow-card ${
-            errors.email ? "border-red-500" : ""
-          }`}
+          className={`w-full rounded-2xl border-4 border-black bg-white px-5 py-4 text-black font-bold outline-none placeholder:text-muted/60 focus:bg-accent shadow-card-sm transition-all focus:-translate-y-1 focus:shadow-card ${errors.email ? "border-red-500" : ""
+            }`}
           type="email"
           placeholder="nerd@homework.com"
           disabled={loading}
         />
         {errors.email && (
-          <p className="text-red-600 font-bold ml-2 text-sm">
+          <p role="alert" className="text-red-600 font-bold ml-2 text-sm">
             {errors.email.message}
           </p>
         )}
@@ -145,19 +154,17 @@ export function ProfileSettingsForm() {
 
       <div className="space-y-2">
         <label className="font-bold text-black ml-2 uppercase tracking-wide text-sm">
-          New Password (leave blank to keep current)
+          Timezone
         </label>
-        <input
-          {...register("password")}
-          className={`w-full rounded-2xl border-4 border-black bg-white px-5 py-4 text-black font-bold outline-none placeholder:text-muted/60 focus:bg-tertiary shadow-card-sm transition-all focus:-translate-y-1 focus:shadow-card ${
-            errors.password ? "border-red-500" : ""
+        <select
+          {...register("timezone")}
+          className={`w-full rounded-2xl border-4 border-black bg-white px-5 py-4 text-black font-bold outline-none shadow-card-sm transition-all focus:-translate-y-1 focus:shadow-card focus:bg-accent ${
+            errors.timezone ? "border-red-500" : ""
           }`}
-          type="password"
-          placeholder="••••••••"
           disabled={loading}
         />
         {errors.password && (
-          <p className="text-red-600 font-bold ml-2 text-sm">
+          <p role="alert" className="text-red-600 font-bold ml-2 text-sm">
             {errors.password.message}
           </p>
         )}
