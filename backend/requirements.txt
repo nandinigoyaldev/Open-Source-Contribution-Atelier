@@ -15,7 +15,7 @@ daphne==4.1.2
 redis>=5.0.0
 django-filter>=24.3,<25.0
 drf-spectacular>=0.29.0
-dj-database-url>=2.1.0
+dj-database-url>=3.1.2
 celery==5.4.0
 Pillow>=11.0.0
 reportlab>=4.0.0
