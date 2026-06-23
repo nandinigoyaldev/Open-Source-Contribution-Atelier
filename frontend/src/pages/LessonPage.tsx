@@ -18,6 +18,7 @@ import { Lesson, fetchLessonsApi, fetchLessonContent } from "../lib/lessons";
 import { MarkdownRenderer } from "../components/ui/MarkdownRenderer";
 import { RichTextEditor } from "../components/ui/RichTextEditor";
 import { GitGraph } from "../components/ui/GitGraph";
+import { TextToSpeechControls } from "../components/ui/TextToSpeechControls";
 
 import {
   createInitialRepo,
@@ -446,6 +447,8 @@ export function LessonPage() {
             </p>
 
             <hr className="border-2 border-black/10 dark:border-[#2e2924]/40" />
+
+            <TextToSpeechControls content={markdownContent} />
 
             {/* Markdown rendering logic */}
             <article className="prose max-w-none">
