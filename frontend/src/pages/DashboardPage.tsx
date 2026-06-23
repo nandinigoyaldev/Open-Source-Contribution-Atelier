@@ -77,9 +77,9 @@ interface AssignedIssue {
 }
 
 export function DashboardPage() {
-  const taskDistRef = useRef<HTMLDivElement>(null);
+  const taskDistRef = useRef<HTMLElement>(null);
   const { width: taskDistWidth } = useElementSize(taskDistRef);
-  const completionRef = useRef<HTMLDivElement>(null);
+  const completionRef = useRef<HTMLElement>(null);
   const { width: completionWidth } = useElementSize(completionRef);
 
   const { user } = useAuth();
@@ -623,7 +623,10 @@ export function DashboardPage() {
       <OnboardingTour run={showOnboarding} onFinish={handleFinishOnboarding} />
       {/* 1. Header Banner */}
       <section className="grid gap-6 xl:grid-cols-[1.3fr_0.7fr]">
-        <div id="tour-welcome" className="rounded-[2.5rem] border-4 border-black bg-tertiary p-8 sm:p-10 shadow-card relative overflow-hidden dark:bg-[#1f1c18] dark:border-[#2e2924] dark:shadow-none flex flex-col justify-between min-h-[260px]">
+        <div
+          id="tour-welcome"
+          className="rounded-[2.5rem] border-4 border-black bg-tertiary p-8 sm:p-10 shadow-card relative overflow-hidden dark:bg-[#1f1c18] dark:border-[#2e2924] dark:shadow-none flex flex-col justify-between min-h-[260px]"
+        >
           <div className="relative z-10">
             <span className="font-black text-sm bg-white text-black px-4 py-2 rounded-full border-2 border-black rotate-[-2deg] inline-block shadow-card-sm mb-4 dark:bg-[#151411] dark:text-[#f0ebe2] dark:border-[#2e2924]">
               LEVEL{" "}
@@ -695,7 +698,10 @@ export function DashboardPage() {
 
       {/* 2. Fact of the Day and Certificate Unlock */}
       <section className="grid gap-6 md:grid-cols-[1.3fr_0.7fr]">
-        <div id="tour-fact" className="rounded-2xl border-4 border-black bg-surface-low p-6 shadow-card dark:bg-[#1f1c18] dark:border-[#2e2924] dark:shadow-none flex items-start gap-4">
+        <div
+          id="tour-fact"
+          className="rounded-2xl border-4 border-black bg-surface-low p-6 shadow-card dark:bg-[#1f1c18] dark:border-[#2e2924] dark:shadow-none flex items-start gap-4"
+        >
           <div className="bg-white p-3 rounded-2xl border-2 border-black flex-shrink-0 text-2xl dark:bg-[#151411] dark:border-[#2e2924]">
             💡
           </div>
@@ -710,7 +716,10 @@ export function DashboardPage() {
         </div>
 
         {/* Certificate Card */}
-        <div id="tour-certificate" className="rounded-2xl border-4 border-black bg-white p-6 shadow-card dark:bg-[#1f1c18] dark:border-[#2e2924] dark:shadow-none flex flex-col justify-between">
+        <div
+          id="tour-certificate"
+          className="rounded-2xl border-4 border-black bg-white p-6 shadow-card dark:bg-[#1f1c18] dark:border-[#2e2924] dark:shadow-none flex flex-col justify-between"
+        >
           <div className="flex items-center gap-2">
             <span className="text-2xl">🎓</span>
             <div>
@@ -739,7 +748,10 @@ export function DashboardPage() {
 
       {/* 3. Learning Queue Sidebar & Course Completion Chart */}
       <section className="grid gap-6 xl:grid-cols-[1.3fr_0.7fr]">
-        <div id="tour-learning-queue" className="rounded-2xl border-4 border-black bg-white p-6 shadow-card dark:bg-[#1f1c18] dark:border-[#2e2924] dark:shadow-none">
+        <div
+          id="tour-learning-queue"
+          className="rounded-2xl border-4 border-black bg-white p-6 shadow-card dark:bg-[#1f1c18] dark:border-[#2e2924] dark:shadow-none"
+        >
           <h2 className="text-3xl font-black mb-6 flex items-center gap-3">
             <span className="bg-primary text-white w-10 h-10 rounded-full border-2 border-black flex items-center justify-center text-lg dark:bg-primary/20 dark:text-primary">
               📚

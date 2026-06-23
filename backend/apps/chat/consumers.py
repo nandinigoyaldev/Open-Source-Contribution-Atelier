@@ -151,6 +151,20 @@ class ChatConsumer(AsyncWebsocketConsumer):
             )
         )
 
+    async def public_key_broadcast(self, event):
+        if event["sender_channel"] == self.channel_name:
+            return
+        await self.send(
+            text_data=json.dumps(
+                {
+                    "type": "public_key",
+                    "username": event["username"],
+                    "user_id": event["user_id"],
+                    "public_key": event["public_key"],
+                }
+            )
+        )
+
     async def chat_message(self, event):
         await self.send(
             text_data=json.dumps(

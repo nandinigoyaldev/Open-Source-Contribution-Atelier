@@ -1,5 +1,5 @@
 import React from "react";
-
+import CopyButton from "./CopyButton";
 interface MarkdownRendererProps {
   content: string;
 }
@@ -74,12 +74,17 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
       }
       index++; // skip closing ```
       blocks.push(
-        <pre
-          key={index}
-          className="w-full overflow-x-auto p-4 bg-[#1a1510] text-[#ffebc2] border-4 border-black rounded-2xl font-mono text-sm my-4 shadow-card-sm dark:border-[#2e2924]"
-        >
-          <code className="block whitespace-pre">{codeContent.trim()}</code>
-        </pre>,
+        <div key={index} className="relative my-4">
+          <div className="absolute top-2 right-2 z-10">
+            <CopyButton text={codeContent.trim()} />
+          </div>
+
+          <pre className="w-full overflow-x-auto p-4 bg-[#1a1510] text-[#ffebc2] border-4 border-black rounded-2xl font-mono text-sm shadow-card-sm dark:border-[#2e2924]">
+            <code className="block whitespace-pre">
+              {codeContent.trim()}
+            </code>
+          </pre>
+        </div>,
       );
       continue;
     }

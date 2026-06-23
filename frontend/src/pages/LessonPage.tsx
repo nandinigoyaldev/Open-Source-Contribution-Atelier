@@ -15,9 +15,15 @@ import SkeletonLesson from "../components/ui/skeletons/SkeletonLesson";
 import { useUserProgress } from "../hooks/useUserProgress";
 import { fetchApi } from "../lib/api";
 import { Lesson, fetchLessonsApi, fetchLessonContent } from "../lib/lessons";
-import { MarkdownRenderer } from "../components/ui/MarkdownRenderer";
 import { RichTextEditor } from "../components/ui/RichTextEditor";
+
+const MarkdownRenderer = React.lazy(() =>
+  import("../components/ui/MarkdownRenderer").then((module) => ({
+    default: module.MarkdownRenderer,
+  }))
+);
 import { GitGraph } from "../components/ui/GitGraph";
+import { TextToSpeechControls } from "../components/ui/TextToSpeechControls";
 
 import {
   createInitialRepo,
@@ -447,9 +453,17 @@ export function LessonPage() {
 
             <hr className="border-2 border-black/10 dark:border-[#2e2924]/40" />
 
+            <TextToSpeechControls content={markdownContent} />
+
             {/* Markdown rendering logic */}
             <article className="prose max-w-none">
-              <MarkdownRenderer content={markdownContent} />
+              <React.Suspense 
+                fallback={
+                  <div className="w-full h-64 animate-pulse rounded-2xl border-4 border-black/20 bg-surface-low dark:border-[#2e2924]/50 dark:bg-[#151411]" />
+                }
+              >
+                <MarkdownRenderer content={markdownContent} />
+              </React.Suspense>
             </article>
 
             {/* Exercises & validation section */}
@@ -571,7 +585,7 @@ export function LessonPage() {
                       <button
                         onClick={handleQuizOptionCheck}
                         disabled={selectedOption === null}
-                        className="px-5 py-2.5 bg-primary text-black font-black text-sm rounded-lg border-4 border-black shadow-card-sm hover:-translate-y-0.5 disabled:opacity-50 transition-all cursor-pointer"
+                        className="px-5 py-2.5 bg-primary text-black font-black text-sm rounded-lg border-4 border-black shadow-card-sm hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-card-sm disabled:opacity-50 transition-all cursor-pointer"
                       >
                         Submit Answer
                       </button>
@@ -582,12 +596,12 @@ export function LessonPage() {
                 // CONFLICT SANDBOX MODE
                 <div className="mt-8">
                   {feedback === "correct" && (
-                    <div className="mt-6 text-green-700 font-bold bg-green-50 p-4 rounded-lg border-4 border-green-600 animate-bounce">
+                    <div role="status" className="mt-6 text-green-700 font-bold bg-green-50 p-4 rounded-lg border-4 border-green-600 animate-bounce">
                       ✅ Correct! You successfully resolved the merge conflict.
                     </div>
                   )}
                   {feedback === "error" && (
-                    <div className="mt-6 text-red-700 font-bold bg-red-50 p-4 rounded-lg border-4 border-red-600">
+                    <div role="alert" className="mt-6 text-red-700 font-bold bg-red-50 p-4 rounded-lg border-4 border-red-600">
                       ❌ The resolved output doesn't quite match what was
                       expected. Try reviewing your selections.
                     </div>
@@ -621,7 +635,9 @@ export function LessonPage() {
                       </span>
                       <input
                         className="flex-1 min-w-0 rounded-lg border-4 border-black bg-surface-lowest px-4 py-2.5 text-text font-bold outline-none placeholder:text-muted/40 dark:bg-[#151411] dark:border-[#2e2924]"
-                        placeholder={lesson.hint || "Type your git command here"}
+                        placeholder={
+                          lesson.hint || "Type your git command here"
+                        }
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
                         onKeyDown={(e) => {
@@ -637,7 +653,7 @@ export function LessonPage() {
                       />
                       <button
                         type="submit"
-                        className="px-5 py-2.5 bg-primary text-black font-black text-sm rounded-lg border-4 border-black shadow-card-sm hover:-translate-y-0.5 disabled:opacity-50 transition-all cursor-pointer flex items-center justify-center gap-2 min-w-[72px]"
+                        className="px-5 py-2.5 bg-primary text-black font-black text-sm rounded-lg border-4 border-black shadow-card-sm hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-card-sm disabled:opacity-50 transition-all cursor-pointer flex items-center justify-center gap-2 min-w-[72px]"
                         disabled={
                           feedback === "correct" || !input.trim() || isExecuting
                         }
@@ -664,13 +680,13 @@ export function LessonPage() {
                     )}
 
                     {feedback === "correct" && (
-                      <div className="text-green-700 font-bold bg-green-50 p-4 rounded-lg border-4 border-green-600 animate-bounce">
+                      <div role="status" className="text-green-700 font-bold bg-green-50 p-4 rounded-lg border-4 border-green-600 animate-bounce">
                         ✅ Correct! Progress synchronized to the Atelier server.
                       </div>
                     )}
 
                     {feedback === "error" && (
-                      <div className="text-red-700 font-bold bg-red-50 p-4 rounded-lg border-4 border-red-600">
+                      <div role="alert" className="text-red-700 font-bold bg-red-50 p-4 rounded-lg border-4 border-red-600">
                         ❌ Not quite. Command output did not match sandbox
                         expectations.
                       </div>
@@ -805,20 +821,20 @@ export function LessonPage() {
               />
 
               {helpRequestMutation.isError && (
-                <div className="text-red-700 text-xs font-black bg-red-50 p-2 rounded-lg border-2 border-red-700">
+                <div role="alert" className="text-red-700 text-xs font-black bg-red-50 p-2 rounded-lg border-2 border-red-700">
                   Couldn&apos;t submit request. Re-run backend server checks.
                 </div>
               )}
 
               {helpSuccessMessage && (
-                <div className="text-green-700 text-xs font-black bg-green-50 p-2 rounded-lg border-2 border-green-700">
+                <div role="status" className="text-green-700 text-xs font-black bg-green-50 p-2 rounded-lg border-2 border-green-700">
                   {helpSuccessMessage}
                 </div>
               )}
 
               <button
                 type="submit"
-                className="w-full px-4 py-2 bg-primary text-black font-bold rounded-lg border-4 border-black shadow-gel hover:bg-[#E62814] disabled:opacity-60"
+                className="w-full px-4 py-2 bg-primary text-black font-bold rounded-lg border-4 border-black shadow-card hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-card-sm transition-all disabled:opacity-60"
                 disabled={!helpMessage.trim() || helpRequestMutation.isPending}
               >
                 {helpRequestMutation.isPending
