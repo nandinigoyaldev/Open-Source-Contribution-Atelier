@@ -1,3 +1,18 @@
+import { precacheAndRoute, cleanupOutdatedCaches } from "workbox-precaching";
+import { registerRoute } from "workbox-routing";
+import { NetworkFirst } from "workbox-strategies";
+
+cleanupOutdatedCaches();
+precacheAndRoute(self.__WB_MANIFEST);
+
+// Cache curriculum content dynamically if not precached
+registerRoute(
+  ({ url }) => url.pathname.startsWith("/content/"),
+  new NetworkFirst({
+    cacheName: "content-runtime-cache",
+  }),
+);
+
 const DB_NAME = "atelier-offline-db";
 const STORE_NAME = "sync-queue";
 const DB_VERSION = 1;
@@ -24,6 +39,51 @@ self.addEventListener("message", (event) => {
   if (event.data && event.data.type === "TRIGGER_SYNC") {
     event.waitUntil(syncProgressQueue());
   }
+});
+
+self.addEventListener("push", (event) => {
+  console.log("[ServiceWorker] Push event received:", event);
+  if (!event.data) return;
+
+  try {
+    const data = event.data.json();
+    const title = data.title || "New Notification";
+    const options = {
+      body: data.message || "You have a new message.",
+      icon: "/vite.svg", // Fallback icon
+      badge: "/vite.svg",
+      data: {
+        url: data.url || "/"
+      }
+    };
+
+    event.waitUntil(self.registration.showNotification(title, options));
+  } catch (err) {
+    console.error("[ServiceWorker] Error parsing push data", err);
+  }
+});
+
+self.addEventListener("notificationclick", (event) => {
+  console.log("[ServiceWorker] Notification click Received.");
+  event.notification.close();
+
+  const urlToOpen = event.notification.data?.url || "/";
+
+  event.waitUntil(
+    self.clients.matchAll({ type: "window", includeUncontrolled: true }).then((windowClients) => {
+      // Check if there is already a window/tab open with the target URL
+      for (let i = 0; i < windowClients.length; i++) {
+        const client = windowClients[i];
+        if (client.url.includes(urlToOpen) && "focus" in client) {
+          return client.focus();
+        }
+      }
+      // If not, open a new window
+      if (self.clients.openWindow) {
+        return self.clients.openWindow(urlToOpen);
+      }
+    })
+  );
 });
 
 function openDB() {

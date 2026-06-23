@@ -168,6 +168,7 @@ npm run dev
 
 Run tests locally to prevent regressions:
 - **Backend tests**: `cd backend && pytest`
+- **Backend WebSocket tests**: `cd backend && pytest apps/notifications/tests/test_consumers.py apps/chat/tests/test_consumers.py`
 - **Frontend tests**: `cd frontend && npm run test`
 
 ### Performance Budgeting

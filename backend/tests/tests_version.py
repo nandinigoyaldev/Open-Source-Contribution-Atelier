@@ -26,15 +26,11 @@ class TestVersionEndpoint:
 
     def test_falls_back_to_git_commit_hash(self, api_client, monkeypatch):
         monkeypatch.delenv("APP_VERSION", raising=False)
-        with patch(
-            "config.version_view._get_git_commit_hash", return_value="abc1234"
-        ):
+        with patch("config.version_view._get_git_commit_hash", return_value="abc1234"):
             response = api_client.get("/api/version/")
         assert response.json()["version"] == "abc1234"
 
-    def test_falls_back_to_unknown_when_no_git_available(
-        self, api_client, monkeypatch
-    ):
+    def test_falls_back_to_unknown_when_no_git_available(self, api_client, monkeypatch):
         monkeypatch.delenv("APP_VERSION", raising=False)
         with patch("config.version_view._get_git_commit_hash", return_value=None):
             response = api_client.get("/api/version/")

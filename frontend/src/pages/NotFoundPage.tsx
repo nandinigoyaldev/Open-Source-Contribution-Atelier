@@ -29,7 +29,7 @@ export function NotFoundPage() {
             <div className="mt-8 flex flex-wrap items-center gap-4">
               <Link
                 to="/"
-                className="inline-flex items-center justify-center rounded-2xl border-4 border-black bg-primary px-6 py-4 font-black text-black text-lg shadow-gel hover:bg-[#E62814] active:translate-y-2 transition-all uppercase tracking-wide"
+                className="inline-flex items-center justify-center rounded-2xl border-4 border-black bg-primary px-6 py-4 font-black text-black text-lg shadow-card hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-card-sm transition-all uppercase tracking-wide"
               >
                 Back to Home
               </Link>

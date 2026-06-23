@@ -14,6 +14,7 @@ type User = {
   email: string;
   is_staff: boolean;
   avatar_url?: string | null;
+  timezone?: string;
 };
 
 type AuthContextType = {
@@ -59,7 +60,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     checkUser();
   };
 
-  const logout = () => {
+  const logout = async () => {
+    try {
+      if ("serviceWorker" in navigator && "PushManager" in window) {
+        const reg = await navigator.serviceWorker.ready;
+        const sub = await reg.pushManager.getSubscription();
+        if (sub) {
+          const endpoint = sub.endpoint;
+          await sub.unsubscribe();
+          try {
+            await fetchApi("/notifications/push/unsubscribe/", {
+              method: "POST",
+              requireAuth: true,
+              body: JSON.stringify({ endpoint })
+            });
+          } catch (e) {
+            console.error("Failed to notify backend of push unsubscribe", e);
+          }
+        }
+      }
+    } catch (e) {
+      console.error("Error unsubscribing push on logout", e);
+    }
+    
     safeRemoveItem("accessToken");
     safeRemoveItem("refreshToken");
     setUser(null);

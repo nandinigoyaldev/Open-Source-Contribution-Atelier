@@ -1,0 +1,2520 @@
+============================= test session starts =============================
+platform win32 -- Python 3.13.7, pytest-9.1.1, pluggy-1.6.0 -- X:\SSOC\Open-Source-Contribution-Atelier\backend\.venv\Scripts\python.exe
+cachedir: .pytest_cache
+django: version: 5.1.15, settings: config.settings (from ini)
+rootdir: X:\SSOC\Open-Source-Contribution-Atelier\backend
+configfile: pytest.ini
+plugins: Faker-40.23.0, asyncio-1.4.0, django-4.12.0
+asyncio: mode=Mode.STRICT, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... collected 6 items
+
+apps/progress/test_bulk_update.py::BulkProgressUpdateTests::test_duplicate_entries_rejected FAILED [ 16%]
+apps/progress/test_bulk_update.py::BulkProgressUpdateTests::test_invalid_lesson_id_rolls_back_transaction FAILED [ 33%]
+apps/progress/test_bulk_update.py::BulkProgressUpdateTests::test_malformed_request_rejected FAILED [ 50%]
+apps/progress/test_bulk_update.py::BulkProgressUpdateTests::test_unauthenticated_returns_401 FAILED [ 66%]
+apps/progress/test_bulk_update.py::BulkProgressUpdateTests::test_valid_bulk_update_creates_new_progress FAILED [ 83%]
+apps/progress/test_bulk_update.py::BulkProgressUpdateTests::test_valid_bulk_update_updates_existing_progress FAILED [100%]
+
+================================== FAILURES ===================================
+___________ BulkProgressUpdateTests.test_duplicate_entries_rejected ___________
+
+self = <redis.connection.Connection(host=127.0.0.1,port=6379,db=0)>
+check_health = True, retry_socket_connect = False
+
+    def connect_check_health(
+        self, check_health: bool = True, retry_socket_connect: bool = True
+    ):
+        if self._sock:
+            return
+        # Track actual retry attempts for error reporting
+        actual_retry_attempts = [0]
+    
+        def failure_callback(error, failure_count):
+            actual_retry_attempts[0] = failure_count
+            self.disconnect(error=error, failure_count=failure_count)
+    
+        try:
+            if retry_socket_connect:
+                sock = self.retry.call_with_retry(
+                    self._connect,
+                    failure_callback,
+                    with_failure_count=True,
+                )
+            else:
+>               sock = self._connect()
+                       ^^^^^^^^^^^^^^^
+
+.venv\Lib\site-packages\redis\connection.py:1033: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+.venv\Lib\site-packages\redis\connection.py:1581: in _connect
+    raise err
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <redis.connection.Connection(host=127.0.0.1,port=6379,db=0)>
+
+    def _connect(self):
+        "Create a TCP socket connection"
+        # we want to mimic what socket.create_connection does to support
+        # ipv4/ipv6, but we want to set options prior to calling
+        # socket.connect()
+        err = None
+    
+        for res in socket.getaddrinfo(
+            self.host, self.port, self.socket_type, socket.SOCK_STREAM
+        ):
+            family, socktype, proto, canonname, socket_address = res
+            sock = None
+            try:
+                sock = socket.socket(family, socktype, proto)
+                # TCP_NODELAY
+                sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+    
+                # TCP_KEEPALIVE
+                if self.socket_keepalive:
+                    sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+                    for k, v in self.socket_keepalive_options.items():
+                        sock.setsockopt(socket.IPPROTO_TCP, k, v)
+    
+                # set the socket_connect_timeout before we connect
+                sock.settimeout(self.socket_connect_timeout)
+    
+                # connect
+>               sock.connect(socket_address)
+E               ConnectionRefusedError: [WinError 10061] No connection could be made because the target machine actively refused it
+
+.venv\Lib\site-packages\redis\connection.py:1565: ConnectionRefusedError
+
+During handling of the above exception, another exception occurred:
+
+self = <celery.backends.redis.ResultConsumer object at 0x0000029DDCF6A3C0>
+
+    @contextmanager
+    def reconnect_on_error(self):
+        try:
+>           yield
+
+.venv\Lib\site-packages\celery\backends\redis.py:127: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+.venv\Lib\site-packages\celery\backends\redis.py:177: in _consume_from
+    self._pubsub.subscribe(key)
+.venv\Lib\site-packages\redis\client.py:1360: in subscribe
+    ret_val = self.execute_command("SUBSCRIBE", *new_channels.keys())
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\redis\client.py:1073: in execute_command
+    self.connection = self.connection_pool.get_connection()
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\redis\utils.py:258: in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\redis\connection.py:3139: in get_connection
+    connection.connect()
+.venv\Lib\site-packages\redis\connection.py:1006: in connect
+    self.retry.call_with_retry(
+.venv\Lib\site-packages\redis\retry.py:132: in call_with_retry
+    raise error
+.venv\Lib\site-packages\redis\retry.py:120: in call_with_retry
+    return do()
+           ^^^^
+.venv\Lib\site-packages\redis\connection.py:1007: in <lambda>
+    lambda: self.connect_check_health(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <redis.connection.Connection(host=127.0.0.1,port=6379,db=0)>
+check_health = True, retry_socket_connect = False
+
+    def connect_check_health(
+        self, check_health: bool = True, retry_socket_connect: bool = True
+    ):
+        if self._sock:
+            return
+        # Track actual retry attempts for error reporting
+        actual_retry_attempts = [0]
+    
+        def failure_callback(error, failure_count):
+            actual_retry_attempts[0] = failure_count
+            self.disconnect(error=error, failure_count=failure_count)
+    
+        try:
+            if retry_socket_connect:
+                sock = self.retry.call_with_retry(
+                    self._connect,
+                    failure_callback,
+                    with_failure_count=True,
+                )
+            else:
+                sock = self._connect()
+        except socket.timeout:
+            e = TimeoutError("Timeout connecting to server")
+            record_error_count(
+                server_address=self.host,
+                server_port=self.port,
+                network_peer_address=self.host,
+                network_peer_port=self.port,
+                error_type=e,
+                retry_attempts=actual_retry_attempts[0],
+            )
+            raise e
+        except OSError as e:
+            e = ConnectionError(self._error_message(e))
+            record_error_count(
+                server_address=getattr(self, "host", None),
+                server_port=getattr(self, "port", None),
+                network_peer_address=getattr(self, "host", None),
+                network_peer_port=getattr(self, "port", None),
+                error_type=e,
+                retry_attempts=actual_retry_attempts[0],
+            )
+>           raise e
+E           redis.exceptions.ConnectionError: Error 10061 connecting to 127.0.0.1:6379. No connection could be made because the target machine actively refused it.
+
+.venv\Lib\site-packages\redis\connection.py:1055: ConnectionError
+
+During handling of the above exception, another exception occurred:
+
+self = <redis.connection.Connection(host=127.0.0.1,port=6379,db=0)>
+check_health = True, retry_socket_connect = False
+
+    def connect_check_health(
+        self, check_health: bool = True, retry_socket_connect: bool = True
+    ):
+        if self._sock:
+            return
+        # Track actual retry attempts for error reporting
+        actual_retry_attempts = [0]
+    
+        def failure_callback(error, failure_count):
+            actual_retry_attempts[0] = failure_count
+            self.disconnect(error=error, failure_count=failure_count)
+    
+        try:
+            if retry_socket_connect:
+                sock = self.retry.call_with_retry(
+                    self._connect,
+                    failure_callback,
+                    with_failure_count=True,
+                )
+            else:
+>               sock = self._connect()
+                       ^^^^^^^^^^^^^^^
+
+.venv\Lib\site-packages\redis\connection.py:1033: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+.venv\Lib\site-packages\redis\connection.py:1581: in _connect
+    raise err
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <redis.connection.Connection(host=127.0.0.1,port=6379,db=0)>
+
+    def _connect(self):
+        "Create a TCP socket connection"
+        # we want to mimic what socket.create_connection does to support
+        # ipv4/ipv6, but we want to set options prior to calling
+        # socket.connect()
+        err = None
+    
+        for res in socket.getaddrinfo(
+            self.host, self.port, self.socket_type, socket.SOCK_STREAM
+        ):
+            family, socktype, proto, canonname, socket_address = res
+            sock = None
+            try:
+                sock = socket.socket(family, socktype, proto)
+                # TCP_NODELAY
+                sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+    
+                # TCP_KEEPALIVE
+                if self.socket_keepalive:
+                    sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+                    for k, v in self.socket_keepalive_options.items():
+                        sock.setsockopt(socket.IPPROTO_TCP, k, v)
+    
+                # set the socket_connect_timeout before we connect
+                sock.settimeout(self.socket_connect_timeout)
+    
+                # connect
+>               sock.connect(socket_address)
+E               ConnectionRefusedError: [WinError 10061] No connection could be made because the target machine actively refused it
+
+.venv\Lib\site-packages\redis\connection.py:1565: ConnectionRefusedError
+
+During handling of the above exception, another exception occurred:
+
+self = <Connection: redis://127.0.0.1:6379/0 at 0x29ddcf697f0>
+ConnectionError = <class 'kombu.exceptions.OperationalError'>
+ChannelError = <class 'kombu.exceptions.OperationalError'>
+
+    @contextmanager
+    def _reraise_as_library_errors(
+            self,
+            ConnectionError=exceptions.OperationalError,
+            ChannelError=exceptions.OperationalError):
+        try:
+>           yield
+
+.venv\Lib\site-packages\kombu\connection.py:474: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+.venv\Lib\site-packages\celery\app\base.py:800: in send_task
+    self.backend.on_task_call(P, task_id)
+.venv\Lib\site-packages\celery\backends\redis.py:373: in on_task_call
+    self.result_consumer.consume_from(task_id)
+.venv\Lib\site-packages\celery\backends\redis.py:169: in consume_from
+    return self.start(task_id)
+           ^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\celery\backends\redis.py:147: in start
+    self._consume_from(initial_task_id)
+.venv\Lib\site-packages\celery\backends\redis.py:176: in _consume_from
+    with self.reconnect_on_error():
+         ^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\Madhavi\AppData\Local\Programs\Python\Python313\Lib\contextlib.py:162: in __exit__
+    self.gen.throw(value)
+.venv\Lib\site-packages\celery\backends\redis.py:130: in reconnect_on_error
+    self._ensure(self._reconnect_pubsub, ())
+.venv\Lib\site-packages\celery\backends\redis.py:384: in ensure
+    return retry_over_time(
+.venv\Lib\site-packages\kombu\utils\functional.py:318: in retry_over_time
+    return fun(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\celery\backends\redis.py:106: in _reconnect_pubsub
+    metas = self.backend.client.mget(self.subscribed_to)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\redis\commands\core.py:3637: in mget
+    return self.execute_command("MGET", *args, **options)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\redis\client.py:787: in execute_command
+    return self._execute_command(*args, **options)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\redis\client.py:793: in _execute_command
+    conn = self.connection or pool.get_connection()
+                              ^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\redis\utils.py:258: in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\redis\connection.py:3139: in get_connection
+    connection.connect()
+.venv\Lib\site-packages\redis\connection.py:1006: in connect
+    self.retry.call_with_retry(
+.venv\Lib\site-packages\redis\retry.py:132: in call_with_retry
+    raise error
+.venv\Lib\site-packages\redis\retry.py:120: in call_with_retry
+    return do()
+           ^^^^
+.venv\Lib\site-packages\redis\connection.py:1007: in <lambda>
+    lambda: self.connect_check_health(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <redis.connection.Connection(host=127.0.0.1,port=6379,db=0)>
+check_health = True, retry_socket_connect = False
+
+    def connect_check_health(
+        self, check_health: bool = True, retry_socket_connect: bool = True
+    ):
+        if self._sock:
+            return
+        # Track actual retry attempts for error reporting
+        actual_retry_attempts = [0]
+    
+        def failure_callback(error, failure_count):
+            actual_retry_attempts[0] = failure_count
+            self.disconnect(error=error, failure_count=failure_count)
+    
+        try:
+            if retry_socket_connect:
+                sock = self.retry.call_with_retry(
+                    self._connect,
+                    failure_callback,
+                    with_failure_count=True,
+                )
+            else:
+                sock = self._connect()
+        except socket.timeout:
+            e = TimeoutError("Timeout connecting to server")
+            record_error_count(
+                server_address=self.host,
+                server_port=self.port,
+                network_peer_address=self.host,
+                network_peer_port=self.port,
+                error_type=e,
+                retry_attempts=actual_retry_attempts[0],
+            )
+            raise e
+        except OSError as e:
+            e = ConnectionError(self._error_message(e))
+            record_error_count(
+                server_address=getattr(self, "host", None),
+                server_port=getattr(self, "port", None),
+                network_peer_address=getattr(self, "host", None),
+                network_peer_port=getattr(self, "port", None),
+                error_type=e,
+                retry_attempts=actual_retry_attempts[0],
+            )
+>           raise e
+E           redis.exceptions.ConnectionError: Error 10061 connecting to 127.0.0.1:6379. No connection could be made because the target machine actively refused it.
+
+.venv\Lib\site-packages\redis\connection.py:1055: ConnectionError
+
+The above exception was the direct cause of the following exception:
+
+self = <apps.progress.test_bulk_update.BulkProgressUpdateTests testMethod=test_duplicate_entries_rejected>
+
+    def setUp(self):
+>       self.user = User.objects.create_user(username="testuser", password="password123")
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+apps\progress\test_bulk_update.py:11: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+.venv\Lib\site-packages\django\contrib\auth\models.py:162: in create_user
+    return self._create_user(username, email, password, **extra_fields)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\django\contrib\auth\models.py:156: in _create_user
+    user.save(using=self._db)
+.venv\Lib\site-packages\django\contrib\auth\base_user.py:62: in save
+    super().save(*args, **kwargs)
+.venv\Lib\site-packages\django\db\models\base.py:892: in save
+    self.save_base(
+.venv\Lib\site-packages\django\db\models\base.py:1013: in save_base
+    post_save.send(
+.venv\Lib\site-packages\django\dispatch\dispatcher.py:189: in send
+    response = receiver(signal=self, sender=sender, **named)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+apps\search\signals.py:46: in index_user
+    index_model_for_search.delay(
+.venv\Lib\site-packages\celery\app\task.py:444: in delay
+    return self.apply_async(args, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\celery\app\task.py:594: in apply_async
+    return app.send_task(
+.venv\Lib\site-packages\celery\app\base.py:798: in send_task
+    with P.connection._reraise_as_library_errors():
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\Madhavi\AppData\Local\Programs\Python\Python313\Lib\contextlib.py:162: in __exit__
+    self.gen.throw(value)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <Connection: redis://127.0.0.1:6379/0 at 0x29ddcf697f0>
+ConnectionError = <class 'kombu.exceptions.OperationalError'>
+ChannelError = <class 'kombu.exceptions.OperationalError'>
+
+    @contextmanager
+    def _reraise_as_library_errors(
+            self,
+            ConnectionError=exceptions.OperationalError,
+            ChannelError=exceptions.OperationalError):
+        try:
+            yield
+        except (ConnectionError, ChannelError):
+            raise
+        except self.recoverable_connection_errors as exc:
+>           raise ConnectionError(str(exc)) from exc
+E           kombu.exceptions.OperationalError: Error 10061 connecting to 127.0.0.1:6379. No connection could be made because the target machine actively refused it.
+
+.venv\Lib\site-packages\kombu\connection.py:478: OperationalError
+---------------------------- Captured stderr setup ----------------------------
+Creating test database for alias 'default'...
+------------------------------ Captured log call ------------------------------
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (0/20) now.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (1/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (2/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (3/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (4/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (5/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (6/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (7/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (8/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (9/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (10/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (11/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (12/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (13/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (14/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (15/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (16/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (17/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (18/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (19/20) in 1.00 second.
+CRITICAL celery.backends.redis:redis.py:132 
+Retry limit exceeded while trying to reconnect to the Celery redis result store backend. The Celery application must be restarted.
+____ BulkProgressUpdateTests.test_invalid_lesson_id_rolls_back_transaction ____
+
+self = <redis.connection.Connection(host=127.0.0.1,port=6379,db=0)>
+check_health = True, retry_socket_connect = False
+
+    def connect_check_health(
+        self, check_health: bool = True, retry_socket_connect: bool = True
+    ):
+        if self._sock:
+            return
+        # Track actual retry attempts for error reporting
+        actual_retry_attempts = [0]
+    
+        def failure_callback(error, failure_count):
+            actual_retry_attempts[0] = failure_count
+            self.disconnect(error=error, failure_count=failure_count)
+    
+        try:
+            if retry_socket_connect:
+                sock = self.retry.call_with_retry(
+                    self._connect,
+                    failure_callback,
+                    with_failure_count=True,
+                )
+            else:
+>               sock = self._connect()
+                       ^^^^^^^^^^^^^^^
+
+.venv\Lib\site-packages\redis\connection.py:1033: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+.venv\Lib\site-packages\redis\connection.py:1581: in _connect
+    raise err
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <redis.connection.Connection(host=127.0.0.1,port=6379,db=0)>
+
+    def _connect(self):
+        "Create a TCP socket connection"
+        # we want to mimic what socket.create_connection does to support
+        # ipv4/ipv6, but we want to set options prior to calling
+        # socket.connect()
+        err = None
+    
+        for res in socket.getaddrinfo(
+            self.host, self.port, self.socket_type, socket.SOCK_STREAM
+        ):
+            family, socktype, proto, canonname, socket_address = res
+            sock = None
+            try:
+                sock = socket.socket(family, socktype, proto)
+                # TCP_NODELAY
+                sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+    
+                # TCP_KEEPALIVE
+                if self.socket_keepalive:
+                    sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+                    for k, v in self.socket_keepalive_options.items():
+                        sock.setsockopt(socket.IPPROTO_TCP, k, v)
+    
+                # set the socket_connect_timeout before we connect
+                sock.settimeout(self.socket_connect_timeout)
+    
+                # connect
+>               sock.connect(socket_address)
+E               ConnectionRefusedError: [WinError 10061] No connection could be made because the target machine actively refused it
+
+.venv\Lib\site-packages\redis\connection.py:1565: ConnectionRefusedError
+
+During handling of the above exception, another exception occurred:
+
+self = <celery.backends.redis.ResultConsumer object at 0x0000029DDCF6A3C0>
+
+    @contextmanager
+    def reconnect_on_error(self):
+        try:
+>           yield
+
+.venv\Lib\site-packages\celery\backends\redis.py:127: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+.venv\Lib\site-packages\celery\backends\redis.py:177: in _consume_from
+    self._pubsub.subscribe(key)
+.venv\Lib\site-packages\redis\client.py:1360: in subscribe
+    ret_val = self.execute_command("SUBSCRIBE", *new_channels.keys())
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\redis\client.py:1073: in execute_command
+    self.connection = self.connection_pool.get_connection()
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\redis\utils.py:258: in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\redis\connection.py:3139: in get_connection
+    connection.connect()
+.venv\Lib\site-packages\redis\connection.py:1006: in connect
+    self.retry.call_with_retry(
+.venv\Lib\site-packages\redis\retry.py:132: in call_with_retry
+    raise error
+.venv\Lib\site-packages\redis\retry.py:120: in call_with_retry
+    return do()
+           ^^^^
+.venv\Lib\site-packages\redis\connection.py:1007: in <lambda>
+    lambda: self.connect_check_health(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <redis.connection.Connection(host=127.0.0.1,port=6379,db=0)>
+check_health = True, retry_socket_connect = False
+
+    def connect_check_health(
+        self, check_health: bool = True, retry_socket_connect: bool = True
+    ):
+        if self._sock:
+            return
+        # Track actual retry attempts for error reporting
+        actual_retry_attempts = [0]
+    
+        def failure_callback(error, failure_count):
+            actual_retry_attempts[0] = failure_count
+            self.disconnect(error=error, failure_count=failure_count)
+    
+        try:
+            if retry_socket_connect:
+                sock = self.retry.call_with_retry(
+                    self._connect,
+                    failure_callback,
+                    with_failure_count=True,
+                )
+            else:
+                sock = self._connect()
+        except socket.timeout:
+            e = TimeoutError("Timeout connecting to server")
+            record_error_count(
+                server_address=self.host,
+                server_port=self.port,
+                network_peer_address=self.host,
+                network_peer_port=self.port,
+                error_type=e,
+                retry_attempts=actual_retry_attempts[0],
+            )
+            raise e
+        except OSError as e:
+            e = ConnectionError(self._error_message(e))
+            record_error_count(
+                server_address=getattr(self, "host", None),
+                server_port=getattr(self, "port", None),
+                network_peer_address=getattr(self, "host", None),
+                network_peer_port=getattr(self, "port", None),
+                error_type=e,
+                retry_attempts=actual_retry_attempts[0],
+            )
+>           raise e
+E           redis.exceptions.ConnectionError: Error 10061 connecting to 127.0.0.1:6379. No connection could be made because the target machine actively refused it.
+
+.venv\Lib\site-packages\redis\connection.py:1055: ConnectionError
+
+During handling of the above exception, another exception occurred:
+
+self = <redis.connection.Connection(host=127.0.0.1,port=6379,db=0)>
+check_health = True, retry_socket_connect = False
+
+    def connect_check_health(
+        self, check_health: bool = True, retry_socket_connect: bool = True
+    ):
+        if self._sock:
+            return
+        # Track actual retry attempts for error reporting
+        actual_retry_attempts = [0]
+    
+        def failure_callback(error, failure_count):
+            actual_retry_attempts[0] = failure_count
+            self.disconnect(error=error, failure_count=failure_count)
+    
+        try:
+            if retry_socket_connect:
+                sock = self.retry.call_with_retry(
+                    self._connect,
+                    failure_callback,
+                    with_failure_count=True,
+                )
+            else:
+>               sock = self._connect()
+                       ^^^^^^^^^^^^^^^
+
+.venv\Lib\site-packages\redis\connection.py:1033: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+.venv\Lib\site-packages\redis\connection.py:1581: in _connect
+    raise err
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <redis.connection.Connection(host=127.0.0.1,port=6379,db=0)>
+
+    def _connect(self):
+        "Create a TCP socket connection"
+        # we want to mimic what socket.create_connection does to support
+        # ipv4/ipv6, but we want to set options prior to calling
+        # socket.connect()
+        err = None
+    
+        for res in socket.getaddrinfo(
+            self.host, self.port, self.socket_type, socket.SOCK_STREAM
+        ):
+            family, socktype, proto, canonname, socket_address = res
+            sock = None
+            try:
+                sock = socket.socket(family, socktype, proto)
+                # TCP_NODELAY
+                sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+    
+                # TCP_KEEPALIVE
+                if self.socket_keepalive:
+                    sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+                    for k, v in self.socket_keepalive_options.items():
+                        sock.setsockopt(socket.IPPROTO_TCP, k, v)
+    
+                # set the socket_connect_timeout before we connect
+                sock.settimeout(self.socket_connect_timeout)
+    
+                # connect
+>               sock.connect(socket_address)
+E               ConnectionRefusedError: [WinError 10061] No connection could be made because the target machine actively refused it
+
+.venv\Lib\site-packages\redis\connection.py:1565: ConnectionRefusedError
+
+During handling of the above exception, another exception occurred:
+
+self = <Connection: redis://127.0.0.1:6379/0 at 0x29ddcf697f0>
+ConnectionError = <class 'kombu.exceptions.OperationalError'>
+ChannelError = <class 'kombu.exceptions.OperationalError'>
+
+    @contextmanager
+    def _reraise_as_library_errors(
+            self,
+            ConnectionError=exceptions.OperationalError,
+            ChannelError=exceptions.OperationalError):
+        try:
+>           yield
+
+.venv\Lib\site-packages\kombu\connection.py:474: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+.venv\Lib\site-packages\celery\app\base.py:800: in send_task
+    self.backend.on_task_call(P, task_id)
+.venv\Lib\site-packages\celery\backends\redis.py:373: in on_task_call
+    self.result_consumer.consume_from(task_id)
+.venv\Lib\site-packages\celery\backends\redis.py:169: in consume_from
+    return self.start(task_id)
+           ^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\celery\backends\redis.py:147: in start
+    self._consume_from(initial_task_id)
+.venv\Lib\site-packages\celery\backends\redis.py:176: in _consume_from
+    with self.reconnect_on_error():
+         ^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\Madhavi\AppData\Local\Programs\Python\Python313\Lib\contextlib.py:162: in __exit__
+    self.gen.throw(value)
+.venv\Lib\site-packages\celery\backends\redis.py:130: in reconnect_on_error
+    self._ensure(self._reconnect_pubsub, ())
+.venv\Lib\site-packages\celery\backends\redis.py:384: in ensure
+    return retry_over_time(
+.venv\Lib\site-packages\kombu\utils\functional.py:318: in retry_over_time
+    return fun(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\celery\backends\redis.py:106: in _reconnect_pubsub
+    metas = self.backend.client.mget(self.subscribed_to)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\redis\commands\core.py:3637: in mget
+    return self.execute_command("MGET", *args, **options)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\redis\client.py:787: in execute_command
+    return self._execute_command(*args, **options)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\redis\client.py:793: in _execute_command
+    conn = self.connection or pool.get_connection()
+                              ^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\redis\utils.py:258: in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\redis\connection.py:3139: in get_connection
+    connection.connect()
+.venv\Lib\site-packages\redis\connection.py:1006: in connect
+    self.retry.call_with_retry(
+.venv\Lib\site-packages\redis\retry.py:132: in call_with_retry
+    raise error
+.venv\Lib\site-packages\redis\retry.py:120: in call_with_retry
+    return do()
+           ^^^^
+.venv\Lib\site-packages\redis\connection.py:1007: in <lambda>
+    lambda: self.connect_check_health(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <redis.connection.Connection(host=127.0.0.1,port=6379,db=0)>
+check_health = True, retry_socket_connect = False
+
+    def connect_check_health(
+        self, check_health: bool = True, retry_socket_connect: bool = True
+    ):
+        if self._sock:
+            return
+        # Track actual retry attempts for error reporting
+        actual_retry_attempts = [0]
+    
+        def failure_callback(error, failure_count):
+            actual_retry_attempts[0] = failure_count
+            self.disconnect(error=error, failure_count=failure_count)
+    
+        try:
+            if retry_socket_connect:
+                sock = self.retry.call_with_retry(
+                    self._connect,
+                    failure_callback,
+                    with_failure_count=True,
+                )
+            else:
+                sock = self._connect()
+        except socket.timeout:
+            e = TimeoutError("Timeout connecting to server")
+            record_error_count(
+                server_address=self.host,
+                server_port=self.port,
+                network_peer_address=self.host,
+                network_peer_port=self.port,
+                error_type=e,
+                retry_attempts=actual_retry_attempts[0],
+            )
+            raise e
+        except OSError as e:
+            e = ConnectionError(self._error_message(e))
+            record_error_count(
+                server_address=getattr(self, "host", None),
+                server_port=getattr(self, "port", None),
+                network_peer_address=getattr(self, "host", None),
+                network_peer_port=getattr(self, "port", None),
+                error_type=e,
+                retry_attempts=actual_retry_attempts[0],
+            )
+>           raise e
+E           redis.exceptions.ConnectionError: Error 10061 connecting to 127.0.0.1:6379. No connection could be made because the target machine actively refused it.
+
+.venv\Lib\site-packages\redis\connection.py:1055: ConnectionError
+
+The above exception was the direct cause of the following exception:
+
+self = <apps.progress.test_bulk_update.BulkProgressUpdateTests testMethod=test_invalid_lesson_id_rolls_back_transaction>
+
+    def setUp(self):
+>       self.user = User.objects.create_user(username="testuser", password="password123")
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+apps\progress\test_bulk_update.py:11: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+.venv\Lib\site-packages\django\contrib\auth\models.py:162: in create_user
+    return self._create_user(username, email, password, **extra_fields)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\django\contrib\auth\models.py:156: in _create_user
+    user.save(using=self._db)
+.venv\Lib\site-packages\django\contrib\auth\base_user.py:62: in save
+    super().save(*args, **kwargs)
+.venv\Lib\site-packages\django\db\models\base.py:892: in save
+    self.save_base(
+.venv\Lib\site-packages\django\db\models\base.py:1013: in save_base
+    post_save.send(
+.venv\Lib\site-packages\django\dispatch\dispatcher.py:189: in send
+    response = receiver(signal=self, sender=sender, **named)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+apps\search\signals.py:46: in index_user
+    index_model_for_search.delay(
+.venv\Lib\site-packages\celery\app\task.py:444: in delay
+    return self.apply_async(args, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\celery\app\task.py:594: in apply_async
+    return app.send_task(
+.venv\Lib\site-packages\celery\app\base.py:798: in send_task
+    with P.connection._reraise_as_library_errors():
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\Madhavi\AppData\Local\Programs\Python\Python313\Lib\contextlib.py:162: in __exit__
+    self.gen.throw(value)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <Connection: redis://127.0.0.1:6379/0 at 0x29ddcf697f0>
+ConnectionError = <class 'kombu.exceptions.OperationalError'>
+ChannelError = <class 'kombu.exceptions.OperationalError'>
+
+    @contextmanager
+    def _reraise_as_library_errors(
+            self,
+            ConnectionError=exceptions.OperationalError,
+            ChannelError=exceptions.OperationalError):
+        try:
+            yield
+        except (ConnectionError, ChannelError):
+            raise
+        except self.recoverable_connection_errors as exc:
+>           raise ConnectionError(str(exc)) from exc
+E           kombu.exceptions.OperationalError: Error 10061 connecting to 127.0.0.1:6379. No connection could be made because the target machine actively refused it.
+
+.venv\Lib\site-packages\kombu\connection.py:478: OperationalError
+------------------------------ Captured log call ------------------------------
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (0/20) now.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (1/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (2/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (3/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (4/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (5/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (6/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (7/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (8/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (9/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (10/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (11/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (12/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (13/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (14/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (15/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (16/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (17/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (18/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (19/20) in 1.00 second.
+CRITICAL celery.backends.redis:redis.py:132 
+Retry limit exceeded while trying to reconnect to the Celery redis result store backend. The Celery application must be restarted.
+___________ BulkProgressUpdateTests.test_malformed_request_rejected ___________
+
+self = <redis.connection.Connection(host=127.0.0.1,port=6379,db=0)>
+check_health = True, retry_socket_connect = False
+
+    def connect_check_health(
+        self, check_health: bool = True, retry_socket_connect: bool = True
+    ):
+        if self._sock:
+            return
+        # Track actual retry attempts for error reporting
+        actual_retry_attempts = [0]
+    
+        def failure_callback(error, failure_count):
+            actual_retry_attempts[0] = failure_count
+            self.disconnect(error=error, failure_count=failure_count)
+    
+        try:
+            if retry_socket_connect:
+                sock = self.retry.call_with_retry(
+                    self._connect,
+                    failure_callback,
+                    with_failure_count=True,
+                )
+            else:
+>               sock = self._connect()
+                       ^^^^^^^^^^^^^^^
+
+.venv\Lib\site-packages\redis\connection.py:1033: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+.venv\Lib\site-packages\redis\connection.py:1581: in _connect
+    raise err
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <redis.connection.Connection(host=127.0.0.1,port=6379,db=0)>
+
+    def _connect(self):
+        "Create a TCP socket connection"
+        # we want to mimic what socket.create_connection does to support
+        # ipv4/ipv6, but we want to set options prior to calling
+        # socket.connect()
+        err = None
+    
+        for res in socket.getaddrinfo(
+            self.host, self.port, self.socket_type, socket.SOCK_STREAM
+        ):
+            family, socktype, proto, canonname, socket_address = res
+            sock = None
+            try:
+                sock = socket.socket(family, socktype, proto)
+                # TCP_NODELAY
+                sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+    
+                # TCP_KEEPALIVE
+                if self.socket_keepalive:
+                    sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+                    for k, v in self.socket_keepalive_options.items():
+                        sock.setsockopt(socket.IPPROTO_TCP, k, v)
+    
+                # set the socket_connect_timeout before we connect
+                sock.settimeout(self.socket_connect_timeout)
+    
+                # connect
+>               sock.connect(socket_address)
+E               ConnectionRefusedError: [WinError 10061] No connection could be made because the target machine actively refused it
+
+.venv\Lib\site-packages\redis\connection.py:1565: ConnectionRefusedError
+
+During handling of the above exception, another exception occurred:
+
+self = <celery.backends.redis.ResultConsumer object at 0x0000029DDCF6A3C0>
+
+    @contextmanager
+    def reconnect_on_error(self):
+        try:
+>           yield
+
+.venv\Lib\site-packages\celery\backends\redis.py:127: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+.venv\Lib\site-packages\celery\backends\redis.py:177: in _consume_from
+    self._pubsub.subscribe(key)
+.venv\Lib\site-packages\redis\client.py:1360: in subscribe
+    ret_val = self.execute_command("SUBSCRIBE", *new_channels.keys())
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\redis\client.py:1073: in execute_command
+    self.connection = self.connection_pool.get_connection()
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\redis\utils.py:258: in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\redis\connection.py:3139: in get_connection
+    connection.connect()
+.venv\Lib\site-packages\redis\connection.py:1006: in connect
+    self.retry.call_with_retry(
+.venv\Lib\site-packages\redis\retry.py:132: in call_with_retry
+    raise error
+.venv\Lib\site-packages\redis\retry.py:120: in call_with_retry
+    return do()
+           ^^^^
+.venv\Lib\site-packages\redis\connection.py:1007: in <lambda>
+    lambda: self.connect_check_health(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <redis.connection.Connection(host=127.0.0.1,port=6379,db=0)>
+check_health = True, retry_socket_connect = False
+
+    def connect_check_health(
+        self, check_health: bool = True, retry_socket_connect: bool = True
+    ):
+        if self._sock:
+            return
+        # Track actual retry attempts for error reporting
+        actual_retry_attempts = [0]
+    
+        def failure_callback(error, failure_count):
+            actual_retry_attempts[0] = failure_count
+            self.disconnect(error=error, failure_count=failure_count)
+    
+        try:
+            if retry_socket_connect:
+                sock = self.retry.call_with_retry(
+                    self._connect,
+                    failure_callback,
+                    with_failure_count=True,
+                )
+            else:
+                sock = self._connect()
+        except socket.timeout:
+            e = TimeoutError("Timeout connecting to server")
+            record_error_count(
+                server_address=self.host,
+                server_port=self.port,
+                network_peer_address=self.host,
+                network_peer_port=self.port,
+                error_type=e,
+                retry_attempts=actual_retry_attempts[0],
+            )
+            raise e
+        except OSError as e:
+            e = ConnectionError(self._error_message(e))
+            record_error_count(
+                server_address=getattr(self, "host", None),
+                server_port=getattr(self, "port", None),
+                network_peer_address=getattr(self, "host", None),
+                network_peer_port=getattr(self, "port", None),
+                error_type=e,
+                retry_attempts=actual_retry_attempts[0],
+            )
+>           raise e
+E           redis.exceptions.ConnectionError: Error 10061 connecting to 127.0.0.1:6379. No connection could be made because the target machine actively refused it.
+
+.venv\Lib\site-packages\redis\connection.py:1055: ConnectionError
+
+During handling of the above exception, another exception occurred:
+
+self = <redis.connection.Connection(host=127.0.0.1,port=6379,db=0)>
+check_health = True, retry_socket_connect = False
+
+    def connect_check_health(
+        self, check_health: bool = True, retry_socket_connect: bool = True
+    ):
+        if self._sock:
+            return
+        # Track actual retry attempts for error reporting
+        actual_retry_attempts = [0]
+    
+        def failure_callback(error, failure_count):
+            actual_retry_attempts[0] = failure_count
+            self.disconnect(error=error, failure_count=failure_count)
+    
+        try:
+            if retry_socket_connect:
+                sock = self.retry.call_with_retry(
+                    self._connect,
+                    failure_callback,
+                    with_failure_count=True,
+                )
+            else:
+>               sock = self._connect()
+                       ^^^^^^^^^^^^^^^
+
+.venv\Lib\site-packages\redis\connection.py:1033: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+.venv\Lib\site-packages\redis\connection.py:1581: in _connect
+    raise err
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <redis.connection.Connection(host=127.0.0.1,port=6379,db=0)>
+
+    def _connect(self):
+        "Create a TCP socket connection"
+        # we want to mimic what socket.create_connection does to support
+        # ipv4/ipv6, but we want to set options prior to calling
+        # socket.connect()
+        err = None
+    
+        for res in socket.getaddrinfo(
+            self.host, self.port, self.socket_type, socket.SOCK_STREAM
+        ):
+            family, socktype, proto, canonname, socket_address = res
+            sock = None
+            try:
+                sock = socket.socket(family, socktype, proto)
+                # TCP_NODELAY
+                sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+    
+                # TCP_KEEPALIVE
+                if self.socket_keepalive:
+                    sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+                    for k, v in self.socket_keepalive_options.items():
+                        sock.setsockopt(socket.IPPROTO_TCP, k, v)
+    
+                # set the socket_connect_timeout before we connect
+                sock.settimeout(self.socket_connect_timeout)
+    
+                # connect
+>               sock.connect(socket_address)
+E               ConnectionRefusedError: [WinError 10061] No connection could be made because the target machine actively refused it
+
+.venv\Lib\site-packages\redis\connection.py:1565: ConnectionRefusedError
+
+During handling of the above exception, another exception occurred:
+
+self = <Connection: redis://127.0.0.1:6379/0 at 0x29ddcf697f0>
+ConnectionError = <class 'kombu.exceptions.OperationalError'>
+ChannelError = <class 'kombu.exceptions.OperationalError'>
+
+    @contextmanager
+    def _reraise_as_library_errors(
+            self,
+            ConnectionError=exceptions.OperationalError,
+            ChannelError=exceptions.OperationalError):
+        try:
+>           yield
+
+.venv\Lib\site-packages\kombu\connection.py:474: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+.venv\Lib\site-packages\celery\app\base.py:800: in send_task
+    self.backend.on_task_call(P, task_id)
+.venv\Lib\site-packages\celery\backends\redis.py:373: in on_task_call
+    self.result_consumer.consume_from(task_id)
+.venv\Lib\site-packages\celery\backends\redis.py:169: in consume_from
+    return self.start(task_id)
+           ^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\celery\backends\redis.py:147: in start
+    self._consume_from(initial_task_id)
+.venv\Lib\site-packages\celery\backends\redis.py:176: in _consume_from
+    with self.reconnect_on_error():
+         ^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\Madhavi\AppData\Local\Programs\Python\Python313\Lib\contextlib.py:162: in __exit__
+    self.gen.throw(value)
+.venv\Lib\site-packages\celery\backends\redis.py:130: in reconnect_on_error
+    self._ensure(self._reconnect_pubsub, ())
+.venv\Lib\site-packages\celery\backends\redis.py:384: in ensure
+    return retry_over_time(
+.venv\Lib\site-packages\kombu\utils\functional.py:318: in retry_over_time
+    return fun(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\celery\backends\redis.py:106: in _reconnect_pubsub
+    metas = self.backend.client.mget(self.subscribed_to)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\redis\commands\core.py:3637: in mget
+    return self.execute_command("MGET", *args, **options)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\redis\client.py:787: in execute_command
+    return self._execute_command(*args, **options)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\redis\client.py:793: in _execute_command
+    conn = self.connection or pool.get_connection()
+                              ^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\redis\utils.py:258: in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\redis\connection.py:3139: in get_connection
+    connection.connect()
+.venv\Lib\site-packages\redis\connection.py:1006: in connect
+    self.retry.call_with_retry(
+.venv\Lib\site-packages\redis\retry.py:132: in call_with_retry
+    raise error
+.venv\Lib\site-packages\redis\retry.py:120: in call_with_retry
+    return do()
+           ^^^^
+.venv\Lib\site-packages\redis\connection.py:1007: in <lambda>
+    lambda: self.connect_check_health(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <redis.connection.Connection(host=127.0.0.1,port=6379,db=0)>
+check_health = True, retry_socket_connect = False
+
+    def connect_check_health(
+        self, check_health: bool = True, retry_socket_connect: bool = True
+    ):
+        if self._sock:
+            return
+        # Track actual retry attempts for error reporting
+        actual_retry_attempts = [0]
+    
+        def failure_callback(error, failure_count):
+            actual_retry_attempts[0] = failure_count
+            self.disconnect(error=error, failure_count=failure_count)
+    
+        try:
+            if retry_socket_connect:
+                sock = self.retry.call_with_retry(
+                    self._connect,
+                    failure_callback,
+                    with_failure_count=True,
+                )
+            else:
+                sock = self._connect()
+        except socket.timeout:
+            e = TimeoutError("Timeout connecting to server")
+            record_error_count(
+                server_address=self.host,
+                server_port=self.port,
+                network_peer_address=self.host,
+                network_peer_port=self.port,
+                error_type=e,
+                retry_attempts=actual_retry_attempts[0],
+            )
+            raise e
+        except OSError as e:
+            e = ConnectionError(self._error_message(e))
+            record_error_count(
+                server_address=getattr(self, "host", None),
+                server_port=getattr(self, "port", None),
+                network_peer_address=getattr(self, "host", None),
+                network_peer_port=getattr(self, "port", None),
+                error_type=e,
+                retry_attempts=actual_retry_attempts[0],
+            )
+>           raise e
+E           redis.exceptions.ConnectionError: Error 10061 connecting to 127.0.0.1:6379. No connection could be made because the target machine actively refused it.
+
+.venv\Lib\site-packages\redis\connection.py:1055: ConnectionError
+
+The above exception was the direct cause of the following exception:
+
+self = <apps.progress.test_bulk_update.BulkProgressUpdateTests testMethod=test_malformed_request_rejected>
+
+    def setUp(self):
+>       self.user = User.objects.create_user(username="testuser", password="password123")
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+apps\progress\test_bulk_update.py:11: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+.venv\Lib\site-packages\django\contrib\auth\models.py:162: in create_user
+    return self._create_user(username, email, password, **extra_fields)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\django\contrib\auth\models.py:156: in _create_user
+    user.save(using=self._db)
+.venv\Lib\site-packages\django\contrib\auth\base_user.py:62: in save
+    super().save(*args, **kwargs)
+.venv\Lib\site-packages\django\db\models\base.py:892: in save
+    self.save_base(
+.venv\Lib\site-packages\django\db\models\base.py:1013: in save_base
+    post_save.send(
+.venv\Lib\site-packages\django\dispatch\dispatcher.py:189: in send
+    response = receiver(signal=self, sender=sender, **named)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+apps\search\signals.py:46: in index_user
+    index_model_for_search.delay(
+.venv\Lib\site-packages\celery\app\task.py:444: in delay
+    return self.apply_async(args, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\celery\app\task.py:594: in apply_async
+    return app.send_task(
+.venv\Lib\site-packages\celery\app\base.py:798: in send_task
+    with P.connection._reraise_as_library_errors():
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\Madhavi\AppData\Local\Programs\Python\Python313\Lib\contextlib.py:162: in __exit__
+    self.gen.throw(value)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <Connection: redis://127.0.0.1:6379/0 at 0x29ddcf697f0>
+ConnectionError = <class 'kombu.exceptions.OperationalError'>
+ChannelError = <class 'kombu.exceptions.OperationalError'>
+
+    @contextmanager
+    def _reraise_as_library_errors(
+            self,
+            ConnectionError=exceptions.OperationalError,
+            ChannelError=exceptions.OperationalError):
+        try:
+            yield
+        except (ConnectionError, ChannelError):
+            raise
+        except self.recoverable_connection_errors as exc:
+>           raise ConnectionError(str(exc)) from exc
+E           kombu.exceptions.OperationalError: Error 10061 connecting to 127.0.0.1:6379. No connection could be made because the target machine actively refused it.
+
+.venv\Lib\site-packages\kombu\connection.py:478: OperationalError
+------------------------------ Captured log call ------------------------------
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (0/20) now.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (1/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (2/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (3/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (4/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (5/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (6/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (7/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (8/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (9/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (10/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (11/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (12/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (13/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (14/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (15/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (16/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (17/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (18/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (19/20) in 1.00 second.
+CRITICAL celery.backends.redis:redis.py:132 
+Retry limit exceeded while trying to reconnect to the Celery redis result store backend. The Celery application must be restarted.
+__________ BulkProgressUpdateTests.test_unauthenticated_returns_401 ___________
+
+self = <redis.connection.Connection(host=127.0.0.1,port=6379,db=0)>
+check_health = True, retry_socket_connect = False
+
+    def connect_check_health(
+        self, check_health: bool = True, retry_socket_connect: bool = True
+    ):
+        if self._sock:
+            return
+        # Track actual retry attempts for error reporting
+        actual_retry_attempts = [0]
+    
+        def failure_callback(error, failure_count):
+            actual_retry_attempts[0] = failure_count
+            self.disconnect(error=error, failure_count=failure_count)
+    
+        try:
+            if retry_socket_connect:
+                sock = self.retry.call_with_retry(
+                    self._connect,
+                    failure_callback,
+                    with_failure_count=True,
+                )
+            else:
+>               sock = self._connect()
+                       ^^^^^^^^^^^^^^^
+
+.venv\Lib\site-packages\redis\connection.py:1033: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+.venv\Lib\site-packages\redis\connection.py:1581: in _connect
+    raise err
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <redis.connection.Connection(host=127.0.0.1,port=6379,db=0)>
+
+    def _connect(self):
+        "Create a TCP socket connection"
+        # we want to mimic what socket.create_connection does to support
+        # ipv4/ipv6, but we want to set options prior to calling
+        # socket.connect()
+        err = None
+    
+        for res in socket.getaddrinfo(
+            self.host, self.port, self.socket_type, socket.SOCK_STREAM
+        ):
+            family, socktype, proto, canonname, socket_address = res
+            sock = None
+            try:
+                sock = socket.socket(family, socktype, proto)
+                # TCP_NODELAY
+                sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+    
+                # TCP_KEEPALIVE
+                if self.socket_keepalive:
+                    sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+                    for k, v in self.socket_keepalive_options.items():
+                        sock.setsockopt(socket.IPPROTO_TCP, k, v)
+    
+                # set the socket_connect_timeout before we connect
+                sock.settimeout(self.socket_connect_timeout)
+    
+                # connect
+>               sock.connect(socket_address)
+E               ConnectionRefusedError: [WinError 10061] No connection could be made because the target machine actively refused it
+
+.venv\Lib\site-packages\redis\connection.py:1565: ConnectionRefusedError
+
+During handling of the above exception, another exception occurred:
+
+self = <celery.backends.redis.ResultConsumer object at 0x0000029DDCF6A3C0>
+
+    @contextmanager
+    def reconnect_on_error(self):
+        try:
+>           yield
+
+.venv\Lib\site-packages\celery\backends\redis.py:127: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+.venv\Lib\site-packages\celery\backends\redis.py:177: in _consume_from
+    self._pubsub.subscribe(key)
+.venv\Lib\site-packages\redis\client.py:1360: in subscribe
+    ret_val = self.execute_command("SUBSCRIBE", *new_channels.keys())
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\redis\client.py:1073: in execute_command
+    self.connection = self.connection_pool.get_connection()
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\redis\utils.py:258: in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\redis\connection.py:3139: in get_connection
+    connection.connect()
+.venv\Lib\site-packages\redis\connection.py:1006: in connect
+    self.retry.call_with_retry(
+.venv\Lib\site-packages\redis\retry.py:132: in call_with_retry
+    raise error
+.venv\Lib\site-packages\redis\retry.py:120: in call_with_retry
+    return do()
+           ^^^^
+.venv\Lib\site-packages\redis\connection.py:1007: in <lambda>
+    lambda: self.connect_check_health(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <redis.connection.Connection(host=127.0.0.1,port=6379,db=0)>
+check_health = True, retry_socket_connect = False
+
+    def connect_check_health(
+        self, check_health: bool = True, retry_socket_connect: bool = True
+    ):
+        if self._sock:
+            return
+        # Track actual retry attempts for error reporting
+        actual_retry_attempts = [0]
+    
+        def failure_callback(error, failure_count):
+            actual_retry_attempts[0] = failure_count
+            self.disconnect(error=error, failure_count=failure_count)
+    
+        try:
+            if retry_socket_connect:
+                sock = self.retry.call_with_retry(
+                    self._connect,
+                    failure_callback,
+                    with_failure_count=True,
+                )
+            else:
+                sock = self._connect()
+        except socket.timeout:
+            e = TimeoutError("Timeout connecting to server")
+            record_error_count(
+                server_address=self.host,
+                server_port=self.port,
+                network_peer_address=self.host,
+                network_peer_port=self.port,
+                error_type=e,
+                retry_attempts=actual_retry_attempts[0],
+            )
+            raise e
+        except OSError as e:
+            e = ConnectionError(self._error_message(e))
+            record_error_count(
+                server_address=getattr(self, "host", None),
+                server_port=getattr(self, "port", None),
+                network_peer_address=getattr(self, "host", None),
+                network_peer_port=getattr(self, "port", None),
+                error_type=e,
+                retry_attempts=actual_retry_attempts[0],
+            )
+>           raise e
+E           redis.exceptions.ConnectionError: Error 10061 connecting to 127.0.0.1:6379. No connection could be made because the target machine actively refused it.
+
+.venv\Lib\site-packages\redis\connection.py:1055: ConnectionError
+
+During handling of the above exception, another exception occurred:
+
+self = <redis.connection.Connection(host=127.0.0.1,port=6379,db=0)>
+check_health = True, retry_socket_connect = False
+
+    def connect_check_health(
+        self, check_health: bool = True, retry_socket_connect: bool = True
+    ):
+        if self._sock:
+            return
+        # Track actual retry attempts for error reporting
+        actual_retry_attempts = [0]
+    
+        def failure_callback(error, failure_count):
+            actual_retry_attempts[0] = failure_count
+            self.disconnect(error=error, failure_count=failure_count)
+    
+        try:
+            if retry_socket_connect:
+                sock = self.retry.call_with_retry(
+                    self._connect,
+                    failure_callback,
+                    with_failure_count=True,
+                )
+            else:
+>               sock = self._connect()
+                       ^^^^^^^^^^^^^^^
+
+.venv\Lib\site-packages\redis\connection.py:1033: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+.venv\Lib\site-packages\redis\connection.py:1581: in _connect
+    raise err
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <redis.connection.Connection(host=127.0.0.1,port=6379,db=0)>
+
+    def _connect(self):
+        "Create a TCP socket connection"
+        # we want to mimic what socket.create_connection does to support
+        # ipv4/ipv6, but we want to set options prior to calling
+        # socket.connect()
+        err = None
+    
+        for res in socket.getaddrinfo(
+            self.host, self.port, self.socket_type, socket.SOCK_STREAM
+        ):
+            family, socktype, proto, canonname, socket_address = res
+            sock = None
+            try:
+                sock = socket.socket(family, socktype, proto)
+                # TCP_NODELAY
+                sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+    
+                # TCP_KEEPALIVE
+                if self.socket_keepalive:
+                    sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+                    for k, v in self.socket_keepalive_options.items():
+                        sock.setsockopt(socket.IPPROTO_TCP, k, v)
+    
+                # set the socket_connect_timeout before we connect
+                sock.settimeout(self.socket_connect_timeout)
+    
+                # connect
+>               sock.connect(socket_address)
+E               ConnectionRefusedError: [WinError 10061] No connection could be made because the target machine actively refused it
+
+.venv\Lib\site-packages\redis\connection.py:1565: ConnectionRefusedError
+
+During handling of the above exception, another exception occurred:
+
+self = <Connection: redis://127.0.0.1:6379/0 at 0x29ddcf697f0>
+ConnectionError = <class 'kombu.exceptions.OperationalError'>
+ChannelError = <class 'kombu.exceptions.OperationalError'>
+
+    @contextmanager
+    def _reraise_as_library_errors(
+            self,
+            ConnectionError=exceptions.OperationalError,
+            ChannelError=exceptions.OperationalError):
+        try:
+>           yield
+
+.venv\Lib\site-packages\kombu\connection.py:474: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+.venv\Lib\site-packages\celery\app\base.py:800: in send_task
+    self.backend.on_task_call(P, task_id)
+.venv\Lib\site-packages\celery\backends\redis.py:373: in on_task_call
+    self.result_consumer.consume_from(task_id)
+.venv\Lib\site-packages\celery\backends\redis.py:169: in consume_from
+    return self.start(task_id)
+           ^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\celery\backends\redis.py:147: in start
+    self._consume_from(initial_task_id)
+.venv\Lib\site-packages\celery\backends\redis.py:176: in _consume_from
+    with self.reconnect_on_error():
+         ^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\Madhavi\AppData\Local\Programs\Python\Python313\Lib\contextlib.py:162: in __exit__
+    self.gen.throw(value)
+.venv\Lib\site-packages\celery\backends\redis.py:130: in reconnect_on_error
+    self._ensure(self._reconnect_pubsub, ())
+.venv\Lib\site-packages\celery\backends\redis.py:384: in ensure
+    return retry_over_time(
+.venv\Lib\site-packages\kombu\utils\functional.py:318: in retry_over_time
+    return fun(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\celery\backends\redis.py:106: in _reconnect_pubsub
+    metas = self.backend.client.mget(self.subscribed_to)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\redis\commands\core.py:3637: in mget
+    return self.execute_command("MGET", *args, **options)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\redis\client.py:787: in execute_command
+    return self._execute_command(*args, **options)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\redis\client.py:793: in _execute_command
+    conn = self.connection or pool.get_connection()
+                              ^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\redis\utils.py:258: in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\redis\connection.py:3139: in get_connection
+    connection.connect()
+.venv\Lib\site-packages\redis\connection.py:1006: in connect
+    self.retry.call_with_retry(
+.venv\Lib\site-packages\redis\retry.py:132: in call_with_retry
+    raise error
+.venv\Lib\site-packages\redis\retry.py:120: in call_with_retry
+    return do()
+           ^^^^
+.venv\Lib\site-packages\redis\connection.py:1007: in <lambda>
+    lambda: self.connect_check_health(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <redis.connection.Connection(host=127.0.0.1,port=6379,db=0)>
+check_health = True, retry_socket_connect = False
+
+    def connect_check_health(
+        self, check_health: bool = True, retry_socket_connect: bool = True
+    ):
+        if self._sock:
+            return
+        # Track actual retry attempts for error reporting
+        actual_retry_attempts = [0]
+    
+        def failure_callback(error, failure_count):
+            actual_retry_attempts[0] = failure_count
+            self.disconnect(error=error, failure_count=failure_count)
+    
+        try:
+            if retry_socket_connect:
+                sock = self.retry.call_with_retry(
+                    self._connect,
+                    failure_callback,
+                    with_failure_count=True,
+                )
+            else:
+                sock = self._connect()
+        except socket.timeout:
+            e = TimeoutError("Timeout connecting to server")
+            record_error_count(
+                server_address=self.host,
+                server_port=self.port,
+                network_peer_address=self.host,
+                network_peer_port=self.port,
+                error_type=e,
+                retry_attempts=actual_retry_attempts[0],
+            )
+            raise e
+        except OSError as e:
+            e = ConnectionError(self._error_message(e))
+            record_error_count(
+                server_address=getattr(self, "host", None),
+                server_port=getattr(self, "port", None),
+                network_peer_address=getattr(self, "host", None),
+                network_peer_port=getattr(self, "port", None),
+                error_type=e,
+                retry_attempts=actual_retry_attempts[0],
+            )
+>           raise e
+E           redis.exceptions.ConnectionError: Error 10061 connecting to 127.0.0.1:6379. No connection could be made because the target machine actively refused it.
+
+.venv\Lib\site-packages\redis\connection.py:1055: ConnectionError
+
+The above exception was the direct cause of the following exception:
+
+self = <apps.progress.test_bulk_update.BulkProgressUpdateTests testMethod=test_unauthenticated_returns_401>
+
+    def setUp(self):
+>       self.user = User.objects.create_user(username="testuser", password="password123")
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+apps\progress\test_bulk_update.py:11: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+.venv\Lib\site-packages\django\contrib\auth\models.py:162: in create_user
+    return self._create_user(username, email, password, **extra_fields)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\django\contrib\auth\models.py:156: in _create_user
+    user.save(using=self._db)
+.venv\Lib\site-packages\django\contrib\auth\base_user.py:62: in save
+    super().save(*args, **kwargs)
+.venv\Lib\site-packages\django\db\models\base.py:892: in save
+    self.save_base(
+.venv\Lib\site-packages\django\db\models\base.py:1013: in save_base
+    post_save.send(
+.venv\Lib\site-packages\django\dispatch\dispatcher.py:189: in send
+    response = receiver(signal=self, sender=sender, **named)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+apps\search\signals.py:46: in index_user
+    index_model_for_search.delay(
+.venv\Lib\site-packages\celery\app\task.py:444: in delay
+    return self.apply_async(args, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\celery\app\task.py:594: in apply_async
+    return app.send_task(
+.venv\Lib\site-packages\celery\app\base.py:798: in send_task
+    with P.connection._reraise_as_library_errors():
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\Madhavi\AppData\Local\Programs\Python\Python313\Lib\contextlib.py:162: in __exit__
+    self.gen.throw(value)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <Connection: redis://127.0.0.1:6379/0 at 0x29ddcf697f0>
+ConnectionError = <class 'kombu.exceptions.OperationalError'>
+ChannelError = <class 'kombu.exceptions.OperationalError'>
+
+    @contextmanager
+    def _reraise_as_library_errors(
+            self,
+            ConnectionError=exceptions.OperationalError,
+            ChannelError=exceptions.OperationalError):
+        try:
+            yield
+        except (ConnectionError, ChannelError):
+            raise
+        except self.recoverable_connection_errors as exc:
+>           raise ConnectionError(str(exc)) from exc
+E           kombu.exceptions.OperationalError: Error 10061 connecting to 127.0.0.1:6379. No connection could be made because the target machine actively refused it.
+
+.venv\Lib\site-packages\kombu\connection.py:478: OperationalError
+------------------------------ Captured log call ------------------------------
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (0/20) now.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (1/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (2/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (3/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (4/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (5/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (6/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (7/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (8/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (9/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (10/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (11/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (12/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (13/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (14/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (15/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (16/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (17/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (18/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (19/20) in 1.00 second.
+CRITICAL celery.backends.redis:redis.py:132 
+Retry limit exceeded while trying to reconnect to the Celery redis result store backend. The Celery application must be restarted.
+_____ BulkProgressUpdateTests.test_valid_bulk_update_creates_new_progress _____
+
+self = <redis.connection.Connection(host=127.0.0.1,port=6379,db=0)>
+check_health = True, retry_socket_connect = False
+
+    def connect_check_health(
+        self, check_health: bool = True, retry_socket_connect: bool = True
+    ):
+        if self._sock:
+            return
+        # Track actual retry attempts for error reporting
+        actual_retry_attempts = [0]
+    
+        def failure_callback(error, failure_count):
+            actual_retry_attempts[0] = failure_count
+            self.disconnect(error=error, failure_count=failure_count)
+    
+        try:
+            if retry_socket_connect:
+                sock = self.retry.call_with_retry(
+                    self._connect,
+                    failure_callback,
+                    with_failure_count=True,
+                )
+            else:
+>               sock = self._connect()
+                       ^^^^^^^^^^^^^^^
+
+.venv\Lib\site-packages\redis\connection.py:1033: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+.venv\Lib\site-packages\redis\connection.py:1581: in _connect
+    raise err
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <redis.connection.Connection(host=127.0.0.1,port=6379,db=0)>
+
+    def _connect(self):
+        "Create a TCP socket connection"
+        # we want to mimic what socket.create_connection does to support
+        # ipv4/ipv6, but we want to set options prior to calling
+        # socket.connect()
+        err = None
+    
+        for res in socket.getaddrinfo(
+            self.host, self.port, self.socket_type, socket.SOCK_STREAM
+        ):
+            family, socktype, proto, canonname, socket_address = res
+            sock = None
+            try:
+                sock = socket.socket(family, socktype, proto)
+                # TCP_NODELAY
+                sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+    
+                # TCP_KEEPALIVE
+                if self.socket_keepalive:
+                    sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+                    for k, v in self.socket_keepalive_options.items():
+                        sock.setsockopt(socket.IPPROTO_TCP, k, v)
+    
+                # set the socket_connect_timeout before we connect
+                sock.settimeout(self.socket_connect_timeout)
+    
+                # connect
+>               sock.connect(socket_address)
+E               ConnectionRefusedError: [WinError 10061] No connection could be made because the target machine actively refused it
+
+.venv\Lib\site-packages\redis\connection.py:1565: ConnectionRefusedError
+
+During handling of the above exception, another exception occurred:
+
+self = <celery.backends.redis.ResultConsumer object at 0x0000029DDCF6A3C0>
+
+    @contextmanager
+    def reconnect_on_error(self):
+        try:
+>           yield
+
+.venv\Lib\site-packages\celery\backends\redis.py:127: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+.venv\Lib\site-packages\celery\backends\redis.py:177: in _consume_from
+    self._pubsub.subscribe(key)
+.venv\Lib\site-packages\redis\client.py:1360: in subscribe
+    ret_val = self.execute_command("SUBSCRIBE", *new_channels.keys())
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\redis\client.py:1073: in execute_command
+    self.connection = self.connection_pool.get_connection()
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\redis\utils.py:258: in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\redis\connection.py:3139: in get_connection
+    connection.connect()
+.venv\Lib\site-packages\redis\connection.py:1006: in connect
+    self.retry.call_with_retry(
+.venv\Lib\site-packages\redis\retry.py:132: in call_with_retry
+    raise error
+.venv\Lib\site-packages\redis\retry.py:120: in call_with_retry
+    return do()
+           ^^^^
+.venv\Lib\site-packages\redis\connection.py:1007: in <lambda>
+    lambda: self.connect_check_health(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <redis.connection.Connection(host=127.0.0.1,port=6379,db=0)>
+check_health = True, retry_socket_connect = False
+
+    def connect_check_health(
+        self, check_health: bool = True, retry_socket_connect: bool = True
+    ):
+        if self._sock:
+            return
+        # Track actual retry attempts for error reporting
+        actual_retry_attempts = [0]
+    
+        def failure_callback(error, failure_count):
+            actual_retry_attempts[0] = failure_count
+            self.disconnect(error=error, failure_count=failure_count)
+    
+        try:
+            if retry_socket_connect:
+                sock = self.retry.call_with_retry(
+                    self._connect,
+                    failure_callback,
+                    with_failure_count=True,
+                )
+            else:
+                sock = self._connect()
+        except socket.timeout:
+            e = TimeoutError("Timeout connecting to server")
+            record_error_count(
+                server_address=self.host,
+                server_port=self.port,
+                network_peer_address=self.host,
+                network_peer_port=self.port,
+                error_type=e,
+                retry_attempts=actual_retry_attempts[0],
+            )
+            raise e
+        except OSError as e:
+            e = ConnectionError(self._error_message(e))
+            record_error_count(
+                server_address=getattr(self, "host", None),
+                server_port=getattr(self, "port", None),
+                network_peer_address=getattr(self, "host", None),
+                network_peer_port=getattr(self, "port", None),
+                error_type=e,
+                retry_attempts=actual_retry_attempts[0],
+            )
+>           raise e
+E           redis.exceptions.ConnectionError: Error 10061 connecting to 127.0.0.1:6379. No connection could be made because the target machine actively refused it.
+
+.venv\Lib\site-packages\redis\connection.py:1055: ConnectionError
+
+During handling of the above exception, another exception occurred:
+
+self = <redis.connection.Connection(host=127.0.0.1,port=6379,db=0)>
+check_health = True, retry_socket_connect = False
+
+    def connect_check_health(
+        self, check_health: bool = True, retry_socket_connect: bool = True
+    ):
+        if self._sock:
+            return
+        # Track actual retry attempts for error reporting
+        actual_retry_attempts = [0]
+    
+        def failure_callback(error, failure_count):
+            actual_retry_attempts[0] = failure_count
+            self.disconnect(error=error, failure_count=failure_count)
+    
+        try:
+            if retry_socket_connect:
+                sock = self.retry.call_with_retry(
+                    self._connect,
+                    failure_callback,
+                    with_failure_count=True,
+                )
+            else:
+>               sock = self._connect()
+                       ^^^^^^^^^^^^^^^
+
+.venv\Lib\site-packages\redis\connection.py:1033: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+.venv\Lib\site-packages\redis\connection.py:1581: in _connect
+    raise err
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <redis.connection.Connection(host=127.0.0.1,port=6379,db=0)>
+
+    def _connect(self):
+        "Create a TCP socket connection"
+        # we want to mimic what socket.create_connection does to support
+        # ipv4/ipv6, but we want to set options prior to calling
+        # socket.connect()
+        err = None
+    
+        for res in socket.getaddrinfo(
+            self.host, self.port, self.socket_type, socket.SOCK_STREAM
+        ):
+            family, socktype, proto, canonname, socket_address = res
+            sock = None
+            try:
+                sock = socket.socket(family, socktype, proto)
+                # TCP_NODELAY
+                sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+    
+                # TCP_KEEPALIVE
+                if self.socket_keepalive:
+                    sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+                    for k, v in self.socket_keepalive_options.items():
+                        sock.setsockopt(socket.IPPROTO_TCP, k, v)
+    
+                # set the socket_connect_timeout before we connect
+                sock.settimeout(self.socket_connect_timeout)
+    
+                # connect
+>               sock.connect(socket_address)
+E               ConnectionRefusedError: [WinError 10061] No connection could be made because the target machine actively refused it
+
+.venv\Lib\site-packages\redis\connection.py:1565: ConnectionRefusedError
+
+During handling of the above exception, another exception occurred:
+
+self = <Connection: redis://127.0.0.1:6379/0 at 0x29ddcf697f0>
+ConnectionError = <class 'kombu.exceptions.OperationalError'>
+ChannelError = <class 'kombu.exceptions.OperationalError'>
+
+    @contextmanager
+    def _reraise_as_library_errors(
+            self,
+            ConnectionError=exceptions.OperationalError,
+            ChannelError=exceptions.OperationalError):
+        try:
+>           yield
+
+.venv\Lib\site-packages\kombu\connection.py:474: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+.venv\Lib\site-packages\celery\app\base.py:800: in send_task
+    self.backend.on_task_call(P, task_id)
+.venv\Lib\site-packages\celery\backends\redis.py:373: in on_task_call
+    self.result_consumer.consume_from(task_id)
+.venv\Lib\site-packages\celery\backends\redis.py:169: in consume_from
+    return self.start(task_id)
+           ^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\celery\backends\redis.py:147: in start
+    self._consume_from(initial_task_id)
+.venv\Lib\site-packages\celery\backends\redis.py:176: in _consume_from
+    with self.reconnect_on_error():
+         ^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\Madhavi\AppData\Local\Programs\Python\Python313\Lib\contextlib.py:162: in __exit__
+    self.gen.throw(value)
+.venv\Lib\site-packages\celery\backends\redis.py:130: in reconnect_on_error
+    self._ensure(self._reconnect_pubsub, ())
+.venv\Lib\site-packages\celery\backends\redis.py:384: in ensure
+    return retry_over_time(
+.venv\Lib\site-packages\kombu\utils\functional.py:318: in retry_over_time
+    return fun(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\celery\backends\redis.py:106: in _reconnect_pubsub
+    metas = self.backend.client.mget(self.subscribed_to)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\redis\commands\core.py:3637: in mget
+    return self.execute_command("MGET", *args, **options)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\redis\client.py:787: in execute_command
+    return self._execute_command(*args, **options)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\redis\client.py:793: in _execute_command
+    conn = self.connection or pool.get_connection()
+                              ^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\redis\utils.py:258: in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\redis\connection.py:3139: in get_connection
+    connection.connect()
+.venv\Lib\site-packages\redis\connection.py:1006: in connect
+    self.retry.call_with_retry(
+.venv\Lib\site-packages\redis\retry.py:132: in call_with_retry
+    raise error
+.venv\Lib\site-packages\redis\retry.py:120: in call_with_retry
+    return do()
+           ^^^^
+.venv\Lib\site-packages\redis\connection.py:1007: in <lambda>
+    lambda: self.connect_check_health(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <redis.connection.Connection(host=127.0.0.1,port=6379,db=0)>
+check_health = True, retry_socket_connect = False
+
+    def connect_check_health(
+        self, check_health: bool = True, retry_socket_connect: bool = True
+    ):
+        if self._sock:
+            return
+        # Track actual retry attempts for error reporting
+        actual_retry_attempts = [0]
+    
+        def failure_callback(error, failure_count):
+            actual_retry_attempts[0] = failure_count
+            self.disconnect(error=error, failure_count=failure_count)
+    
+        try:
+            if retry_socket_connect:
+                sock = self.retry.call_with_retry(
+                    self._connect,
+                    failure_callback,
+                    with_failure_count=True,
+                )
+            else:
+                sock = self._connect()
+        except socket.timeout:
+            e = TimeoutError("Timeout connecting to server")
+            record_error_count(
+                server_address=self.host,
+                server_port=self.port,
+                network_peer_address=self.host,
+                network_peer_port=self.port,
+                error_type=e,
+                retry_attempts=actual_retry_attempts[0],
+            )
+            raise e
+        except OSError as e:
+            e = ConnectionError(self._error_message(e))
+            record_error_count(
+                server_address=getattr(self, "host", None),
+                server_port=getattr(self, "port", None),
+                network_peer_address=getattr(self, "host", None),
+                network_peer_port=getattr(self, "port", None),
+                error_type=e,
+                retry_attempts=actual_retry_attempts[0],
+            )
+>           raise e
+E           redis.exceptions.ConnectionError: Error 10061 connecting to 127.0.0.1:6379. No connection could be made because the target machine actively refused it.
+
+.venv\Lib\site-packages\redis\connection.py:1055: ConnectionError
+
+The above exception was the direct cause of the following exception:
+
+self = <apps.progress.test_bulk_update.BulkProgressUpdateTests testMethod=test_valid_bulk_update_creates_new_progress>
+
+    def setUp(self):
+>       self.user = User.objects.create_user(username="testuser", password="password123")
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+apps\progress\test_bulk_update.py:11: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+.venv\Lib\site-packages\django\contrib\auth\models.py:162: in create_user
+    return self._create_user(username, email, password, **extra_fields)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\django\contrib\auth\models.py:156: in _create_user
+    user.save(using=self._db)
+.venv\Lib\site-packages\django\contrib\auth\base_user.py:62: in save
+    super().save(*args, **kwargs)
+.venv\Lib\site-packages\django\db\models\base.py:892: in save
+    self.save_base(
+.venv\Lib\site-packages\django\db\models\base.py:1013: in save_base
+    post_save.send(
+.venv\Lib\site-packages\django\dispatch\dispatcher.py:189: in send
+    response = receiver(signal=self, sender=sender, **named)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+apps\search\signals.py:46: in index_user
+    index_model_for_search.delay(
+.venv\Lib\site-packages\celery\app\task.py:444: in delay
+    return self.apply_async(args, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\celery\app\task.py:594: in apply_async
+    return app.send_task(
+.venv\Lib\site-packages\celery\app\base.py:798: in send_task
+    with P.connection._reraise_as_library_errors():
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\Madhavi\AppData\Local\Programs\Python\Python313\Lib\contextlib.py:162: in __exit__
+    self.gen.throw(value)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <Connection: redis://127.0.0.1:6379/0 at 0x29ddcf697f0>
+ConnectionError = <class 'kombu.exceptions.OperationalError'>
+ChannelError = <class 'kombu.exceptions.OperationalError'>
+
+    @contextmanager
+    def _reraise_as_library_errors(
+            self,
+            ConnectionError=exceptions.OperationalError,
+            ChannelError=exceptions.OperationalError):
+        try:
+            yield
+        except (ConnectionError, ChannelError):
+            raise
+        except self.recoverable_connection_errors as exc:
+>           raise ConnectionError(str(exc)) from exc
+E           kombu.exceptions.OperationalError: Error 10061 connecting to 127.0.0.1:6379. No connection could be made because the target machine actively refused it.
+
+.venv\Lib\site-packages\kombu\connection.py:478: OperationalError
+------------------------------ Captured log call ------------------------------
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (0/20) now.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (1/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (2/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (3/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (4/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (5/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (6/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (7/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (8/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (9/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (10/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (11/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (12/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (13/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (14/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (15/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (16/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (17/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (18/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (19/20) in 1.00 second.
+CRITICAL celery.backends.redis:redis.py:132 
+Retry limit exceeded while trying to reconnect to the Celery redis result store backend. The Celery application must be restarted.
+__ BulkProgressUpdateTests.test_valid_bulk_update_updates_existing_progress ___
+
+self = <redis.connection.Connection(host=127.0.0.1,port=6379,db=0)>
+check_health = True, retry_socket_connect = False
+
+    def connect_check_health(
+        self, check_health: bool = True, retry_socket_connect: bool = True
+    ):
+        if self._sock:
+            return
+        # Track actual retry attempts for error reporting
+        actual_retry_attempts = [0]
+    
+        def failure_callback(error, failure_count):
+            actual_retry_attempts[0] = failure_count
+            self.disconnect(error=error, failure_count=failure_count)
+    
+        try:
+            if retry_socket_connect:
+                sock = self.retry.call_with_retry(
+                    self._connect,
+                    failure_callback,
+                    with_failure_count=True,
+                )
+            else:
+>               sock = self._connect()
+                       ^^^^^^^^^^^^^^^
+
+.venv\Lib\site-packages\redis\connection.py:1033: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+.venv\Lib\site-packages\redis\connection.py:1581: in _connect
+    raise err
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <redis.connection.Connection(host=127.0.0.1,port=6379,db=0)>
+
+    def _connect(self):
+        "Create a TCP socket connection"
+        # we want to mimic what socket.create_connection does to support
+        # ipv4/ipv6, but we want to set options prior to calling
+        # socket.connect()
+        err = None
+    
+        for res in socket.getaddrinfo(
+            self.host, self.port, self.socket_type, socket.SOCK_STREAM
+        ):
+            family, socktype, proto, canonname, socket_address = res
+            sock = None
+            try:
+                sock = socket.socket(family, socktype, proto)
+                # TCP_NODELAY
+                sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+    
+                # TCP_KEEPALIVE
+                if self.socket_keepalive:
+                    sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+                    for k, v in self.socket_keepalive_options.items():
+                        sock.setsockopt(socket.IPPROTO_TCP, k, v)
+    
+                # set the socket_connect_timeout before we connect
+                sock.settimeout(self.socket_connect_timeout)
+    
+                # connect
+>               sock.connect(socket_address)
+E               ConnectionRefusedError: [WinError 10061] No connection could be made because the target machine actively refused it
+
+.venv\Lib\site-packages\redis\connection.py:1565: ConnectionRefusedError
+
+During handling of the above exception, another exception occurred:
+
+self = <celery.backends.redis.ResultConsumer object at 0x0000029DDCF6A3C0>
+
+    @contextmanager
+    def reconnect_on_error(self):
+        try:
+>           yield
+
+.venv\Lib\site-packages\celery\backends\redis.py:127: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+.venv\Lib\site-packages\celery\backends\redis.py:177: in _consume_from
+    self._pubsub.subscribe(key)
+.venv\Lib\site-packages\redis\client.py:1360: in subscribe
+    ret_val = self.execute_command("SUBSCRIBE", *new_channels.keys())
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\redis\client.py:1073: in execute_command
+    self.connection = self.connection_pool.get_connection()
+                      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\redis\utils.py:258: in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\redis\connection.py:3139: in get_connection
+    connection.connect()
+.venv\Lib\site-packages\redis\connection.py:1006: in connect
+    self.retry.call_with_retry(
+.venv\Lib\site-packages\redis\retry.py:132: in call_with_retry
+    raise error
+.venv\Lib\site-packages\redis\retry.py:120: in call_with_retry
+    return do()
+           ^^^^
+.venv\Lib\site-packages\redis\connection.py:1007: in <lambda>
+    lambda: self.connect_check_health(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <redis.connection.Connection(host=127.0.0.1,port=6379,db=0)>
+check_health = True, retry_socket_connect = False
+
+    def connect_check_health(
+        self, check_health: bool = True, retry_socket_connect: bool = True
+    ):
+        if self._sock:
+            return
+        # Track actual retry attempts for error reporting
+        actual_retry_attempts = [0]
+    
+        def failure_callback(error, failure_count):
+            actual_retry_attempts[0] = failure_count
+            self.disconnect(error=error, failure_count=failure_count)
+    
+        try:
+            if retry_socket_connect:
+                sock = self.retry.call_with_retry(
+                    self._connect,
+                    failure_callback,
+                    with_failure_count=True,
+                )
+            else:
+                sock = self._connect()
+        except socket.timeout:
+            e = TimeoutError("Timeout connecting to server")
+            record_error_count(
+                server_address=self.host,
+                server_port=self.port,
+                network_peer_address=self.host,
+                network_peer_port=self.port,
+                error_type=e,
+                retry_attempts=actual_retry_attempts[0],
+            )
+            raise e
+        except OSError as e:
+            e = ConnectionError(self._error_message(e))
+            record_error_count(
+                server_address=getattr(self, "host", None),
+                server_port=getattr(self, "port", None),
+                network_peer_address=getattr(self, "host", None),
+                network_peer_port=getattr(self, "port", None),
+                error_type=e,
+                retry_attempts=actual_retry_attempts[0],
+            )
+>           raise e
+E           redis.exceptions.ConnectionError: Error 10061 connecting to 127.0.0.1:6379. No connection could be made because the target machine actively refused it.
+
+.venv\Lib\site-packages\redis\connection.py:1055: ConnectionError
+
+During handling of the above exception, another exception occurred:
+
+self = <redis.connection.Connection(host=127.0.0.1,port=6379,db=0)>
+check_health = True, retry_socket_connect = False
+
+    def connect_check_health(
+        self, check_health: bool = True, retry_socket_connect: bool = True
+    ):
+        if self._sock:
+            return
+        # Track actual retry attempts for error reporting
+        actual_retry_attempts = [0]
+    
+        def failure_callback(error, failure_count):
+            actual_retry_attempts[0] = failure_count
+            self.disconnect(error=error, failure_count=failure_count)
+    
+        try:
+            if retry_socket_connect:
+                sock = self.retry.call_with_retry(
+                    self._connect,
+                    failure_callback,
+                    with_failure_count=True,
+                )
+            else:
+>               sock = self._connect()
+                       ^^^^^^^^^^^^^^^
+
+.venv\Lib\site-packages\redis\connection.py:1033: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+.venv\Lib\site-packages\redis\connection.py:1581: in _connect
+    raise err
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <redis.connection.Connection(host=127.0.0.1,port=6379,db=0)>
+
+    def _connect(self):
+        "Create a TCP socket connection"
+        # we want to mimic what socket.create_connection does to support
+        # ipv4/ipv6, but we want to set options prior to calling
+        # socket.connect()
+        err = None
+    
+        for res in socket.getaddrinfo(
+            self.host, self.port, self.socket_type, socket.SOCK_STREAM
+        ):
+            family, socktype, proto, canonname, socket_address = res
+            sock = None
+            try:
+                sock = socket.socket(family, socktype, proto)
+                # TCP_NODELAY
+                sock.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
+    
+                # TCP_KEEPALIVE
+                if self.socket_keepalive:
+                    sock.setsockopt(socket.SOL_SOCKET, socket.SO_KEEPALIVE, 1)
+                    for k, v in self.socket_keepalive_options.items():
+                        sock.setsockopt(socket.IPPROTO_TCP, k, v)
+    
+                # set the socket_connect_timeout before we connect
+                sock.settimeout(self.socket_connect_timeout)
+    
+                # connect
+>               sock.connect(socket_address)
+E               ConnectionRefusedError: [WinError 10061] No connection could be made because the target machine actively refused it
+
+.venv\Lib\site-packages\redis\connection.py:1565: ConnectionRefusedError
+
+During handling of the above exception, another exception occurred:
+
+self = <Connection: redis://127.0.0.1:6379/0 at 0x29ddcf697f0>
+ConnectionError = <class 'kombu.exceptions.OperationalError'>
+ChannelError = <class 'kombu.exceptions.OperationalError'>
+
+    @contextmanager
+    def _reraise_as_library_errors(
+            self,
+            ConnectionError=exceptions.OperationalError,
+            ChannelError=exceptions.OperationalError):
+        try:
+>           yield
+
+.venv\Lib\site-packages\kombu\connection.py:474: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+.venv\Lib\site-packages\celery\app\base.py:800: in send_task
+    self.backend.on_task_call(P, task_id)
+.venv\Lib\site-packages\celery\backends\redis.py:373: in on_task_call
+    self.result_consumer.consume_from(task_id)
+.venv\Lib\site-packages\celery\backends\redis.py:169: in consume_from
+    return self.start(task_id)
+           ^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\celery\backends\redis.py:147: in start
+    self._consume_from(initial_task_id)
+.venv\Lib\site-packages\celery\backends\redis.py:176: in _consume_from
+    with self.reconnect_on_error():
+         ^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\Madhavi\AppData\Local\Programs\Python\Python313\Lib\contextlib.py:162: in __exit__
+    self.gen.throw(value)
+.venv\Lib\site-packages\celery\backends\redis.py:130: in reconnect_on_error
+    self._ensure(self._reconnect_pubsub, ())
+.venv\Lib\site-packages\celery\backends\redis.py:384: in ensure
+    return retry_over_time(
+.venv\Lib\site-packages\kombu\utils\functional.py:318: in retry_over_time
+    return fun(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\celery\backends\redis.py:106: in _reconnect_pubsub
+    metas = self.backend.client.mget(self.subscribed_to)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\redis\commands\core.py:3637: in mget
+    return self.execute_command("MGET", *args, **options)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\redis\client.py:787: in execute_command
+    return self._execute_command(*args, **options)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\redis\client.py:793: in _execute_command
+    conn = self.connection or pool.get_connection()
+                              ^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\redis\utils.py:258: in wrapper
+    return func(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\redis\connection.py:3139: in get_connection
+    connection.connect()
+.venv\Lib\site-packages\redis\connection.py:1006: in connect
+    self.retry.call_with_retry(
+.venv\Lib\site-packages\redis\retry.py:132: in call_with_retry
+    raise error
+.venv\Lib\site-packages\redis\retry.py:120: in call_with_retry
+    return do()
+           ^^^^
+.venv\Lib\site-packages\redis\connection.py:1007: in <lambda>
+    lambda: self.connect_check_health(
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <redis.connection.Connection(host=127.0.0.1,port=6379,db=0)>
+check_health = True, retry_socket_connect = False
+
+    def connect_check_health(
+        self, check_health: bool = True, retry_socket_connect: bool = True
+    ):
+        if self._sock:
+            return
+        # Track actual retry attempts for error reporting
+        actual_retry_attempts = [0]
+    
+        def failure_callback(error, failure_count):
+            actual_retry_attempts[0] = failure_count
+            self.disconnect(error=error, failure_count=failure_count)
+    
+        try:
+            if retry_socket_connect:
+                sock = self.retry.call_with_retry(
+                    self._connect,
+                    failure_callback,
+                    with_failure_count=True,
+                )
+            else:
+                sock = self._connect()
+        except socket.timeout:
+            e = TimeoutError("Timeout connecting to server")
+            record_error_count(
+                server_address=self.host,
+                server_port=self.port,
+                network_peer_address=self.host,
+                network_peer_port=self.port,
+                error_type=e,
+                retry_attempts=actual_retry_attempts[0],
+            )
+            raise e
+        except OSError as e:
+            e = ConnectionError(self._error_message(e))
+            record_error_count(
+                server_address=getattr(self, "host", None),
+                server_port=getattr(self, "port", None),
+                network_peer_address=getattr(self, "host", None),
+                network_peer_port=getattr(self, "port", None),
+                error_type=e,
+                retry_attempts=actual_retry_attempts[0],
+            )
+>           raise e
+E           redis.exceptions.ConnectionError: Error 10061 connecting to 127.0.0.1:6379. No connection could be made because the target machine actively refused it.
+
+.venv\Lib\site-packages\redis\connection.py:1055: ConnectionError
+
+The above exception was the direct cause of the following exception:
+
+self = <apps.progress.test_bulk_update.BulkProgressUpdateTests testMethod=test_valid_bulk_update_updates_existing_progress>
+
+    def setUp(self):
+>       self.user = User.objects.create_user(username="testuser", password="password123")
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+apps\progress\test_bulk_update.py:11: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+.venv\Lib\site-packages\django\contrib\auth\models.py:162: in create_user
+    return self._create_user(username, email, password, **extra_fields)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\django\contrib\auth\models.py:156: in _create_user
+    user.save(using=self._db)
+.venv\Lib\site-packages\django\contrib\auth\base_user.py:62: in save
+    super().save(*args, **kwargs)
+.venv\Lib\site-packages\django\db\models\base.py:892: in save
+    self.save_base(
+.venv\Lib\site-packages\django\db\models\base.py:1013: in save_base
+    post_save.send(
+.venv\Lib\site-packages\django\dispatch\dispatcher.py:189: in send
+    response = receiver(signal=self, sender=sender, **named)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+apps\search\signals.py:46: in index_user
+    index_model_for_search.delay(
+.venv\Lib\site-packages\celery\app\task.py:444: in delay
+    return self.apply_async(args, kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+.venv\Lib\site-packages\celery\app\task.py:594: in apply_async
+    return app.send_task(
+.venv\Lib\site-packages\celery\app\base.py:798: in send_task
+    with P.connection._reraise_as_library_errors():
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+C:\Users\Madhavi\AppData\Local\Programs\Python\Python313\Lib\contextlib.py:162: in __exit__
+    self.gen.throw(value)
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <Connection: redis://127.0.0.1:6379/0 at 0x29ddcf697f0>
+ConnectionError = <class 'kombu.exceptions.OperationalError'>
+ChannelError = <class 'kombu.exceptions.OperationalError'>
+
+    @contextmanager
+    def _reraise_as_library_errors(
+            self,
+            ConnectionError=exceptions.OperationalError,
+            ChannelError=exceptions.OperationalError):
+        try:
+            yield
+        except (ConnectionError, ChannelError):
+            raise
+        except self.recoverable_connection_errors as exc:
+>           raise ConnectionError(str(exc)) from exc
+E           kombu.exceptions.OperationalError: Error 10061 connecting to 127.0.0.1:6379. No connection could be made because the target machine actively refused it.
+
+.venv\Lib\site-packages\kombu\connection.py:478: OperationalError
+------------------------------ Captured log call ------------------------------
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (0/20) now.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (1/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (2/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (3/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (4/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (5/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (6/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (7/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (8/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (9/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (10/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (11/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (12/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (13/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (14/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (15/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (16/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (17/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (18/20) in 1.00 second.
+ERROR    celery.backends.redis:redis.py:391 Connection to Redis lost: Retry (19/20) in 1.00 second.
+CRITICAL celery.backends.redis:redis.py:132 
+Retry limit exceeded while trying to reconnect to the Celery redis result store backend. The Celery application must be restarted.
+-------------------------- Captured stderr teardown ---------------------------
+Destroying test database for alias 'default'...
+=========================== short test summary info ===========================
+FAILED apps/progress/test_bulk_update.py::BulkProgressUpdateTests::test_duplicate_entries_rejected
+FAILED apps/progress/test_bulk_update.py::BulkProgressUpdateTests::test_invalid_lesson_id_rolls_back_transaction
+FAILED apps/progress/test_bulk_update.py::BulkProgressUpdateTests::test_malformed_request_rejected
+FAILED apps/progress/test_bulk_update.py::BulkProgressUpdateTests::test_unauthenticated_returns_401
+FAILED apps/progress/test_bulk_update.py::BulkProgressUpdateTests::test_valid_bulk_update_creates_new_progress
+FAILED apps/progress/test_bulk_update.py::BulkProgressUpdateTests::test_valid_bulk_update_updates_existing_progress
+======================== 6 failed in 393.29s (0:06:33) ========================

@@ -53,6 +53,7 @@ const OrganizationsGrid: React.FC = () => {
             <img
               src={org.logo_url || `https://github.com/${org.slug}.png?size=80`}
               alt={`${org.name} avatar`}
+              loading="lazy"
               className="w-8 h-8 rounded-lg object-cover border border-black/20"
             />
             <div className="truncate min-w-0">

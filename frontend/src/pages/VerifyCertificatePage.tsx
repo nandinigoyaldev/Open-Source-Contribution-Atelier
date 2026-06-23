@@ -162,7 +162,7 @@ export function VerifyCertificatePage() {
                 </button>
               </div>
               {error && (
-                <div className="text-red-500 font-bold text-sm text-left px-2">
+                <div role="alert" className="text-red-500 font-bold text-sm text-left px-2">
                   ⚠️ {error}
                 </div>
               )}

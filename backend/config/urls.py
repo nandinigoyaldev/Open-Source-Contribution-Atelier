@@ -1,8 +1,7 @@
 from apps.dashboard.views import LeaderboardView
 from django.contrib import admin
 from django.urls import include, path
-from drf_spectacular.views import SpectacularAPIView
-from drf_spectacular.views import SpectacularSwaggerView
+from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
 from .version_view import version_view
 
