@@ -185,7 +185,7 @@ export function LandingPage() {
 
             <button
               type="submit"
-              className="w-full rounded-2xl border-4 border-black bg-primary px-5 py-4 font-black text-black text-xl shadow-gel hover:bg-[#E62814] active:translate-y-2 transition-all uppercase tracking-wide mt-4 cursor-pointer"
+              className="w-full rounded-2xl border-4 border-black bg-primary px-5 py-4 font-black text-black text-xl shadow-card hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-card-sm transition-all uppercase tracking-wide mt-4 cursor-pointer"
             >
               Assemble & Run!
             </button>

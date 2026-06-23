@@ -1,6 +1,15 @@
 import { useState, useCallback, useRef, useEffect } from "react";
 import { useWebSocket } from "./useWebSocket";
 import { useTypingIndicator } from "./useTypingIndicator";
+import {
+  generateKeyPair,
+  exportPublicKey,
+  importPublicKey,
+  deriveSharedKey,
+  encryptMessage,
+  decryptMessage,
+  KeyPair,
+} from "../lib/crypto";
 
 type ChatMessage = {
   id: string;
@@ -29,35 +38,69 @@ export function useChat({ roomId, token }: UseChatOptions) {
   const messageIdRef = useRef(0);
   const localUserIdRef = useRef<number | null>(null);
 
-  const onMessage = useCallback((data: unknown) => {
+  const localKeyPairRef = useRef<KeyPair | null>(null);
+  const sharedKeysRef = useRef<Record<number, CryptoKey>>({});
+  const knownUsersRef = useRef<Set<number>>(new Set());
+
+  const onMessage = useCallback(async (data: unknown) => {
     const msg = data as Record<string, unknown>;
     if (msg.type === "new_message") {
-      setMessages((prev) => {
-        const last = prev[prev.length - 1];
-        if (
-          last &&
-          last.id.endsWith("_optimistic") &&
-          last.user_id === (msg.user_id as number) &&
-          last.message === (msg.message as string)
-        ) {
-          return prev.map((m) =>
-            m.id === last.id
-              ? {
-                  ...m,
-                  id: `msg_${messageIdRef.current + 1}`,
-                  username: msg.username as string,
+      let plaintext = msg.message as string;
+      const senderId = msg.user_id as number;
+      const myId = localUserIdRef.current;
+      let matchedLocalId: string | null = null;
+
+      if (plaintext.startsWith("{")) {
+        try {
+          const payload = JSON.parse(plaintext);
+          if (payload.ciphertexts) {
+            matchedLocalId = payload.local_id;
+            if (senderId === myId) {
+              setMessages((prev) => {
+                const last = prev[prev.length - 1];
+                if (last && last.id === matchedLocalId) {
+                  return prev.map((m) =>
+                    m.id === matchedLocalId
+                      ? {
+                          ...m,
+                          id: `msg_${messageIdRef.current + 1}`,
+                          username: msg.username as string,
+                        }
+                      : m,
+                  );
                 }
-              : m,
-          );
+                return prev;
+              });
+              return;
+            } else if (
+              myId &&
+              payload.ciphertexts[myId] &&
+              sharedKeysRef.current[senderId]
+            ) {
+              const { ciphertext, iv } = payload.ciphertexts[myId];
+              plaintext = await decryptMessage(
+                ciphertext,
+                iv,
+                sharedKeysRef.current[senderId],
+              );
+            } else {
+              plaintext = "[Encrypted message - key not found]";
+            }
+          }
+        } catch {
+          // Fallback to plaintext if JSON parse fails
         }
+      }
+
+      setMessages((prev) => {
         messageIdRef.current += 1;
         return [
           ...prev,
           {
             id: `msg_${messageIdRef.current}`,
             username: msg.username as string,
-            user_id: msg.user_id as number,
-            message: msg.message as string,
+            user_id: senderId,
+            message: plaintext,
             timestamp: new Date().toLocaleTimeString(),
           },
         ];
@@ -78,32 +121,78 @@ export function useChat({ roomId, token }: UseChatOptions) {
   useEffect(() => {
     if (ws.lastMessage) {
       const msg = ws.lastMessage as Record<string, unknown>;
-      if (msg.type === "connection_established") {
-        localUserIdRef.current = msg.user_id as number;
-      } else if (msg.type === "typing") {
-        typing.handleTypingMessage(
-          msg as unknown as {
-            action: string;
-            username: string;
-            user_id: number;
-          },
-        );
-      }
+      
+      const handleMsg = async () => {
+        if (msg.type === "connection_established") {
+          localUserIdRef.current = msg.user_id as number;
+          
+          if (!localKeyPairRef.current) {
+            localKeyPairRef.current = await generateKeyPair();
+          }
+          const pubKeyBase64 = await exportPublicKey(localKeyPairRef.current.publicKey);
+          ws.send({ action: "public_key", public_key: pubKeyBase64 });
+          
+        } else if (msg.type === "public_key") {
+          const senderId = msg.user_id as number;
+          const myId = localUserIdRef.current;
+          
+          if (myId && senderId !== myId) {
+            try {
+              const peerPubKey = await importPublicKey(msg.public_key as string);
+              if (localKeyPairRef.current) {
+                const sharedKey = await deriveSharedKey(localKeyPairRef.current.privateKey, peerPubKey);
+                sharedKeysRef.current[senderId] = sharedKey;
+                
+                if (!knownUsersRef.current.has(senderId)) {
+                  knownUsersRef.current.add(senderId);
+                  const pubKeyBase64 = await exportPublicKey(localKeyPairRef.current.publicKey);
+                  ws.send({ action: "public_key", public_key: pubKeyBase64 });
+                }
+              }
+            } catch (error) {
+              console.error("Failed to process public key", error);
+            }
+          }
+        } else if (msg.type === "typing") {
+          typing.handleTypingMessage(
+            msg as unknown as {
+              action: string;
+              username: string;
+              user_id: number;
+            },
+          );
+        }
+      };
+      
+      handleMsg();
     }
-  }, [ws.lastMessage, typing]);
+  }, [ws.lastMessage, typing, ws]);
 
   const sendMessage = useCallback(
-    (text: string) => {
+    async (text: string) => {
       messageIdRef.current += 1;
+      const localId = `msg_${messageIdRef.current}_optimistic`;
       const optimistic: ChatMessage = {
-        id: `msg_${messageIdRef.current}_optimistic`,
+        id: localId,
         username: "",
         user_id: localUserIdRef.current ?? 0,
         message: text,
         timestamp: new Date().toLocaleTimeString(),
       };
       setMessages((prev) => [...prev, optimistic]);
-      ws.send({ action: "send_message", message: text });
+      
+      const ciphertexts: Record<number, { ciphertext: string, iv: string }> = {};
+      for (const [userIdStr, key] of Object.entries(sharedKeysRef.current)) {
+        const userId = Number(userIdStr);
+        ciphertexts[userId] = await encryptMessage(text, key);
+      }
+      
+      const payload = {
+        local_id: localId,
+        ciphertexts,
+      };
+      
+      ws.send({ action: "send_message", message: JSON.stringify(payload) });
     },
     [ws],
   );

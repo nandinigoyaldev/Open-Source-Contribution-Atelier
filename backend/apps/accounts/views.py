@@ -32,9 +32,11 @@ from .serializers import (EmailOrUsernameTokenObtainPairSerializer,
                           PasswordResetRequestSerializer, SignupSerializer,
                           UserListSerializer, UserUpdateSerializer)
 from .tasks import send_otp_email_task, send_password_reset_email_task
-from .throttles import (LoginThrottle, StrictIdentityLoginThrottle, OAuthThrottle, OtpGenerateThrottle,
-                        OtpVerifyThrottle, PasswordResetThrottle, StrictIdentityPasswordResetThrottle,
-                        SignupThrottle, TokenRefreshThrottle)
+from .throttles import (LoginThrottle, OAuthThrottle, OtpGenerateThrottle,
+                        OtpVerifyThrottle, PasswordResetThrottle,
+                        SignupThrottle, StrictIdentityLoginThrottle,
+                        StrictIdentityPasswordResetThrottle,
+                        TokenRefreshThrottle)
 
 
 def unique_username_from_value(value: str) -> str:
@@ -83,9 +85,12 @@ class MeView(APIView):
             request.user, data=request.data, partial=True, context={"request": request}
         )
         serializer.is_valid(raise_exception=True)
-        serializer.save()
+        instance = serializer.save()
+        instance.refresh_from_db()
+        if hasattr(instance, "profile"):
+            instance.profile.refresh_from_db()
         response_serializer = UserListSerializer(
-            request.user, context={"request": request}
+            instance, context={"request": request}
         )
         return Response(response_serializer.data)
 
@@ -475,6 +480,9 @@ class PasswordResetConfirmView(APIView):
 
         user = reset_token.user
         user.set_password(new_password)
+        if hasattr(user, "profile"):
+            user.profile.last_password_change = timezone.now()
+            user.profile.save(update_fields=["last_password_change"])
         user.save()
 
         reset_token.is_used = True

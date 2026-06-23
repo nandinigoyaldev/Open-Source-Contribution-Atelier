@@ -86,6 +86,11 @@ class OTPToken(models.Model):
         return f"OTPToken(user={self.user.username}, used={self.is_used})"
 
 
+import os
+from io import BytesIO
+from PIL import Image
+from django.core.files.base import ContentFile
+
 class UserProfile(models.Model):
     """
     Standard user profile linking to the main User model.
@@ -96,6 +101,7 @@ class UserProfile(models.Model):
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="profile"
     )
     avatar = models.ImageField(upload_to="avatars/", null=True, blank=True)
+    last_password_change = models.DateTimeField(auto_now_add=True)
 
     organization = models.ForeignKey(
         "organizations.Organization",
@@ -107,6 +113,24 @@ class UserProfile(models.Model):
 
     def __str__(self):
         return f"UserProfile({self.user.username})"
+
+    def save(self, *args, **kwargs):
+        if self.avatar and not self.avatar.name.lower().endswith('.webp'):
+            img = Image.open(self.avatar)
+            
+            if img.mode != 'RGBA' and img.mode != 'RGB':
+                img = img.convert('RGBA')
+            
+            output = BytesIO()
+            img.save(output, format='WEBP', quality=85)
+            output.seek(0)
+            
+            base_name = os.path.splitext(os.path.basename(self.avatar.name))[0]
+            new_filename = f"{base_name}.webp"
+            
+            self.avatar.save(new_filename, ContentFile(output.read()), save=False)
+            
+        super().save(*args, **kwargs)
 
 
 @receiver(post_save, sender=settings.AUTH_USER_MODEL)
@@ -122,6 +146,11 @@ def save_user_profile(sender, instance, **kwargs):
     else:
         UserProfile.objects.create(user=instance)
 
+
 from django.contrib.auth import get_user_model
+
 User = get_user_model()
-User.add_to_class("organization", property(lambda u: u.profile.organization if hasattr(u, "profile") else None))
+User.add_to_class(
+    "organization",
+    property(lambda u: u.profile.organization if hasattr(u, "profile") else None),
+)
