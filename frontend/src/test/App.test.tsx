@@ -1,9 +1,13 @@
 import { render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { LandingPage } from "../pages/LandingPage";
 import { AuthProvider } from "../features/auth/AuthContext";
 import { GoogleOAuthProvider } from "@react-oauth/google";
+
+vi.mock("lucide-react", () => ({
+  Github: () => <div data-testid="github-icon" />,
+}));
 
 describe("LandingPage", () => {
   it("renders the project headline", () => {

@@ -53,7 +53,7 @@ export const GitGraph: React.FC<GitGraphProps> = ({ state }) => {
           </span>
         )}
       </div>
-      <svg width={width} height={height} className="block min-w-full">
+      <svg width={width} height={height} className="block min-w-full" role="img" aria-label="Git commit history graph">
         {/* Draw Edges */}
         {state.commits.map((commit) => {
           const pos = nodePositions.get(commit.id);

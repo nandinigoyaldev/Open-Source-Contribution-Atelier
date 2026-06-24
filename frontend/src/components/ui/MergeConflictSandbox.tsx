@@ -50,6 +50,7 @@ export function MergeConflictSandbox() {
           <svg
             className="absolute top-[30%] left-[55%] w-[10%] h-[40%] text-green-500 overflow-visible"
             preserveAspectRatio="none"
+            aria-hidden="true"
           >
             <path
               d="M 0,100 C 50,100 50,0 100,0"

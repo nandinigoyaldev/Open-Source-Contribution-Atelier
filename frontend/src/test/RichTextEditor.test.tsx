@@ -43,7 +43,6 @@ describe("RichTextEditor Component", () => {
   });
 
   it("calls onChange when typing", async () => {
-    const user = userEvent.setup();
     const handleChange = vi.fn();
     render(<RichTextEditor value="" onChange={handleChange} />);
 
