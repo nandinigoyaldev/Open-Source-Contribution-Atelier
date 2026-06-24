@@ -1,0 +1,60 @@
+name: Auto Assign Issue
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  issues: write
+
+jobs:
+  auto-assign:
+    runs-on: ubuntu-latest
+    # Only run on issues, not PRs (PRs also trigger issue_comment events)
+    if: ${{ !github.event.issue.pull_request }}
+    steps:
+      - name: Check comment and assign
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const commentBody = context.payload.comment.body.toLowerCase();
+            // Check if comment contains 'assign to me'
+            if (commentBody.includes('assign to me')) {
+              const issue = context.payload.issue;
+              const commenter = context.payload.comment.user.login;
+
+              // Check if issue is already assigned
+              if (issue.assignees && issue.assignees.length > 0) {
+                console.log('Issue is already assigned.');
+                
+                // If they are already the assignee, no need to do anything or just let them know
+                const isAlreadyAssignedToCommenter = issue.assignees.some(assignee => assignee.login === commenter);
+                if (isAlreadyAssignedToCommenter) {
+                  return;
+                }
+
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: context.issue.number,
+                  body: `Sorry @${commenter}, this issue is already assigned.`
+                });
+                return;
+              }
+
+              // Assign to the user
+              await github.rest.issues.addAssignees({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                assignees: [commenter]
+              });
+              
+              // Comment confirming assignment
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body: `Assigned to @${commenter}! Thanks for contributing.`
+              });
+            }

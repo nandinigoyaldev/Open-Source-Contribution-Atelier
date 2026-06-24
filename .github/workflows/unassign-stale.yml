@@ -1,0 +1,64 @@
+name: Unassign Stale Issues
+
+on:
+  schedule:
+    - cron: '0 0 * * *' # Run daily at midnight
+  workflow_dispatch: # Allow manual trigger for testing
+
+permissions:
+  issues: write
+
+jobs:
+  unassign-stale:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Unassign inactive issues (2 days)
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const daysToStale = 2;
+            const msPerDay = 1000 * 60 * 60 * 24;
+            const now = new Date();
+            
+            console.log(`Checking for open assigned issues inactive for more than ${daysToStale} days...`);
+            
+            // Get all open issues with assignees
+            const issues = await github.paginate(github.rest.issues.listForRepo, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              assignee: '*'
+            });
+
+            for (const issue of issues) {
+              // Ignore pull requests
+              if (issue.pull_request) continue;
+
+              const updatedAt = new Date(issue.updated_at);
+              const diffMs = now - updatedAt;
+              const diffDays = diffMs / msPerDay;
+
+              if (diffDays > daysToStale) {
+                const assignees = issue.assignees.map(a => a.login);
+                
+                if (assignees.length > 0) {
+                  console.log(`Unassigning ${assignees.join(', ')} from issue #${issue.number}`);
+                  
+                  // Comment on the issue
+                  await github.rest.issues.createComment({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: issue.number,
+                    body: `This issue has been inactive for ${daysToStale} days. I am automatically unassigning the current assignees so someone else can work on it. Feel free to request assignment again if you're ready to continue!`
+                  });
+
+                  // Unassign the users
+                  await github.rest.issues.removeAssignees({
+                    owner: context.repo.owner,
+                    repo: context.repo.repo,
+                    issue_number: issue.number,
+                    assignees: assignees
+                  });
+                }
+              }
+            }
