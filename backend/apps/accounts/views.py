@@ -25,16 +25,23 @@ from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import (TokenObtainPairView,
                                             TokenRefreshView)
 
-from .models import OTPToken, PasswordResetToken
+from .models import MagicLinkToken, OTPToken, PasswordResetToken
 from .serializers import (EmailOrUsernameTokenObtainPairSerializer,
-                          OtpRequestSerializer, OtpVerifySerializer,
-                          PasswordResetConfirmSerializer,
+                          MagicLinkRequestSerializer,
+                          MagicLinkVerifySerializer, OtpRequestSerializer,
+                          OtpVerifySerializer, PasswordResetConfirmSerializer,
                           PasswordResetRequestSerializer, SignupSerializer,
                           UserListSerializer, UserUpdateSerializer)
-from .tasks import send_otp_email_task, send_password_reset_email_task
-from .throttles import (LoginThrottle, StrictIdentityLoginThrottle, OAuthThrottle, OtpGenerateThrottle,
-                        OtpVerifyThrottle, PasswordResetThrottle, StrictIdentityPasswordResetThrottle,
-                        SignupThrottle, TokenRefreshThrottle)
+from .tasks import (send_magic_link_email_task, send_otp_email_task,
+                    send_password_reset_email_task)
+from .throttles import (LoginThrottle, MagicLinkRequestThrottle,
+                        MagicLinkVerifyThrottle, OAuthThrottle,
+                        OtpGenerateThrottle, OtpVerifyThrottle,
+                        PasswordResetThrottle, SignupThrottle,
+                        StrictIdentityLoginThrottle,
+                        StrictIdentityMagicLinkThrottle,
+                        StrictIdentityPasswordResetThrottle,
+                        TokenRefreshThrottle)
 
 
 def unique_username_from_value(value: str) -> str:
@@ -83,9 +90,12 @@ class MeView(APIView):
             request.user, data=request.data, partial=True, context={"request": request}
         )
         serializer.is_valid(raise_exception=True)
-        serializer.save()
+        instance = serializer.save()
+        instance.refresh_from_db()
+        if hasattr(instance, "profile"):
+            instance.profile.refresh_from_db()
         response_serializer = UserListSerializer(
-            request.user, context={"request": request}
+            instance, context={"request": request}
         )
         return Response(response_serializer.data)
 
@@ -475,6 +485,9 @@ class PasswordResetConfirmView(APIView):
 
         user = reset_token.user
         user.set_password(new_password)
+        if hasattr(user, "profile"):
+            user.profile.last_password_change = timezone.now()
+            user.profile.save(update_fields=["last_password_change"])
         user.save()
 
         reset_token.is_used = True
@@ -576,6 +589,124 @@ class OtpVerifyView(APIView):
         return Response(
             {
                 "message": "Your email has been verified successfully. You can now log in."
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Magic Link Views
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+@extend_schema(
+    request=MagicLinkRequestSerializer,
+    responses=OpenApiResponse(
+        description="Magic link sent to email if account exists."
+    ),
+)
+class MagicLinkRequestView(APIView):
+    """
+    POST /api/auth/magic-link/request/
+
+    Accept an email address and send a magic login link if the account exists.
+    Always returns the same response to prevent email enumeration attacks.
+    """
+
+    permission_classes = [permissions.AllowAny]
+    throttle_classes = [MagicLinkRequestThrottle, StrictIdentityMagicLinkThrottle]
+
+    def post(self, request):
+        serializer = MagicLinkRequestSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        email = serializer.validated_data["email"].lower()  # type: ignore
+        user = User.objects.filter(email__iexact=email).first()
+
+        if user:
+            # Invalidate any existing unused tokens for this user
+            MagicLinkToken.objects.filter(user=user, is_used=False).update(is_used=True)
+            magic_token = MagicLinkToken.objects.create(user=user)
+
+            login_url = frontend_url("/magic-login", {"token": str(magic_token.token)})
+            timeout = getattr(settings, "MAGIC_LINK_TIMEOUT_MINUTES", 15)
+
+            send_magic_link_email_task.delay(
+                user_email=user.email,
+                user_username=user.username,
+                login_url=login_url,
+                timeout=timeout,
+            )
+
+        return Response(
+            {
+                "message": "If an account with that email exists, a magic login link has been sent."
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+@extend_schema(
+    request=MagicLinkVerifySerializer,
+    responses=OpenApiResponse(description="Logged in successfully via magic link."),
+)
+class MagicLinkVerifyView(APIView):
+    """
+    POST /api/auth/magic-link/verify/
+
+    Accept a magic link token to log the user in.
+    Tokens are single-use and expire after MAGIC_LINK_TIMEOUT_MINUTES.
+    """
+
+    permission_classes = [permissions.AllowAny]
+    throttle_classes = [MagicLinkVerifyThrottle]
+
+    def post(self, request):
+        serializer = MagicLinkVerifySerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        token_value = serializer.validated_data["token"]  # type: ignore
+
+        try:
+            magic_token = MagicLinkToken.objects.select_related("user").get(
+                token=token_value,
+                is_used=False,
+            )
+        except MagicLinkToken.DoesNotExist:
+            return Response(
+                {
+                    "error": "invalid_token",
+                    "message": "This magic link is invalid or has already been used.",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if magic_token.is_expired():
+            return Response(
+                {
+                    "error": "expired_token",
+                    "message": "This magic link has expired. Please request a new one.",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        user = magic_token.user
+
+        magic_token.is_used = True
+        magic_token.save(update_fields=["is_used"])
+
+        refresh = RefreshToken.for_user(user)
+
+        return Response(
+            {
+                "refresh": str(refresh),
+                "access": str(refresh.access_token),
+                "user": {
+                    "username": user.username,
+                    "email": user.email,
+                    "is_staff": user.is_staff,
+                },
+                "message": "You have been successfully logged in.",
             },
             status=status.HTTP_200_OK,
         )

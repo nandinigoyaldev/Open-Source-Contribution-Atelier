@@ -47,7 +47,7 @@ export function LoginPage() {
     >
       <form className="space-y-6 pt-2" onSubmit={handleSubmit}>
         {error && (
-          <div className="text-black font-bold text-sm bg-primary p-4 rounded-lg border-4 border-black shadow-card-sm">
+          <div role="alert" className="text-black font-bold text-sm bg-primary p-4 rounded-lg border-4 border-black shadow-card-sm">
             {error}
           </div>
         )}
@@ -99,7 +99,7 @@ export function LoginPage() {
           />
         </div>
 
-        <button className="w-full rounded-2xl border-4 border-black bg-[#ffb5e8] px-5 py-5 font-black text-black text-xl shadow-card hover:bg-primary transition-colors cursor-pointer mt-4 uppercase">
+        <button className="w-full rounded-2xl border-4 border-black bg-primary px-5 py-5 font-black text-black text-xl shadow-card hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-card-sm transition-all cursor-pointer mt-4 uppercase">
           Let Me In!
         </button>
 

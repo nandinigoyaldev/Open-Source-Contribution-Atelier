@@ -14,7 +14,7 @@ export default function VerifyNoticePage() {
         </p>
         <Link
           to="/signup"
-          className="inline-block w-full rounded-2xl border-4 border-black bg-primary px-5 py-4 font-black text-black shadow-card hover:bg-tertiary transition-colors"
+          className="inline-block w-full rounded-2xl border-4 border-black bg-primary px-5 py-4 font-black text-black shadow-card hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-card-sm transition-all"
         >
           Back to Signup
         </Link>

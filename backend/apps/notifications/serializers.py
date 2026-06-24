@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import Notification
+from .models import Notification, PushSubscription
 
 
 class NotificationSerializer(serializers.ModelSerializer):
@@ -20,3 +20,9 @@ class NotificationSerializer(serializers.ModelSerializer):
             "sender_username",
             "meta",
         ]
+
+
+class PushSubscriptionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PushSubscription
+        fields = ["endpoint", "p256dh", "auth"]

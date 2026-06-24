@@ -20,7 +20,7 @@ describe("VerifyCertificatePage", () => {
         </Routes>
       </MemoryRouter>,
     );
-    expect(container.querySelector('.animate-pulse')).toBeInTheDocument();
+    expect(screen.getByTestId("loading-skeleton")).toBeInTheDocument();
   });
 
   it("renders verified certificate data", async () => {

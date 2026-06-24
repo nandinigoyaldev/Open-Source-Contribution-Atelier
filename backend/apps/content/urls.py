@@ -1,16 +1,8 @@
 from django.urls import path
 from rest_framework.routers import DefaultRouter
 
-from .views import (
-    LessonViewSet,
-    RoadmapView,
-    SearchView,
-    SemanticSearchView,
-    OrganizationListView,
-    LessonPDFView,
-)
-from .views import (LessonViewSet, OrganizationListView, RoadmapView,
-                    SearchView, SemanticSearchView)
+from .views import (LessonPDFView, LessonViewSet, OrganizationListView,
+                    RoadmapView, SearchView, SemanticSearchView)
 
 router = DefaultRouter()
 router.include_format_suffixes = False

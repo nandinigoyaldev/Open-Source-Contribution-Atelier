@@ -60,12 +60,39 @@ The platform preserves a playful, neobrutalist developer console aesthetic while
 ## Quick Start
 
 ### Docker Setup
-To boot both the Django backend and React frontend:
+
+#### Full Stack (Default)
+To boot the full stack including the Django backend, React frontend, PostgreSQL, Redis, and Background Workers:
 ```bash
 docker compose up --build
 ```
 - Backend REST API: `http://localhost:8000/api/`
 - Frontend SPA: `http://localhost:5173/`
+
+#### Lightweight Setup (Limited RAM)
+If you are working on a machine with limited memory (RAM) or don't need real-time background processing, you can use the lightweight setup. This disables Redis and the Notifications Worker, saving system resources while gracefully falling back to Django's in-memory caching.
+
+**Setup Instructions & Usage Example:**
+1. Copy the provided override example:
+   ```bash
+   cp docker-compose.override.yml.example docker-compose.override.yml
+   ```
+2. Start the stack normally. Docker Compose automatically detects and applies `docker-compose.override.yml`:
+   ```bash
+   docker compose up --build
+   ```
+
+**To revert to the full stack:**
+Simply delete or rename the override file and restart the containers:
+```bash
+rm docker-compose.override.yml
+docker compose down
+docker compose up --build
+```
+
+**Troubleshooting Guidance:**
+- **Orphaned containers warning:** If you switch from the full stack to the lightweight setup, Docker might warn you about orphaned containers (like `contribution_atelier_redis`). You can safely remove them by running `docker compose down --remove-orphans` before bringing the stack back up.
+- **WebSocket or Background Task issues:** In the lightweight setup, features relying on Redis/Celery (like real-time notifications) fall back to local memory. While basic functionality remains, testing advanced real-time features may require the full stack.
 
 ### Manual Development Setup
 
@@ -141,7 +168,18 @@ npm run dev
 
 Run tests locally to prevent regressions:
 - **Backend tests**: `cd backend && pytest`
+- **Backend WebSocket tests**: `cd backend && pytest apps/notifications/tests/test_consumers.py apps/chat/tests/test_consumers.py`
 - **Frontend tests**: `cd frontend && npm run test`
+
+### Performance Budgeting
+To prevent JavaScript bundle bloat, the CI pipeline enforces a strict performance budget. **Pull Requests will fail if the frontend JavaScript bundle size increases by more than 50 KB** compared to the base branch.
+
+You can manually check your bundle size locally before committing:
+```bash
+cd frontend
+npm run build
+# Check the generated bundle sizes in the terminal output or the dist/assets folder
+```
 
 ---
 

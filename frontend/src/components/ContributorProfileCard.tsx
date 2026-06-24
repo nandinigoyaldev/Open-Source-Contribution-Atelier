@@ -74,6 +74,7 @@ const ContributorProfileCard: React.FC<Props> = ({
           <img
             src={avatarUrl}
             alt="avatar"
+            loading="lazy"
             className="w-20 h-20 rounded-full border-4 border-white"
           />
         ) : (

@@ -44,7 +44,8 @@ class TestDataExport:
         LessonProgress.objects.create(user=other_user, lesson=lesson, score=50)
 
         response = client.get("/api/users/me/export/?export_format=json")
-        print(response.content); assert response.status_code == 200
+        print(response.content)
+        assert response.status_code == 200
         assert response["Content-Type"] == "application/json"
         assert (
             'attachment; filename="data_export_exportuser.json"'
@@ -70,7 +71,8 @@ class TestDataExport:
         LessonProgress.objects.create(user=user, lesson=lesson, score=99)
 
         response = client.get("/api/users/me/export/?export_format=csv")
-        print(response.content); assert response.status_code == 200
+        print(response.content)
+        assert response.status_code == 200
         assert response["Content-Type"] == "application/zip"
 
         # Read the zip file
@@ -99,7 +101,8 @@ class TestDataExport:
     def test_empty_dataset(self, client, user):
         client.force_authenticate(user=user)
         response = client.get("/api/users/me/export/?export_format=json")
-        print(response.content); assert response.status_code == 200
+        print(response.content)
+        assert response.status_code == 200
         data = json.loads(response.content)
         assert len(data["lesson_progress"]) == 0
         assert len(data["user_profile"]) == 1

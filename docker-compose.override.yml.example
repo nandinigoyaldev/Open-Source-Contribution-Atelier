@@ -1,0 +1,31 @@
+# docker-compose.override.yml.example
+#
+# This is a lightweight configuration for contributors with limited RAM.
+# It disables Redis and the Celery/Notifications Worker, which are not
+# strictly required for basic local development and UI testing.
+# 
+# Usage:
+#   cp docker-compose.override.yml.example docker-compose.override.yml
+#   docker compose up --build
+#
+# Docker Compose will automatically detect `docker-compose.override.yml`
+# and merge it with the base `docker-compose.yml`.
+
+version: "3.9"
+
+services:
+  # Disable Redis to save RAM
+  redis:
+    profiles:
+      - disabled
+
+  # Disable Notifications Worker (Celery) to save RAM
+  notifications_worker:
+    profiles:
+      - disabled
+
+  # Remove the strict dependency on Redis for the backend
+  backend:
+    depends_on:
+      redis:
+        required: false

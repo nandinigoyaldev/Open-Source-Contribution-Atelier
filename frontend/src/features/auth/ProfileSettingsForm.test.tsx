@@ -15,17 +15,13 @@ beforeAll(() => {
 });
 
 // Mock useAuth context values
-vi.mock("./AuthContext", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("./AuthContext")>();
-  return {
-    ...actual,
-    useAuth: () => ({
-      user: { email: "test@example.com", username: "testuser" },
-      isLoading: false,
-      checkUser: vi.fn(),
-    }),
-  };
-});
+vi.mock("./AuthContext", () => ({
+  useAuth: () => ({
+    user: { email: "test@example.com", username: "testuser" },
+    isLoading: false,
+    checkUser: vi.fn(),
+  }),
+}));
 
 describe("ProfileSettingsForm Edge Cases", () => {
   beforeEach(() => {
