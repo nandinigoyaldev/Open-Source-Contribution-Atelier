@@ -77,7 +77,7 @@ def lint_command(command: str) -> LintResult:
     # Use difflib for smart typo detection
     if sub_command not in COMMAND_RULES:
         suggestions = difflib.get_close_matches(
-            sub_command, COMMAND_RULES.keys(), n=1, cutoff=0.7
+            sub_command, list(COMMAND_RULES.keys()), n=1, cutoff=0.7
         )
         if suggestions:
             return LintResult(
