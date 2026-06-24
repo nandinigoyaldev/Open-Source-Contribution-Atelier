@@ -1,8 +1,9 @@
 name: PR Auto Setup
 
 on:
-  pull_request:
+  pull_request_target:
     types: [opened, edited]
+  workflow_dispatch:
 
 permissions:
   pull-requests: write
@@ -17,56 +18,68 @@ jobs:
         with:
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN || github.token }}
           script: |
-            const pr = context.payload.pull_request;
-            const author = pr.user.login;
-            const body = pr.body || '';
+            async function processPR(pr) {
+              const author = pr.user.login;
+              const body = pr.body || '';
+              console.log(`Setting up PR #${pr.number} for @${author}`);
 
-            console.log(`Setting up PR #${pr.number} for @${author}`);
+              // 1. Assign PR to the author
+              await github.rest.issues.addAssignees({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: pr.number,
+                assignees: [author]
+              });
+              console.log(`Assigned PR to @${author}`);
 
-            // 1. Assign PR to the author
-            // GitHub PRs share the same API endpoint for assignees as issues
-            await github.rest.issues.addAssignees({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: pr.number,
-              assignees: [author]
-            });
-            console.log(`Assigned PR to @${author}`);
+              // 2. Extract issue number from PR body
+              const issueRegex = /(?:close|closes|closed|fix|fixes|fixed|resolve|resolves|resolved)\s+#(\d+)/i;
+              const match = body.match(issueRegex);
 
-            // 2. Extract issue number from PR body
-            // Looks for "Closes #123", "Fixes #123", "Resolves #123"
-            const issueRegex = /(?:close|closes|closed|fix|fixes|fixed|resolve|resolves|resolved)\s+#(\d+)/i;
-            const match = body.match(issueRegex);
+              if (match && match[1]) {
+                const issueNumber = parseInt(match[1], 10);
+                console.log(`Found linked issue #${issueNumber}`);
 
-            if (match && match[1]) {
-              const issueNumber = parseInt(match[1], 10);
-              console.log(`Found linked issue #${issueNumber}`);
-
-              try {
-                // Fetch the issue to get its labels
-                const issue = await github.rest.issues.get({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  issue_number: issueNumber
-                });
-
-                const labelsToCopy = issue.data.labels.map(label => label.name);
-
-                if (labelsToCopy.length > 0) {
-                  // Add labels to the PR
-                  await github.rest.issues.addLabels({
+                try {
+                  const issue = await github.rest.issues.get({
                     owner: context.repo.owner,
                     repo: context.repo.repo,
-                    issue_number: pr.number,
-                    labels: labelsToCopy
+                    issue_number: issueNumber
                   });
-                  console.log(`Copied labels from issue #${issueNumber}: ${labelsToCopy.join(', ')}`);
-                } else {
-                  console.log(`Issue #${issueNumber} has no labels to copy.`);
+
+                  const labelsToCopy = issue.data.labels.map(label => label.name);
+
+                  if (labelsToCopy.length > 0) {
+                    await github.rest.issues.addLabels({
+                      owner: context.repo.owner,
+                      repo: context.repo.repo,
+                      issue_number: pr.number,
+                      labels: labelsToCopy
+                    });
+                    console.log(`Copied labels from issue #${issueNumber}: ${labelsToCopy.join(', ')}`);
+                  } else {
+                    console.log(`Issue #${issueNumber} has no labels to copy.`);
+                  }
+                } catch (error) {
+                  console.error(`Could not fetch issue #${issueNumber}. It might not exist or is in another repo.`);
                 }
-              } catch (error) {
-                console.error(`Could not fetch issue #${issueNumber}. It might not exist or is in another repo.`);
+              } else {
+                console.log('No linked issue found in the PR body.');
               }
-            } else {
-              console.log('No linked issue found in the PR body.');
+            }
+
+            if (context.eventName === 'workflow_dispatch') {
+              console.log('Manual trigger detected. Fetching all open PRs...');
+              const prs = await github.paginate(github.rest.pulls.list, {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                state: 'open'
+              });
+              
+              console.log(`Found ${prs.length} open PRs.`);
+              for (const pr of prs) {
+                await processPR(pr);
+              }
+            } else if (context.payload.pull_request) {
+              await processPR(context.payload.pull_request);
             }

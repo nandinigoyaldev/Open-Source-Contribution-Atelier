@@ -186,7 +186,7 @@ jobs:
                   }
                 } else {
                   // Not warned yet. Check if it's been 2 days.
-                  if (diffDays >= 0) {
+                  if (diffDays >= 2) {
                     console.log(`Warning ${assignees.join(', ')} on issue #${item.number}`);
                     await github.rest.issues.createComment({
                       owner: context.repo.owner,
