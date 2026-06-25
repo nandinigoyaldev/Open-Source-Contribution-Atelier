@@ -1,10 +1,17 @@
+from apps.dashboard.views import LeaderboardView
 from django.contrib import admin
 from django.urls import include, path
-from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView # Add this line
-from apps.dashboard.views import LeaderboardView
+from django.views.decorators.csrf import csrf_exempt
+from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
+from graphene_django.views import GraphQLView
+
+from .health_view import health_view
+from .version_view import version_view
 
 urlpatterns = [
     path("admin/", admin.site.urls),
+    path("health/", health_view, name="health"),
+    path("api/version/", version_view, name="version"),
     path("api/leaderboard/", LeaderboardView.as_view(), name="leaderboard"),
     path("api/auth/", include("apps.accounts.urls")),
     path("api/users/", include("apps.accounts.user_urls")),
@@ -15,8 +22,19 @@ urlpatterns = [
     path("api/notifications/", include("apps.notifications.urls")),
     path("api/dashboard/", include("apps.dashboard.urls")),
     path("api/search/", include("apps.search.urls")),
-    
-    # Add these two paths below:
-    path('api/schema/', SpectacularAPIView.as_view(), name='schema'),
-    path('api/docs/', SpectacularSwaggerView.as_view(url_name='schema'), name='swagger-ui'),
+    path("api/webhooks/", include("apps.webhooks.urls")),
+    path("api/notes/", include("apps.notes.urls")),
+    path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
+    path(
+        "api/docs/",
+        SpectacularSwaggerView.as_view(url_name="schema"),
+        name="swagger-ui",
+    ),
+    path("api/graphql/", csrf_exempt(GraphQLView.as_view(graphiql=True))),
 ]
+
+from django.conf import settings
+from django.conf.urls.static import static
+
+if settings.DEBUG:
+    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

@@ -8,14 +8,14 @@ Verifies that the GET /api/progress/mentor/help-requests/ endpoint:
   - Returns an empty list when a mentor has no assigned lessons.
 """
 
-import pytest
-from django.contrib.auth.models import User
-from typing import Optional, List
-from rest_framework.test import APIClient
+from typing import List, Optional
 
+import pytest
 from apps.accounts.models import MentorProfile
 from apps.content.models import Lesson
 from apps.progress.models import HelpRequest
+from django.contrib.auth.models import User
+from rest_framework.test import APIClient
 
 MENTOR_ENDPOINT = "/api/progress/mentor/help-requests/"
 
@@ -23,6 +23,7 @@ MENTOR_ENDPOINT = "/api/progress/mentor/help-requests/"
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _make_lesson(slug: str, title: Optional[str] = None, order: int = 0) -> Lesson:
     return Lesson.objects.create(
@@ -34,7 +35,9 @@ def _make_lesson(slug: str, title: Optional[str] = None, order: int = 0) -> Less
     )
 
 
-def _make_help_request(user: User, lesson: Lesson, message: str = "Help!") -> HelpRequest:
+def _make_help_request(
+    user: User, lesson: Lesson, message: str = "Help!"
+) -> HelpRequest:
     return HelpRequest.objects.create(user=user, lesson=lesson, message=message)
 
 
@@ -49,6 +52,7 @@ def _make_mentor(username: str, lessons: Optional[List[Lesson]] = None) -> User:
 # ---------------------------------------------------------------------------
 # Happy path
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.django_db
 def test_mentor_can_see_assigned_lesson_tickets():
@@ -104,6 +108,7 @@ def test_mentor_sees_tickets_across_all_assigned_lessons():
 # Scope boundary — mentor cannot cross into another mentor's modules
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.django_db
 def test_mentor_cannot_see_unassigned_lesson_tickets():
     """A mentor sees zero tickets when none belong to their assigned lessons."""
@@ -153,6 +158,7 @@ def test_two_mentors_see_independent_scopes():
 # Permission denial
 # ---------------------------------------------------------------------------
 
+
 @pytest.mark.django_db
 def test_unauthenticated_request_is_rejected():
     """Anonymous requests receive HTTP 401."""
@@ -164,7 +170,9 @@ def test_unauthenticated_request_is_rejected():
 @pytest.mark.django_db
 def test_non_mentor_authenticated_user_is_forbidden():
     """Authenticated users without a MentorProfile receive HTTP 403."""
-    regular_user = User.objects.create_user(username="learner5", password="strongpass123")
+    regular_user = User.objects.create_user(
+        username="learner5", password="strongpass123"
+    )
     client = APIClient()
     client.force_authenticate(user=regular_user)
 
@@ -179,7 +187,9 @@ def test_staff_user_without_mentor_profile_is_forbidden():
     is_staff alone does not grant mentor access; a MentorProfile is required.
     This guards against accidental scope escalation for admins.
     """
-    admin = User.objects.create_user(username="admin_no_profile", password="strongpass123", is_staff=True)
+    admin = User.objects.create_user(
+        username="admin_no_profile", password="strongpass123", is_staff=True
+    )
     client = APIClient()
     client.force_authenticate(user=admin)
 
@@ -191,6 +201,7 @@ def test_staff_user_without_mentor_profile_is_forbidden():
 # ---------------------------------------------------------------------------
 # Edge case — mentor assigned no lessons
 # ---------------------------------------------------------------------------
+
 
 @pytest.mark.django_db
 def test_mentor_with_no_assigned_lessons_sees_empty_list():

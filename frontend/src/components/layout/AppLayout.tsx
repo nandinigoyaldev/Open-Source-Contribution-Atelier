@@ -1,8 +1,13 @@
-import { Outlet } from "react-router-dom";
+import { useLocation, useOutlet } from "react-router-dom";
+import { AnimatePresence, motion } from "framer-motion";
 import { Navigation } from "./Navigation";
 import { BadgeToastNotifier } from "../ui/BadgeToastNotifier";
+import { ScrollToTop } from "../ui/ScrollToTop";
 
 export function AppLayout() {
+  const location = useLocation();
+  const outlet = useOutlet();
+
   return (
     <>
       <a
@@ -46,4 +51,3 @@ export function AppLayout() {
     </>
   );
 }
-

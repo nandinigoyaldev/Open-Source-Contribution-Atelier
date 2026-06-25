@@ -1,4 +1,3 @@
- 
 import { render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { VerifyCertificatePage } from "./VerifyCertificatePage";
@@ -14,14 +13,14 @@ describe("VerifyCertificatePage", () => {
     (fetchApi as ReturnType<typeof vi.fn>).mockReturnValue(
       new Promise(() => {}),
     );
-    render(
+    const { container } = render(
       <MemoryRouter initialEntries={["/verify/123"]}>
         <Routes>
           <Route path="/verify/:hash" element={<VerifyCertificatePage />} />
         </Routes>
       </MemoryRouter>,
     );
-    expect(screen.getByText("Verifying Certificate...")).toBeInTheDocument();
+    expect(screen.getByTestId("loading-skeleton")).toBeInTheDocument();
   });
 
   it("renders verified certificate data", async () => {

@@ -3,6 +3,20 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <script>
+      try {
+        var t = localStorage.getItem("theme");
+        if (t === "dark" || t === "high-contrast") {
+          document.documentElement.classList.add(t);
+        } else if (t !== "light") {
+          if (window.matchMedia("(prefers-contrast: more)").matches) {
+            document.documentElement.classList.add("high-contrast");
+          } else if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
+            document.documentElement.classList.add("dark");
+          }
+        }
+      } catch (_) {}
+    </script>
     <title>Open Source Contribution Atelier</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />

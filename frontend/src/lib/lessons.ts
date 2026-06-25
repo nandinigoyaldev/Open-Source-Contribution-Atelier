@@ -13,6 +13,13 @@ export interface ConflictScenario {
   fileContent: string; // The file content containing Git conflict markers (<<<<<<< HEAD)
 }
 
+export interface PythonExercise {
+  prompt: string;
+  starterCode: string;
+  testCode: string; // Hidden code appended after user code to run assertions
+  hint?: string;
+}
+
 export interface Lesson {
   slug: string; // used for URL
   title: string;
@@ -35,6 +42,7 @@ export interface Lesson {
     explanation: string;
   }>;
   conflictScenario?: ConflictScenario;
+  pythonExercise?: PythonExercise;
 }
 
 // Small built-in fallback lessons (used if API unreachable)
@@ -92,6 +100,7 @@ export async function fetchLessonsApi(): Promise<Lesson[]> {
           exercises: les.exercises || [],
           quizzes: les.quizzes || [],
           conflictScenario: les.conflictScenario || undefined,
+          pythonExercise: les.pythonExercise || undefined,
           order: orderIndex++,
           filePath: les.filePath,
         });

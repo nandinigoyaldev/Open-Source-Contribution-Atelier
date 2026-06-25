@@ -373,12 +373,15 @@ function runCommand(
       const unmergedFiles = Object.keys(s.git.unmerged || {});
       const lines: TerminalLine[] = [];
       lines.push(out(`On branch ${s.git.currentBranch}`));
-      if (s.git.mergeState) lines.push(out("You have unmerged paths.", "error"));
+      if (s.git.mergeState)
+        lines.push(out("You have unmerged paths.", "error"));
       if (s.git.HEAD && !s.git.mergeState) lines.push(out(""));
-      
+
       if (unmergedFiles.length > 0) {
         lines.push(out("Unmerged paths:", "error"));
-        lines.push(out("  (use \"git add <file>...\" to mark resolution)", "info"));
+        lines.push(
+          out('  (use "git add <file>..." to mark resolution)', "info"),
+        );
         unmergedFiles.forEach((f) => {
           const relName = f.startsWith(prefix) ? f.slice(prefix.length) : f;
           lines.push(out(`  both modified:   ${relName}`, "error"));
@@ -455,37 +458,50 @@ function runCommand(
         newlyAdded > 0
           ? `${newlyAdded} file(s) staged.`
           : "Nothing new to stage (already up to date).";
-      
+
       const newUnmerged = { ...(s.git.unmerged || {}) };
       for (const stagedKey of Object.keys(newStaged)) {
-          if (newUnmerged[stagedKey]) delete newUnmerged[stagedKey];
+        if (newUnmerged[stagedKey]) delete newUnmerged[stagedKey];
       }
-      
+
       return {
         lines: [out(addedMsg, "success")],
-        newState: { ...s, git: { ...s.git, staged: newStaged, unmerged: newUnmerged } },
+        newState: {
+          ...s,
+          git: { ...s.git, staged: newStaged, unmerged: newUnmerged },
+        },
       };
     }
 
     // git commit
     if (sub === "commit") {
       if (s.git.mergeState) {
-          // Check if unmerged files exist
-          if (Object.keys(s.git.unmerged || {}).length > 0) {
-              return {
-                  lines: [out("error: Committing is not possible because you have unmerged files.", "error")],
-                  newState: s,
-              };
+        // Check if unmerged files exist
+        if (Object.keys(s.git.unmerged || {}).length > 0) {
+          return {
+            lines: [
+              out(
+                "error: Committing is not possible because you have unmerged files.",
+                "error",
+              ),
+            ],
+            newState: s,
+          };
+        }
+        // Validate that the markers are actually gone in the staged files
+        for (const [key, content] of Object.entries(s.git.staged)) {
+          if (content.includes("<<<<<<<")) {
+            return {
+              lines: [
+                out(
+                  `error: File '${key}' still contains conflict markers.`,
+                  "error",
+                ),
+              ],
+              newState: s,
+            };
           }
-          // Validate that the markers are actually gone in the staged files
-          for (const [key, content] of Object.entries(s.git.staged)) {
-              if (content.includes("<<<<<<<")) {
-                  return {
-                      lines: [out(`error: File '${key}' still contains conflict markers.`, "error")],
-                      newState: s,
-                  };
-              }
-          }
+        }
       }
 
       if (Object.keys(s.git.staged).length === 0) {
@@ -705,15 +721,20 @@ function runCommand(
           lines: [out("Usage: git merge <branch>", "error")],
           newState: s,
         };
-      
+
       if (target === "conflict-branch") {
         if (s.git.mergeState) {
           return {
-            lines: [out("fatal: You have not concluded your merge (MERGE_HEAD exists).", "error")],
+            lines: [
+              out(
+                "fatal: You have not concluded your merge (MERGE_HEAD exists).",
+                "error",
+              ),
+            ],
             newState: s,
           };
         }
-        
+
         // Inject a simulated conflict
         const prefix = cwdKey(s.cwd) + "/";
         const conflictKey = prefix + "app.js";
@@ -723,12 +744,15 @@ function runCommand(
           [conflictKey]: { type: "file" as const, content: conflictContent },
         };
         const newUnmerged = { ...(s.git.unmerged || {}), [conflictKey]: true };
-        
+
         return {
           lines: [
             out(`Auto-merging app.js`),
             out(`CONFLICT (content): Merge conflict in app.js`, "error"),
-            out(`Automatic merge failed; fix conflicts and then commit the result.`, "error"),
+            out(
+              `Automatic merge failed; fix conflicts and then commit the result.`,
+              "error",
+            ),
           ],
           newState: {
             ...s,
@@ -737,7 +761,7 @@ function runCommand(
               ...s.git,
               mergeState: true,
               unmerged: newUnmerged,
-            }
+            },
           },
         };
       }

@@ -1,0 +1,42 @@
+name: Backend CI
+
+on:
+  pull_request:
+    branches: [ "main" ]
+  push:
+    branches: [ "main" ]
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+    
+    defaults:
+      run:
+        working-directory: ./backend
+
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: "3.9"
+        cache: 'pip'
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+        pip install black isort
+
+    - name: Set up environment variables
+      run: cp .env.example .env
+
+    - name: Run Black formatting check
+      run: black --check .
+
+    - name: Run isort formatting check
+      run: isort --check-only .
+
+    - name: Run pytest
+      run: pytest

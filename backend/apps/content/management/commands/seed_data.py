@@ -1,8 +1,7 @@
-from django.core.management.base import BaseCommand
-
 from apps.challenges.models import Challenge
 from apps.content.models import Exercise, Lesson
 from apps.progress.models import Badge
+from django.core.management.base import BaseCommand
 
 
 class Command(BaseCommand):
@@ -22,9 +21,9 @@ class Command(BaseCommand):
                         "prompt": "Press Enter to continue.",
                         "expected_command": ".+",
                         "explanation": "This is a warm-up exercise.",
-                        "points": 10
+                        "points": 10,
                     }
-                ]
+                ],
             },
             {
                 "slug": "git-init",
@@ -37,9 +36,9 @@ class Command(BaseCommand):
                         "prompt": "Type the command to initialize a repository.",
                         "expected_command": "git init",
                         "explanation": "The `git init` command creates a .git folder.",
-                        "points": 20
+                        "points": 20,
                     }
-                ]
+                ],
             },
             {
                 "slug": "git-add",
@@ -52,25 +51,25 @@ class Command(BaseCommand):
                         "prompt": "Type the command to stage all currently modified files.",
                         "expected_command": "git add .",
                         "explanation": "The dot refers to the current directory.",
-                        "points": 20
+                        "points": 20,
                     }
-                ]
+                ],
             },
             {
                 "slug": "git-commit",
                 "title": "Create a Commit",
                 "summary": "Record your changes.",
-                "content": "`git commit -m \"msg\"` creates a new commit with a message.",
+                "content": '`git commit -m "msg"` creates a new commit with a message.',
                 "exercises": [
                     {
                         "title": "Commit with message",
                         "prompt": "Type a commit command with the message 'Init project'.",
                         "expected_command": 'git commit -m "Init project"',
                         "explanation": "Use -m followed by the message in quotes.",
-                        "points": 30
+                        "points": 30,
                     }
-                ]
-            }
+                ],
+            },
         ]
 
         for ld in lessons_data:
@@ -81,7 +80,7 @@ class Command(BaseCommand):
                     "summary": ld["summary"],
                     "content": ld["content"],
                     "difficulty": "beginner",
-                }
+                },
             )
             for ed in ld["exercises"]:
                 Exercise.objects.get_or_create(
@@ -92,7 +91,7 @@ class Command(BaseCommand):
                         "expected_command": ed["expected_command"],
                         "explanation": ed["explanation"],
                         "points": ed["points"],
-                    }
+                    },
                 )
 
         # 2. Challenges
@@ -103,7 +102,7 @@ class Command(BaseCommand):
                 "summary": "Guide contributors through issue triage, branch naming, and clean commits.",
                 "difficulty": "intermediate",
                 "points": 50,
-                "is_featured": True
+                "is_featured": True,
             },
             {
                 "title": "Git Recovery Lab",
@@ -111,8 +110,8 @@ class Command(BaseCommand):
                 "summary": "Practice safe undo flows, rebases, and fixing a messy working tree.",
                 "difficulty": "advanced",
                 "points": 100,
-                "is_featured": False
-            }
+                "is_featured": False,
+            },
         ]
 
         for cd in challenges_data:
@@ -123,8 +122,8 @@ class Command(BaseCommand):
                     "summary": cd["summary"],
                     "difficulty": cd["difficulty"],
                     "points": cd["points"],
-                    "is_featured": cd["is_featured"]
-                }
+                    "is_featured": cd["is_featured"],
+                },
             )
 
         Badge.objects.get_or_create(

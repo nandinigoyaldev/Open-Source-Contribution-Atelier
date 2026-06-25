@@ -1,5 +1,25 @@
 {
+  "scripts": {
+    "prepare": "husky"
+  },
   "dependencies": {
-    "framer-motion": "^12.40.0"
+    "framer-motion": "^12.41.0",
+    "zxcvbn": "^4.4.2"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^21.0.2",
+    "@commitlint/config-conventional": "^21.0.2",
+    "@types/zxcvbn": "^4.4.5",
+    "husky": "^9.1.7",
+    "lint-staged": "^16.4.0"
+  },
+  "lint-staged": {
+    "frontend/**/*.{js,jsx,ts,tsx}": [
+      "npm --prefix frontend exec -- eslint -c frontend/eslint.config.js --fix",
+      "npm --prefix frontend exec -- prettier --write"
+    ],
+    "backend/**/*.py": [
+      "black"
+    ]
   }
 }

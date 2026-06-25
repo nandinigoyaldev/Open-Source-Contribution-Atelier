@@ -19,32 +19,32 @@ Error: A snapshot doesn't exist at X:\SSOC\Open-Source-Contribution-Atelier\fron
 
 ```yaml
 - generic [ref=e4]:
-  - generic [ref=e6]: ROUTE MISSING
-  - generic [ref=e10]:
-    - paragraph [ref=e11]: Error 404
-    - heading "This corridor doesn't exist." [level=1] [ref=e12]
-    - paragraph [ref=e13]: The page you requested isn't in the atelier. Let's get you back to the home base.
-    - generic [ref=e14]:
-      - link "Back to Home" [ref=e15] [cursor=pointer]:
-        - /url: /
-      - generic [ref=e16]: "Tip: check your URL spelling."
+    - generic [ref=e6]: ROUTE MISSING
+    - generic [ref=e10]:
+        - paragraph [ref=e11]: Error 404
+        - heading "This corridor doesn't exist." [level=1] [ref=e12]
+        - paragraph [ref=e13]: The page you requested isn't in the atelier. Let's get you back to the home base.
+        - generic [ref=e14]:
+            - link "Back to Home" [ref=e15] [cursor=pointer]:
+                - /url: /
+            - generic [ref=e16]: "Tip: check your URL spelling."
 ```
 
 # Test source
 
 ```ts
   1  | import { Page, expect } from "@playwright/test";
-  2  | 
+  2  |
   3  | /**
   4  |  * Shared helpers for visual regression tests.
   5  |  * Keeps individual test files focused on scenarios rather than boilerplate.
   6  |  */
-  7  | 
+  7  |
   8  | /** Wait for all images and fonts to finish loading before taking a screenshot. */
   9  | export async function waitForPageReady(page: Page): Promise<void> {
   10 |   // Wait for network to be idle (no in-flight requests for 500ms)
   11 |   await page.waitForLoadState("networkidle");
-  12 | 
+  12 |
   13 |   // Wait for all images to decode
   14 |   await page.evaluate(async () => {
   15 |     const images = Array.from(document.querySelectorAll("img"));
@@ -60,11 +60,11 @@ Error: A snapshot doesn't exist at X:\SSOC\Open-Source-Contribution-Atelier\fron
   25 |         ),
   26 |     );
   27 |   });
-  28 | 
+  28 |
   29 |   // Let CSS transitions / animations settle
   30 |   await page.waitForTimeout(300);
   31 | }
-  32 | 
+  32 |
   33 | /**
   34 |  * Take a full-page screenshot and compare it against the stored baseline.
   35 |  * @param page   - Playwright Page object
@@ -81,7 +81,7 @@ Error: A snapshot doesn't exist at X:\SSOC\Open-Source-Contribution-Atelier\fron
   45 |     animations: "disabled",
   46 |   });
   47 | }
-  48 | 
+  48 |
   49 | /**
   50 |  * Take a screenshot of a specific element and compare against baseline.
   51 |  * @param page     - Playwright Page object
@@ -99,5 +99,5 @@ Error: A snapshot doesn't exist at X:\SSOC\Open-Source-Contribution-Atelier\fron
   63 |     animations: "disabled",
   64 |   });
   65 | }
-  66 | 
+  66 |
 ```

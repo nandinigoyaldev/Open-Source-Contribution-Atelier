@@ -32,7 +32,7 @@ export function SignupForm() {
   return (
     <form className="space-y-6 pt-2" onSubmit={handleSubmit}>
       {error && (
-        <div className="text-black font-bold text-sm bg-primary p-4 rounded-xl border-4 border-black shadow-card-sm">
+        <div role="alert" className="text-black font-bold text-sm bg-primary p-4 rounded-lg border-4 border-black shadow-card-sm">
           {error}
         </div>
       )}
@@ -91,7 +91,7 @@ export function SignupForm() {
       <p className="text-center text-sm font-bold text-black mt-6">
         Already stuck with us?{" "}
         <a
-          href="/login"
+          href="/"
           className="text-primary underline decoration-2 hover:text-black"
         >
           Log in here

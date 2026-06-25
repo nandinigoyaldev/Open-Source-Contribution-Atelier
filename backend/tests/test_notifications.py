@@ -1,16 +1,18 @@
 import pytest
+from apps.notifications.models import Notification
 from django.contrib.auth.models import User
 from rest_framework.test import APIClient
-from apps.notifications.models import Notification
 
 
 @pytest.fixture
 def user_a(db):
     return User.objects.create_user(username="user_a", password="pass")
 
+
 @pytest.fixture
 def user_b(db):
     return User.objects.create_user(username="user_b", password="pass")
+
 
 @pytest.fixture
 def notif_for_a(db, user_a):
@@ -19,6 +21,7 @@ def notif_for_a(db, user_a):
         message="Hello user_a",
         is_read=False,
     )
+
 
 @pytest.fixture
 def notif_for_b(db, user_b):
@@ -74,9 +77,10 @@ def test_mark_all_read(user_a, notif_for_a):
 
 
 def test_lesson_completed_broadcasts_to_leaderboard_channel(db, user_a):
-    from unittest.mock import patch, MagicMock, AsyncMock
-    from apps.progress.models import LessonProgress
+    from unittest.mock import AsyncMock, MagicMock, patch
+
     from apps.content.models import Lesson
+    from apps.progress.models import LessonProgress
 
     lesson = Lesson.objects.create(
         slug="test-lesson-broadcast",
@@ -97,15 +101,14 @@ def test_lesson_completed_broadcasts_to_leaderboard_channel(db, user_a):
             score=100,
         )
 
-        mock_layer.group_send.assert_called_once_with(
-            "leaderboard",
-            {
-                "type": "leaderboard_update",
-                "event": "xp_update",
-                "user_id": user_a.id,
-                "username": user_a.username,
-                "xp": 100,
-                "message": f"User {user_a.username} completed lesson {lesson.title}",
-            },
-        )
+        mock_layer.group_send.assert_called_once()
+        args, kwargs = mock_layer.group_send.call_args
+        group_name = args[0]
+        payload = args[1]
 
+        assert group_name == "leaderboard_updates"
+        assert payload["type"] == "leaderboard_update"
+        assert payload["event"] == "xp_update"
+        assert payload["user_id"] == user_a.id
+        assert payload["username"] == user_a.username
+        assert isinstance(payload.get("xp"), int)

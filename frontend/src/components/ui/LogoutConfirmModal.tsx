@@ -47,7 +47,7 @@ export default function LogoutConfirmModal({
         <div className="flex gap-3 justify-end">
           <button
             type="button"
-            className="px-4 py-2 rounded-xl border-2 border-black text-sm font-bold bg-white hover:bg-gray-100 shadow-[3px_3px_0px_0px_#000] active:shadow-none active:translate-x-[3px] active:translate-y-[3px] transition-all"
+            className="px-4 py-2 rounded-lg border-2 border-black text-sm font-bold bg-white hover:bg-gray-100 shadow-[3px_3px_0px_0px_#000] active:shadow-none active:translate-x-[3px] active:translate-y-[3px] transition-all"
             onClick={onCancel}
             data-testid="cancel-button"
           >
@@ -56,7 +56,7 @@ export default function LogoutConfirmModal({
 
           <button
             type="button"
-            className="px-4 py-2 rounded-xl border-2 border-black text-sm font-black bg-[#ffb5e8] text-black shadow-[3px_3px_0px_0px_#000] active:shadow-none active:translate-x-[3px] active:translate-y-[3px] transition-all"
+            className="px-4 py-2 rounded-lg border-2 border-black text-sm font-black bg-[#ffb5e8] text-black shadow-[3px_3px_0px_0px_#000] active:shadow-none active:translate-x-[3px] active:translate-y-[3px] transition-all"
             onClick={onConfirm}
             data-testid="confirm-button"
           >

@@ -1,4 +1,6 @@
-from apps.progress.models import Badge, UserBadge, LessonProgress
+from apps.progress.models import Badge, LessonProgress, UserBadge, ExerciseAttempt
+from apps.dashboard.models import PullRequest
+from django.utils import timezone
 
 BADGE_RULES = {
     "first-steps": {
@@ -112,7 +114,18 @@ BADGE_RULES = {
             "finding-projects",
         ],
     },
+    "first-pr": {
+        "name": "First PR",
+        "description": "Merged your first Pull Request.",
+        "min_prs": 1,
+    },
+    "streak-7": {
+        "name": "7 Day Streak",
+        "description": "Contributed for 7 days.",
+        "min_streak": 7,
+    },
 }
+
 
 class BadgeEvaluator:
     @classmethod
@@ -122,9 +135,30 @@ class BadgeEvaluator:
 
         # Fetch user's completed lesson slugs
         completed_slugs = set(
-            LessonProgress.objects.filter(user=user, completed=True)
-            .values_list("lesson__slug", flat=True)
+            LessonProgress.objects.filter(user=user, completed=True).values_list(
+                "lesson__slug", flat=True
+            )
         )
+
+        # Calculate PRs
+        prs_merged = PullRequest.objects.filter(
+            user=user, status=PullRequest.Status.MERGED
+        ).count()
+
+        # Calculate streak based on unique days of activity
+        activity_days = set()
+        attempts = ExerciseAttempt.objects.filter(user=user).values_list(
+            "created_at", flat=True
+        )
+        for dt in attempts:
+            activity_days.add(timezone.localdate(dt))
+        progress_entries = LessonProgress.objects.filter(user=user).values_list(
+            "updated_at", flat=True
+        )
+        for dt in progress_entries:
+            activity_days.add(timezone.localdate(dt))
+
+        streak_days = len(activity_days)
 
         # Fetch user's already earned badge slugs
         earned_slugs = set(
@@ -138,16 +172,23 @@ class BadgeEvaluator:
             # Evaluate the rule
             meets_criteria = False
             if "min_lessons" in rule:
-                meets_criteria = len(completed_slugs) >= rule["min_lessons"]
+                min_lessons = rule["min_lessons"]
+                if isinstance(min_lessons, int):
+                    meets_criteria = len(completed_slugs) >= min_lessons
             elif "lessons" in rule:
-                meets_criteria = all(slug in completed_slugs for slug in rule["lessons"])
+                lessons_list = rule["lessons"]
+                if isinstance(lessons_list, list):
+                    meets_criteria = all(
+                        slug in completed_slugs for slug in lessons_list
+                    )
+            elif "min_prs" in rule:
+                meets_criteria = prs_merged >= rule["min_prs"]
+            elif "min_streak" in rule:
+                meets_criteria = streak_days >= rule["min_streak"]
 
             if meets_criteria:
                 badge, _ = Badge.objects.get_or_create(
                     slug=badge_slug,
-                    defaults={
-                        "name": rule["name"],
-                        "description": rule["description"]
-                    }
+                    defaults={"name": rule["name"], "description": rule["description"]},
                 )
                 UserBadge.objects.get_or_create(user=user, badge=badge)

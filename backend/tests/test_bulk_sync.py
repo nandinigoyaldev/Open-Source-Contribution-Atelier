@@ -1,17 +1,13 @@
 import pytest
-from django.contrib.auth.models import User
-from rest_framework.test import APIClient
-
 from apps.content.models import Lesson
 from apps.progress.models import LessonProgress
+from django.contrib.auth.models import User
+from rest_framework.test import APIClient
 
 
 @pytest.mark.django_db
 def test_bulk_sync_creates_multiple_progress_records():
-    user = User.objects.create_user(
-        username="testuser",
-        password="strongpass123"
-    )
+    user = User.objects.create_user(username="testuser", password="strongpass123")
 
     Lesson.objects.create(
         slug="git-basics",

@@ -3,7 +3,10 @@ import ReactDOM from "react-dom/client";
 import { GoogleOAuthProvider } from "@react-oauth/google";
 import App from "./app/App";
 import { AuthProvider } from "./features/auth/AuthContext";
+import { ThemeProvider } from "./hooks/useTheme";
+import { ToastProvider } from "./features/ui/ToastContext";
 import { syncOfflineQueue } from "./lib/offlineQueue";
+import "./lib/i18n";
 import "./styles.css";
 
 const GOOGLE_CLIENT_ID =
@@ -32,10 +35,14 @@ syncOfflineQueue();
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <AuthProvider>
-      <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
-        <App />
-      </GoogleOAuthProvider>
-    </AuthProvider>
+    <ThemeProvider>
+      <AuthProvider>
+        <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
+          <ToastProvider>
+            <App />
+          </ToastProvider>
+        </GoogleOAuthProvider>
+      </AuthProvider>
+    </ThemeProvider>
   </React.StrictMode>,
 );

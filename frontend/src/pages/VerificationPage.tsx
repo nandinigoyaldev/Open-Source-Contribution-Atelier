@@ -9,13 +9,11 @@ export function VerificationPage() {
     const verifyUser = async () => {
       try {
         // Uses Vercel environment variable in production, falls back to local dev server
-        const baseUrl = import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000/api";
-        const response = await fetch(
-          `${baseUrl}/auth/verify/${token}/`,
-          {
-            method: "GET",
-          },
-        );
+        const baseUrl =
+          import.meta.env.VITE_API_BASE_URL || "http://127.0.0.1:8000/api";
+        const response = await fetch(`${baseUrl}/auth/verify/${token}/`, {
+          method: "GET",
+        });
 
         if (response.ok) {
           alert("Verification successful!");

@@ -4,15 +4,19 @@ import {
   BookOpen,
   BriefcaseBusiness,
   LayoutGrid,
+  MessageSquare,
   Search,
   Shield,
   TerminalSquare,
+  TrendingUp,
   Trophy,
   X,
   Sun,
   Moon,
+  Settings,
+  Eye,
 } from "lucide-react";
-import { Link, NavLink } from "react-router-dom";
+import { Link, NavLink, useNavigate } from "react-router-dom";
 import { useTheme } from "../../hooks/useTheme";
 import { useAuth } from "../../features/auth/AuthContext";
 import { fetchLessonsApi } from "../../lib/lessons";
@@ -22,13 +26,18 @@ const navItems = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutGrid },
   { to: "/lessons/what-is-open-source", label: "Lessons", icon: BookOpen },
   { to: "/challenges", label: "Challenges", icon: Trophy },
+  { to: "/leaderboard", label: "Leaderboard", icon: TrendingUp },
   { to: "/community", label: "Community", icon: BriefcaseBusiness },
+  { to: "/chat", label: "Chat", icon: MessageSquare },
+  { to: "/peer-review", label: "Peer Review", icon: Shield },
+  { to: "/profile", label: "Profile Settings", icon: Settings },
 ];
 
 export function Navigation() {
-  const [isStarting] = useState(false);
-  const { theme, toggleTheme } = useTheme();
+
+  const { theme, toggleTheme, setTheme } = useTheme();
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
   const [searchResults, setSearchResults] = useState<{
     lessons: {
@@ -43,7 +52,16 @@ export function Navigation() {
   const [lessonsCatalog, setLessonsCatalog] = useState<
     { slug: string; title: string; description: string }[]
   >([]);
+  const [isStarting, setIsStarting] = useState(false);
   const badgeCount = 0;
+
+  const handleStartSandbox = () => {
+    setIsStarting(true);
+    setTimeout(() => {
+      setIsStarting(false);
+      navigate("/sandbox");
+    }, 500);
+  };
 
   useEffect(() => {
     fetchLessonsApi().then((data) => setLessonsCatalog(data));
@@ -82,7 +100,10 @@ export function Navigation() {
         );
 
         setSearchResults({
-          lessons: filteredLessons.map(l => ({ ...l, summary: l.description })),
+          lessons: filteredLessons.map((l) => ({
+            ...l,
+            summary: l.description,
+          })),
           challenges: filteredChallenges,
         });
         setIsSearching(false);
@@ -93,8 +114,6 @@ export function Navigation() {
 
     return () => clearTimeout(delayDebounceFn);
   }, [searchQuery, lessonsCatalog]);
-
-
 
   return (
     <>
@@ -123,9 +142,10 @@ export function Navigation() {
                 <NavLink
                   key={item.to}
                   to={item.to}
+                  title={item.label}
                   className={({ isActive }) =>
                     [
-                      "flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium transition-all duration-200 ease-in-out hover:scale-102 hover:shadow-card",
+                      "flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-all duration-200 ease-in-out hover:scale-102 hover:shadow-card",
                       isActive
                         ? "bg-[linear-gradient(135deg,rgba(79,70,229,0.28),rgba(195,192,255,0.16))] text-text shadow-card dark:text-[#f0ebe2]"
                         : "text-muted hover:bg-surface-low hover:text-text dark:text-[#c4bbae] dark:hover:bg-[#151411] dark:hover:text-[#f0ebe2]",
@@ -147,8 +167,8 @@ export function Navigation() {
                 Run guided Git practice without exposing the real shell.
               </p>
               <button
-                disabled={isStarting}
-                className="w-full mt-4 flex items-center justify-center gap-2 rounded-xl bg-primary text-white border-4 border-black dark:border-[#2e2924] px-4 py-3 text-sm font-black shadow-card hover:-translate-y-0.5 active:translate-y-0 transition-all cursor-pointer disabled:opacity-50"
+                onClick={handleStartSandbox}
+                className="w-full mt-4 flex items-center justify-center gap-2 rounded-lg bg-primary text-white border-4 border-black dark:border-[#2e2924] px-4 py-3 text-sm font-black shadow-card hover:-translate-y-0.5 active:translate-y-0 transition-all cursor-pointer disabled:opacity-50"
               >
                 {isStarting ? (
                   <span
@@ -170,7 +190,7 @@ export function Navigation() {
           </div>
         </nav>
         <div className="border-t border-outline px-4 py-4 text-sm text-muted dark:border-[#2e2924] dark:text-[#c4bbae]">
-          <div className="flex items-center gap-3 rounded-xl px-4 py-3 hover:bg-surface-low dark:hover:bg-[#151411]">
+          <div className="flex items-center gap-3 rounded-lg px-4 py-3 hover:bg-surface-low dark:hover:bg-[#151411]">
             <Shield size={16} />
             Community-safe workflows
           </div>
@@ -180,7 +200,7 @@ export function Navigation() {
       <header className="fixed inset-x-0 top-0 z-10 border-b border-outline bg-surface/70 backdrop-blur-xl lg:left-[280px] dark:border-[#2e2924] dark:bg-[#0f0e0c]/70">
         <div className="flex items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
           <div className="flex min-w-0 items-center gap-3 relative grow max-w-md">
-            <div className="flex items-center gap-2 rounded-xl bg-surface-low px-3 py-2 text-muted w-full border-2 border-transparent focus-within:border-primary/50 focus-within:bg-white transition-all shadow-sm dark:bg-[#151411] dark:text-[#c4bbae] dark:focus-within:bg-[#0f0e0c]">
+            <div className="flex items-center gap-2 rounded-lg bg-surface-low px-3 py-2 text-muted w-full border-2 border-transparent focus-within:border-primary/50 focus-within:bg-white transition-all shadow-sm dark:bg-[#151411] dark:text-[#c4bbae] dark:focus-within:bg-[#0f0e0c]">
               <Search size={15} />
               <input
                 type="text"
@@ -270,12 +290,12 @@ export function Navigation() {
           <div className="flex items-center gap-3">
             <Link
               to="/dashboard"
-              className="hidden rounded-xl px-3 py-2 text-sm font-medium text-primary md:inline-flex"
+              className="hidden rounded-lg px-3 py-2 text-sm font-medium text-primary md:inline-flex"
             >
               Dashboard
             </Link>
             <button
-              className="rounded-xl bg-surface-low p-2 text-muted hover:text-text border-2 border-black dark:border-[#2e2924] shadow-card-sm hover:-translate-y-0.5 active:translate-y-0 transition-all dark:bg-[#151411] dark:text-[#c4bbae] dark:hover:text-[#f0ebe2]"
+              className="rounded-lg bg-surface-low p-2 text-muted hover:text-text border-2 border-black dark:border-[#2e2924] shadow-card-sm hover:-translate-y-0.5 active:translate-y-0 transition-all dark:bg-[#151411] dark:text-[#c4bbae] dark:hover:text-[#f0ebe2]"
               onClick={toggleTheme}
               aria-label={
                 theme === "light"
@@ -285,7 +305,19 @@ export function Navigation() {
             >
               {theme === "light" ? <Moon size={16} /> : <Sun size={16} />}
             </button>
-            <button className="relative rounded-xl bg-surface-low p-2 text-muted hover:text-text dark:bg-[#151411] dark:text-[#c4bbae] dark:hover:text-[#f0ebe2]">
+            <button
+              className={`rounded-lg p-2 border-2 border-black dark:border-[#2e2924] shadow-card-sm hover:-translate-y-0.5 active:translate-y-0 transition-all ${
+                theme === "high-contrast"
+                  ? "bg-primary text-white"
+                  : "bg-surface-low text-muted hover:text-text dark:bg-[#151411] dark:text-[#c4bbae] dark:hover:text-[#f0ebe2]"
+              }`}
+              onClick={() => setTheme(theme === "high-contrast" ? "light" : "high-contrast")}
+              aria-label="Toggle High Contrast Mode"
+              title="High Contrast Mode"
+            >
+              <Eye size={16} />
+            </button>
+            <button className="relative rounded-lg bg-surface-low p-2 text-muted hover:text-text dark:bg-[#151411] dark:text-[#c4bbae] dark:hover:text-[#f0ebe2]">
               <Bell size={16} />
               {badgeCount > 0 && (
                 <span className="absolute right-1.5 top-1.5 flex h-2 w-2">
@@ -296,7 +328,11 @@ export function Navigation() {
             </button>
             {user ? (
               <div className="flex items-center gap-2">
-                <span className="font-bold text-sm text-text bg-white px-3 py-2 rounded-xl border-2 border-black dark:bg-[#151411] dark:text-[#f0ebe2] dark:border-[#2e2924] flex items-center gap-1.5 shadow-card-sm">
+                <Link
+                  to="/profile"
+                  className="font-bold text-sm text-text bg-white px-3 py-2 rounded-lg border-2 border-black dark:bg-[#151411] dark:text-[#f0ebe2] dark:border-[#2e2924] flex items-center gap-1.5 shadow-card-sm hover:bg-surface-low transition-colors dark:hover:bg-[#1f1c18]"
+                  title="Profile Settings"
+                >
                   👤{" "}
                   <span className="max-w-[80px] truncate">{user.username}</span>
                   {user.is_staff && (
@@ -304,16 +340,24 @@ export function Navigation() {
                       ADMIN
                     </span>
                   )}
-                </span>
+                </Link>
                 <LogoutButtonWithConfirm />
               </div>
             ) : (
-              <Link
-                to="/login"
-                className="rounded-xl bg-[linear-gradient(135deg,#4f46e5,#7c72ff)] px-4 py-2 text-sm font-semibold text-white shadow-card"
-              >
-                Admin Login
-              </Link>
+              <div className="flex items-center gap-3">
+                <Link
+                  to="/login"
+                  className="rounded-xl bg-white border-2 border-black px-4 py-2 text-sm font-bold text-text shadow-card-sm hover:-translate-y-0.5 active:translate-y-0 transition-all dark:bg-[#151411] dark:text-[#f0ebe2] dark:border-[#2e2924]"
+                >
+                  Log In
+                </Link>
+                <Link
+                  to="/signup"
+                  className="rounded-xl bg-[#C3C0FF] border-2 border-black px-4 py-2 text-sm font-black text-black shadow-card-sm hover:-translate-y-0.5 active:translate-y-0 transition-all dark:bg-[#C3C0FF] dark:border-white"
+                >
+                  Sign Up
+                </Link>
+              </div>
             )}
           </div>
         </div>

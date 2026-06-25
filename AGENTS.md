@@ -72,6 +72,6 @@ Boots Postgres, Redis, Django backend (:8000), and Vite frontend (:5173).
 - Django defaults to **SQLite** locally; Docker uses **Postgres**. The `.env.example` files have sane defaults — copy them to `.env`.
 - Backend settings module: `config.settings` (set in `pytest.ini` and `render.yaml`).
 - The sandbox exercise verifier only accepts whitelisted Git-learning commands. Don't extend it without reviewing the allowlist.
-- Frontend content (lessons, modules, quizzes) is purely Markdown + `curriculum.json` in `public/content/`. Adding content requires **zero code changes** — see `CONTENT_GUIDE.md`.
+- Frontend content (lessons, modules, quizzes) is purely Markdown + `curriculum.json` in `public/content/`. Adding content requires **zero code changes** — see `docs/CONTENT_GUIDE.md`.
 - Branch naming: `feat/...`, `fix/...`, `docs/...`, `refactor/...`.
 - PR template lives at `.github/pull_request_template.md`.

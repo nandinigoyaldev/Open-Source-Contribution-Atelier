@@ -1,8 +1,8 @@
 import os
-import dj_database_url
 from datetime import timedelta
 from pathlib import Path
 
+import dj_database_url
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -21,28 +21,34 @@ def load_dotenv(dotenv_path: Path) -> None:
 
 load_dotenv(BASE_DIR / ".env")
 
-SECRET_KEY = os.getenv("SECRET_KEY", "django-insecure-dev-key-not-for-production-use-32bytes!!")
+SECRET_KEY = os.getenv(
+    "SECRET_KEY", "django-insecure-dev-key-not-for-production-use-32bytes!!"
+)
 DEBUG = os.getenv("DEBUG", "False") == "True"
 ALLOWED_HOSTS = [
     host.strip()
     for host in os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
     if host.strip()
 ]
+ALLOWED_HOSTS.append(".vercel.app")
 CORS_ALLOWED_ORIGINS = [
-    origin.strip() for origin in os.getenv("CORS_ALLOWED_ORIGINS", "").split(",") if origin.strip()
+    origin.strip()
+    for origin in os.getenv("CORS_ALLOWED_ORIGINS", "").split(",")
+    if origin.strip()
 ]
 CORS_ALLOW_CREDENTIALS = True
 if DEBUG:
     CORS_ALLOW_ALL_ORIGINS = True
 
 INSTALLED_APPS = [
+    "daphne",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    'django_filters',
+    "django_filters",
     "corsheaders",
     "rest_framework",
     "rest_framework_simplejwt",
@@ -51,11 +57,17 @@ INSTALLED_APPS = [
     "apps.progress",
     "apps.challenges",
     "apps.sandbox",
+    "apps.organizations",
+    "apps.webhooks",
+    "apps.notes",
+    "rest_framework_simplejwt.token_blacklist",
+    "graphene_django",
 ]
 
 MIDDLEWARE = [
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
+    "django.middleware.gzip.GZipMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
@@ -93,16 +105,18 @@ DATABASES = {
     ),
     "replica": dj_database_url.config(
         env="REPLICA_DATABASE_URL",
-        default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}", # Falls back to local sqlite in dev
+        default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}",  # Falls back to local sqlite in dev
         conn_max_age=600,
         conn_health_checks=True,
-    )
+    ),
 }
 
-DATABASE_ROUTERS = ['config.db_router.PrimaryReplicaRouter']
+DATABASE_ROUTERS = ["config.db_router.PrimaryReplicaRouter"]
 
 AUTH_PASSWORD_VALIDATORS = [
-    {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
+    {
+        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"
+    },
     {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
     {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
 ]
@@ -113,14 +127,15 @@ USE_I18N = True
 USE_TZ = True
 
 STATIC_URL = "/static/"
+MEDIA_URL = "/media/"
+MEDIA_ROOT = BASE_DIR / "media"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 # ── Email Configuration ────────────────────────────────────────────────────────
 # Default: console backend (prints emails to stdout) — safe for dev/CI.
 # Override EMAIL_BACKEND in production env with a real SMTP backend.
 EMAIL_BACKEND = os.getenv(
-    "EMAIL_BACKEND",
-    "django.core.mail.backends.console.EmailBackend"
+    "EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend"
 )
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "noreply@atelier.dev")
 
@@ -135,11 +150,11 @@ PASSWORD_RESET_TIMEOUT_MINUTES = int(os.getenv("PASSWORD_RESET_TIMEOUT_MINUTES",
 
 REST_FRAMEWORK = {
     # ── Default Throttle Classes ─────────────────────────────────────────────
+    "DATETIME_FORMAT": "%Y-%m-%dT%H:%M:%SZ",
     "DEFAULT_THROTTLE_CLASSES": [
         "rest_framework.throttling.AnonRateThrottle",
         "rest_framework.throttling.UserRateThrottle",
     ],
-
     # ── Throttle Rates ───────────────────────────────────────────────────────
     # Sandbox endpoints
     # Auth endpoints (brute-force + spam protection)
@@ -152,15 +167,18 @@ REST_FRAMEWORK = {
         "sandbox_user": "10/minute",
         "help_request": "5/hour",
         # ── Authentication ───────────────────────────────────────────────────
-        "auth_login":          os.getenv("RATE_AUTH_LOGIN",          "5/minute"),
-        "auth_signup":         os.getenv("RATE_AUTH_SIGNUP",         "10/hour"),
-        "auth_token_refresh":  os.getenv("RATE_AUTH_TOKEN_REFRESH",  "30/minute"),
-        "auth_otp_generate":   os.getenv("RATE_AUTH_OTP_GENERATE",   "3/minute"),
-        "auth_otp_verify":     os.getenv("RATE_AUTH_OTP_VERIFY",     "5/minute"),
+        "auth_login": os.getenv("RATE_AUTH_LOGIN", "5/minute"),
+        "auth_signup": os.getenv("RATE_AUTH_SIGNUP", "10/hour"),
+        "auth_token_refresh": os.getenv("RATE_AUTH_TOKEN_REFRESH", "30/minute"),
+        "auth_otp_generate": os.getenv("RATE_AUTH_OTP_GENERATE", "3/minute"),
+        "auth_otp_verify": os.getenv("RATE_AUTH_OTP_VERIFY", "5/minute"),
         "auth_password_reset": os.getenv("RATE_AUTH_PASSWORD_RESET", "3/hour"),
-        "auth_oauth":          os.getenv("RATE_AUTH_OAUTH",          "20/minute"),
+        "auth_oauth": os.getenv("RATE_AUTH_OAUTH", "20/minute"),
+        "auth_magic_link_request": os.getenv(
+            "RATE_AUTH_MAGIC_LINK_REQUEST", "3/minute"
+        ),
+        "auth_magic_link_verify": os.getenv("RATE_AUTH_MAGIC_LINK_VERIFY", "5/minute"),
     },
-
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework_simplejwt.authentication.JWTAuthentication",
     ),
@@ -172,8 +190,14 @@ REST_FRAMEWORK = {
 }
 
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=int(os.getenv("ACCESS_TOKEN_LIFETIME_MINUTES", "30"))),
-    "REFRESH_TOKEN_LIFETIME": timedelta(days=int(os.getenv("REFRESH_TOKEN_LIFETIME_DAYS", "7"))),
+    "ACCESS_TOKEN_LIFETIME": timedelta(
+        minutes=int(os.getenv("ACCESS_TOKEN_LIFETIME_MINUTES", "30"))
+    ),
+    "REFRESH_TOKEN_LIFETIME": timedelta(
+        days=int(os.getenv("REFRESH_TOKEN_LIFETIME_DAYS", "7"))
+    ),
+    "ROTATE_REFRESH_TOKENS": True,
+    "BLACKLIST_AFTER_ROTATION": True,
 }
 
 # ──────────────────────────────────────────
@@ -184,6 +208,7 @@ INSTALLED_APPS += [
     "apps.notifications.apps.NotificationsConfig",
     "drf_spectacular",
     "apps.dashboard.apps.DashboardConfig",
+    "apps.chat.apps.ChatConfig",
     "django.contrib.postgres",
     "apps.search.apps.SearchConfig",
 ]
@@ -193,6 +218,7 @@ INSTALLED_APPS += [
 # Redis Availability and Configuration (Dynamic Fallbacks)
 # ──────────────────────────────────────────
 import socket
+
 
 def is_redis_available(url):
     try:
@@ -208,7 +234,7 @@ def is_redis_available(url):
         else:
             host = host_port
             port = 6379
-        
+
         # Test connection with a very short timeout
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.settimeout(0.5)
@@ -217,6 +243,7 @@ def is_redis_available(url):
         return True
     except Exception:
         return False
+
 
 # Candidates check: use REDIS_URL if set, or default to standard local redis host for check
 ENV_REDIS_URL = os.getenv("REDIS_URL", "")
@@ -261,3 +288,56 @@ CELERY_RESULT_BACKEND = CELERY_BROKER_URL
 CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
+
+
+# ──────────────────────────────────────────
+# Logging Configuration
+# ──────────────────────────────────────────
+LOGGING = {
+    "version": 1,
+    "disable_existing_loggers": False,
+    "filters": {
+        "mask_sensitive_data": {
+            "()": "config.logging_filters.SensitiveDataFilter",
+        },
+    },
+    "formatters": {
+        "verbose": {
+            "format": "{levelname} {asctime} {module} {process:d} {thread:d} {message}",
+            "style": "{",
+        },
+    },
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "filters": ["mask_sensitive_data"],
+            "formatter": "verbose",
+        },
+    },
+    "loggers": {
+        "django": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "django.server": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        "apps": {
+            "handlers": ["console"],
+            "level": "INFO",
+            "propagate": False,
+        },
+    },
+    "root": {
+        "handlers": ["console"],
+        "level": "INFO",
+    },
+}
+
+GRAPHENE = {
+    "SCHEMA": "config.schema.schema"
+}
+

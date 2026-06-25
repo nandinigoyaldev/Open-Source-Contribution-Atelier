@@ -1,14 +1,45 @@
-import { useState } from "react";
-import { Search } from "lucide-react";
+import { useRef, useState } from "react";
+import { Search, Upload } from "lucide-react";
 import { SectionCard } from "../components/ui/SectionCard";
 import { challengeCards, type Difficulty } from "../lib/data";
 import clsx from "clsx";
+import { useAuth } from "../features/auth/AuthContext";
+import { fetchApi } from "../lib/api";
 
 const difficulties: Difficulty[] = ["beginner", "intermediate", "advanced"];
 
 export function ChallengePage() {
+  const { user } = useAuth();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadMessage, setUploadMessage] = useState("");
+
   const [search, setSearch] = useState("");
   const [difficulty, setDifficulty] = useState<Difficulty | null>(null);
+
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    setIsUploading(true);
+    setUploadMessage("");
+
+    const formData = new FormData();
+    formData.append("file", file);
+
+    try {
+      const response = await fetchApi("/challenges/bulk-upload/", {
+        method: "POST",
+        body: formData,
+      });
+      setUploadMessage("✅ " + (response.message || "Upload successful"));
+    } catch (error: any) {
+      setUploadMessage("❌ Error: " + (error.message || "Failed to upload"));
+    } finally {
+      setIsUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
 
   const filtered = challengeCards.filter((c) => {
     const matchesSearch =
@@ -19,8 +50,44 @@ export function ChallengePage() {
     return matchesSearch && matchesDifficulty;
   });
 
-  return (
+return (
     <div className="space-y-6">
+      {user?.is_staff && (
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 rounded-2xl border-4 border-black bg-[#ffebc2] p-5 shadow-card dark:bg-yellow-900/20 dark:border-yellow-700/50">
+          <div>
+            <h3 className="font-black text-sm uppercase flex items-center gap-2">
+              <span className="text-lg">🛠️</span> Admin Tools
+            </h3>
+            <p className="text-xs text-muted dark:text-[#c4bbae] mt-1 font-bold">
+              Bulk import new challenges via JSON. Format: Array of objects.
+            </p>
+          </div>
+          <div className="flex items-center gap-3 w-full sm:w-auto">
+            <input
+              type="file"
+              accept=".json"
+              className="hidden"
+              ref={fileInputRef}
+              onChange={handleFileUpload}
+              disabled={isUploading}
+            />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              disabled={isUploading}
+              className="flex-1 sm:flex-none flex items-center justify-center gap-2 rounded-xl border-4 border-black bg-white px-4 py-2.5 text-xs font-black shadow-card-sm hover:-translate-y-0.5 disabled:opacity-50 transition-all cursor-pointer dark:bg-[#151411] dark:border-[#2e2924] dark:text-[#f0ebe2]"
+            >
+              <Upload size={16} />
+              {isUploading ? "Uploading..." : "Upload JSON File"}
+            </button>
+          </div>
+          {uploadMessage && (
+            <div className="w-full sm:w-auto text-xs font-black border-2 border-black bg-white px-3 py-2 rounded-lg dark:bg-[#151411]">
+              {uploadMessage}
+            </div>
+          )}
+        </div>
+      )}
+
       <SectionCard eyebrow="Challenges" title="Recommended contribution drills">
         <p className="max-w-2xl text-sm leading-6 text-muted">
           Practice branching, clean commits, pull request preparation, and
@@ -37,7 +104,7 @@ export function ChallengePage() {
             placeholder="Search challenges…"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            className="w-full rounded-xl border border-outline bg-surface-high/60 py-2.5 pl-10 pr-4 text-sm text-text placeholder-muted backdrop-blur-xl focus:outline-none focus:ring-2 focus:ring-primary/40"
+            className="w-full rounded-lg border border-outline bg-surface-high/60 py-2.5 pl-10 pr-4 text-sm text-text placeholder-muted backdrop-blur-xl focus:outline-none focus:ring-2 focus:ring-primary/40"
           />
         </div>
 
@@ -47,7 +114,7 @@ export function ChallengePage() {
               key={d}
               onClick={() => setDifficulty(difficulty === d ? null : d)}
               className={clsx(
-                "rounded-xl px-3 py-1.5 text-xs font-black capitalize transition-all border-2 border-black shadow-card-sm hover:-translate-y-0.5",
+                "rounded-lg px-3 py-1.5 text-xs font-black capitalize transition-all border-2 border-black shadow-card-sm hover:-translate-y-0.5",
                 difficulty === d
                   ? "bg-primary text-black"
                   : "bg-white text-muted hover:bg-surface-low hover:text-text",
@@ -63,7 +130,7 @@ export function ChallengePage() {
         {filtered.map((item) => (
           <SectionCard key={item.title} eyebrow={item.badge} title={item.title}>
             <p className="text-sm leading-6 text-muted">{item.summary}</p>
-            <button className="mt-5 rounded-xl bg-surface-low border-2 border-black px-4 py-2 text-sm font-black text-black shadow-card-sm hover:-translate-y-0.5 active:translate-y-0 transition-all cursor-pointer">
+            <button className="mt-5 rounded-lg bg-surface-low border-2 border-black px-4 py-2 text-sm font-black text-black shadow-card-sm hover:-translate-y-0.5 active:translate-y-0 transition-all cursor-pointer">
               Open challenge
             </button>
           </SectionCard>

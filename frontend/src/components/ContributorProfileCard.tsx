@@ -6,6 +6,7 @@ interface Props {
   badges: string[];
   modulesCompleted: number;
   avatarUrl?: string;
+  coverImageUrl?: string | null;
   maxXP?: number;
   rank?: string;
 }
@@ -55,6 +56,7 @@ const ContributorProfileCard: React.FC<Props> = ({
   badges = [],
   modulesCompleted = 0,
   avatarUrl,
+  coverImageUrl,
   maxXP = 5000,
   rank,
 }) => {
@@ -66,7 +68,10 @@ const ContributorProfileCard: React.FC<Props> = ({
   return (
     <article className="w-80 rounded-2xl bg-white shadow-lg border hover:shadow-xl transition">
       {/* HEADER */}
-      <div className="h-24 bg-gradient-to-r from-blue-600 to-purple-600"></div>
+      <div 
+        className="h-24 bg-gradient-to-r from-blue-600 to-purple-600 bg-cover bg-center rounded-t-2xl"
+        style={coverImageUrl ? { backgroundImage: `url(${coverImageUrl})` } : {}}
+      ></div>
 
       {/* AVATAR */}
       <div className="flex justify-center -mt-10">
@@ -74,6 +79,7 @@ const ContributorProfileCard: React.FC<Props> = ({
           <img
             src={avatarUrl}
             alt="avatar"
+            loading="lazy"
             className="w-20 h-20 rounded-full border-4 border-white"
           />
         ) : (

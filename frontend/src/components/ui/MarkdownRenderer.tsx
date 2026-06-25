@@ -1,13 +1,44 @@
 import React from "react";
-
+import CopyButton from "./CopyButton";
 interface MarkdownRendererProps {
   content: string;
+}
+
+// Helper to parse markdown table rows, ignoring pipes inside backticks or escaped pipes.
+function splitTableRow(row: string): string[] {
+  let trimmed = row.trim();
+  if (trimmed.startsWith("|")) {
+    trimmed = trimmed.substring(1);
+  }
+  if (trimmed.endsWith("|") && !trimmed.endsWith("\\|")) {
+    trimmed = trimmed.substring(0, trimmed.length - 1);
+  }
+
+  const cells: string[] = [];
+  let currentCell = "";
+  let inCode = false;
+
+  for (let i = 0; i < trimmed.length; i++) {
+    const char = trimmed[i];
+    const prevChar = i > 0 ? trimmed[i - 1] : "";
+
+    if (char === "`" && prevChar !== "\\") {
+      inCode = !inCode;
+      currentCell += char;
+    } else if (char === "|" && !inCode && prevChar !== "\\") {
+      cells.push(currentCell.trim());
+      currentCell = "";
+    } else {
+      currentCell += char;
+    }
+  }
+  cells.push(currentCell.trim());
+  return cells;
 }
 
 export function MarkdownRenderer({ content }: MarkdownRendererProps) {
   // Helper to parse inline formats: bold, inline code, links
   const parseInline = (text: string): React.ReactNode[] => {
-
     // Regular expressions for matching bold, code, and links
     const inlineRegex = /(\*\*.*?\*\*|`.*?`|\[.*?\]\(.*?\))/g;
     const matches = text.split(inlineRegex);
@@ -75,12 +106,15 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
       }
       index++; // skip closing ```
       blocks.push(
-        <pre
-          key={index}
-          className="w-full overflow-x-auto p-4 bg-[#1a1510] text-[#ffebc2] border-4 border-black rounded-2xl font-mono text-sm my-4 shadow-card-sm dark:border-[#2e2924]"
-        >
-          <code className="block whitespace-pre">{codeContent.trim()}</code>
-        </pre>,
+        <div key={index} className="relative my-4">
+          <div className="absolute top-2 right-2 z-10">
+            <CopyButton text={codeContent.trim()} />
+          </div>
+
+          <pre className="w-full overflow-x-auto p-4 bg-[#1a1510] text-[#ffebc2] border-4 border-black rounded-2xl font-mono text-sm shadow-card-sm dark:border-[#2e2924]">
+            <code className="block whitespace-pre">{codeContent.trim()}</code>
+          </pre>
+        </div>,
       );
       continue;
     }
@@ -210,18 +244,11 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
 
       const rows: string[][] = [];
       while (index < lines.length && lines[index].trim().startsWith("|")) {
-        const rowCells = lines[index]
-          .split("|")
-          .map((cell) => cell.trim())
-          .filter((_, i, arr) => i > 0 && i < arr.length - 1); // exclude empty ends
-        rows.push(rowCells);
+        rows.push(splitTableRow(lines[index]));
         index++;
       }
 
-      const headerCells = headerLine
-        .split("|")
-        .map((cell) => cell.trim())
-        .filter((_, i, arr) => i > 0 && i < arr.length - 1);
+      const headerCells = splitTableRow(headerLine);
 
       blocks.push(
         <div

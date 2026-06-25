@@ -7,4 +7,3 @@ class ContentConfig(AppConfig):
 
     def ready(self):
         import apps.content.signals  # noqa: F401
-

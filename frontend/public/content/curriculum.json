@@ -543,6 +543,28 @@
           ]
         }
       ]
+    },
+    {
+      "id": "module-python",
+      "title": "Interactive Python Sandboxes",
+      "description": "Learn to code using embedded Python Sandboxes in the browser.",
+      "lessons": [
+        {
+          "slug": "hello-python",
+          "title": "Hello, Python",
+          "description": "Write your first Python program.",
+          "difficulty": "beginner",
+          "estimatedMinutes": 5,
+          "points": 20,
+          "filePath": "module-python/hello-python.md",
+          "pythonExercise": {
+            "prompt": "Write a Python script that defines a function `add` that returns the sum of two numbers.",
+            "starterCode": "def add(a, b):\n    # Write your code here\n    pass\n",
+            "testCode": "assert add(2, 3) == 5, 'add(2, 3) should return 5'\nassert add(-1, 1) == 0, 'add(-1, 1) should return 0'\nprint('Tests passed!')",
+            "hint": "Use the return keyword to send back the sum."
+          }
+        }
+      ]
     }
   ]
 }

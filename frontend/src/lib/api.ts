@@ -1,18 +1,20 @@
 import { queueProgressSync } from "./offlineQueue";
 
 const API_BASE =
-  import.meta.env.VITE_API_BASE_URL?.trim() ||
-  `${window.location.origin}/api`;
+  import.meta.env.VITE_API_BASE_URL?.trim() || `${window.location.origin}/api`;
 
 type RequestOptions = RequestInit & {
   requireAuth?: boolean;
+  responseType?: "json" | "blob";
 };
 
 export async function fetchApi(endpoint: string, options: RequestOptions = {}) {
   const { requireAuth = true, headers: customHeaders, ...config } = options;
 
   const headers = new Headers(customHeaders);
-  headers.set("Content-Type", "application/json");
+  if (!(config.body instanceof FormData)) {
+    headers.set("Content-Type", "application/json");
+  }
 
   if (requireAuth) {
     let token: string | null = null;
@@ -37,6 +39,10 @@ export async function fetchApi(endpoint: string, options: RequestOptions = {}) {
       throw new Error(
         errorBody.detail || errorBody.error || "An error occurred",
       );
+    }
+
+    if (options.responseType === "blob") {
+      return response.blob();
     }
 
     return response.json().catch(() => ({}));

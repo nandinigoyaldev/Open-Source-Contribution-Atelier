@@ -1,4 +1,3 @@
- 
 import { render, screen, cleanup } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { DashboardPage } from "../pages/DashboardPage";
@@ -45,10 +44,14 @@ vi.mock("../features/auth/AuthContext", () => ({
   useAuth: () => mockUseAuth(),
 }));
 
-// Mock fetchApi module
-const mockFetchApi = vi.fn();
-vi.mock("../lib/api", () => ({
-  fetchApi: (endpoint: string) => mockFetchApi(endpoint),
+// Mock useBookmarks hook
+vi.mock("../hooks/useBookmarks", () => ({
+  useBookmarks: () => ({
+    bookmarks: [],
+    isLoading: false,
+    toggleBookmark: { mutate: vi.fn(), isPending: false },
+    isBookmarked: vi.fn(),
+  }),
 }));
 
 // Helper function to render component with fresh React Query Client
@@ -69,36 +72,6 @@ describe("DashboardPage Dual-Role Views", () => {
   beforeEach(() => {
     cleanup();
     vi.clearAllMocks();
-
-    globalThis.fetch = vi.fn().mockImplementation((url: string) => {
-      if (url.includes("curriculum.json")) {
-        return Promise.resolve({
-          ok: true,
-          json: () =>
-            Promise.resolve({
-              modules: [
-                {
-                  lessons: [
-                    {
-                      slug: "intro",
-                      title: "Open Source Mindset",
-                      description:
-                        "Understand how open source collaboration works.",
-                    },
-                  ],
-                },
-              ],
-            }),
-        });
-      }
-      if (url.includes("contributors")) {
-        return Promise.resolve({
-          ok: true,
-          json: () => Promise.resolve([]),
-        });
-      }
-      return Promise.reject(new Error(`Unknown fetch URL: ${url}`));
-    });
   });
 
   it("renders Admin Dashboard when user.is_staff is true", async () => {
@@ -112,57 +85,8 @@ describe("DashboardPage Dual-Role Views", () => {
       },
     });
 
-    // Mock API response for admin analytics and leaderboard
-    mockFetchApi.mockImplementation((endpoint: string) => {
-      if (endpoint === "/dashboard/admin/") {
-        return Promise.resolve({
-          system_stats: {
-            total_issues: 10,
-            solved_issues: 4,
-            open_issues: 4,
-            in_progress_issues: 2,
-            total_prs: 5,
-            merged_prs: 3,
-            pending_prs: 1,
-            closed_prs: 1,
-            active_contributors: 2,
-          },
-          pending_prs: [
-            {
-              id: 9,
-              title: "Feature request review",
-              contributor: "bob_coder",
-              issue_title: "Add dark mode toggle",
-              created_at: "2026-06-01T12:00:00Z",
-            },
-          ],
-        });
-      }
-      if (endpoint === "/leaderboard/") {
-        return Promise.resolve({
-          count: 2,
-          next: null,
-          previous: null,
-          results: [
-            {
-              id: 2,
-              username: "bob_coder",
-              prs_merged: 2,
-              issues_solved: 3,
-              xp: 250,
-            },
-            {
-              id: 3,
-              username: "alice_dev",
-              prs_merged: 1,
-              issues_solved: 1,
-              xp: 100,
-            },
-          ],
-        });
-      }
-      return Promise.reject(new Error("Unknown Endpoint"));
-    });
+    // MSW handlers in src/mocks/handlers.ts already provide the default mock responses 
+    // for admin analytics and leaderboard.
 
     renderWithQueryClient(<DashboardPage />);
 
@@ -196,57 +120,8 @@ describe("DashboardPage Dual-Role Views", () => {
       },
     });
 
-    // Mock API response for contributor analytics & lessons list
-    mockFetchApi.mockImplementation((endpoint: string) => {
-      if (endpoint === "/dashboard/contributor/") {
-        return Promise.resolve({
-          personal_stats: {
-            issues_solved: 3,
-            prs_merged: 2,
-            total_xp: 250,
-            streak_days: 4,
-            rank: 1,
-          },
-          assigned_issues: [
-            {
-              id: 11,
-              title: "Fix git conflicts",
-              description: "Practice conflict resolution",
-              status: "in_progress",
-              points: 50,
-              created_at: "2026-06-01T10:00:00Z",
-            },
-          ],
-          recent_prs: [
-            {
-              id: 22,
-              title: "Mock PR submission",
-              status: "merged",
-              issue_title: "Fix git conflicts",
-              created_at: "2026-06-01T11:00:00Z",
-              merged_at: "2026-06-01T12:00:00Z",
-            },
-          ],
-          progress_tracker: {
-            completed_lessons: 2,
-            total_lessons: 5,
-            completion_percentage: 40,
-          },
-        });
-      }
-      if (endpoint === "/content/lessons/") {
-        return Promise.resolve([
-          {
-            slug: "intro",
-            title: "Introduction to Atelier",
-            summary: "Welcome lesson",
-            difficulty: "beginner",
-            estimated_minutes: 5,
-          },
-        ]);
-      }
-      return Promise.reject(new Error("Unknown Endpoint"));
-    });
+    // MSW handlers in src/mocks/handlers.ts already provide the default mock responses
+    // for contributor analytics and lessons list.
 
     renderWithQueryClient(<DashboardPage />);
 
