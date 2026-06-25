@@ -152,7 +152,7 @@ export function Navigation() {
               >
                 {isStarting ? (
                   <span
-                    className="flex items-center gap-1.5 inline-flex"
+                    className="flex items-center gap-1.5"
                     aria-hidden="true"
                   >
                     <span className="w-2 h-2 bg-current rounded-full animate-bounce [animation-delay:-0.3s]" />
