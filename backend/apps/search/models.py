@@ -29,6 +29,11 @@ class SearchDocument(models.Model):
         # Fast full-text lookups
         indexes = [
             GinIndex(fields=["search_vector"], name="search_vector_gin_idx"),
+            GinIndex(
+                fields=["title"],
+                name="trigram_title_gin_idx",
+                opclasses=["gin_trgm_ops"],
+            ),
         ]
         # Prevent duplicate index entries for the same object
         unique_together = ("content_type", "object_id")
