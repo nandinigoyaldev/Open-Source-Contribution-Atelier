@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { useGoogleLogin } from "@react-oauth/google";
-import { GitBranch } from "lucide-react";
+import { GitBranch, Moon, Sun } from "lucide-react";
 import { fetchApi } from "../lib/api";
 import { useAuth } from "../features/auth/AuthContext";
+import { useTheme } from "../hooks/useTheme";
 import OrganizationsGrid from "../components/OrganizationsGrid";
 
 const githubAuthUrl =
@@ -15,6 +16,7 @@ function getErrorMessage(error: unknown, fallback: string) {
 
 export function LandingPage() {
   const { login } = useAuth();
+  const { theme, toggleTheme } = useTheme();
   const [authRole, setAuthRole] = useState<"student" | "admin">("student");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -70,7 +72,16 @@ export function LandingPage() {
   });
 
   return (
-    <div className="min-h-[85vh] flex items-center justify-center p-4">
+    <div className="min-h-[85vh] flex items-center justify-center p-4 relative">
+      <button
+        onClick={toggleTheme}
+        aria-label={theme === "light" ? "Switch to dark mode" : "Switch to light mode"}
+        title={theme === "light" ? "Switch to dark mode" : "Switch to light mode"}
+        className="fixed top-4 right-6 sm:right-8 z-50 rounded-lg bg-surface-low p-2 text-muted hover:text-text border-2 border-black dark:border-[#4a4238] shadow-card-sm hover:-translate-y-0.5 active:translate-y-0 transition-all dark:bg-[#151411] dark:text-[#c4bbae] dark:hover:text-[#f0ebe2]"
+      >
+        {theme === "light" ? <Moon size={16} /> : <Sun size={16} />}
+      </button>
+
       <div className="w-full max-w-lg mx-auto">
         <div className="text-center mb-8">
           <span className="font-black text-sm bg-accent text-black px-4 py-2 rounded-full border-2 border-black rotate-[-2deg] inline-block shadow-sm">
@@ -78,14 +89,14 @@ export function LandingPage() {
           </span>
         </div>
 
-        <div className="bg-white rounded-[2rem] border-4 border-black shadow-card-lg p-6 sm:p-10 relative">
-          <div className="flex gap-2 p-1 bg-surface-low rounded-lg border-2 border-black mb-6">
+        <div className="bg-white dark:bg-[#151411] rounded-[2rem] border-4 border-black dark:border-[#4a4238] shadow-card-lg p-6 sm:p-10 relative">
+          <div className="flex gap-2 p-1 bg-surface-low dark:bg-[#0f0e0c] rounded-lg border-2 border-black dark:border-[#4a4238] mb-6">
             <button
               onClick={() => setAuthRole("student")}
               className={`flex-1 py-2 font-bold rounded-lg transition-all border-2 ${
                 authRole === "student"
-                  ? "bg-white border-black shadow-card-sm -translate-y-0.5"
-                  : "border-transparent text-muted hover:text-text"
+                  ? "bg-white dark:bg-[#1f1c18] border-black dark:border-[#4a4238] shadow-card-sm -translate-y-0.5 text-text dark:text-[#f0ebe2]"
+                  : "border-transparent text-muted dark:text-[#9b8f80] hover:text-text dark:hover:text-[#f0ebe2]"
               }`}
             >
               Contributor
@@ -94,15 +105,15 @@ export function LandingPage() {
               onClick={() => setAuthRole("admin")}
               className={`flex-1 py-2 font-bold rounded-lg transition-all border-2 ${
                 authRole === "admin"
-                  ? "bg-white border-black shadow-card-sm -translate-y-0.5"
-                  : "border-transparent text-muted hover:text-text"
+                  ? "bg-white dark:bg-[#1f1c18] border-black dark:border-[#4a4238] shadow-card-sm -translate-y-0.5 text-text dark:text-[#f0ebe2]"
+                  : "border-transparent text-muted dark:text-[#9b8f80] hover:text-text dark:hover:text-[#f0ebe2]"
               }`}
             >
               Maintainer
             </button>
           </div>
 
-          <h2 className="text-3xl font-black mb-6 text-center">
+          <h2 className="text-3xl font-black mb-6 text-center text-text dark:text-[#f0ebe2]">
             {authRole === "student"
               ? "Enter the Sandbox."
               : "Maintainer Login."}
@@ -118,7 +129,7 @@ export function LandingPage() {
             <button
               type="button"
               onClick={() => googleLoginHandler()}
-              className="w-full bg-white border-4 border-black rounded-2xl p-4 flex items-center justify-center gap-3 font-bold hover:bg-surface-low transition-colors shadow-card-sm active:translate-y-1 active:shadow-none"
+              className="w-full bg-white border-4 border-black rounded-2xl p-4 flex items-center justify-center gap-3 font-bold text-black hover:bg-surface-low transition-colors shadow-card-sm active:translate-y-1 active:shadow-none"
             >
               <svg className="w-6 h-6" viewBox="0 0 24 24" aria-hidden="true">
                 <path
@@ -156,16 +167,16 @@ export function LandingPage() {
             </button>
 
             <div className="flex items-center gap-4 my-6">
-              <div className="flex-1 h-1 bg-black"></div>
-              <span className="font-black text-muted text-sm uppercase">
+              <div className="flex-1 h-1 bg-black dark:bg-[#4a4238]"></div>
+              <span className="font-black text-muted dark:text-[#9b8f80] text-sm uppercase">
                 OR
               </span>
-              <div className="flex-1 h-1 bg-black"></div>
+              <div className="flex-1 h-1 bg-black dark:bg-[#4a4238]"></div>
             </div>
 
             <div>
               <input
-                className="w-full rounded-lg border-4 border-black bg-surface-lowest px-4 py-4 text-text font-bold outline-none placeholder:text-muted/60 focus:bg-surface-low focus:ring-0 transition-colors shadow-sm"
+                className="w-full rounded-lg border-4 border-black dark:border-[#4a4238] bg-surface-lowest dark:bg-[#0f0e0c] px-4 py-4 text-text dark:text-[#f0ebe2] font-bold outline-none placeholder:text-muted/60 dark:placeholder:text-[#9b8f80]/70 focus:bg-surface-low dark:focus:bg-[#1f1c18] focus:ring-0 transition-colors shadow-sm"
                 placeholder="Username or Email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
@@ -174,7 +185,7 @@ export function LandingPage() {
             </div>
             <div>
               <input
-                className="w-full rounded-lg border-4 border-black bg-surface-lowest px-4 py-4 text-text font-bold outline-none placeholder:text-muted/60 focus:bg-surface-low focus:ring-0 transition-colors shadow-sm"
+                className="w-full rounded-lg border-4 border-black dark:border-[#4a4238] bg-surface-lowest dark:bg-[#0f0e0c] px-4 py-4 text-text dark:text-[#f0ebe2] font-bold outline-none placeholder:text-muted/60 dark:placeholder:text-[#9b8f80]/70 focus:bg-surface-low dark:focus:bg-[#1f1c18] focus:ring-0 transition-colors shadow-sm"
                 type="password"
                 placeholder="••••••••"
                 value={password}
@@ -191,15 +202,15 @@ export function LandingPage() {
             </button>
 
             <div className="flex items-center gap-4 my-6">
-              <div className="flex-1 h-1 bg-black"></div>
-              <span className="font-black text-muted text-sm uppercase">
+              <div className="flex-1 h-1 bg-black dark:bg-[#4a4238]"></div>
+              <span className="font-black text-muted dark:text-[#9b8f80] text-sm uppercase">
                 NEW CONTRIBUTORS
               </span>
-              <div className="flex-1 h-1 bg-black"></div>
+              <div className="flex-1 h-1 bg-black dark:bg-[#4a4238]"></div>
             </div>
 
-            <a
-              href="/signup"
+            
+            <a  href="/signup"
               className="block text-center w-full rounded-2xl border-4 border-black bg-[#C3C0FF] px-5 py-4 font-black text-black text-xl shadow-card-sm hover:-translate-y-1 active:translate-y-1 transition-all uppercase tracking-wide mt-4 cursor-pointer"
             >
               Create Account
