@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import {
@@ -143,14 +143,15 @@ export const CommandPalette: React.FC = () => {
   }, [isOpen]);
 
   // Debounced search (300ms)
+  const [results, setResults] = useState<SearchIndexEntry[]>([]);
   useEffect(() => {
-    if (!query.trim()) {
+    if (!searchQuery.trim()) {
       setResults([]);
       return;
     }
 
     const timer = setTimeout(() => {
-      const q = query.toLowerCase();
+      const q = searchQuery.toLowerCase();
 
       const scoredResults = index
         .map((entry) => {
@@ -178,7 +179,16 @@ export const CommandPalette: React.FC = () => {
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [query, index]);
+  }, [searchQuery, index]);
+
+  const combinedResults = useMemo<PaletteItem[]>(() => {
+    const nav: PaletteItem[] = searchQuery
+      ? navItems.filter((item) =>
+          item.label.toLowerCase().includes(searchQuery.toLowerCase()),
+        )
+      : navItems;
+    return [...nav, ...results.map((entry): PaletteItem => ({ type: entry.type, entry }))];
+  }, [searchQuery, results]);
 
   // Handle keyboard navigation within results
   const handleKeyDown = (e: React.KeyboardEvent) => {

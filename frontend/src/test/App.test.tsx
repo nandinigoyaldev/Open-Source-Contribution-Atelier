@@ -7,6 +7,7 @@ import { GoogleOAuthProvider } from "@react-oauth/google";
 
 vi.mock("lucide-react", () => ({
   Github: () => <div data-testid="github-icon" />,
+  GitBranch: () => <div data-testid="git-branch-icon" />,
 }));
 
 describe("LandingPage", () => {
