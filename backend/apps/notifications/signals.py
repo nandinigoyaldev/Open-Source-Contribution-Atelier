@@ -64,7 +64,7 @@ def _push_notification(notification: Notification):
 from apps.progress.models import UserBadge
 
 
-@receiver(post_save, sender=UserBadge)
+@receiver(post_save, sender=UserBadge, dispatch_uid="on_badge_awarded_notification")
 def on_badge_awarded(sender, instance, created, **kwargs):
     if not created:
         return
