@@ -144,7 +144,6 @@ export const CommandPalette: React.FC = () => {
   }, [isOpen]);
 
   // Debounced search (300ms)
-  const [results, setResults] = useState<SearchIndexEntry[]>([]);
   useEffect(() => {
     if (!searchQuery.trim()) {
       // eslint-disable-next-line react-hooks/set-state-in-effect

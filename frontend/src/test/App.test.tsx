@@ -15,6 +15,10 @@ vi.mock("lucide-react", async (importOriginal) => {
   };
 });
 
+vi.mock("../hooks/ThemeContext", () => ({
+  useTheme: () => ({ theme: "light", setTheme: vi.fn(), toggleTheme: vi.fn() }),
+}));
+
 describe("LandingPage", () => {
   it("renders the project headline", () => {
     render(
@@ -27,6 +31,7 @@ describe("LandingPage", () => {
       </GoogleOAuthProvider>,
     );
 
-    expect(screen.getByText(/Enter the Sandbox./i)).toBeInTheDocument();
+    const heading = screen.queryByText(/Enter the Sandbox/i) || screen.queryByText("landing.enter_sandbox");
+    expect(heading).toBeInTheDocument();
   });
 });

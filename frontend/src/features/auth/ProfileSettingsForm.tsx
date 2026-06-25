@@ -237,7 +237,7 @@ export function ProfileSettingsForm() {
           }`}
           disabled={loading}
         >
-          {Intl.supportedValuesOf("timeZone").map((tz) => (
+          {(Intl as any).supportedValuesOf("timeZone").map((tz: string) => (
             <option key={tz} value={tz}>
               {tz}
             </option>

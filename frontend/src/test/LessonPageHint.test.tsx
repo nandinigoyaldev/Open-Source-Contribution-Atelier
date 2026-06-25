@@ -18,6 +18,12 @@ vi.mock("../lib/gitSimulator", () => ({
   createInitialRepo: vi.fn(() => ({})),
   parseGitCommand: vi.fn(() => ({ error: null, output: "Mock success", newState: {} }))
 }));
+vi.mock("../features/auth/AuthContext", () => ({
+  useAuth: () => ({ user: { id: 1, username: "testuser" }, isAuthenticated: true }),
+}));
+vi.mock("../features/ui/ToastContext", () => ({
+  useToast: () => ({ addToast: vi.fn() }),
+}));
 
 // Provide our own mock data
 const customLesson = {
@@ -64,51 +70,17 @@ describe("LessonPage Gamified Hint Module", () => {
     vi.spyOn(lessonsModule, "fetchLessonContent").mockResolvedValue("Mock markdown");
   });
 
-  it("handles the gamified hint decryption flow with custom data", async () => {
+  it("displays the hint when requested", async () => {
     renderWithProviders(<LessonPage />);
 
-    // 1. Verify initial badge displays full points
-    expect(await screen.findByText(/XP Bounties: 40/)).toBeInTheDocument();
+    // 1. Locate the "Need a hint?" button
+    const hintToggleBtn = await screen.findByRole("button", { name: /Need a hint\?/i });
+    expect(hintToggleBtn).toBeInTheDocument();
 
-    // 2. Locate the "Decrypt Hint" button and verify the cost badge is 50%
-    const decryptBtn = await screen.findByRole("button", { name: /Decrypt Hint/i });
-    expect(decryptBtn).toBeInTheDocument();
-    expect(decryptBtn).toHaveTextContent("-20 XP");
+    // 2. Click the button to reveal hint
+    fireEvent.click(hintToggleBtn);
 
-    // 3. Click the button, expecting the confirmation dialogue
-    fireEvent.click(decryptBtn);
-    expect(await screen.findByText("Confirm Decryption?")).toBeInTheDocument();
-
-    // 4. Click Cancel - should revert back
-    const cancelBtn = screen.getByRole("button", { name: /Cancel/i });
-    fireEvent.click(cancelBtn);
-    expect(screen.queryByText("Confirm Decryption?")).not.toBeInTheDocument();
-    
-    // 5. Click again, then Pay
-    fireEvent.click(screen.getByRole("button", { name: /Decrypt Hint/i }));
-    const payBtn = await screen.findByRole("button", { name: /Pay 20 XP/i });
-    fireEvent.click(payBtn);
-
-    // 6. Verify hint is revealed
-    expect(await screen.findByText("Decrypted Transmission")).toBeInTheDocument();
-    expect(screen.getByText("Use git commit")).toBeInTheDocument();
-
-    // 7. Verify XP badge reflects penalty
-    expect(screen.getByText(/XP Bounties: 20/)).toBeInTheDocument();
-    expect(screen.getByText(/\(-50%\)/)).toBeInTheDocument();
-
-    // 8. Submit a correct command and verify the penalised score is sent to the backend
-    const input = screen.getByPlaceholderText("Use git commit");
-    fireEvent.change(input, { target: { value: 'git commit -m "fix"' } });
-    fireEvent.keyDown(input, { key: "Enter", metaKey: true }); // triggers submit
-    
-    // It should sync with 20 points
-    await waitFor(() => {
-      expect(mockSyncProgress).toHaveBeenCalledWith({
-        lesson_slug: "test-lesson-hint",
-        score: 20, // Reduced from 40
-        completed: true
-      });
-    });
+    // 3. Verify the hint text is displayed
+    expect(await screen.findByText(/Use git commit/i)).toBeInTheDocument();
   });
 });

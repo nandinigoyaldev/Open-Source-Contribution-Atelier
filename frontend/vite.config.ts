@@ -13,6 +13,7 @@ export default defineConfig({
       registerType: "autoUpdate",
       injectManifest: {
         globPatterns: ["**/*.{js,css,html,ico,png,svg,json,md}"],
+        maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
       },
       manifest: {
         name: "Contribution Atelier",

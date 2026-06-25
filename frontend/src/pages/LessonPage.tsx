@@ -46,7 +46,7 @@ export function LessonPage() {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { isLessonCompleted, syncProgress, isLoading } = useUserProgress();
+  const { isLessonCompleted, syncProgress, isLoading: isSyncingProgress } = useUserProgress();
   const { isBookmarked, toggleBookmark } = useBookmarks();
   const queryClient = useQueryClient();
 
