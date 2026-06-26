@@ -43,6 +43,7 @@ import {
 } from "recharts";
 import { OnboardingTour } from "../components/ui/OnboardingTour";
 import { NotesWidget } from "../components/ui/NotesWidget";
+import { StreakWidget } from "../components/ui/StreakWidget";
 
 const FACTS = [
   "Git was created in 2005 by Linus Torvalds because he was frustrated with the commercial tool they were using for Linux development.",
@@ -679,15 +680,7 @@ export function DashboardPage() {
 
         {/* Action / Streaks Box */}
         <div id="tour-stats" className="grid grid-cols-2 gap-4">
-          <div className="rounded-[2rem] border-4 border-black bg-white p-6 shadow-card flex flex-col justify-center items-center text-center dark:bg-[#1f1c18] dark:border-[#2e2924] dark:shadow-none hover:-translate-y-0.5 transition-transform">
-            <Flame className="w-12 h-12 text-primary animate-pulse mb-2" />
-            <span className="text-4xl font-black text-primary drop-shadow-[2px_2px_0_#000] dark:drop-shadow-none">
-              {personal_stats.streak_days}
-            </span>
-            <span className="font-black text-black uppercase tracking-widest text-[9px] mt-1 dark:text-[#c4bbae]">
-              Streak Days
-            </span>
-          </div>
+          <StreakWidget />
 
           <div className="rounded-[2rem] border-4 border-black bg-white p-6 shadow-card flex flex-col justify-center items-center text-center dark:bg-[#1f1c18] dark:border-[#2e2924] dark:shadow-none hover:-translate-y-0.5 transition-transform">
             <Trophy className="w-12 h-12 text-accent mb-2 animate-bounce" />

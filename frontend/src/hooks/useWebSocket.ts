@@ -77,7 +77,7 @@ export function useWebSocket({
       setState((s) => ({ ...s, isConnected: false }));
       if (reconnectCountRef.current < maxReconnectAttempts) {
         reconnectCountRef.current += 1;
-        
+
         reconnectTimerRef.current = setTimeout(connect, reconnectInterval);
       }
     };

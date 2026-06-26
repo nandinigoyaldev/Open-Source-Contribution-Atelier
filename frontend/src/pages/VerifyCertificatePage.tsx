@@ -65,9 +65,9 @@ export function VerifyCertificatePage() {
     if (hash) {
       verifyHash();
     } else {
-            setLoading(false);
-            setError("");
-            setData(null);
+      setLoading(false);
+      setError("");
+      setData(null);
     }
   }, [hash]);
 

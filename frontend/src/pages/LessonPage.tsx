@@ -44,7 +44,7 @@ function normalizeCommand(value: string) {
 export function LessonPage() {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
-    const {
+  const {
     isLessonCompleted,
     syncProgress,
     isLoading: isSyncingProgress,

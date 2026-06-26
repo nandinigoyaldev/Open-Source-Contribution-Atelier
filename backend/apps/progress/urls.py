@@ -6,7 +6,7 @@ from .views import (BadgeListView, BulkProgressUpdateView,
                     ContributorTimelineView, HelpRequestListCreateView,
                     MentorHelpRequestListView, MyCertificateView,
                     MyProgressView, PeerReviewView, QuizAttemptView,
-                    RecommendationsView)
+                    RecommendationsView, UserStreakView)
 
 urlpatterns = [
     path("badges/", BadgeListView.as_view(), name="badges"),

@@ -146,20 +146,10 @@ class BadgeEvaluator:
             user=user, status=PullRequest.Status.MERGED
         ).count()
 
-        # Calculate streak based on unique days of activity
-        activity_days = set()
-        attempts = ExerciseAttempt.objects.filter(user=user).values_list(
-            "created_at", flat=True
-        )
-        for dt in attempts:
-            activity_days.add(timezone.localdate(dt))
-        progress_entries = LessonProgress.objects.filter(user=user).values_list(
-            "updated_at", flat=True
-        )
-        for dt in progress_entries:
-            activity_days.add(timezone.localdate(dt))
+        from apps.progress.models import UserStreak
 
-        streak_days = len(activity_days)
+        streak = UserStreak.get_or_create_for_user(user)
+        streak_days = streak.highest_streak
 
         # Fetch user's already earned badge slugs
         earned_slugs = set(

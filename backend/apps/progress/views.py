@@ -48,9 +48,12 @@ class MyProgressView(APIView):
 
     def post(self, request):
         lesson_slug = request.data.get("lesson_slug")
-        from apps.progress.models import XPMultiplierEvent
+        from apps.progress.models import UserStreak, XPMultiplierEvent
 
-        multiplier = XPMultiplierEvent.get_active_multiplier()
+        event_multiplier = XPMultiplierEvent.get_active_multiplier()
+        streak = UserStreak.get_or_create_for_user(request.user)
+        streak.update_streak()
+        multiplier = event_multiplier * streak.multiplier
         base_score = request.data.get("score", 100)
         completed = request.data.get("completed", True)
 
@@ -110,9 +113,12 @@ class BulkSyncProgressView(APIView):
 
         synced = []
 
-        from apps.progress.models import XPMultiplierEvent
+        from apps.progress.models import UserStreak, XPMultiplierEvent
 
-        multiplier = XPMultiplierEvent.get_active_multiplier()
+        event_multiplier = XPMultiplierEvent.get_active_multiplier()
+        streak = UserStreak.get_or_create_for_user(request.user)
+        streak.update_streak()
+        multiplier = event_multiplier * streak.multiplier
 
         with transaction.atomic():
             for item in serializer.validated_data["lessons"]:
@@ -250,9 +256,12 @@ class BulkProgressUpdateView(APIView):
                 progress_to_create = []
                 progress_to_update = []
 
-                from apps.progress.models import XPMultiplierEvent
+                from apps.progress.models import UserStreak, XPMultiplierEvent
 
-                multiplier = XPMultiplierEvent.get_active_multiplier()
+                event_multiplier = XPMultiplierEvent.get_active_multiplier()
+                streak = UserStreak.get_or_create_for_user(request.user)
+                streak.update_streak()
+                multiplier = event_multiplier * streak.multiplier
 
                 for item in validated_data:
                     lesson = existing_lessons[item["lesson_slug"]]
@@ -772,3 +781,30 @@ class PeerReviewView(APIView):
                 submission.save(update_fields=["status"])
                 return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class UserStreakView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        from apps.progress.models import UserStreak
+
+        streak = UserStreak.get_or_create_for_user(request.user)
+
+        # Calculate next milestone
+        next_milestone = None
+        if streak.current_streak < 3:
+            next_milestone = 3
+        elif streak.current_streak < 7:
+            next_milestone = 7
+        elif streak.current_streak < 14:
+            next_milestone = 14
+
+        return Response(
+            {
+                "current_streak": streak.current_streak,
+                "highest_streak": streak.highest_streak,
+                "multiplier": streak.multiplier,
+                "next_milestone": next_milestone,
+            }
+        )

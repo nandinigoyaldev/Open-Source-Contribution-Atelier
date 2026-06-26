@@ -5,7 +5,7 @@ import { RichTextEditor } from "../components/ui/RichTextEditor";
 // Mock the SimpleMdeReact component to avoid loading actual CodeMirror in JSDOM,
 // which can sometimes cause layout measurement errors in simple test environments.
 vi.mock("react-simplemde-editor", () => ({
-    default: ({ value, onChange, options }: unknown) => (
+  default: ({ value, onChange, options }: unknown) => (
     <div data-testid="mock-mde">
       <textarea
         data-testid="mock-mde-textarea"
