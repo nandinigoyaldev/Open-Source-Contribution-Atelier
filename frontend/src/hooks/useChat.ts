@@ -103,7 +103,9 @@ export function useChat({ roomId, token }: UseChatOptions) {
               username: msg.username as string,
               user_id: msg.user_id as number,
               message: plaintext,
-              timestamp: msg.created_at ? new Date(msg.created_at as string).toLocaleTimeString() : new Date().toLocaleTimeString(),
+              timestamp: msg.created_at
+                ? new Date(msg.created_at as string).toLocaleTimeString()
+                : new Date().toLocaleTimeString(),
               created_at: msg.created_at as string | undefined,
             },
           ];
@@ -127,31 +129,39 @@ export function useChat({ roomId, token }: UseChatOptions) {
   useEffect(() => {
     if (ws.lastMessage) {
       const msg = ws.lastMessage as Record<string, unknown>;
-      
+
       const handleMsg = async () => {
         if (msg.type === "connection_established") {
           localUserIdRef.current = msg.user_id as number;
-          
+
           if (!localKeyPairRef.current) {
             localKeyPairRef.current = await generateKeyPair();
           }
-          const pubKeyBase64 = await exportPublicKey(localKeyPairRef.current.publicKey);
+          const pubKeyBase64 = await exportPublicKey(
+            localKeyPairRef.current.publicKey,
+          );
           ws.send({ action: "public_key", public_key: pubKeyBase64 });
-          
         } else if (msg.type === "public_key") {
           const senderId = msg.user_id as number;
           const myId = localUserIdRef.current;
-          
+
           if (myId && senderId !== myId) {
             try {
-              const peerPubKey = await importPublicKey(msg.public_key as string);
+              const peerPubKey = await importPublicKey(
+                msg.public_key as string,
+              );
               if (localKeyPairRef.current) {
-                const sharedKey = await deriveSharedKey(localKeyPairRef.current.privateKey, peerPubKey);
+                const sharedKey = await deriveSharedKey(
+                  localKeyPairRef.current.privateKey,
+                  peerPubKey,
+                );
                 sharedKeysRef.current[senderId] = sharedKey;
-                
+
                 if (!knownUsersRef.current.has(senderId)) {
                   knownUsersRef.current.add(senderId);
-                  const pubKeyBase64 = await exportPublicKey(localKeyPairRef.current.publicKey);
+                  const pubKeyBase64 = await exportPublicKey(
+                    localKeyPairRef.current.publicKey,
+                  );
                   ws.send({ action: "public_key", public_key: pubKeyBase64 });
                 }
               }
@@ -169,8 +179,10 @@ export function useChat({ roomId, token }: UseChatOptions) {
           );
         }
       };
-      
-      handleMsg().catch((err) => console.error("Error handling websocket message:", err));
+
+      handleMsg().catch((err) =>
+        console.error("Error handling websocket message:", err),
+      );
     }
   }, [ws.lastMessage, typing, ws]);
 
@@ -186,18 +198,19 @@ export function useChat({ roomId, token }: UseChatOptions) {
         timestamp: new Date().toLocaleTimeString(),
       };
       setMessages((prev) => [...prev, optimistic]);
-      
-      const ciphertexts: Record<number, { ciphertext: string, iv: string }> = {};
+
+      const ciphertexts: Record<number, { ciphertext: string; iv: string }> =
+        {};
       for (const [userIdStr, key] of Object.entries(sharedKeysRef.current)) {
         const userId = Number(userIdStr);
         ciphertexts[userId] = await encryptMessage(text, key);
       }
-      
+
       const payload = {
         local_id: localId,
         ciphertexts,
       };
-      
+
       ws.send({ action: "send_message", message: JSON.stringify(payload) });
     },
     [ws],

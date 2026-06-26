@@ -19,7 +19,7 @@ export function CookieConsentBanner() {
 
     // Dispatch a custom event so other scripts (like analytics) can react immediately
     window.dispatchEvent(
-      new CustomEvent("cookieConsentUpdated", { detail: { status } })
+      new CustomEvent("cookieConsentUpdated", { detail: { status } }),
     );
   };
 
@@ -48,7 +48,9 @@ export function CookieConsentBanner() {
               We Value Your Privacy
             </h2>
             <p className="text-gray-700 font-medium">
-              We use cookies to enhance your browsing experience, serve personalized content, and analyze our traffic. By clicking "Accept All", you consent to our use of cookies.
+              We use cookies to enhance your browsing experience, serve
+              personalized content, and analyze our traffic. By clicking "Accept
+              All", you consent to our use of cookies.
               <Link
                 to="/privacy"
                 className="ml-2 text-blue-600 font-bold hover:underline"

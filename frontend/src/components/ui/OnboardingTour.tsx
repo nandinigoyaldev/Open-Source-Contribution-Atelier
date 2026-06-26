@@ -1,5 +1,11 @@
 import React from "react";
-import { Joyride, EventData, STATUS, Step, TooltipRenderProps } from "react-joyride";
+import {
+  Joyride,
+  EventData,
+  STATUS,
+  Step,
+  TooltipRenderProps,
+} from "react-joyride";
 import { motion } from "framer-motion";
 import { X, ChevronRight, ChevronLeft, Sparkles } from "lucide-react";
 
@@ -31,7 +37,7 @@ function CustomTooltip({
     >
       {/* Top Progress Bar */}
       <div className="absolute top-0 left-0 h-2 bg-surface-low dark:bg-[#1f1c18] w-full">
-        <motion.div 
+        <motion.div
           className="h-full bg-primary"
           initial={{ width: 0 }}
           animate={{ width: `${progress}%` }}
@@ -73,12 +79,14 @@ function CustomTooltip({
             <div
               key={i}
               className={`h-2 rounded-full border-2 border-black transition-all duration-300 ${
-                i === index ? "bg-primary w-6" : "bg-surface-low dark:bg-[#2e2924] w-2"
+                i === index
+                  ? "bg-primary w-6"
+                  : "bg-surface-low dark:bg-[#2e2924] w-2"
               }`}
             />
           ))}
         </div>
-        
+
         <div className="flex gap-2">
           {index > 0 && (
             <button

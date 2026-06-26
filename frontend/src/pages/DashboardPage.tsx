@@ -294,7 +294,9 @@ export function DashboardPage() {
     const queue = lessons.filter((l) => !isLessonCompleted(l.slug)).slice(0, 3);
 
     // Calculate which badges are earned
-    const earned = new Set<string>(contributorData?.personal_stats?.earned_badges || []);
+    const earned = new Set<string>(
+      contributorData?.personal_stats?.earned_badges || [],
+    );
     curriculumData.forEach((mod, index) => {
       const allCompleted = mod.lessons.every((les: { slug: string }) =>
         isLessonCompleted(les.slug),
@@ -887,7 +889,10 @@ export function DashboardPage() {
                   <h3 className="font-black text-lg leading-tight dark:text-[#f0ebe2] pr-4">
                     {bookmark.lesson_title}
                   </h3>
-                  <Bookmark className="fill-primary text-primary shrink-0" size={20} />
+                  <Bookmark
+                    className="fill-primary text-primary shrink-0"
+                    size={20}
+                  />
                 </div>
                 <div className="flex justify-between items-center mt-auto pt-4">
                   <span className="font-black text-[10px] bg-black text-white px-2 py-0.5 rounded-full uppercase dark:bg-[#2e2924]">

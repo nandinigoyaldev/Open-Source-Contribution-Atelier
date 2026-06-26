@@ -11,13 +11,16 @@ export async function generateKeyPair(): Promise<KeyPair> {
       namedCurve: "P-256",
     },
     true,
-    ["deriveKey", "deriveBits"]
+    ["deriveKey", "deriveBits"],
   );
 }
 
 export async function exportPublicKey(key: CryptoKey): Promise<string> {
   const exported = await window.crypto.subtle.exportKey("spki", key);
-  const exportedAsString = String.fromCharCode.apply(null, Array.from(new Uint8Array(exported)));
+  const exportedAsString = String.fromCharCode.apply(
+    null,
+    Array.from(new Uint8Array(exported)),
+  );
   return btoa(exportedAsString);
 }
 
@@ -36,13 +39,13 @@ export async function importPublicKey(base64Key: string): Promise<CryptoKey> {
       namedCurve: "P-256",
     },
     true,
-    []
+    [],
   );
 }
 
 export async function deriveSharedKey(
   privateKey: CryptoKey,
-  publicKey: CryptoKey
+  publicKey: CryptoKey,
 ): Promise<CryptoKey> {
   return window.crypto.subtle.deriveKey(
     {
@@ -55,13 +58,13 @@ export async function deriveSharedKey(
       length: 256,
     },
     false,
-    ["encrypt", "decrypt"]
+    ["encrypt", "decrypt"],
   );
 }
 
 export async function encryptMessage(
   message: string,
-  key: CryptoKey
+  key: CryptoKey,
 ): Promise<{ ciphertext: string; iv: string }> {
   const encoded = new TextEncoder().encode(message);
   const iv = window.crypto.getRandomValues(new Uint8Array(12));
@@ -71,11 +74,13 @@ export async function encryptMessage(
       iv: iv,
     },
     key,
-    encoded
+    encoded,
   );
 
   return {
-    ciphertext: btoa(String.fromCharCode.apply(null, Array.from(new Uint8Array(ciphertext)))),
+    ciphertext: btoa(
+      String.fromCharCode.apply(null, Array.from(new Uint8Array(ciphertext))),
+    ),
     iv: btoa(String.fromCharCode.apply(null, Array.from(iv))),
   };
 }
@@ -83,7 +88,7 @@ export async function encryptMessage(
 export async function decryptMessage(
   ciphertextBase64: string,
   ivBase64: string,
-  key: CryptoKey
+  key: CryptoKey,
 ): Promise<string> {
   const ciphertextStr = atob(ciphertextBase64);
   const ciphertext = new Uint8Array(ciphertextStr.length);
@@ -103,7 +108,7 @@ export async function decryptMessage(
       iv: iv,
     },
     key,
-    ciphertext.buffer
+    ciphertext.buffer,
   );
 
   return new TextDecoder().decode(decrypted);

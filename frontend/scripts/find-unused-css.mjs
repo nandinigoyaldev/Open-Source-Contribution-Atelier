@@ -52,8 +52,7 @@ export function extractCssClasses(cssContent) {
  */
 export function extractTailwindThemeTokens(configContent) {
   const tokens = [];
-  const sectionRegex =
-    /(colors|boxShadow|animation)\s*:\s*{([^}]*)}/gs;
+  const sectionRegex = /(colors|boxShadow|animation)\s*:\s*{([^}]*)}/gs;
   let sectionMatch;
   while ((sectionMatch = sectionRegex.exec(configContent)) !== null) {
     const [, sectionName, body] = sectionMatch;
@@ -80,12 +79,16 @@ function main() {
   console.log("Scanning for unused custom CSS classes and theme tokens...\n");
 
   if (!fs.existsSync(CSS_PATH)) {
-    console.warn(`No stylesheet found at ${CSS_PATH}, skipping CSS class check.`);
+    console.warn(
+      `No stylesheet found at ${CSS_PATH}, skipping CSS class check.`,
+    );
     return;
   }
 
   const sourceFiles = collectSourceFiles(SRC_DIR);
-  const sourceContents = sourceFiles.map((file) => fs.readFileSync(file, "utf-8"));
+  const sourceContents = sourceFiles.map((file) =>
+    fs.readFileSync(file, "utf-8"),
+  );
 
   const cssContent = fs.readFileSync(CSS_PATH, "utf-8");
   const cssClasses = extractCssClasses(cssContent);
@@ -98,7 +101,9 @@ function main() {
 
   if (unusedClasses.length > 0) {
     hasFindings = true;
-    console.log(`Unused custom CSS classes in ${path.relative(process.cwd(), CSS_PATH)}:`);
+    console.log(
+      `Unused custom CSS classes in ${path.relative(process.cwd(), CSS_PATH)}:`,
+    );
     for (const className of unusedClasses) {
       console.log(`  - .${className}`);
     }

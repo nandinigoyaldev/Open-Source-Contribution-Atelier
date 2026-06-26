@@ -10,7 +10,7 @@ async function initPyodide() {
   });
 
   const pyodide = await pyodideReadyPromise;
-  
+
   // We can pre-load standard packages here if needed.
   // await pyodide.loadPackage("numpy");
 
@@ -22,21 +22,33 @@ initPyodide();
 
 self.onmessage = async (event) => {
   const { id, pythonCode } = event.data;
-  
+
   try {
     const pyodide = await initPyodide();
-    
+
     // Redirect stdout and stderr
     let output = "";
     let errorOutput = "";
-    
-    pyodide.setStdout({ batched: (msg) => { output += msg + "\n"; } });
-    pyodide.setStderr({ batched: (msg) => { errorOutput += msg + "\n"; } });
-    
+
+    pyodide.setStdout({
+      batched: (msg) => {
+        output += msg + "\n";
+      },
+    });
+    pyodide.setStderr({
+      batched: (msg) => {
+        errorOutput += msg + "\n";
+      },
+    });
+
     // Execute the code
     await pyodide.runPythonAsync(pythonCode);
-    
-    self.postMessage({ id, results: output, error: errorOutput ? errorOutput : null });
+
+    self.postMessage({
+      id,
+      results: output,
+      error: errorOutput ? errorOutput : null,
+    });
   } catch (error: any) {
     self.postMessage({ id, error: error.message });
   }

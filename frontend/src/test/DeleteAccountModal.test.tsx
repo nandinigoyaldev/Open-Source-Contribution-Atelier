@@ -17,11 +17,13 @@ vi.mock("../features/auth/AuthContext", () => ({
 }));
 
 function renderWithProviders(ui: React.ReactElement) {
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const queryClient = new QueryClient({
+    defaultOptions: { queries: { retry: false } },
+  });
   return render(
     <MemoryRouter>
       <QueryClientProvider client={queryClient}>{ui}</QueryClientProvider>
-    </MemoryRouter>
+    </MemoryRouter>,
   );
 }
 
@@ -31,25 +33,33 @@ describe("DeleteAccountModal", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
-  
+
   afterEach(() => {
     cleanup();
   });
 
   it("does not render when isOpen is false", () => {
-    renderWithProviders(<DeleteAccountModal isOpen={false} onClose={() => {}} />);
+    renderWithProviders(
+      <DeleteAccountModal isOpen={false} onClose={() => {}} />,
+    );
     expect(screen.queryByText(/Delete Account\?/i)).not.toBeInTheDocument();
   });
 
   it("renders when isOpen is true", () => {
-    renderWithProviders(<DeleteAccountModal isOpen={true} onClose={() => {}} />);
+    renderWithProviders(
+      <DeleteAccountModal isOpen={true} onClose={() => {}} />,
+    );
     expect(screen.getByText(/Delete Account\?/i)).toBeInTheDocument();
-    expect(screen.getByText(/This action is permanent and cannot be undone./i)).toBeInTheDocument();
+    expect(
+      screen.getByText(/This action is permanent and cannot be undone./i),
+    ).toBeInTheDocument();
   });
 
   it("disables delete button until 'DELETE' is typed", () => {
-    renderWithProviders(<DeleteAccountModal isOpen={true} onClose={() => {}} />);
-    
+    renderWithProviders(
+      <DeleteAccountModal isOpen={true} onClose={() => {}} />,
+    );
+
     const deleteButton = screen.getByRole("button", { name: "Delete" });
     expect(deleteButton).toBeDisabled();
 
@@ -63,17 +73,21 @@ describe("DeleteAccountModal", () => {
 
   it("calls the API and logout on successful deletion", async () => {
     (fetchApi as any).mockResolvedValueOnce({});
-    
-    renderWithProviders(<DeleteAccountModal isOpen={true} onClose={() => {}} />);
-    
+
+    renderWithProviders(
+      <DeleteAccountModal isOpen={true} onClose={() => {}} />,
+    );
+
     const input = screen.getByPlaceholderText("DELETE");
     fireEvent.change(input, { target: { value: "DELETE" } });
-    
+
     const deleteButton = screen.getByRole("button", { name: "Delete" });
     fireEvent.click(deleteButton);
-    
+
     await waitFor(() => {
-      expect(fetchApi).toHaveBeenCalledWith("/auth/users/me/delete/", { method: "DELETE" });
+      expect(fetchApi).toHaveBeenCalledWith("/auth/users/me/delete/", {
+        method: "DELETE",
+      });
       expect(mockLogout).toHaveBeenCalled();
     });
   });

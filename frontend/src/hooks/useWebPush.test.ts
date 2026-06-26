@@ -48,7 +48,10 @@ describe("useWebPush", () => {
     vi.stubGlobal("PushManager", class PushManager {});
 
     // Provide a dummy VAPID key that is valid base64
-    vi.stubEnv("VITE_VAPID_PUBLIC_KEY", "BHB1-test-key-base64-string-which-is-valid==");
+    vi.stubEnv(
+      "VITE_VAPID_PUBLIC_KEY",
+      "BHB1-test-key-base64-string-which-is-valid==",
+    );
   });
 
   afterEach(() => {
@@ -60,7 +63,7 @@ describe("useWebPush", () => {
     // Remove serviceWorker and PushManager to simulate unsupported
     vi.stubGlobal("navigator", {});
     vi.stubGlobal("PushManager", undefined);
-    
+
     const { result } = renderHook(() => useWebPush());
     expect(result.current.isSupported).toBe(false);
     expect(result.current.isSubscribed).toBe(false);
@@ -69,7 +72,7 @@ describe("useWebPush", () => {
   it("should initialize and check existing subscription when supported", async () => {
     const { result } = renderHook(() => useWebPush());
     expect(result.current.isSupported).toBe(true);
-    
+
     await act(async () => {
       await mockServiceWorkerReady;
     });
@@ -79,11 +82,11 @@ describe("useWebPush", () => {
 
   it("should update isSubscribed to true if subscription exists", async () => {
     mockGetSubscription.mockResolvedValueOnce({
-      toJSON: () => ({ endpoint: "fake-endpoint" })
+      toJSON: () => ({ endpoint: "fake-endpoint" }),
     });
-    
+
     const { result } = renderHook(() => useWebPush());
-    
+
     await act(async () => {
       await mockServiceWorkerReady;
     });
@@ -93,7 +96,7 @@ describe("useWebPush", () => {
 
   it("should subscribe successfully", async () => {
     const { result } = renderHook(() => useWebPush());
-    
+
     await act(async () => {
       await mockServiceWorkerReady;
     });
@@ -105,9 +108,12 @@ describe("useWebPush", () => {
 
     expect(Notification.requestPermission).toHaveBeenCalled();
     expect(mockSubscribe).toHaveBeenCalled();
-    expect(fetchApi).toHaveBeenCalledWith("/notifications/push/subscribe/", expect.objectContaining({
-      method: "POST",
-    }));
+    expect(fetchApi).toHaveBeenCalledWith(
+      "/notifications/push/subscribe/",
+      expect.objectContaining({
+        method: "POST",
+      }),
+    );
     expect(success).toBe(true);
     expect(result.current.isSubscribed).toBe(true);
   });
@@ -119,7 +125,7 @@ describe("useWebPush", () => {
     });
 
     const { result } = renderHook(() => useWebPush());
-    
+
     await act(async () => {
       await mockServiceWorkerReady;
     });
@@ -140,7 +146,7 @@ describe("useWebPush", () => {
     });
 
     const { result } = renderHook(() => useWebPush());
-    
+
     await act(async () => {
       await mockServiceWorkerReady;
     });
@@ -153,18 +159,21 @@ describe("useWebPush", () => {
     });
 
     expect(mockUnsubscribe).toHaveBeenCalled();
-    expect(fetchApi).toHaveBeenCalledWith("/notifications/push/unsubscribe/", expect.objectContaining({
-      method: "POST",
-    }));
+    expect(fetchApi).toHaveBeenCalledWith(
+      "/notifications/push/unsubscribe/",
+      expect.objectContaining({
+        method: "POST",
+      }),
+    );
     expect(success).toBe(true);
     expect(result.current.isSubscribed).toBe(false);
   });
 
   it("should handle error if VITE_VAPID_PUBLIC_KEY is missing", async () => {
     vi.unstubAllEnvs();
-    
+
     const { result } = renderHook(() => useWebPush());
-    
+
     await act(async () => {
       await mockServiceWorkerReady;
     });
@@ -176,9 +185,12 @@ describe("useWebPush", () => {
       success = await result.current.subscribe();
     });
 
-    expect(consoleSpy).toHaveBeenCalledWith("Failed to subscribe to web push:", expect.any(Error));
+    expect(consoleSpy).toHaveBeenCalledWith(
+      "Failed to subscribe to web push:",
+      expect.any(Error),
+    );
     expect(success).toBe(false);
-    
+
     consoleSpy.mockRestore();
   });
 });

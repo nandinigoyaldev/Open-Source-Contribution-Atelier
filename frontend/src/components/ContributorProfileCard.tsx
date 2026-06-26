@@ -68,9 +68,11 @@ const ContributorProfileCard: React.FC<Props> = ({
   return (
     <article className="w-80 rounded-2xl bg-white shadow-lg border hover:shadow-xl transition">
       {/* HEADER */}
-      <div 
+      <div
         className="h-24 bg-gradient-to-r from-blue-600 to-purple-600 bg-cover bg-center rounded-t-2xl"
-        style={coverImageUrl ? { backgroundImage: `url(${coverImageUrl})` } : {}}
+        style={
+          coverImageUrl ? { backgroundImage: `url(${coverImageUrl})` } : {}
+        }
       ></div>
 
       {/* AVATAR */}

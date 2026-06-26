@@ -56,7 +56,7 @@ export async function getOrGenerateNotesKey(): Promise<CryptoKey> {
         length: 256,
       },
       true,
-      ["encrypt", "decrypt"]
+      ["encrypt", "decrypt"],
     );
     await saveKeyToDB(key);
   }
@@ -86,7 +86,9 @@ function base64ToArrayBuffer(base64: string): ArrayBuffer {
 /**
  * Encrypts plaintext and returns base64 ciphertext and IV.
  */
-export async function encryptNoteContent(plaintext: string): Promise<{ ciphertext: string; iv: string }> {
+export async function encryptNoteContent(
+  plaintext: string,
+): Promise<{ ciphertext: string; iv: string }> {
   const key = await getOrGenerateNotesKey();
   const iv = window.crypto.getRandomValues(new Uint8Array(12));
   const encodedPlaintext = new TextEncoder().encode(plaintext);
@@ -97,7 +99,7 @@ export async function encryptNoteContent(plaintext: string): Promise<{ ciphertex
       iv: iv,
     },
     key,
-    encodedPlaintext
+    encodedPlaintext,
   );
 
   return {
@@ -109,7 +111,10 @@ export async function encryptNoteContent(plaintext: string): Promise<{ ciphertex
 /**
  * Decrypts base64 ciphertext using the stored key and IV.
  */
-export async function decryptNoteContent(ciphertextBase64: string, ivBase64: string): Promise<string> {
+export async function decryptNoteContent(
+  ciphertextBase64: string,
+  ivBase64: string,
+): Promise<string> {
   try {
     const key = await getOrGenerateNotesKey();
     const ciphertext = base64ToArrayBuffer(ciphertextBase64);
@@ -121,7 +126,7 @@ export async function decryptNoteContent(ciphertextBase64: string, ivBase64: str
         iv: new Uint8Array(iv),
       },
       key,
-      ciphertext
+      ciphertext,
     );
 
     return new TextDecoder().decode(decryptedBuffer);

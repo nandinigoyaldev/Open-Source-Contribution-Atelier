@@ -76,7 +76,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
             await fetchApi("/notifications/push/unsubscribe/", {
               method: "POST",
               requireAuth: true,
-              body: JSON.stringify({ endpoint })
+              body: JSON.stringify({ endpoint }),
             });
           } catch (e) {
             console.error("Failed to notify backend of push unsubscribe", e);
@@ -86,7 +86,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (e) {
       console.error("Error unsubscribing push on logout", e);
     }
-    
+
     safeRemoveItem("accessToken");
     safeRemoveItem("refreshToken");
     setUser(null);

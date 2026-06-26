@@ -70,7 +70,7 @@ export async function mockMagicLink(page: Page, userData = {}) {
     };
     await route.fulfill({ status: 200, json });
   });
-  
+
   await page.route("**/api/auth/me/", async (route) => {
     const json = {
       username: "testuser",

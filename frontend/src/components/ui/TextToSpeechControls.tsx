@@ -6,7 +6,8 @@ interface TextToSpeechControlsProps {
 }
 
 export function TextToSpeechControls({ content }: TextToSpeechControlsProps) {
-  const { isSupported, isPlaying, isPaused, play, pause, stop } = useTextToSpeech(content);
+  const { isSupported, isPlaying, isPaused, play, pause, stop } =
+    useTextToSpeech(content);
 
   if (!isSupported) {
     return null; // Don't render if browser doesn't support Web Speech API
@@ -17,7 +18,7 @@ export function TextToSpeechControls({ content }: TextToSpeechControlsProps) {
       <span className="text-xs font-black uppercase tracking-widest text-black ml-2 dark:text-[#f0ebe2]">
         Listen:
       </span>
-      
+
       {!isPlaying ? (
         <button
           onClick={play}

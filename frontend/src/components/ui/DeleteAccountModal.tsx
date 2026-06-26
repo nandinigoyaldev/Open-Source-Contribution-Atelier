@@ -5,7 +5,13 @@ import { useAuth } from "../../features/auth/AuthContext";
 import { Trash2, AlertTriangle, X } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 
-export function DeleteAccountModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+export function DeleteAccountModal({
+  isOpen,
+  onClose,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+}) {
   const [confirmText, setConfirmText] = useState("");
   const { logout } = useAuth();
   const navigate = useNavigate();
@@ -25,7 +31,7 @@ export function DeleteAccountModal({ isOpen, onClose }: { isOpen: boolean; onClo
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
       <div className="bg-white rounded-3xl border-4 border-black p-8 max-w-md w-full shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] relative animate-in fade-in zoom-in duration-200">
-        <button 
+        <button
           onClick={onClose}
           className="absolute top-4 right-4 p-2 hover:bg-gray-100 rounded-full transition-colors"
         >
@@ -36,27 +42,37 @@ export function DeleteAccountModal({ isOpen, onClose }: { isOpen: boolean; onClo
           <div className="bg-red-100 p-4 rounded-full border-2 border-red-500">
             <AlertTriangle className="w-10 h-10 text-red-500" />
           </div>
-          
+
           <h2 className="text-2xl font-black uppercase tracking-tight text-red-600">
             Delete Account?
           </h2>
-          
+
           <p className="font-bold text-gray-700">
             This action is permanent and cannot be undone.
           </p>
-          
+
           <div className="bg-orange-50 border-2 border-orange-200 p-4 rounded-xl text-sm text-left text-gray-800 font-medium space-y-2 w-full">
-            <p><strong>What happens when you delete:</strong></p>
+            <p>
+              <strong>What happens when you delete:</strong>
+            </p>
             <ul className="list-disc pl-5 space-y-1">
-              <li>All personal data (PII), private notes, and progress will be permanently erased.</li>
+              <li>
+                All personal data (PII), private notes, and progress will be
+                permanently erased.
+              </li>
               <li>Your certificates will become invalid.</li>
-              <li>Public contributions (comments, chat messages) will remain but will be assigned to an "Anonymous Contributor" to preserve context.</li>
+              <li>
+                Public contributions (comments, chat messages) will remain but
+                will be assigned to an "Anonymous Contributor" to preserve
+                context.
+              </li>
             </ul>
           </div>
 
           <div className="w-full pt-4 space-y-2">
             <label className="block text-sm font-bold text-gray-700 text-left">
-              Type <span className="text-red-500 font-black">DELETE</span> to confirm:
+              Type <span className="text-red-500 font-black">DELETE</span> to
+              confirm:
             </label>
             <input
               type="text"
@@ -76,7 +92,9 @@ export function DeleteAccountModal({ isOpen, onClose }: { isOpen: boolean; onClo
             </button>
             <button
               onClick={() => deleteAccountMutation.mutate()}
-              disabled={confirmText !== "DELETE" || deleteAccountMutation.isPending}
+              disabled={
+                confirmText !== "DELETE" || deleteAccountMutation.isPending
+              }
               className="flex-1 px-4 py-3 bg-red-500 text-white border-2 border-black rounded-xl font-black uppercase hover:bg-red-600 hover:-translate-y-1 shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] disabled:opacity-50 disabled:hover:translate-y-0 disabled:shadow-none transition-all flex justify-center items-center gap-2"
             >
               <Trash2 className="w-5 h-5" />

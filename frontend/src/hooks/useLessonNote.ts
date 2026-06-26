@@ -28,7 +28,10 @@ export function useLessonNote(lessonSlug: string) {
     },
     onMutate: async (newContent) => {
       await queryClient.cancelQueries({ queryKey: ["lessonNote", lessonSlug] });
-      const previousNote = queryClient.getQueryData<LessonNote>(["lessonNote", lessonSlug]);
+      const previousNote = queryClient.getQueryData<LessonNote>([
+        "lessonNote",
+        lessonSlug,
+      ]);
 
       if (previousNote) {
         queryClient.setQueryData<LessonNote>(["lessonNote", lessonSlug], {
@@ -45,7 +48,10 @@ export function useLessonNote(lessonSlug: string) {
     },
     onError: (err, newContent, context) => {
       if (context?.previousNote) {
-        queryClient.setQueryData(["lessonNote", lessonSlug], context.previousNote);
+        queryClient.setQueryData(
+          ["lessonNote", lessonSlug],
+          context.previousNote,
+        );
       }
     },
     onSettled: () => {

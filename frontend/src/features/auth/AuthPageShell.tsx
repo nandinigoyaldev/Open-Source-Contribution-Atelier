@@ -62,7 +62,9 @@ export function AuthPageShell({
         <button
           className="rounded-lg bg-surface-low p-3 text-muted hover:text-text border-2 border-black dark:border-[#2e2924] shadow-card-sm hover:-translate-y-0.5 active:translate-y-0 transition-all dark:bg-[#151411] dark:text-[#c4bbae] dark:hover:text-[#f0ebe2]"
           onClick={toggleTheme}
-          aria-label={theme === "light" ? "Switch to dark mode" : "Switch to light mode"}
+          aria-label={
+            theme === "light" ? "Switch to dark mode" : "Switch to light mode"
+          }
         >
           {theme === "light" ? <Moon size={20} /> : <Sun size={20} />}
         </button>
@@ -72,7 +74,9 @@ export function AuthPageShell({
               ? "bg-primary text-white"
               : "bg-surface-low text-muted hover:text-text dark:bg-[#151411] dark:text-[#c4bbae] dark:hover:text-[#f0ebe2]"
           }`}
-          onClick={() => setTheme(theme === "high-contrast" ? "light" : "high-contrast")}
+          onClick={() =>
+            setTheme(theme === "high-contrast" ? "light" : "high-contrast")
+          }
           aria-label="Toggle High Contrast Mode"
           title="High Contrast Mode"
         >
@@ -132,4 +136,3 @@ export function AuthPageShell({
     </div>
   );
 }
-

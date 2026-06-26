@@ -8,7 +8,9 @@ interface UseBadgeToastReturn {
   dismissToast: (id: string) => void;
 }
 
-export function useBadgeToast(allBadges: BadgeDefinition[]): UseBadgeToastReturn {
+export function useBadgeToast(
+  allBadges: BadgeDefinition[],
+): UseBadgeToastReturn {
   const [toasts, setToasts] = useState<BadgeToastData[]>([]);
 
   const addToast = useCallback(

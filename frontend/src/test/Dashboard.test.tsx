@@ -85,7 +85,7 @@ describe("DashboardPage Dual-Role Views", () => {
       },
     });
 
-    // MSW handlers in src/mocks/handlers.ts already provide the default mock responses 
+    // MSW handlers in src/mocks/handlers.ts already provide the default mock responses
     // for admin analytics and leaderboard.
 
     renderWithQueryClient(<DashboardPage />);

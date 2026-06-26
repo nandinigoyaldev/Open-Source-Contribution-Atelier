@@ -36,9 +36,12 @@ export function NotesWidget() {
     const decryptAll = async () => {
       const decrypted = await Promise.all(
         encryptedNotes.map(async (note) => {
-          const plaintext = await decryptNoteContent(note.encrypted_content, note.iv);
+          const plaintext = await decryptNoteContent(
+            note.encrypted_content,
+            note.iv,
+          );
           return { ...note, plaintext };
-        })
+        }),
       );
       setDecryptedNotes(decrypted);
     };
@@ -50,14 +53,22 @@ export function NotesWidget() {
   }, [encryptedNotes]);
 
   const saveNoteMutation = useMutation({
-    mutationFn: async ({ title, content, id }: { title: string; content: string; id?: number }) => {
+    mutationFn: async ({
+      title,
+      content,
+      id,
+    }: {
+      title: string;
+      content: string;
+      id?: number;
+    }) => {
       const { ciphertext, iv } = await encryptNoteContent(content);
       const payload = {
         title,
         encrypted_content: ciphertext,
         iv,
       };
-      
+
       if (id) {
         return fetchApi(`/notes/${id}/`, {
           method: "PUT",
@@ -123,10 +134,16 @@ export function NotesWidget() {
               <h3 className="font-black text-lg">E2E Notes</h3>
             </div>
             <div className="flex gap-2">
-              <button onClick={handleNewNote} className="hover:bg-black/10 p-1 rounded transition-colors">
+              <button
+                onClick={handleNewNote}
+                className="hover:bg-black/10 p-1 rounded transition-colors"
+              >
                 <Plus className="w-5 h-5" />
               </button>
-              <button onClick={() => setIsOpen(false)} className="hover:bg-black/10 p-1 rounded transition-colors">
+              <button
+                onClick={() => setIsOpen(false)}
+                className="hover:bg-black/10 p-1 rounded transition-colors"
+              >
                 <X className="w-5 h-5" />
               </button>
             </div>
@@ -134,7 +151,9 @@ export function NotesWidget() {
 
           {/* Content area */}
           <div className="flex-1 overflow-y-auto bg-surface-lowest dark:bg-[#151411]">
-            {activeNote !== null || (!activeNote && editingContent !== "" || editingTitle !== "") ? (
+            {activeNote !== null ||
+            (!activeNote && editingContent !== "") ||
+            editingTitle !== "" ? (
               // Editor View
               <div className="p-4 flex flex-col h-full gap-4">
                 <input
@@ -163,7 +182,9 @@ export function NotesWidget() {
                     className="flex items-center gap-2 bg-black text-white px-4 py-2 rounded-lg font-black text-sm disabled:opacity-50"
                   >
                     <Save className="w-4 h-4" />
-                    {saveNoteMutation.isPending ? "Encrypting..." : "Save Securely"}
+                    {saveNoteMutation.isPending
+                      ? "Encrypting..."
+                      : "Save Securely"}
                   </button>
                 </div>
               </div>
@@ -171,13 +192,18 @@ export function NotesWidget() {
               // List View
               <div className="p-4 space-y-3 h-[400px]">
                 {isLoading ? (
-                  <p className="text-center text-muted font-bold mt-10">Loading keys...</p>
+                  <p className="text-center text-muted font-bold mt-10">
+                    Loading keys...
+                  </p>
                 ) : decryptedNotes.length === 0 ? (
                   <div className="text-center mt-10 space-y-2">
                     <p className="text-4xl">🔐</p>
-                    <p className="font-bold text-muted dark:text-[#c4bbae] text-sm">No notes yet.</p>
+                    <p className="font-bold text-muted dark:text-[#c4bbae] text-sm">
+                      No notes yet.
+                    </p>
                     <p className="text-xs text-muted dark:text-[#c4bbae]">
-                      Everything you write here is AES-GCM encrypted. Even the database admins can't read it.
+                      Everything you write here is AES-GCM encrypted. Even the
+                      database admins can't read it.
                     </p>
                   </div>
                 ) : (
@@ -192,7 +218,9 @@ export function NotesWidget() {
                       }}
                     >
                       <div className="flex justify-between items-start">
-                        <h4 className="font-black text-sm dark:text-[#f0ebe2] truncate">{note.title}</h4>
+                        <h4 className="font-black text-sm dark:text-[#f0ebe2] truncate">
+                          {note.title}
+                        </h4>
                         <div className="flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
                           <button
                             onClick={(e) => {

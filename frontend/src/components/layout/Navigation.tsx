@@ -34,7 +34,6 @@ const navItems = [
 ];
 
 export function Navigation() {
-
   const { theme, toggleTheme, setTheme } = useTheme();
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -311,7 +310,9 @@ export function Navigation() {
                   ? "bg-primary text-white"
                   : "bg-surface-low text-muted hover:text-text dark:bg-[#151411] dark:text-[#c4bbae] dark:hover:text-[#f0ebe2]"
               }`}
-              onClick={() => setTheme(theme === "high-contrast" ? "light" : "high-contrast")}
+              onClick={() =>
+                setTheme(theme === "high-contrast" ? "light" : "high-contrast")
+              }
               aria-label="Toggle High Contrast Mode"
               title="High Contrast Mode"
             >

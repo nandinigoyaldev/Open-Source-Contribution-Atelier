@@ -17,7 +17,7 @@ export function SocialShareButtons({
 
   // Twitter Web Intent
   const twitterUrl = `https://twitter.com/intent/tweet?url=${encodedUrl}&text=${encodedTitle}&hashtags=${encodedHashtags}`;
-  
+
   // LinkedIn Sharing
   // Note: LinkedIn pulls OG tags from the URL, so the URL must be publicly accessible.
   const linkedinUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encodedUrl}`;

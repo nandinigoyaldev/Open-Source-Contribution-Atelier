@@ -11,7 +11,9 @@
         } else if (t !== "light") {
           if (window.matchMedia("(prefers-contrast: more)").matches) {
             document.documentElement.classList.add("high-contrast");
-          } else if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
+          } else if (
+            window.matchMedia("(prefers-color-scheme: dark)").matches
+          ) {
             document.documentElement.classList.add("dark");
           }
         }

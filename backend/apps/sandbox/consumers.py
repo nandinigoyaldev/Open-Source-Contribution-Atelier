@@ -32,6 +32,14 @@ class SandboxConsumer(AsyncWebsocketConsumer):
                         "sender_channel_name": self.channel_name,
                     }
                 )
+            elif action == "execute_code":
+                code = text_data_json.get("code")
+                from .services import stream_python_execution
+                
+                async def send_callback(message_data):
+                    await self.send(text_data=json.dumps(message_data))
+                
+                await stream_python_execution(code, send_callback)
         except Exception:
             pass
 

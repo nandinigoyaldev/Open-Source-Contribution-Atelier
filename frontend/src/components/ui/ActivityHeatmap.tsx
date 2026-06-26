@@ -86,8 +86,9 @@ export function ActivityHeatmap() {
   }
 
   // Calculate some stats
-  const totalActivity = heatmapData?.reduce((sum, item) => sum + item.count, 0) || 0;
-  const activeDays = heatmapData?.filter(item => item.count > 0).length || 0;
+  const totalActivity =
+    heatmapData?.reduce((sum, item) => sum + item.count, 0) || 0;
+  const activeDays = heatmapData?.filter((item) => item.count > 0).length || 0;
 
   return (
     <div className="flex flex-col">
