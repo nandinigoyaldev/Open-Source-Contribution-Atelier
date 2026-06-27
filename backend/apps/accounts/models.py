@@ -172,10 +172,11 @@ class UserProfile(models.Model):
     def _convert_to_webp(self, image_field):
         """Helper method to convert an ImageField to WebP format."""
         if image_field and not image_field.name.lower().endswith(".webp"):
-            from PIL import Image
-            from io import BytesIO
-            from django.core.files.base import ContentFile
             import os
+            from io import BytesIO
+
+            from django.core.files.base import ContentFile
+            from PIL import Image
 
             img = Image.open(image_field)
 

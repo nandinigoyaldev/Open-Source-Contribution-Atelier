@@ -82,7 +82,9 @@ test.describe("Authentication Flows", () => {
 
     await page.goto("/signup");
     await page.getByPlaceholder("study_master_99").fill("existinguser");
-    await page.getByPlaceholder("nerd@homework.com").fill("existing@example.com");
+    await page
+      .getByPlaceholder("nerd@homework.com")
+      .fill("existing@example.com");
     await page.getByPlaceholder("••••••••").fill("password123");
     await page.getByRole("button", { name: "Sign Me Up!" }).click();
 
@@ -96,7 +98,10 @@ test.describe("Authentication Flows", () => {
   test("Magic link request and verify flows via API", async ({ page }) => {
     // Intercept magic link request
     await page.route("**/api/auth/magic-link/request/", async (route) => {
-      await route.fulfill({ status: 200, json: { message: "Magic link sent." } });
+      await route.fulfill({
+        status: 200,
+        json: { message: "Magic link sent." },
+      });
     });
 
     // Intercept magic link verify
@@ -109,7 +114,7 @@ test.describe("Authentication Flows", () => {
       const res = await fetch("/api/auth/magic-link/request/", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: "test@example.com" })
+        body: JSON.stringify({ email: "test@example.com" }),
       });
       return res.status;
     });
@@ -120,7 +125,7 @@ test.describe("Authentication Flows", () => {
       const res = await fetch("/api/auth/magic-link/verify/", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ token: "mock-token" })
+        body: JSON.stringify({ token: "mock-token" }),
       });
       return res.status;
     });

@@ -1,15 +1,20 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { UploadCloud, X, Image as ImageIcon } from 'lucide-react';
-import { useToast } from '../../features/ui/ToastContext';
+import React, { useState, useRef, useEffect } from "react";
+import { UploadCloud, X, Image as ImageIcon } from "lucide-react";
+import { useToast } from "../../features/ui/ToastContext";
 
 interface CoverUploadDropzoneProps {
   currentCoverUrl?: string | null;
   onFileSelect: (file: File | null) => void;
 }
 
-export function CoverUploadDropzone({ currentCoverUrl, onFileSelect }: CoverUploadDropzoneProps) {
+export function CoverUploadDropzone({
+  currentCoverUrl,
+  onFileSelect,
+}: CoverUploadDropzoneProps) {
   const [dragActive, setDragActive] = useState(false);
-  const [previewUrl, setPreviewUrl] = useState<string | null>(currentCoverUrl || null);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(
+    currentCoverUrl || null,
+  );
   const inputRef = useRef<HTMLInputElement>(null);
   const { addToast } = useToast();
 
@@ -22,9 +27,9 @@ export function CoverUploadDropzone({ currentCoverUrl, onFileSelect }: CoverUplo
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
     e.stopPropagation();
-    if (e.type === 'dragenter' || e.type === 'dragover') {
+    if (e.type === "dragenter" || e.type === "dragover") {
       setDragActive(true);
-    } else if (e.type === 'dragleave') {
+    } else if (e.type === "dragleave") {
       setDragActive(false);
     }
   };
@@ -48,14 +53,14 @@ export function CoverUploadDropzone({ currentCoverUrl, onFileSelect }: CoverUplo
 
   const handleFile = (file: File) => {
     // Validate file type
-    if (!file.type.startsWith('image/')) {
-      addToast('Please upload an image file (JPEG, PNG, WebP).', 'error');
+    if (!file.type.startsWith("image/")) {
+      addToast("Please upload an image file (JPEG, PNG, WebP).", "error");
       return;
     }
 
     // Validate file size (max 5MB)
     if (file.size > 5 * 1024 * 1024) {
-      addToast('File is too large. Maximum size is 5MB.', 'error');
+      addToast("File is too large. Maximum size is 5MB.", "error");
       return;
     }
 
@@ -70,18 +75,20 @@ export function CoverUploadDropzone({ currentCoverUrl, onFileSelect }: CoverUplo
     setPreviewUrl(null);
     onFileSelect(null);
     if (inputRef.current) {
-      inputRef.current.value = '';
+      inputRef.current.value = "";
     }
   };
 
   return (
     <div className="w-full mb-8">
-      <label className="block text-sm font-medium text-gray-200 mb-2">Profile Cover Image</label>
+      <label className="block text-sm font-medium text-gray-200 mb-2">
+        Profile Cover Image
+      </label>
       <div
         className={`relative w-full h-40 border-2 border-dashed rounded-2xl flex flex-col items-center justify-center cursor-pointer transition-all duration-200 overflow-hidden ${
-          dragActive 
-            ? 'border-indigo-500 bg-indigo-500/10 scale-[1.02]' 
-            : 'border-gray-700 hover:border-gray-500 hover:bg-gray-800/50'
+          dragActive
+            ? "border-indigo-500 bg-indigo-500/10 scale-[1.02]"
+            : "border-gray-700 hover:border-gray-500 hover:bg-gray-800/50"
         }`}
         onDragEnter={handleDrag}
         onDragLeave={handleDrag}
@@ -105,7 +112,9 @@ export function CoverUploadDropzone({ currentCoverUrl, onFileSelect }: CoverUplo
               className="w-full h-full object-cover transition-transform group-hover:scale-105"
             />
             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-              <span className="text-white text-sm font-semibold drop-shadow-md">Change Cover Image</span>
+              <span className="text-white text-sm font-semibold drop-shadow-md">
+                Change Cover Image
+              </span>
             </div>
             <button
               type="button"
@@ -121,8 +130,12 @@ export function CoverUploadDropzone({ currentCoverUrl, onFileSelect }: CoverUplo
             <div className="w-12 h-12 rounded-full bg-gray-800 flex items-center justify-center mb-3 shadow-inner">
               <ImageIcon size={24} className="text-indigo-400" />
             </div>
-            <p className="text-base font-semibold text-gray-300">Upload a banner image</p>
-            <p className="text-sm text-gray-500 mt-1">Supports JPG, PNG, and WebP (max. 5MB). Ideal aspect ratio 3:1.</p>
+            <p className="text-base font-semibold text-gray-300">
+              Upload a banner image
+            </p>
+            <p className="text-sm text-gray-500 mt-1">
+              Supports JPG, PNG, and WebP (max. 5MB). Ideal aspect ratio 3:1.
+            </p>
           </div>
         )}
       </div>

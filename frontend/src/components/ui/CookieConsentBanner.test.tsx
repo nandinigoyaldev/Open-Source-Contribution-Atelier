@@ -1,5 +1,11 @@
 import React from "react";
-import { render, screen, fireEvent, act, cleanup } from "@testing-library/react";
+import {
+  render,
+  screen,
+  fireEvent,
+  act,
+  cleanup,
+} from "@testing-library/react";
 import { describe, it, expect, beforeEach, afterEach, vi } from "vitest";
 import { CookieConsentBanner } from "./CookieConsentBanner";
 import { BrowserRouter } from "react-router-dom";
@@ -20,7 +26,7 @@ describe("CookieConsentBanner", () => {
     return render(
       <BrowserRouter>
         <CookieConsentBanner />
-      </BrowserRouter>
+      </BrowserRouter>,
     );
   };
 
@@ -42,7 +48,7 @@ describe("CookieConsentBanner", () => {
     expect(banner).toBeInTheDocument();
 
     const acceptBtn = screen.getByRole("button", { name: /Accept All/i });
-    
+
     act(() => {
       fireEvent.click(acceptBtn);
     });
@@ -53,8 +59,10 @@ describe("CookieConsentBanner", () => {
 
   it("hides banner and stores 'denied' when Decline Optional is clicked", () => {
     renderBanner();
-    const declineBtn = screen.getByRole("button", { name: /Decline Optional/i });
-    
+    const declineBtn = screen.getByRole("button", {
+      name: /Decline Optional/i,
+    });
+
     act(() => {
       fireEvent.click(declineBtn);
     });
@@ -66,7 +74,7 @@ describe("CookieConsentBanner", () => {
   it("hides banner and stores 'denied' when close (X) is clicked", () => {
     renderBanner();
     const closeBtn = screen.getByRole("button", { name: /Close banner/i });
-    
+
     act(() => {
       fireEvent.click(closeBtn);
     });
@@ -78,7 +86,7 @@ describe("CookieConsentBanner", () => {
   it("dispatches cookieConsentUpdated event on interaction", () => {
     const dispatchEventSpy = vi.spyOn(window, "dispatchEvent");
     renderBanner();
-    
+
     const acceptBtn = screen.getByRole("button", { name: /Accept All/i });
     act(() => {
       fireEvent.click(acceptBtn);

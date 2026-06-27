@@ -17,7 +17,9 @@ export function ChallengePage() {
   const [search, setSearch] = useState("");
   const [difficulty, setDifficulty] = useState<Difficulty | null>(null);
 
-  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFileUpload = async (
+    event: React.ChangeEvent<HTMLInputElement>,
+  ) => {
     const file = event.target.files?.[0];
     if (!file) return;
 
@@ -33,7 +35,7 @@ export function ChallengePage() {
         body: formData,
       });
       setUploadMessage("✅ " + (response.message || "Upload successful"));
-    } catch (error: any) {
+    } catch (error: unknown) {
       setUploadMessage("❌ Error: " + (error.message || "Failed to upload"));
     } finally {
       setIsUploading(false);
@@ -50,7 +52,7 @@ export function ChallengePage() {
     return matchesSearch && matchesDifficulty;
   });
 
-return (
+  return (
     <div className="space-y-6">
       {user?.is_staff && (
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 rounded-2xl border-4 border-black bg-[#ffebc2] p-5 shadow-card dark:bg-yellow-900/20 dark:border-yellow-700/50">

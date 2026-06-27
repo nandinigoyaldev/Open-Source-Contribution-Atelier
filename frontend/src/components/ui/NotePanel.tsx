@@ -8,7 +8,8 @@ interface NotePanelProps {
 }
 
 export function NotePanel({ lessonSlug, onClose }: NotePanelProps) {
-  const { note, isLoading, saveNote, isSaving, isError, isSuccess } = useLessonNote(lessonSlug);
+  const { note, isLoading, saveNote, isSaving, isError, isSuccess } =
+    useLessonNote(lessonSlug);
   const [content, setContent] = useState("");
   const [width, setWidth] = useState(300); // initial width
   const isResizing = useRef(false);
@@ -65,23 +66,23 @@ export function NotePanel({ lessonSlug, onClose }: NotePanelProps) {
   }, [handleMouseMove]);
 
   return (
-    <div 
+    <div
       className="fixed right-0 top-0 h-full bg-white dark:bg-[#151411] border-l-4 border-black dark:border-[#2e2924] flex flex-row z-30 shadow-[-5px_0px_15px_rgba(0,0,0,0.1)] transition-transform duration-300 lg:relative lg:top-auto lg:h-auto lg:shadow-none"
       style={{ width: `${width}px` }}
     >
       {/* Resize Handle */}
-      <div 
+      <div
         className="w-2 cursor-col-resize absolute left-0 top-0 h-full hover:bg-black/10 z-10 hidden lg:block"
         onMouseDown={handleMouseDown}
       />
-      
+
       <div className="flex-1 flex flex-col h-full w-full relative pt-20 lg:pt-0">
         <div className="flex items-center justify-between p-4 border-b-4 border-black dark:border-[#2e2924]">
           <h2 className="text-lg font-black uppercase flex items-center gap-2">
             📝 Private Notes
           </h2>
-          <button 
-            onClick={onClose} 
+          <button
+            onClick={onClose}
             className="p-1 rounded-lg border-2 border-black hover:bg-black hover:text-white transition-colors"
           >
             <X size={16} />
@@ -91,15 +92,23 @@ export function NotePanel({ lessonSlug, onClose }: NotePanelProps) {
         {/* Save Status Indicator */}
         <div className="px-4 py-2 bg-surface-lowest dark:bg-[#0f0e0c] flex items-center gap-2 border-b-2 border-black/10 dark:border-[#2e2924]/40 text-xs font-bold text-muted dark:text-[#c4bbae]">
           {isSaving ? (
-            <span className="flex items-center gap-1 text-yellow-600"><Save size={14} className="animate-pulse" /> Saving...</span>
+            <span className="flex items-center gap-1 text-yellow-600">
+              <Save size={14} className="animate-pulse" /> Saving...
+            </span>
           ) : isError ? (
-            <span className="flex items-center gap-1 text-red-600"><AlertCircle size={14} /> Save failed</span>
+            <span className="flex items-center gap-1 text-red-600">
+              <AlertCircle size={14} /> Save failed
+            </span>
           ) : isSuccess ? (
-            <span className="flex items-center gap-1 text-green-600"><CheckCircle2 size={14} /> Saved</span>
+            <span className="flex items-center gap-1 text-green-600">
+              <CheckCircle2 size={14} /> Saved
+            </span>
           ) : isLoading ? (
             <span className="flex items-center gap-1">Loading...</span>
           ) : (
-            <span className="flex items-center gap-1"><CheckCircle2 size={14} /> Synced</span>
+            <span className="flex items-center gap-1">
+              <CheckCircle2 size={14} /> Synced
+            </span>
           )}
         </div>
 

@@ -44,7 +44,9 @@ export function CommunityPage() {
     queryKey: ["leaderboard"],
     queryFn: async ({ pageParam }) => {
       try {
-        const url = pageParam ? `/leaderboard/?cursor=${pageParam}` : `/leaderboard/`;
+        const url = pageParam
+          ? `/leaderboard/?cursor=${pageParam}`
+          : `/leaderboard/`;
         const data = await fetchApi(url);
         return data;
       } catch (err) {

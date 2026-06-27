@@ -6,13 +6,13 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('accounts', '0003_userprofile_organization'),
+        ("accounts", "0003_userprofile_organization"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='userprofile',
-            name='timezone',
-            field=models.CharField(default='UTC', max_length=64),
+            model_name="userprofile",
+            name="timezone",
+            field=models.CharField(default="UTC", max_length=64),
         ),
     ]

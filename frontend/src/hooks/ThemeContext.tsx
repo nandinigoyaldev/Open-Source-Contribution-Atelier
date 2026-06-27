@@ -1,3 +1,4 @@
+/* eslint-disable react-refresh/only-export-components */
 import {
   createContext,
   useContext,
@@ -31,7 +32,12 @@ function useThemeValue(): ThemeContextValue {
 
   useEffect(() => {
     const handleStorage = (e: StorageEvent) => {
-      if (e.key === "theme" && (e.newValue === "light" || e.newValue === "dark" || e.newValue === "high-contrast")) {
+      if (
+        e.key === "theme" &&
+        (e.newValue === "light" ||
+          e.newValue === "dark" ||
+          e.newValue === "high-contrast")
+      ) {
         setThemeState(e.newValue as Theme);
       }
     };
@@ -54,9 +60,7 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
   const value = useThemeValue();
 
   return (
-    <ThemeContext.Provider value={value}>
-      {children}
-    </ThemeContext.Provider>
+    <ThemeContext.Provider value={value}>{children}</ThemeContext.Provider>
   );
 }
 

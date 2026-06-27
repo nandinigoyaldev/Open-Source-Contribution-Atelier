@@ -6,10 +6,9 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('accounts', '0004_magiclinktoken'),
-        ('accounts', '0004_userprofile_last_password_change'),
-        ('accounts', '0004_userprofile_timezone'),
+        ("accounts", "0004_magiclinktoken"),
+        ("accounts", "0004_userprofile_last_password_change"),
+        ("accounts", "0004_userprofile_timezone"),
     ]
 
-    operations = [
-    ]
+    operations = []

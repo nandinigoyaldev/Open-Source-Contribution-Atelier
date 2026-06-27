@@ -15,24 +15,24 @@ describe("SocialShareButtons", () => {
 
   it("renders Twitter and LinkedIn share buttons", () => {
     render(<SocialShareButtons {...defaultProps} />);
-    
+
     const twitterBtn = screen.getByLabelText("Share to Twitter/X");
     const linkedinBtn = screen.getByLabelText("Share to LinkedIn");
-    
+
     expect(twitterBtn).toBeInTheDocument();
     expect(linkedinBtn).toBeInTheDocument();
   });
 
   it("generates correct Twitter intent URL", () => {
     render(<SocialShareButtons {...defaultProps} />);
-    
+
     const twitterBtn = screen.getByLabelText("Share to Twitter/X");
     const expectedUrl = `https://twitter.com/intent/tweet?url=${encodeURIComponent(
-      defaultProps.url
+      defaultProps.url,
     )}&text=${encodeURIComponent(defaultProps.title)}&hashtags=${encodeURIComponent(
-      "OpenSource,ContributionAtelier"
+      "OpenSource,ContributionAtelier",
     )}`;
-    
+
     expect(twitterBtn).toHaveAttribute("href", expectedUrl);
     expect(twitterBtn).toHaveAttribute("target", "_blank");
     expect(twitterBtn).toHaveAttribute("rel", "noopener noreferrer");
@@ -40,12 +40,12 @@ describe("SocialShareButtons", () => {
 
   it("generates correct LinkedIn share URL", () => {
     render(<SocialShareButtons {...defaultProps} />);
-    
+
     const linkedinBtn = screen.getByLabelText("Share to LinkedIn");
     const expectedUrl = `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(
-      defaultProps.url
+      defaultProps.url,
     )}`;
-    
+
     expect(linkedinBtn).toHaveAttribute("href", expectedUrl);
     expect(linkedinBtn).toHaveAttribute("target", "_blank");
     expect(linkedinBtn).toHaveAttribute("rel", "noopener noreferrer");
@@ -54,14 +54,14 @@ describe("SocialShareButtons", () => {
   it("allows overriding default hashtags", () => {
     const customHashtags = "CustomTag,Test";
     render(<SocialShareButtons {...defaultProps} hashtags={customHashtags} />);
-    
+
     const twitterBtn = screen.getByLabelText("Share to Twitter/X");
     const expectedUrl = `https://twitter.com/intent/tweet?url=${encodeURIComponent(
-      defaultProps.url
+      defaultProps.url,
     )}&text=${encodeURIComponent(defaultProps.title)}&hashtags=${encodeURIComponent(
-      customHashtags
+      customHashtags,
     )}`;
-    
+
     expect(twitterBtn).toHaveAttribute("href", expectedUrl);
   });
 });

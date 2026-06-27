@@ -4,14 +4,14 @@ import json
 import zipfile
 
 from apps.accounts.models import MentorProfile
+from apps.chat.models import Message
+from apps.content.models import Comment
 from apps.dashboard.models import Issue, PullRequest, StreakFreeze
 from apps.notifications.models import Notification
-from apps.progress.models import (Certificate, HelpRequest, LessonProgress,
-                                  QuizAttempt, UserBadge, ExerciseAttempt,
-                                  CodeSubmission, PeerReview)
+from apps.progress.models import (Certificate, CodeSubmission, ExerciseAttempt,
+                                  HelpRequest, LessonProgress, PeerReview,
+                                  QuizAttempt, UserBadge)
 from apps.sandbox.models import SandboxExecutionLog
-from apps.content.models import Comment
-from apps.chat.models import Message
 from apps.webhooks.models import WebhookEndpoint
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db.models import QuerySet
@@ -73,9 +73,7 @@ class DataExportService:
             "comments": self._queryset_to_list(
                 Comment.all_objects.filter(user=self.user)
             ),
-            "messages": self._queryset_to_list(
-                Message.objects.filter(user=self.user)
-            ),
+            "messages": self._queryset_to_list(Message.objects.filter(user=self.user)),
         }
         return data
 

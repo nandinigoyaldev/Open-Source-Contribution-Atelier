@@ -49,7 +49,11 @@ export function ResponsiveTable<T>({
   const mobileVirtualItems = mobileVirtualizer.getVirtualItems();
   const desktopVirtualItems = desktopVirtualizer.getVirtualItems();
 
-  const renderMobileItem = (item: T, idx: number, measureRef?: (node: Element | null) => void) => {
+  const renderMobileItem = (
+    item: T,
+    idx: number,
+    measureRef?: (node: Element | null) => void,
+  ) => {
     const isLast = idx === data.length - 1;
     return (
       <div
@@ -85,7 +89,11 @@ export function ResponsiveTable<T>({
     );
   };
 
-  const renderDesktopItem = (item: T, idx: number, measureRef?: (node: Element | null) => void) => {
+  const renderDesktopItem = (
+    item: T,
+    idx: number,
+    measureRef?: (node: Element | null) => void,
+  ) => {
     const isLast = idx === data.length - 1;
     return (
       <tr
@@ -114,9 +122,9 @@ export function ResponsiveTable<T>({
   return (
     <div className="w-full">
       {/* Mobile Card Layout (Visible < sm) */}
-      <div 
+      <div
         ref={mobileParentRef}
-        className={`block sm:hidden ${virtualized ? 'overflow-y-auto' : 'space-y-4'}`}
+        className={`block sm:hidden ${virtualized ? "overflow-y-auto" : "space-y-4"}`}
         style={virtualized ? { maxHeight: containerHeight } : undefined}
       >
         {data.length === 0 ? (
@@ -124,27 +132,34 @@ export function ResponsiveTable<T>({
             {emptyMessage}
           </div>
         ) : virtualized ? (
-          <div className="relative w-full" style={{ height: `${mobileVirtualizer.getTotalSize()}px` }}>
-            {mobileVirtualItems.map(virtualRow => (
+          <div
+            className="relative w-full"
+            style={{ height: `${mobileVirtualizer.getTotalSize()}px` }}
+          >
+            {mobileVirtualItems.map((virtualRow) => (
               <div
                 key={virtualRow.key}
                 style={{
-                  position: 'absolute',
+                  position: "absolute",
                   top: 0,
                   left: 0,
-                  width: '100%',
-                  transform: `translateY(${virtualRow.start}px)`
+                  width: "100%",
+                  transform: `translateY(${virtualRow.start}px)`,
                 }}
                 className="pb-4"
               >
-                {renderMobileItem(data[virtualRow.index], virtualRow.index, mobileVirtualizer.measureElement)}
+                {renderMobileItem(
+                  data[virtualRow.index],
+                  virtualRow.index,
+                  mobileVirtualizer.measureElement,
+                )}
               </div>
             ))}
           </div>
         ) : (
           data.map((item, idx) => renderMobileItem(item, idx))
         )}
-        
+
         {footerContent && (
           <div className="p-4 mt-4 text-center text-sm text-muted animate-pulse font-bold bg-white dark:bg-[#151411] border-4 border-black dark:border-[#2e2924] rounded-2xl">
             {footerContent}
@@ -153,9 +168,9 @@ export function ResponsiveTable<T>({
       </div>
 
       {/* Desktop Table Layout (Visible >= sm) */}
-      <div 
+      <div
         ref={desktopParentRef}
-        className={`hidden sm:block overflow-x-auto rounded-2xl border-4 border-black shadow-card-sm dark:border-[#2e2924] ${virtualized ? 'overflow-y-auto' : ''}`}
+        className={`hidden sm:block overflow-x-auto rounded-2xl border-4 border-black shadow-card-sm dark:border-[#2e2924] ${virtualized ? "overflow-y-auto" : ""}`}
         style={virtualized ? { maxHeight: containerHeight } : undefined}
       >
         <table className="w-full border-collapse bg-white dark:bg-[#1f1c18] text-left text-sm font-bold relative">
@@ -183,24 +198,39 @@ export function ResponsiveTable<T>({
               </tr>
             ) : virtualized ? (
               <>
-                {desktopVirtualItems.length > 0 && desktopVirtualItems[0].start > 0 && (
-                  <tr>
-                    <td style={{ height: `${desktopVirtualItems[0].start}px` }} colSpan={columns.length} />
-                  </tr>
+                {desktopVirtualItems.length > 0 &&
+                  desktopVirtualItems[0].start > 0 && (
+                    <tr>
+                      <td
+                        style={{ height: `${desktopVirtualItems[0].start}px` }}
+                        colSpan={columns.length}
+                      />
+                    </tr>
+                  )}
+                {desktopVirtualItems.map((virtualRow) =>
+                  renderDesktopItem(
+                    data[virtualRow.index],
+                    virtualRow.index,
+                    desktopVirtualizer.measureElement,
+                  ),
                 )}
-                {desktopVirtualItems.map(virtualRow => 
-                  renderDesktopItem(data[virtualRow.index], virtualRow.index, desktopVirtualizer.measureElement)
-                )}
-                {desktopVirtualItems.length > 0 && desktopVirtualItems[desktopVirtualItems.length - 1].end < desktopVirtualizer.getTotalSize() && (
-                  <tr>
-                    <td style={{ height: `${desktopVirtualizer.getTotalSize() - desktopVirtualItems[desktopVirtualItems.length - 1].end}px` }} colSpan={columns.length} />
-                  </tr>
-                )}
+                {desktopVirtualItems.length > 0 &&
+                  desktopVirtualItems[desktopVirtualItems.length - 1].end <
+                    desktopVirtualizer.getTotalSize() && (
+                    <tr>
+                      <td
+                        style={{
+                          height: `${desktopVirtualizer.getTotalSize() - desktopVirtualItems[desktopVirtualItems.length - 1].end}px`,
+                        }}
+                        colSpan={columns.length}
+                      />
+                    </tr>
+                  )}
               </>
             ) : (
               data.map((item, idx) => renderDesktopItem(item, idx))
             )}
-            
+
             {footerContent && (
               <tr>
                 <td

@@ -5,7 +5,7 @@ import redis
 from django.conf import settings
 from django.db import connections
 from django.db.utils import OperationalError
-from django.http import JsonResponse, HttpRequest
+from django.http import HttpRequest, JsonResponse
 
 
 def _check_postgres() -> dict[str, Any]:

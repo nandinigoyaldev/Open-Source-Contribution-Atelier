@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 import { useState, useEffect, useCallback } from "react";
 
 export function useTextToSpeech(text: string) {
@@ -12,32 +13,34 @@ export function useTextToSpeech(text: string) {
   }, []);
 
   const stripMarkdown = (markdown: string) => {
-    return markdown
-      // Remove horizontal rules
-      .replace(/^(-\s*?|\*\s*?|_\s*?){3,}\s*$/gm, "")
-      // Remove blockquotes
-      .replace(/^\s*>\s*/gm, "")
-      // Remove headers
-      .replace(/^#{1,6}\s*(.*)$/gm, "$1")
-      // Remove unordered lists
-      .replace(/^[*\-+]\s+(.*)$/gm, "$1")
-      // Remove ordered lists
-      .replace(/^\d+\.\s+(.*)$/gm, "$1")
-      // Remove code blocks
-      .replace(/```[\s\S]*?```/g, "Code block omitted.")
-      // Remove inline code
-      .replace(/`([^`]+)`/g, "$1")
-      // Remove bold and italic
-      .replace(/(\*\*|__)(.*?)\1/g, "$2")
-      .replace(/(\*|_)(.*?)\1/g, "$2")
-      // Remove images
-      .replace(/!\[(.*?)\]\(.*?\)/g, "$1")
-      // Remove links
-      .replace(/\[(.*?)\]\(.*?\)/g, "$1")
-      // Replace excessive newlines
-      .replace(/\n{2,}/g, ". ")
-      // Clean up extra whitespace
-      .trim();
+    return (
+      markdown
+        // Remove horizontal rules
+        .replace(/^(-\s*?|\*\s*?|_\s*?){3,}\s*$/gm, "")
+        // Remove blockquotes
+        .replace(/^\s*>\s*/gm, "")
+        // Remove headers
+        .replace(/^#{1,6}\s*(.*)$/gm, "$1")
+        // Remove unordered lists
+        .replace(/^[*\-+]\s+(.*)$/gm, "$1")
+        // Remove ordered lists
+        .replace(/^\d+\.\s+(.*)$/gm, "$1")
+        // Remove code blocks
+        .replace(/```[\s\S]*?```/g, "Code block omitted.")
+        // Remove inline code
+        .replace(/`([^`]+)`/g, "$1")
+        // Remove bold and italic
+        .replace(/(\*\*|__)(.*?)\1/g, "$2")
+        .replace(/(\*|_)(.*?)\1/g, "$2")
+        // Remove images
+        .replace(/!\[(.*?)\]\(.*?\)/g, "$1")
+        // Remove links
+        .replace(/\[(.*?)\]\(.*?\)/g, "$1")
+        // Replace excessive newlines
+        .replace(/\n{2,}/g, ". ")
+        // Clean up extra whitespace
+        .trim()
+    );
   };
 
   const play = useCallback(() => {
@@ -57,10 +60,10 @@ export function useTextToSpeech(text: string) {
     if (!cleanText) return;
 
     const utterance = new SpeechSynthesisUtterance(cleanText);
-    
+
     // Optional: Choose a reasonable voice if needed, here we use default
     // utterance.rate = 1.0;
-    
+
     utterance.onend = () => {
       setIsPlaying(false);
       setIsPaused(false);
@@ -108,6 +111,6 @@ export function useTextToSpeech(text: string) {
     isPaused,
     play,
     pause,
-    stop
+    stop,
   };
 }

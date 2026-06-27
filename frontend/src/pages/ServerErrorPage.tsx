@@ -22,7 +22,8 @@ export function ServerErrorPage() {
               The server dropped the ball.
             </h1>
             <p className="mt-4 text-muted text-lg">
-              We are experiencing internal technical difficulties. Our maintainers have been notified. Let us get you back to safety.
+              We are experiencing internal technical difficulties. Our
+              maintainers have been notified. Let us get you back to safety.
             </p>
 
             <div className="mt-8 flex flex-wrap items-center gap-4">

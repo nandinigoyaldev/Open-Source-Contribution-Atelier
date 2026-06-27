@@ -1,4 +1,5 @@
 import json
+
 from django.db import transaction
 from rest_framework import status, viewsets
 from rest_framework.parsers import MultiPartParser
@@ -61,12 +62,14 @@ class SandboxExecutionView(APIView):
             status=status.HTTP_200_OK,
         )
 
+
 class BulkChallengeUploadView(APIView):
     """
     POST /api/challenges/bulk-upload/
     Accepts a JSON file upload to bulk create Challenge records.
     Restricted to Staff/Admin users only.
     """
+
     permission_classes = [IsAuthenticated, IsAdminUser]
     parser_classes = [MultiPartParser]
 
@@ -74,16 +77,18 @@ class BulkChallengeUploadView(APIView):
         file_obj = request.FILES.get("file")
         if not file_obj:
             return Response(
-                {"error": "No file uploaded. Please provide a valid JSON file."}, 
-                status=status.HTTP_400_BAD_REQUEST
+                {"error": "No file uploaded. Please provide a valid JSON file."},
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         try:
             data = json.load(file_obj)
             if not isinstance(data, list):
                 return Response(
-                    {"error": "Invalid format: The JSON file must contain a list of objects."}, 
-                    status=status.HTTP_400_BAD_REQUEST
+                    {
+                        "error": "Invalid format: The JSON file must contain a list of objects."
+                    },
+                    status=status.HTTP_400_BAD_REQUEST,
                 )
 
             with transaction.atomic():
@@ -97,23 +102,27 @@ class BulkChallengeUploadView(APIView):
                             summary=item.get("summary", ""),
                             difficulty=item.get("difficulty", "beginner"),
                             points=item.get("points", 50),
-                            is_featured=item.get("is_featured", False)
+                            is_featured=item.get("is_featured", False),
                         )
                     )
                 Challenge.objects.bulk_create(challenges_to_create)
 
             return Response(
-                {"message": f"Successfully created {len(challenges_to_create)} challenges."}, 
-                status=status.HTTP_201_CREATED
+                {
+                    "message": f"Successfully created {len(challenges_to_create)} challenges."
+                },
+                status=status.HTTP_201_CREATED,
             )
 
         except json.JSONDecodeError:
             return Response(
-                {"error": "Failed to parse JSON. Please ensure the file is valid JSON."}, 
-                status=status.HTTP_400_BAD_REQUEST
+                {
+                    "error": "Failed to parse JSON. Please ensure the file is valid JSON."
+                },
+                status=status.HTTP_400_BAD_REQUEST,
             )
         except Exception as e:
             return Response(
-                {"error": f"An unexpected error occurred: {str(e)}"}, 
-                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+                {"error": f"An unexpected error occurred: {str(e)}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )

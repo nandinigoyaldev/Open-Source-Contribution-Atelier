@@ -7,6 +7,7 @@ def _disable_auth_throttle(settings):
     rates["auth_signup"] = "10000/hour"
     settings.REST_FRAMEWORK["DEFAULT_THROTTLE_RATES"] = rates
 
+
 @pytest.fixture(autouse=True)
 def _configure_celery_test_settings(settings):
     settings.CELERY_BROKER_URL = "memory://"

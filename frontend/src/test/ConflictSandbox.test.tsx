@@ -14,16 +14,16 @@ Nothing to see here.`;
       <ConflictSandbox
         initialContent={initialText}
         onResolved={handleResolved}
-      />
+      />,
     );
 
     // Should display normal text
     expect(screen.getByText(/Just some normal text./i)).toBeInTheDocument();
-    
+
     // Complete merge should be enabled immediately since there are no conflicts
     const btn = screen.getByRole("button", { name: /Complete Merge/i });
     expect(btn).not.toBeDisabled();
-    
+
     fireEvent.click(btn);
     const expectedText = `Just some normal text.
 Nothing to see here.`;
@@ -44,23 +44,25 @@ Line 4`;
       <ConflictSandbox
         initialContent={conflictText}
         onResolved={handleResolved}
-      />
+      />,
     );
 
     expect(screen.getByText(/Line 1/i)).toBeInTheDocument();
     expect(screen.getByText(/Line 4/i)).toBeInTheDocument();
-    
+
     // Initial state: button disabled
     const btn = screen.getByRole("button", { name: /Complete Merge/i });
     expect(btn).toBeDisabled();
 
     // Resolve by accepting current
-    const acceptCurrentBtn = screen.getByRole("button", { name: /Accept Current/i });
+    const acceptCurrentBtn = screen.getByRole("button", {
+      name: /Accept Current/i,
+    });
     fireEvent.click(acceptCurrentBtn);
 
     // Button should now be enabled
     expect(btn).not.toBeDisabled();
-    
+
     fireEvent.click(btn);
     const expectedText = `Line 1
 Current Line
@@ -82,7 +84,7 @@ End of file abruptly`;
       <ConflictSandbox
         initialContent={malformedText}
         onResolved={handleResolved}
-      />
+      />,
     );
 
     // It should handle this without crashing.

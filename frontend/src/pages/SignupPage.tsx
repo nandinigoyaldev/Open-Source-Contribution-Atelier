@@ -80,7 +80,10 @@ export function SignupPage() {
     >
       <form className="space-y-6 pt-2" onSubmit={handleSubmit}>
         {error && (
-          <div role="alert" className="text-black font-bold text-sm bg-primary p-4 rounded-lg border-4 border-black shadow-card-sm">
+          <div
+            role="alert"
+            className="text-black font-bold text-sm bg-primary p-4 rounded-lg border-4 border-black shadow-card-sm"
+          >
             {error}
           </div>
         )}

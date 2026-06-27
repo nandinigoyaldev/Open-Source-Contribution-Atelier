@@ -7,13 +7,17 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('accounts', '0006_userprofile_cover_image'),
+        ("accounts", "0006_userprofile_cover_image"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='userprofile',
-            name='timezone',
-            field=models.CharField(choices=apps.accounts.models.get_timezone_choices, default='UTC', max_length=64),
+            model_name="userprofile",
+            name="timezone",
+            field=models.CharField(
+                choices=apps.accounts.models.get_timezone_choices,
+                default="UTC",
+                max_length=64,
+            ),
         ),
     ]

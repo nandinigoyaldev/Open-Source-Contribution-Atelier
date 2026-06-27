@@ -1,8 +1,9 @@
 import json
 import logging
 
-from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
+from channels.generic.websocket import AsyncWebsocketConsumer
+
 from .models import Message
 
 logger = logging.getLogger(__name__)
@@ -57,20 +58,20 @@ class ChatConsumer(AsyncWebsocketConsumer):
                         "username": msg["username"],
                         "user_id": msg["user_id"],
                         "message": msg["content"],
-                        "created_at": msg["created_at"]
+                        "created_at": msg["created_at"],
                     }
                 )
             )
 
     @database_sync_to_async
     def get_last_50_messages(self):
-        qs = Message.objects.filter(room_id=self.room_id).order_by('-created_at')[:50]
+        qs = Message.objects.filter(room_id=self.room_id).order_by("-created_at")[:50]
         return [
             {
                 "username": m.user.username,
                 "user_id": m.user.id,
                 "content": m.content,
-                "created_at": m.created_at.isoformat()
+                "created_at": m.created_at.isoformat(),
             }
             for m in reversed(qs)
         ]

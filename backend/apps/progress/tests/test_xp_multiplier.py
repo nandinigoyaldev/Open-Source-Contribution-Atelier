@@ -1,27 +1,32 @@
-import pytest
 from datetime import timedelta
-from django.utils import timezone
-from apps.progress.models import XPMultiplierEvent, LessonProgress
-from apps.dashboard.models import Issue
+
+import pytest
 from apps.content.models import Lesson
+from apps.dashboard.models import Issue
+from apps.progress.models import LessonProgress, XPMultiplierEvent
 from django.contrib.auth.models import User
+from django.utils import timezone
 from rest_framework.test import APIClient
+
 
 @pytest.fixture
 def user():
     return User.objects.create_user(username="testuser", password="testpassword")
 
+
 @pytest.fixture
 def lesson():
     return Lesson.objects.create(slug="test-lesson", title="Test Lesson")
+
 
 @pytest.fixture
 def issue(user):
     return Issue.objects.create(title="Test Issue", assigned_to=user, points=50)
 
+
 @pytest.mark.django_db
 class TestXPMultiplier:
-    
+
     def test_no_active_event(self, settings, user, lesson, issue):
         settings.CELERY_TASK_ALWAYS_EAGER = True
         client = APIClient()
@@ -30,7 +35,7 @@ class TestXPMultiplier:
         response = client.post(
             "/api/progress/me/",
             {"lesson_slug": lesson.slug, "score": 100, "completed": True},
-            format="json"
+            format="json",
         )
         assert response.status_code == 201
         prog = LessonProgress.objects.get(user=user, lesson=lesson)
@@ -53,7 +58,7 @@ class TestXPMultiplier:
             multiplier=2.0,
             start_time=now - timedelta(days=1),
             end_time=now + timedelta(days=1),
-            is_active=True
+            is_active=True,
         )
 
         # 1. Lesson Progress creation with active 2x event
@@ -61,7 +66,7 @@ class TestXPMultiplier:
         response = client.post(
             "/api/progress/me/",
             {"lesson_slug": lesson.slug, "score": 100, "completed": True},
-            format="json"
+            format="json",
         )
         assert response.status_code == 201
         prog = LessonProgress.objects.get(user=user, lesson=lesson)
@@ -84,7 +89,7 @@ class TestXPMultiplier:
             multiplier=2.0,
             start_time=now - timedelta(days=10),
             end_time=now - timedelta(days=5),
-            is_active=True
+            is_active=True,
         )
         # Inactive event
         XPMultiplierEvent.objects.create(
@@ -92,9 +97,9 @@ class TestXPMultiplier:
             multiplier=1.5,
             start_time=now - timedelta(days=1),
             end_time=now + timedelta(days=1),
-            is_active=False
+            is_active=False,
         )
-        
+
         assert XPMultiplierEvent.get_active_multiplier() == 1.0
 
     def test_issue_status_reversion(self, user, issue):
@@ -104,7 +109,7 @@ class TestXPMultiplier:
             multiplier=1.5,
             start_time=now - timedelta(days=1),
             end_time=now + timedelta(days=1),
-            is_active=True
+            is_active=True,
         )
 
         issue.status = Issue.Status.SOLVED

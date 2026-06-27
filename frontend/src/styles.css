@@ -8,7 +8,9 @@
 }
 
 @layer base {
-  h1, h2, h3 {
+  h1,
+  h2,
+  h3 {
     font-family: "Inter", sans-serif;
   }
 }
@@ -131,7 +133,8 @@ html.dark .editor-toolbar {
 html.dark .editor-toolbar > button {
   color: #c4bbae !important;
 }
-html.dark .editor-toolbar > button:hover, html.dark .editor-toolbar > button.active {
+html.dark .editor-toolbar > button:hover,
+html.dark .editor-toolbar > button.active {
   background: #2e2924 !important;
   border-color: #2e2924 !important;
   color: #f0ebe2 !important;
@@ -141,7 +144,7 @@ html.dark .editor-toolbar > button:hover, html.dark .editor-toolbar > button.act
   border-radius: 0 !important;
   background-color: #fff !important;
   color: #000 !important;
-  font-family: 'JetBrains Mono', monospace !important;
+  font-family: "JetBrains Mono", monospace !important;
   font-size: 0.875rem !important;
 }
 html.dark .CodeMirror {
@@ -157,7 +160,7 @@ html.dark .editor-preview {
 .editor-statusbar {
   padding: 8px 12px !important;
   border-top: 4px solid #000 !important;
-  font-family: 'Outfit', sans-serif !important;
+  font-family: "Outfit", sans-serif !important;
   font-weight: 900 !important;
 }
 html.dark .editor-statusbar {
@@ -165,14 +168,13 @@ html.dark .editor-statusbar {
   color: #c4bbae !important;
 }
 
-
 /* HIGH CONTRAST MODE OVERRIDES */
 html.high-contrast {
   --hc-bg: #000000;
   --hc-text: #ffffff;
   --hc-accent: #ffff00;
   --hc-border: #ffffff;
-  
+
   color-scheme: dark !important;
   background-color: var(--hc-bg) !important;
   color: var(--hc-text) !important;
@@ -255,4 +257,3 @@ html.high-contrast select:focus {
   outline: 2px solid var(--hc-accent) !important;
   outline-offset: 2px;
 }
-

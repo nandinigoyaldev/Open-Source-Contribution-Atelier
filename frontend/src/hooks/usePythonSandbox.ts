@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 import { useState, useRef, useEffect, useCallback } from "react";
 
 export interface PythonExecutionResult {
@@ -15,9 +16,9 @@ export function usePythonSandbox() {
   useEffect(() => {
     workerRef.current = new Worker(
       new URL("../workers/pythonWorker.ts", import.meta.url),
-      { type: "module" }
+      { type: "module" },
     );
-    
+
     // We assume it's ready pretty fast, but we could add a "READY" message if needed.
     setIsReady(true);
 
@@ -29,7 +30,10 @@ export function usePythonSandbox() {
   }, []);
 
   const runPythonCode = useCallback(
-    (code: string, timeoutMs: number = 5000): Promise<PythonExecutionResult> => {
+    (
+      code: string,
+      timeoutMs: number = 5000,
+    ): Promise<PythonExecutionResult> => {
       return new Promise((resolve) => {
         if (!workerRef.current) {
           resolve({ output: "", error: "Worker not initialized" });
@@ -69,20 +73,21 @@ export function usePythonSandbox() {
             // Re-initialize the worker for future executions
             workerRef.current = new Worker(
               new URL("../workers/pythonWorker.ts", import.meta.url),
-              { type: "module" }
+              { type: "module" },
             );
           }
           cleanup();
           resolve({
             output: "",
-            error: "Execution Timeout: The code took too long to run and was terminated.",
+            error:
+              "Execution Timeout: The code took too long to run and was terminated.",
           });
         }, timeoutMs);
 
         workerRef.current.postMessage({ id: executionId, pythonCode: code });
       });
     },
-    []
+    [],
   );
 
   return { runPythonCode, isExecuting, isReady };

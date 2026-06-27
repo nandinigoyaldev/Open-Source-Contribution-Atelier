@@ -6,33 +6,41 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('progress', '0007_lessonbookmark'),
+        ("progress", "0007_lessonbookmark"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='XPMultiplierEvent',
+            name="XPMultiplierEvent",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('name', models.CharField(max_length=255)),
-                ('multiplier', models.FloatField(default=1.5)),
-                ('start_time', models.DateTimeField()),
-                ('end_time', models.DateTimeField()),
-                ('is_active', models.BooleanField(default=True)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("name", models.CharField(max_length=255)),
+                ("multiplier", models.FloatField(default=1.5)),
+                ("start_time", models.DateTimeField()),
+                ("end_time", models.DateTimeField()),
+                ("is_active", models.BooleanField(default=True)),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
             ],
             options={
-                'ordering': ['-start_time'],
+                "ordering": ["-start_time"],
             },
         ),
         migrations.AddField(
-            model_name='lessonprogress',
-            name='base_score',
+            model_name="lessonprogress",
+            name="base_score",
             field=models.PositiveIntegerField(default=0),
         ),
         migrations.AddField(
-            model_name='lessonprogress',
-            name='multiplier_applied',
+            model_name="lessonprogress",
+            name="multiplier_applied",
             field=models.FloatField(default=1.0),
         ),
     ]

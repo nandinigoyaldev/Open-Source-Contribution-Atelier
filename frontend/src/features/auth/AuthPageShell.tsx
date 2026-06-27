@@ -111,4 +111,3 @@ export function AuthPageShell({
     </div>
   );
 }
-

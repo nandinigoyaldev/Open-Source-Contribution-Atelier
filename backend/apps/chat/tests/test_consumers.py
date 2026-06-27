@@ -1,25 +1,30 @@
 import json
+
 import pytest
+from channels.db import database_sync_to_async
 from channels.testing import WebsocketCommunicator
+from config.asgi import application
 from django.contrib.auth import get_user_model
 from rest_framework_simplejwt.tokens import AccessToken
-from config.asgi import application
-from channels.db import database_sync_to_async
 
 User = get_user_model()
+
 
 @database_sync_to_async
 def create_user(username):
     return User.objects.create_user(username=username, password="testpassword123")
+
 
 @pytest.fixture
 def auth_user(db):
     user = User.objects.create_user(username="testuser1", password="testpassword123")
     return user
 
+
 @pytest.fixture
 def token(auth_user):
     return str(AccessToken.for_user(auth_user))
+
 
 @pytest.mark.django_db(transaction=True)
 @pytest.mark.asyncio
@@ -31,13 +36,15 @@ class TestChatConsumer:
         await communicator.disconnect()
 
     async def test_missing_room_id(self, token):
-        # According to URL routing, a missing room_id might not even match the route, 
+        # According to URL routing, a missing room_id might not even match the route,
         # but if it somehow falls through to the consumer without room_id, it should reject.
         # Channels URLRouter will likely 404 it.
         pass
 
     async def test_authenticated_connection(self, auth_user, token):
-        communicator = WebsocketCommunicator(application, f"/ws/chat/room1/?token={token}")
+        communicator = WebsocketCommunicator(
+            application, f"/ws/chat/room1/?token={token}"
+        )
         connected, _ = await communicator.connect()
         assert connected
 
@@ -57,13 +64,13 @@ class TestChatConsumer:
         comm1 = WebsocketCommunicator(application, f"/ws/chat/room1/?token={token}")
         connected1, _ = await comm1.connect()
         assert connected1
-        await comm1.receive_json_from() # connection_established
+        await comm1.receive_json_from()  # connection_established
 
         # Connect User 2
         comm2 = WebsocketCommunicator(application, f"/ws/chat/room1/?token={token2}")
         connected2, _ = await comm2.connect()
         assert connected2
-        await comm2.receive_json_from() # connection_established
+        await comm2.receive_json_from()  # connection_established
 
         # User 1 sends typing_start
         await comm1.send_json_to({"action": "typing_start"})
@@ -100,10 +107,9 @@ class TestChatConsumer:
         await comm2.receive_json_from()
 
         # User 1 sends a message
-        await comm1.send_json_to({
-            "action": "send_message",
-            "message": "Hello from User 1!"
-        })
+        await comm1.send_json_to(
+            {"action": "send_message", "message": "Hello from User 1!"}
+        )
 
         # User 2 should receive the new message
         response = await comm2.receive_json_from()
@@ -112,7 +118,7 @@ class TestChatConsumer:
         assert response["user_id"] == auth_user.id
         assert response["message"] == "Hello from User 1!"
 
-        # User 1 should ALSO receive their own message broadcast 
+        # User 1 should ALSO receive their own message broadcast
         # (based on ChatConsumer logic which doesn't skip sender_channel for messages)
         response1 = await comm1.receive_json_from()
         assert response1["type"] == "new_message"
