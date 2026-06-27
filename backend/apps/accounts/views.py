@@ -751,17 +751,17 @@ class ExportDataView(APIView):
         if export_format == "json":
             json_data = service.generate_json()
             response = HttpResponse(json_data, content_type="application/json")
-            response["Content-Disposition"] = (
-                f'attachment; filename="data_export_{request.user.username}.json"'
-            )
+            response[
+                "Content-Disposition"
+            ] = f'attachment; filename="data_export_{request.user.username}.json"'
             return response
 
         elif export_format == "csv":
             zip_data = service.generate_csv_zip()
             response = HttpResponse(zip_data, content_type="application/zip")
-            response["Content-Disposition"] = (
-                f'attachment; filename="data_export_{request.user.username}.zip"'
-            )
+            response[
+                "Content-Disposition"
+            ] = f'attachment; filename="data_export_{request.user.username}.zip"'
             return response
 
         return Response(
@@ -820,3 +820,157 @@ class SecureAccountDeleteView(APIView):
         user.delete()
 
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+import json
+
+
+class LearningPathView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+
+        # 1. Update badges dynamically
+        from apps.progress.badge_evaluator import BadgeEvaluator
+
+        BadgeEvaluator.evaluate(user)
+
+        # 2. Load curriculum modules
+        curriculum_path = os.path.join(
+            settings.BASE_DIR, "..", "frontend", "public", "content", "curriculum.json"
+        )
+
+        if not os.path.exists(curriculum_path):
+            return Response(
+                {"error": f"Curriculum file not found at {curriculum_path}"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+
+        with open(curriculum_path, "r", encoding="utf-8") as f:
+            try:
+                curriculum_data = json.load(f)
+            except json.JSONDecodeError:
+                return Response(
+                    {"error": "Failed to parse curriculum content"},
+                    status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                )
+
+        modules = curriculum_data.get("modules", [])
+
+        # 3. Fetch user progress, badges, and quiz attempts
+        from apps.progress.models import QuizAttempt
+
+        completed_lessons = set(
+            LessonProgress.objects.filter(user=user, completed=True).values_list(
+                "lesson__slug", flat=True
+            )
+        )
+
+        started_lessons = set(
+            LessonProgress.objects.filter(user=user).values_list(
+                "lesson__slug", flat=True
+            )
+        )
+
+        incorrect_questions = set(
+            QuizAttempt.objects.filter(user=user, is_correct=False).values_list(
+                "question_id", flat=True
+            )
+        )
+
+        earned_badges = set(
+            UserBadge.objects.filter(user=user).values_list("badge__slug", flat=True)
+        )
+
+        scored_modules = []
+        for idx, mod in enumerate(modules):
+            mod_id = mod.get("id")
+            mod_title = mod.get("title")
+            mod_desc = mod.get("description")
+            mod_lessons = mod.get("lessons", [])
+
+            lesson_slugs = [les.get("slug") for les in mod_lessons]
+
+            # Determine status
+            completed_count = sum(
+                1 for slug in lesson_slugs if slug in completed_lessons
+            )
+            started_count = sum(1 for slug in lesson_slugs if slug in started_lessons)
+
+            if len(lesson_slugs) == 0:
+                status_str = "completed"
+            elif completed_count == len(lesson_slugs):
+                status_str = "completed"
+            elif started_count > 0:
+                status_str = "in progress"
+            else:
+                status_str = "not started"
+
+            # Base scorer
+            score = 0
+            explanation = ""
+
+            # Check incorrect quizzes for lessons in this module
+            has_weak_quizzes = False
+            for les_slug in lesson_slugs:
+                # Quizzes have ID format: {lesson_slug}-q{quiz_idx}
+                for q_id in incorrect_questions:
+                    if q_id.startswith(f"{les_slug}-q"):
+                        has_weak_quizzes = True
+                        break
+                if has_weak_quizzes:
+                    break
+
+            if status_str == "completed":
+                score = 0
+                explanation = "You have fully completed this module! Nice job."
+            elif status_str == "in progress":
+                score = 100
+                explanation = "You've already started this module! Let's keep the momentum going and finish the remaining lessons."
+                if has_weak_quizzes:
+                    score += 30
+                    explanation = "Revisit this in-progress module to improve on previous quiz mistakes and complete the lessons."
+            else:  # not started
+                score = 50
+                explanation = "This module is next in line. Complete these lessons to learn new open source skills."
+                if has_weak_quizzes:
+                    score += 30
+                    explanation = "Strengthen your understanding by tackling this module's lessons and quizzes."
+
+            # Sequence order boost
+            if status_str != "completed":
+                score += (len(modules) - idx) * 2
+
+            # Badge milestone connection: mod-1, mod-2, etc.
+            badge_slug = f"mod-{idx + 1}"
+            if status_str != "completed" and badge_slug not in earned_badges:
+                score += 10
+
+            scored_modules.append(
+                {
+                    "id": mod_id,
+                    "title": mod_title,
+                    "description": mod_desc,
+                    "status": status_str,
+                    "score": score,
+                    "explanation": explanation,
+                    "lessons_count": len(lesson_slugs),
+                    "completed_lessons_count": completed_count,
+                }
+            )
+
+        # If all modules are completed, recommend reviewing the first module
+        all_completed = all(m["status"] == "completed" for m in scored_modules)
+        if all_completed and scored_modules:
+            scored_modules[0]["score"] = 1
+            scored_modules[0][
+                "explanation"
+            ] = "You have completed the entire curriculum! Review this module to refresh your memory."
+
+        # Find the recommended next step (highest score)
+        recommended = None
+        if scored_modules:
+            recommended = max(scored_modules, key=lambda m: m["score"])
+
+        return Response({"modules": scored_modules, "next_step": recommended})

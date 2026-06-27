@@ -24,3 +24,5 @@ reportlab>=4.0.0
 Faker>=20.0.0
 graphene-django>=3.0.0
 black>=24.0.0
+django-allauth>=0.54.0
+
