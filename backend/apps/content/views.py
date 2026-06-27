@@ -108,9 +108,16 @@ class SemanticSearchView(views.APIView):
             )
 
         # Apply multi-tenant filtering
-        lessons = Lesson.objects.filter(
-            embedding__isnull=False, organization=request.user.organization
-        ).prefetch_related("exercises")
+        lessons = (
+            Lesson.objects.filter(
+                embedding__isnull=False,
+                organization=request.user.organization,
+            )
+            .annotate(
+                trigram_similarity=TrigramSimilarity("title", query)
+            )
+            .prefetch_related("exercises")
+        )
         if not lessons.exists():
             return response.Response({"query": query, "results": []})
 

@@ -109,7 +109,7 @@ export function MergeConflictSandbox() {
             {isMerged && (
               <button
                 onClick={reset}
-                className="text-xs font-black underline hover:text-blue-500"
+                className="text-xs font-black underline hover:text-blue-600"
               >
                 Reset Sandbox
               </button>

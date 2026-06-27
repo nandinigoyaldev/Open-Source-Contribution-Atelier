@@ -9,27 +9,57 @@ export function AppLayout() {
   const outlet = useOutlet();
 
   return (
-    <div className="min-h-screen bg-surface text-text dark:bg-transparent dark:text-[#f0ebe2]">
-      <Navigation />
-      <main className="lg:pl-[300px]">
-        <div className="px-4 pb-10 pt-24 sm:px-6 lg:px-8">
-          <div className="mx-auto max-w-7xl">
-            <AnimatePresence mode="wait" initial={false}>
-              <motion.div
-                key={location.pathname}
-                initial={{ opacity: 0, y: 15 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -15 }}
-                transition={{ duration: 0.25, ease: "easeOut" }}
-              >
-                {outlet}
-              </motion.div>
-            </AnimatePresence>
+    <>
+      <a
+        href="#main-content"
+        className="
+          sr-only
+          focus:not-sr-only
+          focus:absolute
+          focus:top-4
+          focus:left-4
+          focus:z-[9999]
+          focus:px-4
+          focus:py-2
+          focus:rounded
+          focus:bg-red-600
+          focus:text-white
+        "
+        onClick={(e) => {
+          e.preventDefault();
+          const mainContent = document.getElementById("main-content");
+          mainContent?.focus();
+
+          e.currentTarget.blur();
+        }}
+      >
+        Skip to main content
+      </a>
+
+      <div className="min-h-screen bg-surface text-text dark:bg-transparent dark:text-[#f0ebe2]">
+        <Navigation />
+        <main id="main-content"
+          tabIndex={-1}
+          className="lg:pl-[300px]">
+          <div className="px-4 pb-10 pt-24 sm:px-6 lg:px-8">
+            <div className="mx-auto max-w-7xl">
+              <AnimatePresence mode="wait" initial={false}>
+                <motion.div
+                  key={location.pathname}
+                  initial={{ opacity: 0, y: 15 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  exit={{ opacity: 0, y: -15 }}
+                  transition={{ duration: 0.25, ease: "easeOut" }}
+                >
+                  {outlet}
+                </motion.div>
+              </AnimatePresence>
+            </div>
           </div>
-        </div>
-      </main>
-      <BadgeToastNotifier />
-      <ScrollToTop />
-    </div>
+        </main>
+        <BadgeToastNotifier />
+        <ScrollToTop />
+      </div>
+    </>
   );
 }

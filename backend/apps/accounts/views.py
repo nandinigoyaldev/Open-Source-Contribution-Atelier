@@ -356,10 +356,12 @@ class GitHubOAuthCallbackView(APIView):
                     },
                 )
             )
-        except Exception:
-            return redirect(
-                frontend_url("/", {"auth_error": "GitHub authentication failed."})
-            )
+        except http_requests.RequestException as e:
+            # Handle network errors
+        except ValueError as e:
+            # Handle JSON parse errors
+        except Exception as e:
+            # Log specific error for debugging
 
 
 from .permissions import IsAdminOrModeratorRole

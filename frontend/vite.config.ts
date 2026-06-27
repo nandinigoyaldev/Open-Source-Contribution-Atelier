@@ -27,6 +27,9 @@ export default defineConfig({
       },
     }),
   ],
+  resolve: {
+    dedupe: ["react", "react-dom", "react-i18next"],
+  },
   test: {
     environment: "jsdom",
     setupFiles: "./src/test/setup.ts",

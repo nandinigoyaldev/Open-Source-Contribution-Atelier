@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Feature Flags Debug</title>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 600px; margin: 2rem auto; }
+    table { width: 100%; border-collapse: collapse; }
+    th, td { padding: 0.5rem; text-align: left; border-bottom: 1px solid #ddd; }
+    .on { color: green; font-weight: bold; }
+    .off { color: #999; }
+  </style>
+</head>
+<body>
+  <h1>Feature Flags</h1>
+  {% if feature_flags %}
+    <table>
+      <tr><th>Flag</th><th>Status</th></tr>
+      {% for name, info in feature_flags.items %}
+        <tr>
+          <td><code>{{ name }}</code></td>
+          <td class="{% if info.enabled %}on{% else %}off{% endif %}">
+            {% if info.enabled %}ON{% else %}OFF{% endif %}
+          </td>
+        </tr>
+      {% endfor %}
+    </table>
+  {% else %}
+    <p>No feature flags defined. Create some in the <a href="/admin/feature_flags/featureflag/">admin panel</a>.</p>
+  {% endif %}
+  <p><a href="/admin/feature_flags/featureflag/">Manage flags →</a></p>
+</body>
+</html>

@@ -74,8 +74,35 @@ class SemanticSearchService:
         if query_vec is None:
             return []
 
-        scores = compute_similarity(query_vec[0], self._doc_embeddings)
-        indexed = sorted(enumerate(scores), key=lambda x: x[1], reverse=True)
+        embedding_scores = compute_similarity(
+            query_vec[0],
+            self._doc_embeddings,
+        )
+
+        combined_scores = []
+
+        for idx, embedding_score in enumerate(embedding_scores):
+            lesson = self.lessons[idx]
+
+            trigram_score = getattr(
+                lesson,
+                "trigram_similarity",
+                0.0,
+            )
+
+            # Blend semantic relevance with typo-tolerant lexical similarity.
+            final_score = (
+                embedding_score * 0.7
+                + float(trigram_score) * 0.3
+            )
+
+            combined_scores.append((idx, final_score))
+
+        indexed = sorted(
+            combined_scores,
+            key=lambda x: x[1],
+            reverse=True,
+        )
 
         results = []
         for idx, score in indexed:

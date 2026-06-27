@@ -1,0 +1,117 @@
+name: Difficulty Labeler
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  issues: write
+
+jobs:
+  label-issue:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Auto-Label and Assign Issue
+        uses: actions/github-script@v6
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        with:
+          script: |
+            const title = context.payload.issue.title;
+            const body = context.payload.issue.body || '';
+            const author = context.payload.issue.user.login;
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+
+            // 1. Automatically assign the issue to its author
+            try {
+              await github.rest.issues.addAssignees({
+                owner,
+                repo,
+                issue_number: context.issue.number,
+                assignees: [author]
+              });
+              console.log(`Automatically assigned issue #${context.issue.number} to author @${author}`);
+            } catch (e) {
+              console.error('Error assigning issue to author:', e);
+            }
+
+            // 2. Classify difficulty
+            let label = 'none';
+            const apiKey = process.env.OPENAI_API_KEY;
+
+            if (apiKey) {
+              try {
+                const prompt = `You are a senior open source maintainer. An issue has been opened. Based on the title and body, classify its difficulty. Reply with EXACTLY ONE word from this list: easy, medium, hard.\n\nTitle: ${title}\nBody: ${body}`;
+                
+                const response = await fetch('https://api.openai.com/v1/chat/completions', {
+                  method: 'POST',
+                  headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${apiKey}`
+                  },
+                  body: JSON.stringify({
+                    model: 'gpt-3.5-turbo',
+                    messages: [{ role: 'user', content: prompt }],
+                    temperature: 0.0,
+                    max_tokens: 10
+                  })
+                });
+
+                if (response.ok) {
+                  const data = await response.json();
+                  const resText = data.choices[0].message.content.trim().toLowerCase().replace(/[^\w]/g, '');
+                  if (['easy', 'medium', 'hard'].includes(resText)) {
+                    label = resText;
+                    console.log(`Classified issue as: ${label}`);
+                  }
+                } else {
+                  console.warn(`Classifier API returned status ${response.status}`);
+                }
+              } catch (err) {
+                console.error('Error during classification:', err);
+              }
+            }
+
+            // 3. Heuristic Fallback
+            if (label === 'none') {
+              console.log('Using heuristic fallback classifier...');
+              const text = `${title} ${body}`.toLowerCase();
+              const easyKeywords = [
+                'typo', 'spelling', 'grammar', 'documentation', 'readme', 'docs',
+                'broken link', 'simple', 'trivial', 'ui', 'css', 'color', 'style',
+                'text', 'wording', 'format', 'misspelling', 'markdown'
+              ];
+              const hardKeywords = [
+                'refactor', 'database', 'performance', 'security', 'race condition',
+                'memory leak', 'docker', 'kubernetes', 'api design', 'django rest',
+                'optimization', 'scale', 'architecture', 'bottleneck', 'concurrency',
+                'deadlock', 'celery', 'redis', 'postgresql', 'postgres'
+              ];
+
+              if (easyKeywords.some(kw => text.includes(kw))) {
+                label = 'easy';
+              } else if (hardKeywords.some(kw => text.includes(kw))) {
+                label = 'hard';
+              } else {
+                label = 'medium';
+              }
+              console.log(`Heuristics classified issue as: ${label}`);
+            }
+
+            // 4. Label and comment
+            if (label !== 'none') {
+              await github.rest.issues.addLabels({
+                owner,
+                repo,
+                issue_number: context.issue.number,
+                labels: [label]
+              });
+
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: context.issue.number,
+                body: `This issue has been automatically classified as **${label}** difficulty based on its title and content. This classification is used to assign marks/points. Maintainers can change this label if they disagree with the automated classification.`
+              });
+            }

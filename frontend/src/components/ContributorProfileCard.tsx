@@ -33,7 +33,7 @@ const getDefaultBadgeColour = (index: number): string => {
 const getRankFromXP = (xp: number) => {
   if (xp >= 5000) return { label: "Legend", colour: "text-yellow-500" };
   if (xp >= 3000) return { label: "Expert", colour: "text-purple-500" };
-  if (xp >= 1500) return { label: "Advanced", colour: "text-blue-500" };
+  if (xp >= 1500) return { label: "Advanced", colour: "text-blue-600" };
   if (xp >= 500) return { label: "Intermediate", colour: "text-green-500" };
   return { label: "Beginner", colour: "text-gray-500" };
 };

@@ -2,18 +2,18 @@ name: PR Auto Setup
 
 on:
   pull_request_target:
-    types: [opened, edited]
+    types: [opened, edited, synchronize]
   workflow_dispatch:
 
 permissions:
   pull-requests: write
-  issues: read
+  issues: write
 
 jobs:
   auto-setup:
     runs-on: ubuntu-latest
     steps:
-      - name: Assign Author and Copy Labels from Issue
+      - name: Process PR Setup and Validation
         uses: actions/github-script@v6
         with:
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN || github.token }}
@@ -21,12 +21,14 @@ jobs:
             async function processPR(pr) {
               const author = pr.user.login;
               const body = pr.body || '';
+              const owner = context.repo.owner;
+              const repo = context.repo.repo;
               console.log(`Setting up PR #${pr.number} for @${author}`);
 
               // 1. Assign PR to the author
               await github.rest.issues.addAssignees({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
+                owner: owner,
+                repo: repo,
                 issue_number: pr.number,
                 assignees: [author]
               });
@@ -36,35 +38,156 @@ jobs:
               const issueRegex = /(?:close|closes|closed|fix|fixes|fixed|resolve|resolves|resolved)\s+#(\d+)/i;
               const match = body.match(issueRegex);
 
+              let issueNumber = null;
               if (match && match[1]) {
-                const issueNumber = parseInt(match[1], 10);
+                issueNumber = parseInt(match[1], 10);
                 console.log(`Found linked issue #${issueNumber}`);
+              }
 
+              // 3. Assign and label logic if issue is linked
+              let issue = null;
+              if (issueNumber) {
                 try {
-                  const issue = await github.rest.issues.get({
-                    owner: context.repo.owner,
-                    repo: context.repo.repo,
+                  // Assign linked issue to the PR author
+                  await github.rest.issues.addAssignees({
+                    owner: owner,
+                    repo: repo,
+                    issue_number: issueNumber,
+                    assignees: [author]
+                  });
+                  console.log(`Assigned linked issue #${issueNumber} to @${author}`);
+
+                  // Get linked issue details
+                  const issueResponse = await github.rest.issues.get({
+                    owner: owner,
+                    repo: repo,
                     issue_number: issueNumber
                   });
+                  issue = issueResponse.data;
 
-                  const labelsToCopy = issue.data.labels.map(label => label.name);
-
+                  // Copy labels from issue to PR
+                  const labelsToCopy = issue.labels.map(label => label.name);
                   if (labelsToCopy.length > 0) {
                     await github.rest.issues.addLabels({
-                      owner: context.repo.owner,
-                      repo: context.repo.repo,
+                      owner: owner,
+                      repo: repo,
                       issue_number: pr.number,
                       labels: labelsToCopy
                     });
                     console.log(`Copied labels from issue #${issueNumber}: ${labelsToCopy.join(', ')}`);
-                  } else {
-                    console.log(`Issue #${issueNumber} has no labels to copy.`);
                   }
                 } catch (error) {
-                  console.error(`Could not fetch issue #${issueNumber}. It might not exist or is in another repo.`);
+                  console.error(`Could not fetch or update issue #${issueNumber}:`, error);
                 }
-              } else {
-                console.log('No linked issue found in the PR body.');
+              }
+
+              // 4. SSoC26 Checkbox & Label enforcement
+              try {
+                const prLabels = pr.labels ? pr.labels.map(l => l.name.toLowerCase()) : [];
+                const issueLabels = issue ? issue.labels.map(l => l.name.toLowerCase()) : [];
+                const hasSSoC = prLabels.includes('ssoc26') || issueLabels.includes('ssoc26') || /\[x\]\s*(?:i\s+am\s+a\s+)?ssoc26/i.test(body);
+
+                if (hasSSoC) {
+                  // Label PR
+                  if (!prLabels.includes('ssoc26')) {
+                    await github.rest.issues.addLabels({
+                      owner: owner,
+                      repo: repo,
+                      issue_number: pr.number,
+                      labels: ['SSoC26']
+                    });
+                  }
+                  // Label issue
+                  if (issueNumber && !issueLabels.includes('ssoc26')) {
+                    await github.rest.issues.addLabels({
+                      owner: owner,
+                      repo: repo,
+                      issue_number: issueNumber,
+                      labels: ['SSoC26']
+                    });
+                  }
+                }
+              } catch (error) {
+                console.error('Error enforcing SSoC26 labels:', error);
+              }
+
+              // 5. Strict scope compliance check
+              if (issueNumber && issue) {
+                try {
+                  const { data: files } = await github.rest.pulls.listFiles({
+                    owner: owner,
+                    repo: repo,
+                    pull_number: pr.number
+                  });
+
+                  const filePaths = files.map(f => f.filename);
+                  const hasBackendChanges = filePaths.some(p => p.startsWith('backend/'));
+                  const hasFrontendChanges = filePaths.some(p => p.startsWith('frontend/'));
+                  const hasDbChanges = filePaths.some(p => p.includes('models.py') || p.includes('migrations/'));
+
+                  const issueText = `${issue.title} ${issue.body || ''}`.toLowerCase();
+                  const prBodyLower = body.toLowerCase();
+
+                  // Check if PR body explicitly overrides/declares partial scope
+                  const prDeclaresFrontendOnly = prBodyLower.includes('frontend only') || prBodyLower.includes('only frontend') || prBodyLower.includes('ui only') || prBodyLower.includes('only ui') || prBodyLower.includes('frontend part');
+                  const prDeclaresBackendOnly = prBodyLower.includes('backend only') || prBodyLower.includes('only backend') || prBodyLower.includes('backend part');
+                  const prDeclaresDbOnly = prBodyLower.includes('db only') || prBodyLower.includes('database only') || prBodyLower.includes('only db') || prBodyLower.includes('only database');
+
+                  let expectsBackend = issueText.includes('backend');
+                  let expectsFrontend = issueText.includes('frontend') || issueText.includes('ui');
+                  let expectsDb = issueText.includes('db') || issueText.includes('database') || issueText.includes('migration');
+
+                  if (prDeclaresFrontendOnly) {
+                    expectsBackend = false;
+                    expectsDb = false;
+                    console.log('PR explicitly declares Frontend only scope. Waiving backend/database checks.');
+                  }
+                  if (prDeclaresBackendOnly) {
+                    expectsFrontend = false;
+                    console.log('PR explicitly declares Backend only scope. Waiving frontend checks.');
+                  }
+                  if (prDeclaresDbOnly) {
+                    expectsFrontend = false;
+                    expectsBackend = false;
+                    console.log('PR explicitly declares Database only scope. Waiving frontend/backend checks.');
+                  }
+
+                  let missingScopes = [];
+                  if (expectsBackend && !hasBackendChanges) missingScopes.push('Backend (backend/*)');
+                  if (expectsFrontend && !hasFrontendChanges) missingScopes.push('Frontend (frontend/*)');
+                  if (expectsDb && !hasDbChanges) missingScopes.push('Database models/migrations');
+
+                  const { data: comments } = await github.rest.issues.listComments({
+                    owner: owner,
+                    repo: repo,
+                    issue_number: pr.number
+                  });
+                  const existingComment = comments.find(c => c.body.includes('PR Scope Validation Failed'));
+
+                  if (missingScopes.length > 0) {
+                    const commentBody = `🚨 **PR Scope Validation Failed**\n\nThe files modified in this Pull Request do not match the expected scope of the linked issue #${issueNumber}.\n\n* **Expected Scope(s)**: ${missingScopes.join(', ')}\n\nPlease update your PR to include the required implementation files. Pull requests that do not fulfill the promised issue scope cannot be merged.`;
+
+                    if (!existingComment) {
+                      await github.rest.issues.createComment({
+                        owner: owner,
+                        repo: repo,
+                        issue_number: pr.number,
+                        body: commentBody
+                      });
+                    }
+                  } else {
+                    if (existingComment) {
+                      await github.rest.issues.deleteComment({
+                        owner: owner,
+                        repo: repo,
+                        comment_id: existingComment.id
+                      });
+                      console.log('Deleted old PR scope validation warning comment.');
+                    }
+                  }
+                } catch (error) {
+                  console.error('Error verifying PR scope compliance:', error);
+                }
               }
             }
 

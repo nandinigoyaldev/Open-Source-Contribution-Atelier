@@ -13,6 +13,7 @@ urlpatterns = [
     path("health/", health_view, name="health"),
     path("api/version/", version_view, name="version"),
     path("api/leaderboard/", LeaderboardView.as_view(), name="leaderboard"),
+    path("accounts/", include("allauth.urls")),
     path("api/auth/", include("apps.accounts.urls")),
     path("api/users/", include("apps.accounts.user_urls")),
     path("api/content/", include("apps.content.urls")),
@@ -37,4 +38,11 @@ from django.conf import settings
 from django.conf.urls.static import static
 
 if settings.DEBUG:
+    from apps.feature_flags.debug_view import feature_flags_debug_view
+
     urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+    urlpatterns.append(
+        path(
+            "debug/feature-flags/", feature_flags_debug_view, name="debug-feature-flags"
+        )
+    )

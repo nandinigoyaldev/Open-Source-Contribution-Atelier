@@ -32,7 +32,49 @@ class XPMultiplierEvent(models.Model):
 
 
 
+# ---------------------------------------------------------------------------
+# Streak milestone configuration – single source of truth for both the
+# StreakEngine and BadgeEvaluator.
+# ---------------------------------------------------------------------------
+STREAK_MILESTONES = [
+    {"days": 3,  "multiplier": 1.2, "label": "3-Day Streak 🔥",  "badge_slug": "streak-3"},
+    {"days": 7,  "multiplier": 1.5, "label": "7-Day Streak ⚡",  "badge_slug": "streak-7"},
+    {"days": 14, "multiplier": 2.0, "label": "14-Day Streak 💎", "badge_slug": "streak-14"},
+    {"days": 30, "multiplier": 2.5, "label": "30-Day Streak 👑", "badge_slug": "streak-30"},
+]
+
+
+class StreakProfile(models.Model):
+    """Persisted per-user streak state, updated on each learning activity."""
+
+    objects = models.Manager()
+
+    user = models.OneToOneField(
+        User,
+        on_delete=models.CASCADE,
+        related_name="streak_profile",
+    )
+    current_streak = models.PositiveIntegerField(default=0)
+    longest_streak = models.PositiveIntegerField(default=0)
+    last_activity_date = models.DateField(null=True, blank=True)
+    current_multiplier = models.FloatField(default=1.0)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["user"], name="idx_streak_profile_user"),
+        ]
+
+    def __str__(self) -> str:
+        return (
+            f"StreakProfile({self.user.username}, "
+            f"streak={self.current_streak}, "
+            f"multiplier={self.current_multiplier}x)"
+        )
+
+
 class Badge(models.Model):
+
     class DoesNotExist(ObjectDoesNotExist):
         pass
 
@@ -240,3 +282,20 @@ class PeerReview(models.Model):
 
     def __str__(self):
         return f"Review by {self.reviewer.username} for {self.submission.title}"
+
+
+class PlagiarismReport(models.Model):
+    objects = models.Manager()
+    submission = models.ForeignKey(CodeSubmission, on_delete=models.CASCADE, related_name="plagiarism_reports")
+    matched_submission = models.ForeignKey(CodeSubmission, on_delete=models.CASCADE, related_name="matched_in_reports")
+    similarity_score = models.FloatField()
+    is_flagged = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-similarity_score"]
+        unique_together = ("submission", "matched_submission")
+
+    def __str__(self):
+        return f"PlagiarismReport: {self.submission.id} vs {self.matched_submission.id} ({self.similarity_score:.2f})"
+

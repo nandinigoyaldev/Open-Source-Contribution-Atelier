@@ -11,23 +11,19 @@ jobs:
   label-ssoc:
     runs-on: ubuntu-latest
     steps:
-      - name: Check for SSOC26 Checkbox
-        id: check
-        run: |
-          BODY="${{ github.event.issue.body }}"
-          if echo "$BODY" | grep -iq "\[x\] ssoc26"; then
-            echo "match=true" >> $GITHUB_OUTPUT
-          else
-            echo "match=false" >> $GITHUB_OUTPUT
-          fi
-      - name: Add label
-        if: steps.check.outputs.match == 'true'
+      - name: Check and Label SSoC26
         uses: actions/github-script@v6
         with:
           script: |
-            github.rest.issues.addLabels({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              labels: ['SSoC26']
-            })
+            const body = context.payload.issue.body || '';
+            const isChecked = /\[x\]\s*(?:i\s+am\s+a\s+)?ssoc26/i.test(body);
+            
+            if (isChecked) {
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                labels: ['SSoC26']
+              });
+              console.log('Added SSoC26 label to issue');
+            }

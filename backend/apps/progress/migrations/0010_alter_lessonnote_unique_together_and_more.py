@@ -6,26 +6,26 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('progress', '0009_merge_20260624_0816'),
+        ("progress", "0009_merge_20260624_1225"),
     ]
 
     operations = [
         migrations.AlterUniqueTogether(
-            name='lessonnote',
+            name="lessonnote",
             unique_together=None,
         ),
         migrations.RemoveField(
-            model_name='lessonnote',
-            name='lesson',
+            model_name="lessonnote",
+            name="lesson",
         ),
         migrations.RemoveField(
-            model_name='lessonnote',
-            name='user',
+            model_name="lessonnote",
+            name="user",
         ),
         migrations.DeleteModel(
-            name='LessonBookmark',
+            name="LessonBookmark",
         ),
         migrations.DeleteModel(
-            name='LessonNote',
+            name="LessonNote",
         ),
     ]

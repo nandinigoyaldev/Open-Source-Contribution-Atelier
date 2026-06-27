@@ -15,6 +15,8 @@ jobs:
     steps:
       - name: Monitor Issues and PRs
         uses: actions/github-script@v6
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
         with:
           github-token: ${{ secrets.PERSONAL_ACCESS_TOKEN || github.token }}
           script: |
@@ -76,7 +78,20 @@ jobs:
                       repo: context.repo.repo,
                       issue_number: issueNumber
                     });
+
+                    // 1. Assign linked issue to PR author if not assigned
+                    const linkedIssueAssignees = linkedIssue.data.assignees.map(a => a.login);
+                    if (!linkedIssueAssignees.includes(item.user.login)) {
+                      console.log(`Retroactively assigning linked issue #${issueNumber} to PR author @${item.user.login}`);
+                      await github.rest.issues.addAssignees({
+                        owner: context.repo.owner,
+                        repo: context.repo.repo,
+                        issue_number: issueNumber,
+                        assignees: [item.user.login]
+                      });
+                    }
                     
+                    // 2. Copy missing labels from issue to PR
                     const labelsToCopy = linkedIssue.data.labels.map(l => l.name);
                     const currentPRLabels = item.labels.map(l => l.name);
                     const missingLabels = labelsToCopy.filter(l => !currentPRLabels.includes(l));
@@ -90,8 +105,32 @@ jobs:
                         labels: missingLabels
                       });
                     }
+
+                    // 3. Enforce SSoC26 label synchronization on both
+                    const prLabelsLower = currentPRLabels.map(l => l.toLowerCase());
+                    const issueLabelsLower = labelsToCopy.map(l => l.toLowerCase());
+                    const hasSSoC = prLabelsLower.includes('ssoc26') || issueLabelsLower.includes('ssoc26') || /\[x\]\s*(?:i\s+am\s+a\s+)?ssoc26/i.test(body);
+
+                    if (hasSSoC) {
+                      if (!prLabelsLower.includes('ssoc26')) {
+                        await github.rest.issues.addLabels({
+                          owner: context.repo.owner,
+                          repo: context.repo.repo,
+                          issue_number: item.number,
+                          labels: ['SSoC26']
+                        });
+                      }
+                      if (!issueLabelsLower.includes('ssoc26')) {
+                        await github.rest.issues.addLabels({
+                          owner: context.repo.owner,
+                          repo: context.repo.repo,
+                          issue_number: issueNumber,
+                          labels: ['SSoC26']
+                        });
+                      }
+                    }
                   } catch (error) {
-                    // Ignore errors if issue doesn't exist
+                    console.error(`Error retroactively updating linked issue #${issueNumber}:`, error);
                   }
                 }
               }
@@ -156,44 +195,111 @@ jobs:
                   }
                 }
               } else if (assignees.length > 0) {
-                // Issue rules
-                const lastComment = comments.length > 0 ? comments[comments.length - 1] : null;
-                const isLastCommentWarning = lastComment && lastComment.user.type === 'Bot' && lastComment.body.toLowerCase().includes('please submit a pr within 2 days');
-                const isLastCommentUnassign = lastComment && lastComment.user.type === 'Bot' && lastComment.body.includes('automatically unassigning');
+                // Issue rules - check for inactivity
+                if (diffDays >= 2) {
+                  // Check if a PR has already been submitted referencing this issue
+                  const query = `repo:${context.repo.owner}/${context.repo.repo} is:pr ${item.number}`;
+                  const prSearch = await github.rest.search.issuesAndPullRequests({ q: query });
+                  const hasPR = prSearch.data.total_count > 0;
 
-                if (isLastCommentUnassign) {
-                  // Already unassigned, do nothing
-                  continue;
-                }
-
-                if (isLastCommentWarning) {
-                  // It has been warned. Wait for 2 days.
-                  if (diffDays > 2) {
-                    console.log(`Unassigning ${assignees.join(', ')} from issue #${item.number}`);
-                    await github.rest.issues.createComment({
-                      owner: context.repo.owner,
-                      repo: context.repo.repo,
-                      issue_number: item.number,
-                      body: `This issue has been inactive for 2 days since the reminder. I am automatically unassigning the current assignees so someone else can work on it. Feel free to request assignment again if you're ready to continue!`
-                    });
-
-                    await github.rest.issues.removeAssignees({
-                      owner: context.repo.owner,
-                      repo: context.repo.repo,
-                      issue_number: item.number,
-                      assignees: assignees
-                    });
+                  if (!hasPR) {
+                    const lastComment = comments.length > 0 ? comments[comments.length - 1] : null;
+                    const isLastCommentReminder = lastComment && lastComment.user.type === 'Bot' && lastComment.body.toLowerCase().includes('just checking in to see if you have any updates');
+                    
+                    if (!isLastCommentReminder) {
+                      console.log(`Reminding assignees on issue #${item.number} about submitting a PR`);
+                      await github.rest.issues.createComment({
+                        owner: context.repo.owner,
+                        repo: context.repo.repo,
+                        issue_number: item.number,
+                        body: `Hello @${assignees.join(', @')}! It has been 2 days since this issue was assigned to you and we couldn't find a linked pull request. Just checking in to see if you have any updates or if you need any help. Please submit a draft PR or link your PR to this issue to let us know you are still working on it. Thanks!`
+                      });
+                    }
                   }
-                } else {
-                  // Not warned yet. Check if it's been 2 days.
-                  if (diffDays >= 2) {
-                    console.log(`Warning ${assignees.join(', ')} on issue #${item.number}`);
-                    await github.rest.issues.createComment({
-                      owner: context.repo.owner,
-                      repo: context.repo.repo,
-                      issue_number: item.number,
-                      body: `Hello @${assignees.join(', @')}! It has been 2 days since this issue was assigned or updated. Please submit a PR within 2 days, or you will be automatically unassigned.`
-                    });
+                }
+              }
+
+              // 3. Strict Monitoring for difficulty labels (easy/medium/hard) on all issues
+              if (!isPR) {
+                const currentLabels = item.labels.map(l => l.name.toLowerCase());
+                  const hasDifficultyLabel = currentLabels.some(l => ['easy', 'medium', 'hard'].includes(l));
+
+                  if (!hasDifficultyLabel) {
+                    console.log(`Issue #${item.number} is missing difficulty label. Running strict monitoring auto-tagger...`);
+                    
+                    let label = 'none';
+                    const title = item.title;
+                    const body = item.body || '';
+                    const apiKey = process.env.OPENAI_API_KEY;
+
+                    if (apiKey) {
+                      try {
+                        const prompt = `You are a senior open source maintainer. An issue has been opened. Based on the title and body, classify its difficulty. Reply with EXACTLY ONE word from this list: easy, medium, hard.\n\nTitle: ${title}\nBody: ${body}`;
+                        const response = await fetch('https://api.openai.com/v1/chat/completions', {
+                          method: 'POST',
+                          headers: {
+                            'Content-Type': 'application/json',
+                            'Authorization': `Bearer ${apiKey}`
+                          },
+                          body: JSON.stringify({
+                            model: 'gpt-3.5-turbo',
+                            messages: [{ role: 'user', content: prompt }],
+                            temperature: 0.0,
+                            max_tokens: 10
+                          })
+                        });
+
+                        if (response.ok) {
+                          const data = await response.json();
+                          const resText = data.choices[0].message.content.trim().toLowerCase().replace(/[^\w]/g, '');
+                          if (['easy', 'medium', 'hard'].includes(resText)) {
+                            label = resText;
+                          }
+                        }
+                      } catch (err) {
+                        console.error('Error during OpenAI classification in monitor:', err);
+                      }
+                    }
+
+                    if (label === 'none') {
+                      const text = `${title} ${body}`.toLowerCase();
+                      const easyKeywords = [
+                        'typo', 'spelling', 'grammar', 'documentation', 'readme', 'docs',
+                        'broken link', 'simple', 'trivial', 'ui', 'css', 'color', 'style',
+                        'text', 'wording', 'format', 'misspelling', 'markdown'
+                      ];
+                      const hardKeywords = [
+                        'refactor', 'database', 'performance', 'security', 'race condition',
+                        'memory leak', 'docker', 'kubernetes', 'api design', 'django rest',
+                        'optimization', 'scale', 'architecture', 'bottleneck', 'concurrency',
+                        'deadlock', 'celery', 'redis', 'postgresql', 'postgres'
+                      ];
+
+                      if (easyKeywords.some(kw => text.includes(kw))) {
+                        label = 'easy';
+                      } else if (hardKeywords.some(kw => text.includes(kw))) {
+                        label = 'hard';
+                      } else {
+                        label = 'medium';
+                      }
+                    }
+
+                    if (label !== 'none') {
+                      console.log(`Strict monitoring: auto-labeling issue #${item.number} as: ${label}`);
+                      await github.rest.issues.addLabels({
+                        owner: context.repo.owner,
+                        repo: context.repo.repo,
+                        issue_number: item.number,
+                        labels: [label]
+                      });
+
+                      await github.rest.issues.createComment({
+                        owner: context.repo.owner,
+                        repo: context.repo.repo,
+                        issue_number: item.number,
+                        body: `[Strict Monitoring] This issue was opened by a contributor but did not have a difficulty label. It has been automatically classified as **${label}** for mark/point assignments.`
+                      });
+                    }
                   }
                 }
               }

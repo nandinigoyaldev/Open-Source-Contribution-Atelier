@@ -128,7 +128,7 @@ def get_timezone_choices():
 class UserProfile(models.Model):
     """
     Standard user profile linking to the main User model.
-    Stores the user's avatar image.
+    Stores the user's avatar image and user settings.
     """
 
     user = models.OneToOneField(
@@ -144,6 +144,11 @@ class UserProfile(models.Model):
     linkedin_url = models.URLField(max_length=500, blank=True, default="")
     github_url = models.URLField(max_length=500, blank=True, default="")
 
+    # Feature requirement: Pause email notifications toggle field (#413)
+    dnd_enabled = models.BooleanField(
+        default=False, help_text="Temporarily disable non-critical email notifications."
+    )
+
     organization = models.ForeignKey(
         "organizations.Organization",
         on_delete=models.SET_NULL,
@@ -157,24 +162,24 @@ class UserProfile(models.Model):
 
     def _convert_to_webp(self, image_field):
         """Helper method to convert an ImageField to WebP format."""
-        if image_field and not image_field.name.lower().endswith('.webp'):
+        if image_field and not image_field.name.lower().endswith(".webp"):
             from PIL import Image
             from io import BytesIO
             from django.core.files.base import ContentFile
             import os
 
             img = Image.open(image_field)
-            
-            if img.mode != 'RGBA' and img.mode != 'RGB':
-                img = img.convert('RGBA')
-            
+
+            if img.mode != "RGBA" and img.mode != "RGB":
+                img = img.convert("RGBA")
+
             output = BytesIO()
-            img.save(output, format='WEBP', quality=85)
+            img.save(output, format="WEBP", quality=85)
             output.seek(0)
-            
+
             base_name = os.path.splitext(os.path.basename(image_field.name))[0]
             new_filename = f"{base_name}.webp"
-            
+
             image_field.save(new_filename, ContentFile(output.read()), save=False)
 
     def save(self, *args, **kwargs):

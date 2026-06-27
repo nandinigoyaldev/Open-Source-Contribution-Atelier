@@ -3,7 +3,9 @@
     "prepare": "husky"
   },
   "dependencies": {
+    "@tanstack/react-virtual": "^3.14.3",
     "framer-motion": "^12.41.0",
+    "react-i18next": "^17.0.8",
     "zxcvbn": "^4.4.2"
   },
   "devDependencies": {

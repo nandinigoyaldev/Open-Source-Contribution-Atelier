@@ -6,23 +6,23 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('accounts', '0007_merge_20260624_0816'),
+        ("accounts", "0007_merge_20260624_1225"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='userprofile',
-            name='github_url',
-            field=models.URLField(blank=True, default='', max_length=500),
+            model_name="userprofile",
+            name="github_url",
+            field=models.URLField(blank=True, default="", max_length=500),
         ),
         migrations.AddField(
-            model_name='userprofile',
-            name='linkedin_url',
-            field=models.URLField(blank=True, default='', max_length=500),
+            model_name="userprofile",
+            name="linkedin_url",
+            field=models.URLField(blank=True, default="", max_length=500),
         ),
         migrations.AddField(
-            model_name='userprofile',
-            name='twitter_url',
-            field=models.URLField(blank=True, default='', max_length=500),
+            model_name="userprofile",
+            name="twitter_url",
+            field=models.URLField(blank=True, default="", max_length=500),
         ),
     ]

@@ -58,6 +58,7 @@ class UserUpdateSerializer(serializers.ModelSerializer):
     twitter_url = serializers.URLField(required=False, allow_blank=True)
     linkedin_url = serializers.URLField(required=False, allow_blank=True)
     github_url = serializers.URLField(required=False, allow_blank=True)
+    dnd_enabled = serializers.BooleanField(required=False)  # Added for #413
 
     class Meta:
         model = User
@@ -70,6 +71,7 @@ class UserUpdateSerializer(serializers.ModelSerializer):
             "twitter_url",
             "linkedin_url",
             "github_url",
+            "dnd_enabled",  # Added for #413
         )
         extra_kwargs = {
             "email": {"required": False},
@@ -93,6 +95,7 @@ class UserUpdateSerializer(serializers.ModelSerializer):
         twitter_url = validated_data.pop("twitter_url", None)
         linkedin_url = validated_data.pop("linkedin_url", None)
         github_url = validated_data.pop("github_url", None)
+        dnd_enabled = validated_data.pop("dnd_enabled", None)  # Added for #413
 
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
@@ -110,6 +113,7 @@ class UserUpdateSerializer(serializers.ModelSerializer):
             or twitter_url is not None
             or linkedin_url is not None
             or github_url is not None
+            or dnd_enabled is not None  # Added for #413
         ):
             from apps.accounts.models import UserProfile
 
@@ -126,6 +130,8 @@ class UserUpdateSerializer(serializers.ModelSerializer):
                 profile.linkedin_url = linkedin_url
             if github_url is not None:
                 profile.github_url = github_url
+            if dnd_enabled is not None:  # Added for #413
+                profile.dnd_enabled = dnd_enabled
             profile.save()
 
         return instance
@@ -138,6 +144,7 @@ class UserListSerializer(serializers.ModelSerializer):
     twitter_url = serializers.SerializerMethodField()
     linkedin_url = serializers.SerializerMethodField()
     github_url = serializers.SerializerMethodField()
+    dnd_enabled = serializers.SerializerMethodField()  # Added for #413
 
     class Meta:
         model = User
@@ -152,6 +159,7 @@ class UserListSerializer(serializers.ModelSerializer):
             "twitter_url",
             "linkedin_url",
             "github_url",
+            "dnd_enabled",  # Added for #413
         )
 
     def get_avatar_url(self, obj):
@@ -189,6 +197,11 @@ class UserListSerializer(serializers.ModelSerializer):
         if hasattr(obj, "profile") and obj.profile.github_url:
             return obj.profile.github_url
         return ""
+
+    def get_dnd_enabled(self, obj):  # Added for #413
+        if hasattr(obj, "profile"):
+            return obj.profile.dnd_enabled
+        return False
 
 
 class EmailOrUsernameTokenObtainPairSerializer(TokenObtainPairSerializer):
