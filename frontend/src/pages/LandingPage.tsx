@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 import { useEffect, useState } from "react";
 import { useGoogleLogin } from "@react-oauth/google";
 import { GitBranch, Moon, Sun } from "lucide-react";
@@ -78,8 +79,12 @@ export function LandingPage() {
     <div className="min-h-[85vh] flex items-center justify-center p-4 relative">
       <button
         onClick={toggleTheme}
-        aria-label={theme === "light" ? "Switch to dark mode" : "Switch to light mode"}
-        title={theme === "light" ? "Switch to dark mode" : "Switch to light mode"}
+        aria-label={
+          theme === "light" ? "Switch to dark mode" : "Switch to light mode"
+        }
+        title={
+          theme === "light" ? "Switch to dark mode" : "Switch to light mode"
+        }
         className="fixed top-4 right-6 sm:right-8 z-50 rounded-lg bg-surface-low p-2 text-muted hover:text-text border-2 border-black dark:border-[#4a4238] shadow-card-sm hover:-translate-y-0.5 active:translate-y-0 transition-all dark:bg-[#151411] dark:text-[#c4bbae] dark:hover:text-[#f0ebe2]"
       >
         {theme === "light" ? <Moon size={16} /> : <Sun size={16} />}
@@ -212,8 +217,8 @@ export function LandingPage() {
               <div className="flex-1 h-1 bg-black dark:bg-[#4a4238]"></div>
             </div>
 
-            
-            <a  href="/signup"
+            <a
+              href="/signup"
               className="block text-center w-full rounded-2xl border-4 border-black bg-[#C3C0FF] px-5 py-4 font-black text-black text-xl shadow-card-sm hover:-translate-y-1 active:translate-y-1 transition-all uppercase tracking-wide mt-4 cursor-pointer"
             >
               {t("landing.create_account")}

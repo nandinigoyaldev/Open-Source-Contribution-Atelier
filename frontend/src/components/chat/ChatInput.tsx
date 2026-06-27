@@ -23,7 +23,7 @@ export function ChatInput({
   const handleSend = useCallback(() => {
     const trimmed = text.trim();
     if (!trimmed || disabled) return;
-    
+
     try {
       const result = onSendMessage(trimmed);
       if (result instanceof Promise) {
@@ -32,7 +32,7 @@ export function ChatInput({
     } catch (err) {
       console.error("Failed to send message:", err);
     }
-    
+
     setText("");
     onInputSubmit?.();
   }, [text, disabled, onSendMessage, onInputSubmit]);

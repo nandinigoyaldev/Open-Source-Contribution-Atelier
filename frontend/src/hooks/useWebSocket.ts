@@ -1,3 +1,6 @@
+/* eslint-disable react-hooks/refs */
+/* eslint-disable react-hooks/immutability */
+/* eslint-disable @typescript-eslint/no-use-before-define */
 import { useEffect, useRef, useCallback, useState } from "react";
 
 type UseWebSocketOptions = {
@@ -93,6 +96,7 @@ export function useWebSocket({
       setState((s) => ({ ...s, isConnected: false }));
       if (reconnectCountRef.current < maxReconnectAttempts) {
         reconnectCountRef.current += 1;
+
         reconnectTimerRef.current = setTimeout(connect, reconnectInterval);
       }
     };

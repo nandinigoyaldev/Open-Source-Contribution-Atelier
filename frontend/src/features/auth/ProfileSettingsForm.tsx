@@ -22,21 +22,42 @@ const profileSchema = z.object({
   twitter_url: z
     .string()
     .optional()
-    .refine((val) => !val || val.startsWith("http://") || val.startsWith("https://") || val === "", {
-      message: "Please enter a valid URL (starting with http:// or https://)",
-    }),
+    .refine(
+      (val) =>
+        !val ||
+        val.startsWith("http://") ||
+        val.startsWith("https://") ||
+        val === "",
+      {
+        message: "Please enter a valid URL (starting with http:// or https://)",
+      },
+    ),
   linkedin_url: z
     .string()
     .optional()
-    .refine((val) => !val || val.startsWith("http://") || val.startsWith("https://") || val === "", {
-      message: "Please enter a valid URL (starting with http:// or https://)",
-    }),
+    .refine(
+      (val) =>
+        !val ||
+        val.startsWith("http://") ||
+        val.startsWith("https://") ||
+        val === "",
+      {
+        message: "Please enter a valid URL (starting with http:// or https://)",
+      },
+    ),
   github_url: z
     .string()
     .optional()
-    .refine((val) => !val || val.startsWith("http://") || val.startsWith("https://") || val === "", {
-      message: "Please enter a valid URL (starting with http:// or https://)",
-    }),
+    .refine(
+      (val) =>
+        !val ||
+        val.startsWith("http://") ||
+        val.startsWith("https://") ||
+        val === "",
+      {
+        message: "Please enter a valid URL (starting with http:// or https://)",
+      },
+    ),
 });
 
 type ProfileFormValues = z.input<typeof profileSchema>;
@@ -61,7 +82,8 @@ export function ProfileSettingsForm() {
     defaultValues: {
       email: user?.email || "",
       password: "",
-      timezone: user?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
+      timezone:
+        user?.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
       twitter_url: user?.twitter_url || "",
       linkedin_url: user?.linkedin_url || "",
       github_url: user?.github_url || "",
@@ -73,7 +95,8 @@ export function ProfileSettingsForm() {
       reset({
         email: user.email,
         password: "",
-        timezone: user.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
+        timezone:
+          user.timezone || Intl.DateTimeFormat().resolvedOptions().timeZone,
         twitter_url: user.twitter_url || "",
         linkedin_url: user.linkedin_url || "",
         github_url: user.github_url || "",
@@ -184,7 +207,10 @@ export function ProfileSettingsForm() {
       />
 
       <div className="space-y-2">
-        <label htmlFor="email" className="font-bold text-black ml-2 uppercase tracking-wide text-sm">
+        <label
+          htmlFor="email"
+          className="font-bold text-black ml-2 uppercase tracking-wide text-sm"
+        >
           Email Address
         </label>
         <input
@@ -205,7 +231,10 @@ export function ProfileSettingsForm() {
       </div>
 
       <div className="space-y-2">
-        <label htmlFor="password" className="font-bold text-black ml-2 uppercase tracking-wide text-sm">
+        <label
+          htmlFor="password"
+          className="font-bold text-black ml-2 uppercase tracking-wide text-sm"
+        >
           New Password (leave blank to keep current)
         </label>
         <input
@@ -226,7 +255,10 @@ export function ProfileSettingsForm() {
       </div>
 
       <div className="space-y-2">
-        <label htmlFor="timezone" className="font-bold text-black ml-2 uppercase tracking-wide text-sm">
+        <label
+          htmlFor="timezone"
+          className="font-bold text-black ml-2 uppercase tracking-wide text-sm"
+        >
           Timezone
         </label>
         <select
@@ -251,7 +283,10 @@ export function ProfileSettingsForm() {
       </div>
 
       <div className="space-y-2">
-        <label htmlFor="github_url" className="font-bold text-black ml-2 uppercase tracking-wide text-sm">
+        <label
+          htmlFor="github_url"
+          className="font-bold text-black ml-2 uppercase tracking-wide text-sm"
+        >
           GitHub URL
         </label>
         <input
@@ -272,7 +307,10 @@ export function ProfileSettingsForm() {
       </div>
 
       <div className="space-y-2">
-        <label htmlFor="linkedin_url" className="font-bold text-black ml-2 uppercase tracking-wide text-sm">
+        <label
+          htmlFor="linkedin_url"
+          className="font-bold text-black ml-2 uppercase tracking-wide text-sm"
+        >
           LinkedIn URL
         </label>
         <input
@@ -293,7 +331,10 @@ export function ProfileSettingsForm() {
       </div>
 
       <div className="space-y-2">
-        <label htmlFor="twitter_url" className="font-bold text-black ml-2 uppercase tracking-wide text-sm">
+        <label
+          htmlFor="twitter_url"
+          className="font-bold text-black ml-2 uppercase tracking-wide text-sm"
+        >
           Twitter URL
         </label>
         <input
@@ -330,10 +371,14 @@ export function ProfileSettingsForm() {
               type="button"
               onClick={isSubscribed ? unsubscribe : subscribe}
               className={`w-full rounded-2xl border-4 border-black px-5 py-4 font-black text-black text-lg shadow-card-sm transition-all cursor-pointer uppercase flex items-center justify-center gap-2 ${
-                isSubscribed ? "bg-red-200 hover:bg-red-300" : "bg-[#E8F0FE] hover:bg-blue-200"
+                isSubscribed
+                  ? "bg-red-200 hover:bg-red-300"
+                  : "bg-[#E8F0FE] hover:bg-blue-200"
               }`}
             >
-              {isSubscribed ? "🔕 Disable Notifications" : "🔔 Enable Notifications"}
+              {isSubscribed
+                ? "🔕 Disable Notifications"
+                : "🔔 Enable Notifications"}
             </button>
           ) : (
             <p className="text-muted ml-2 text-sm italic">

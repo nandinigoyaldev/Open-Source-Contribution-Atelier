@@ -57,6 +57,7 @@ class SoftDeleteQuerySet(models.QuerySet):
             return super().delete()
         return self.update(is_deleted=True)
 
+
 class SoftDeleteManager(models.Manager):
     def get_queryset(self):
         return SoftDeleteQuerySet(self.model, using=self._db).filter(is_deleted=False)

@@ -565,6 +565,28 @@
           }
         }
       ]
+    },
+    {
+      "id": "module-rust",
+      "title": "Interactive Rust Sandbox",
+      "description": "Learn to code using the Rust Sandbox with syntax highlighting.",
+      "lessons": [
+        {
+          "slug": "hello-rust",
+          "title": "Hello, Rust",
+          "description": "Write your first Rust program.",
+          "difficulty": "beginner",
+          "estimatedMinutes": 5,
+          "points": 20,
+          "filePath": "module-rust/hello-rust.md",
+          "rustExercise": {
+            "prompt": "Write a Rust function `add` that returns the sum of two i32 integers.",
+            "starterCode": "fn add(a: i32, b: i32) -> i32 {\n    // Write your code here\n    0\n}\n",
+            "expected": "fn add(a: i32, b: i32) -> i32 {\n    a + b\n}",
+            "hint": "In Rust, the last expression in a function is returned implicitly. Omit the semicolon to return the value."
+          }
+        }
+      ]
     }
   ]
 }

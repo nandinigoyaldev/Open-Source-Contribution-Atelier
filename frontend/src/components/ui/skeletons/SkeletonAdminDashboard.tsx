@@ -40,7 +40,10 @@ export default function SkeletonAdminDashboard() {
           <div className="h-[200px] w-[200px] rounded-full bg-gradient-to-r from-surface-high via-surface-highest to-surface-high bg-[length:200%_100%] animate-shimmer mx-auto" />
           <div className="grid grid-cols-3 gap-2 mt-6">
             {Array.from({ length: 3 }).map((_, j) => (
-              <div key={j} className="h-12 rounded-lg bg-gradient-to-r from-surface-high via-surface-highest to-surface-high bg-[length:200%_100%] animate-shimmer" />
+              <div
+                key={j}
+                className="h-12 rounded-lg bg-gradient-to-r from-surface-high via-surface-highest to-surface-high bg-[length:200%_100%] animate-shimmer"
+              />
             ))}
           </div>
         </div>

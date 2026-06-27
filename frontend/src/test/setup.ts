@@ -19,11 +19,11 @@ const localStorageMock = (function () {
   };
 })();
 
-import { server } from '../mocks/server';
-import { beforeAll, afterEach, afterAll } from 'vitest';
+import { server } from "../mocks/server";
+import { beforeAll, afterEach, afterAll } from "vitest";
 
 // Establish API mocking before all tests.
-beforeAll(() => server.listen({ onUnhandledRequest: 'error' }));
+beforeAll(() => server.listen({ onUnhandledRequest: "error" }));
 
 // Reset any request handlers that we may add during the tests,
 // so they don't affect other tests.

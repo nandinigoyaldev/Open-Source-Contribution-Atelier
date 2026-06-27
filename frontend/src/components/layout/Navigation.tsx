@@ -35,7 +35,6 @@ const navItems = [
 ];
 
 export function Navigation() {
-
   const { theme, toggleTheme, setTheme } = useTheme();
   const { user } = useAuth();
   const navigate = useNavigate();

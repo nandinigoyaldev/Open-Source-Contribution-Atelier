@@ -6,13 +6,15 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('dashboard', '0001_initial'),
+        ("dashboard", "0001_initial"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='issue',
-            name='bonus_points',
-            field=models.PositiveIntegerField(default=0, help_text='Bonus points awarded during a multiplier event.'),
+            model_name="issue",
+            name="bonus_points",
+            field=models.PositiveIntegerField(
+                default=0, help_text="Bonus points awarded during a multiplier event."
+            ),
         ),
     ]

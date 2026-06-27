@@ -1,49 +1,68 @@
 import io
 import json
 import zipfile
-import pytest
-from django.contrib.auth import get_user_model
-from rest_framework.test import APIClient
-from apps.progress.models import LessonProgress, ExerciseAttempt, CodeSubmission, PeerReview, UserBadge
-from apps.dashboard.models import StreakFreeze, Issue
-from apps.content.models import Comment, Lesson, Exercise
-from apps.chat.models import Message
-from django.utils import timezone
 from datetime import timedelta
 
+import pytest
+from apps.chat.models import Message
+from apps.content.models import Comment, Exercise, Lesson
+from apps.dashboard.models import Issue, StreakFreeze
+from apps.progress.models import (CodeSubmission, ExerciseAttempt,
+                                  LessonProgress, PeerReview, UserBadge)
+from django.contrib.auth import get_user_model
+from django.utils import timezone
+from rest_framework.test import APIClient
+
 User = get_user_model()
+
 
 @pytest.fixture
 def api_client():
     return APIClient()
 
+
 @pytest.fixture
 def user():
-    return User.objects.create_user(username="testuser", email="test@example.com", password="password")
+    return User.objects.create_user(
+        username="testuser", email="test@example.com", password="password"
+    )
+
 
 @pytest.fixture
 def other_user():
-    return User.objects.create_user(username="otheruser", email="other@example.com", password="password")
+    return User.objects.create_user(
+        username="otheruser", email="other@example.com", password="password"
+    )
+
 
 @pytest.fixture
 def setup_user_data(user, other_user):
     # Setup Lesson, Exercise, etc.
-    lesson = Lesson.objects.create(title="Test Lesson", slug="test-lesson", summary="summary", content="content")
-    exercise = Exercise.objects.create(lesson=lesson, title="Test Ex", prompt="Prompt", expected_command="echo")
+    lesson = Lesson.objects.create(
+        title="Test Lesson", slug="test-lesson", summary="summary", content="content"
+    )
+    exercise = Exercise.objects.create(
+        lesson=lesson, title="Test Ex", prompt="Prompt", expected_command="echo"
+    )
 
     # Create user data
     LessonProgress.objects.create(user=user, lesson=lesson, completed=True)
-    ExerciseAttempt.objects.create(user=user, exercise=exercise, submitted_command="echo", is_correct=True)
-    submission = CodeSubmission.objects.create(user=user, title="My PR", code_snippet="print(1)")
+    ExerciseAttempt.objects.create(
+        user=user, exercise=exercise, submitted_command="echo", is_correct=True
+    )
+    submission = CodeSubmission.objects.create(
+        user=user, title="My PR", code_snippet="print(1)"
+    )
     PeerReview.objects.create(submission=submission, reviewer=user, feedback="Good job")
     StreakFreeze.objects.create(user=user)
     Issue.objects.create(title="My Issue", assigned_to=user)
     Comment.objects.create(user=user, lesson=lesson, content="Great lesson")
     Message.objects.create(user=user, room_id="room1", content="Hello world")
-    
+
     # Create other user data to test isolation
     LessonProgress.objects.create(user=other_user, lesson=lesson, completed=True)
     Comment.objects.create(user=other_user, lesson=lesson, content="Other comment")
+
 
 @pytest.mark.django_db
 class TestDataExport:
@@ -56,7 +75,7 @@ class TestDataExport:
         response = api_client.get("/api/auth/me/export/?export_format=json")
         assert response.status_code == 200
         assert response["Content-Type"] == "application/json"
-        
+
         data = response.json()
         assert "user_profile" in data
         assert "lesson_progress" in data
@@ -80,7 +99,7 @@ class TestDataExport:
         response = api_client.get("/api/auth/me/export/?export_format=csv")
         assert response.status_code == 200
         assert response["Content-Type"] == "application/zip"
-        
+
         # Verify ZIP archive
         zip_buffer = io.BytesIO(response.content)
         with zipfile.ZipFile(zip_buffer, "r") as zf:
@@ -88,7 +107,7 @@ class TestDataExport:
             assert "user_profile.csv" in files
             assert "lesson_progress.csv" in files
             assert "comments.csv" in files
-            
+
             # Read a specific file from the archive
             with zf.open("comments.csv") as f:
                 content = f.read().decode("utf-8")
@@ -100,11 +119,11 @@ class TestDataExport:
         response = api_client.get("/api/auth/me/export/?export_format=json")
         assert response.status_code == 200
         data = response.json()
-        
+
         assert len(data["lesson_progress"]) == 1
         assert len(data["comments"]) == 1
         assert data["comments"][0]["content"] == "Other comment"
-        
+
         # Other user has no messages or exercises
         assert len(data["messages"]) == 0
         assert len(data["exercise_attempts"]) == 0

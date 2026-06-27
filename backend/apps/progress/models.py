@@ -6,6 +6,51 @@ from django.db import models
 from django.utils import timezone
 
 
+class UserStreak(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="streak")
+    current_streak = models.PositiveIntegerField(default=0)
+    highest_streak = models.PositiveIntegerField(default=0)
+    last_activity_date = models.DateField(null=True, blank=True)
+    multiplier = models.FloatField(default=1.0)
+
+    def update_streak(self, activity_date=None):
+        if activity_date is None:
+            activity_date = timezone.localdate()
+
+        if self.last_activity_date == activity_date:
+            return
+
+        if self.last_activity_date:
+            delta_days = (activity_date - self.last_activity_date).days
+            if delta_days == 1:
+                self.current_streak += 1
+            elif delta_days > 1:
+                self.current_streak = 1
+        else:
+            self.current_streak = 1
+
+        self.last_activity_date = activity_date
+
+        if self.current_streak > self.highest_streak:
+            self.highest_streak = self.current_streak
+
+        if self.current_streak >= 14:
+            self.multiplier = 2.0
+        elif self.current_streak >= 7:
+            self.multiplier = 1.5
+        elif self.current_streak >= 3:
+            self.multiplier = 1.2
+        else:
+            self.multiplier = 1.0
+
+        self.save()
+
+    @classmethod
+    def get_or_create_for_user(cls, user):
+        streak, _ = cls.objects.get_or_create(user=user)
+        return streak
+
+
 class XPMultiplierEvent(models.Model):
     name = models.CharField(max_length=255)
     multiplier = models.FloatField(default=1.5)
@@ -24,9 +69,7 @@ class XPMultiplierEvent(models.Model):
     def get_active_multiplier(cls) -> float:
         now = timezone.now()
         active_event = cls.objects.filter(
-            is_active=True,
-            start_time__lte=now,
-            end_time__gte=now
+            is_active=True, start_time__lte=now, end_time__gte=now
         ).first()
         return active_event.multiplier if active_event else 1.0
 
@@ -252,11 +295,15 @@ class CodeSubmission(models.Model):
         PENDING = "pending", "Pending"
         REVIEWED = "reviewed", "Reviewed"
 
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="code_submissions")
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="code_submissions"
+    )
     title = models.CharField(max_length=255)
     code_snippet = models.TextField()
     description = models.TextField(blank=True)
-    status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING, db_index=True)
+    status = models.CharField(
+        max_length=20, choices=Status.choices, default=Status.PENDING, db_index=True
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
@@ -269,8 +316,12 @@ class CodeSubmission(models.Model):
 
 class PeerReview(models.Model):
     objects = models.Manager()
-    submission = models.ForeignKey(CodeSubmission, on_delete=models.CASCADE, related_name="reviews")
-    reviewer = models.ForeignKey(User, on_delete=models.CASCADE, related_name="given_reviews")
+    submission = models.ForeignKey(
+        CodeSubmission, on_delete=models.CASCADE, related_name="reviews"
+    )
+    reviewer = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="given_reviews"
+    )
     feedback = models.TextField()
     rating = models.PositiveIntegerField(default=5)
     points_earned = models.PositiveIntegerField(default=10)

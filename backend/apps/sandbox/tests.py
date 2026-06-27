@@ -1,8 +1,10 @@
 import json
+
 import pytest
+from apps.sandbox.consumers import SandboxConsumer
 from channels.testing import WebsocketCommunicator
 from config.asgi import application
-from apps.sandbox.consumers import SandboxConsumer
+
 
 @pytest.mark.asyncio
 async def test_sandbox_websocket_consumer():
@@ -16,10 +18,9 @@ async def test_sandbox_websocket_consumer():
     assert connected2
 
     # Send message from communicator1
-    await communicator1.send_json_to({
-        "action": "code_update",
-        "code": "print('hello from 1')"
-    })
+    await communicator1.send_json_to(
+        {"action": "code_update", "code": "print('hello from 1')"}
+    )
 
     # communicator2 should receive it
     response2 = await communicator2.receive_json_from()
@@ -30,10 +31,9 @@ async def test_sandbox_websocket_consumer():
     assert await communicator1.receive_nothing()
 
     # Send message from communicator2
-    await communicator2.send_json_to({
-        "action": "code_update",
-        "code": "print('hello from 2')"
-    })
+    await communicator2.send_json_to(
+        {"action": "code_update", "code": "print('hello from 2')"}
+    )
 
     # communicator1 should receive it
     response1 = await communicator1.receive_json_from()
@@ -46,16 +46,13 @@ async def test_sandbox_websocket_consumer():
     assert await communicator2.receive_nothing()
 
     # Test unknown action
-    await communicator1.send_json_to({
-        "action": "unknown_action",
-        "code": "print('hello')"
-    })
+    await communicator1.send_json_to(
+        {"action": "unknown_action", "code": "print('hello')"}
+    )
     assert await communicator2.receive_nothing()
 
     # Test missing code field
-    await communicator1.send_json_to({
-        "action": "code_update"
-    })
+    await communicator1.send_json_to({"action": "code_update"})
     response_missing = await communicator2.receive_json_from()
     assert response_missing["action"] == "code_update"
     assert response_missing["code"] is None

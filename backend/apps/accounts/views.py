@@ -94,9 +94,7 @@ class MeView(APIView):
         instance.refresh_from_db()
         if hasattr(instance, "profile"):
             instance.profile.refresh_from_db()
-        response_serializer = UserListSerializer(
-            instance, context={"request": request}
-        )
+        response_serializer = UserListSerializer(instance, context={"request": request})
         return Response(response_serializer.data)
 
 
@@ -763,14 +761,17 @@ class ExportDataView(APIView):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-from apps.content.models import Comment
+
 from apps.chat.models import Message
+from apps.content.models import Comment
+
 
 class SecureAccountDeleteView(APIView):
     """
     DELETE /api/users/me/delete/
     Securely deletes the user's PII while anonymizing public contributions.
     """
+
     permission_classes = [permissions.IsAuthenticated]
 
     @extend_schema(
@@ -780,7 +781,7 @@ class SecureAccountDeleteView(APIView):
     )
     def delete(self, request):
         user = request.user
-        
+
         # If the user is already deleted (e.g. from a repeated request)
         if not user or not user.pk:
             return Response(status=status.HTTP_204_NO_CONTENT)

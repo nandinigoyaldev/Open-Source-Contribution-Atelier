@@ -16,13 +16,13 @@ app.config_from_object("django.conf:settings", namespace="CELERY")
 # Load task modules from all registered Django apps.
 app.autodiscover_tasks()
 
-from celery.schedules import crontab # type: ignore
+from celery.schedules import crontab  # type: ignore
 
 app.conf.beat_schedule = {
-    'send-weekly-progress-summary': {
-        'task': 'apps.progress.tasks.send_weekly_progress_summary',
+    "send-weekly-progress-summary": {
+        "task": "apps.progress.tasks.send_weekly_progress_summary",
         # Executes every Monday at 8:00 AM UTC
-        'schedule': crontab(hour=8, minute=0, day_of_week=1),
+        "schedule": crontab(hour=8, minute=0, day_of_week=1),
     },
 }
 

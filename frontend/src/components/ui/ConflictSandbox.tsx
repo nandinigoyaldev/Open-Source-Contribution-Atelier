@@ -39,7 +39,8 @@ function parseConflicts(text: string): Block[] {
 
     if (line.startsWith("<<<<<<<")) {
       if (currentNormal) {
-        if (currentNormal.endsWith("\n")) currentNormal = currentNormal.slice(0, -1);
+        if (currentNormal.endsWith("\n"))
+          currentNormal = currentNormal.slice(0, -1);
         blocks.push({ type: "normal", content: currentNormal });
         currentNormal = "";
       }
@@ -182,7 +183,12 @@ export function ConflictSandbox({
 
         {/* Simplified Animated Timeline Graph */}
         <div className="mt-8 flex items-center justify-center relative h-24">
-          <svg className="absolute inset-0 w-full h-full" overflow="visible" role="img" aria-label="Animated timeline showing merge conflict">
+          <svg
+            className="absolute inset-0 w-full h-full"
+            overflow="visible"
+            role="img"
+            aria-label="Animated timeline showing merge conflict"
+          >
             <path
               d="M 10 50 L 150 50"
               stroke="currentColor"

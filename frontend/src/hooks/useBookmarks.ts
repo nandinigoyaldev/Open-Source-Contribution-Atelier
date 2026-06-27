@@ -25,7 +25,13 @@ export function useBookmarks() {
   });
 
   const toggleBookmark = useMutation({
-    mutationFn: async ({ slug, isBookmarked }: { slug: string; isBookmarked: boolean }) => {
+    mutationFn: async ({
+      slug,
+      isBookmarked,
+    }: {
+      slug: string;
+      isBookmarked: boolean;
+    }) => {
       if (isBookmarked) {
         await fetchApi(`/progress/bookmarks/${slug}/`, { method: "DELETE" });
         return { action: "removed", slug };
@@ -36,15 +42,18 @@ export function useBookmarks() {
     },
     onMutate: async ({ slug, isBookmarked }) => {
       await queryClient.cancelQueries({ queryKey: ["bookmarks"] });
-      const previousBookmarks = queryClient.getQueryData<BookmarkEntry[]>(["bookmarks"]);
-      
+      const previousBookmarks = queryClient.getQueryData<BookmarkEntry[]>([
+        "bookmarks",
+      ]);
+
       if (isBookmarked) {
-        queryClient.setQueryData<BookmarkEntry[]>(["bookmarks"], (old) => 
-          old?.filter(b => b.lesson_slug !== slug) || []
+        queryClient.setQueryData<BookmarkEntry[]>(
+          ["bookmarks"],
+          (old) => old?.filter((b) => b.lesson_slug !== slug) || [],
         );
       }
       // Note: we could add a fake bookmark for the 'added' case but we lack title/etc
-      
+
       return { previousBookmarks };
     },
     onError: (err, variables, context) => {
@@ -56,8 +65,10 @@ export function useBookmarks() {
     onSuccess: (data) => {
       queryClient.invalidateQueries({ queryKey: ["bookmarks"] });
       addToast(
-        data.action === "added" ? "Saved to Read Later" : "Removed from Read Later",
-        "success"
+        data.action === "added"
+          ? "Saved to Read Later"
+          : "Removed from Read Later",
+        "success",
       );
     },
   });

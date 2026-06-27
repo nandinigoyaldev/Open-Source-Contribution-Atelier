@@ -1,15 +1,19 @@
 import pytest
-from apps.content.models import Lesson, Exercise, Organization
-from graphene.test import Client
+from apps.content.models import Exercise, Lesson, Organization
 from config.schema import schema
+from graphene.test import Client
+
 
 @pytest.fixture
 def graphene_client():
     return Client(schema)
 
+
 @pytest.fixture
 def setup_data():
-    org = Organization.objects.create(name="GraphQL Org", slug="graphql-org", popularity_score=100)
+    org = Organization.objects.create(
+        name="GraphQL Org", slug="graphql-org", popularity_score=100
+    )
     lesson = Lesson.objects.create(
         organization=org,
         difficulty="Beginner",
@@ -18,16 +22,17 @@ def setup_data():
         summary="A summary",
         content="Some content",
         estimated_minutes=15,
-        order=1
+        order=1,
     )
     exercise = Exercise.objects.create(
         lesson=lesson,
         title="First Exercise",
         prompt="Do something",
         expected_command="do something",
-        points=10
+        points=10,
     )
     return org, lesson, exercise
+
 
 class DummyUser:
     def __init__(self, organization=None, is_authenticated=True):
@@ -35,9 +40,11 @@ class DummyUser:
         self.organization_id = organization.id if organization else None
         self.is_authenticated = is_authenticated
 
+
 class DummyContext:
     def __init__(self, user):
         self.user = user
+
 
 @pytest.mark.django_db
 def test_all_lessons_query_unauthenticated(graphene_client, setup_data):
@@ -61,6 +68,7 @@ def test_all_lessons_query_unauthenticated(graphene_client, setup_data):
     assert result["data"]["allLessons"][0]["title"] == "Intro to GraphQL"
     assert result["data"]["allLessons"][0]["exercises"][0]["title"] == "First Exercise"
 
+
 @pytest.mark.django_db
 def test_lesson_by_slug(graphene_client, setup_data):
     context = DummyContext(DummyUser(is_authenticated=False))
@@ -75,6 +83,7 @@ def test_lesson_by_slug(graphene_client, setup_data):
     result = graphene_client.execute(query, context_value=context)
     assert "errors" not in result
     assert result["data"]["lessonBySlug"]["title"] == "Intro to GraphQL"
+
 
 @pytest.mark.django_db
 def test_all_organizations(graphene_client, setup_data):

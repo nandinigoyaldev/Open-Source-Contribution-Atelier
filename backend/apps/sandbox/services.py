@@ -59,3 +59,66 @@ def verify_git_command(command: str, expected_command: str) -> VerificationResul
         feedback=f"Valid Git syntax, but not the expected command for this exercise. Hint: Try '{expected}'.",
         score_delta=0,
     )
+
+
+import asyncio
+import sys
+
+
+async def stream_python_execution(code: str, send_callback, timeout: int = 5):
+    """
+    Executes Python code in a subprocess and streams output asynchronously.
+    """
+    await send_callback({"action": "execution_start"})
+
+    try:
+        process = await asyncio.create_subprocess_exec(
+            sys.executable,
+            "-c",
+            code,
+            stdout=asyncio.subprocess.PIPE,
+            stderr=asyncio.subprocess.PIPE,
+        )
+
+        async def read_stream(stream, stream_type):
+            while True:
+                line = await stream.readline()
+                if line:
+                    await send_callback(
+                        {
+                            "action": "execution_output",
+                            "type": stream_type,
+                            "output": line.decode("utf-8", errors="replace"),
+                        }
+                    )
+                else:
+                    break
+
+        try:
+            await asyncio.wait_for(
+                asyncio.gather(
+                    read_stream(process.stdout, "stdout"),
+                    read_stream(process.stderr, "stderr"),
+                    process.wait(),
+                ),
+                timeout=timeout,
+            )
+
+            await send_callback(
+                {
+                    "action": "execution_end",
+                    "status": "Completed" if process.returncode == 0 else "Failed",
+                    "returncode": process.returncode,
+                }
+            )
+        except asyncio.TimeoutError:
+            try:
+                process.kill()
+            except ProcessLookupError:
+                pass
+            await send_callback(
+                {"action": "execution_end", "status": "Timed Out", "returncode": -1}
+            )
+
+    except Exception as e:
+        await send_callback({"action": "execution_error", "error": str(e)})

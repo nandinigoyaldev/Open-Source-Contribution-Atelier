@@ -42,14 +42,18 @@ describe("useTheme", () => {
     const { result } = renderHook(() => useTheme(), { wrapper });
     expect(result.current.theme).toBe("system");
     expect(document.documentElement.classList.contains("dark")).toBe(false);
-    expect(document.documentElement.classList.contains("high-contrast")).toBe(false);
+    expect(document.documentElement.classList.contains("high-contrast")).toBe(
+      false,
+    );
   });
 
   it("should respect localStorage preference for high-contrast", () => {
     localStorage.setItem("theme", "high-contrast");
     const { result } = renderHook(() => useTheme(), { wrapper });
     expect(result.current.theme).toBe("high-contrast");
-    expect(document.documentElement.classList.contains("high-contrast")).toBe(true);
+    expect(document.documentElement.classList.contains("high-contrast")).toBe(
+      true,
+    );
     expect(document.documentElement.classList.contains("dark")).toBe(false);
   });
 
@@ -75,7 +79,9 @@ describe("useTheme", () => {
     const { result } = renderHook(() => useTheme(), { wrapper });
     expect(result.current.theme).toBe("dark");
     expect(document.documentElement.classList.contains("dark")).toBe(true);
-    expect(document.documentElement.classList.contains("high-contrast")).toBe(false);
+    expect(document.documentElement.classList.contains("high-contrast")).toBe(
+      false,
+    );
   });
 
   it("should apply high-contrast class when system preference is high contrast", () => {
@@ -122,7 +128,9 @@ describe("useTheme", () => {
       result.current.setTheme("high-contrast");
     });
     expect(result.current.theme).toBe("high-contrast");
-    expect(document.documentElement.classList.contains("high-contrast")).toBe(true);
+    expect(document.documentElement.classList.contains("high-contrast")).toBe(
+      true,
+    );
     expect(localStorage.getItem("theme")).toBe("high-contrast");
   });
 

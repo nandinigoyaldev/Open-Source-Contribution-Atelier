@@ -23,11 +23,11 @@ start:
 
 lint:
 	npm --prefix frontend run lint
-	cd backend && python -m black --check .
+	cd backend && python -m black --check . && python -m isort --check-only .
 
 format:
 	npm --prefix frontend run format
-	cd backend && python -m black .
+	cd backend && python -m black . && python -m isort .
 
 test: test-backend test-frontend
 

@@ -1,14 +1,9 @@
 import pytest
-from django.utils import timezone
-from apps.progress.models import (
-    DailyTaskRecord,
-    LessonProgress,
-    PeerReview,
-    QuizAttempt,
-    CodeSubmission,
-)
-from apps.content.models import Lesson, Exercise
+from apps.content.models import Exercise, Lesson
+from apps.progress.models import (CodeSubmission, DailyTaskRecord,
+                                  LessonProgress, PeerReview, QuizAttempt)
 from django.contrib.auth.models import User
+from django.utils import timezone
 
 
 @pytest.mark.django_db

@@ -36,7 +36,7 @@ class MarkOneReadView(APIView):
     def post(self, request, pk):
         try:
             notif = Notification.objects.get(pk=pk, recipient=request.user)
-        except Notification.DoesNotExist: # type: ignore
+        except Notification.DoesNotExist:  # type: ignore
             return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
         notif.is_read = True
         notif.save(update_fields=["is_read"])
@@ -45,27 +45,31 @@ class MarkOneReadView(APIView):
 
 class SubscribePushView(APIView):
     """POST /api/notifications/push/subscribe/"""
+
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request):
         serializer = PushSubscriptionSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        
-        endpoint = serializer.validated_data["endpoint"] # type: ignore
+
+        endpoint = serializer.validated_data["endpoint"]  # type: ignore
         # Update or create to prevent duplicate endpoints
         PushSubscription.objects.update_or_create(
             endpoint=endpoint,
             defaults={
                 "user": request.user,
-                "p256dh": serializer.validated_data["p256dh"], # type: ignore
-                "auth": serializer.validated_data["auth"], # type: ignore
-            }
+                "p256dh": serializer.validated_data["p256dh"],  # type: ignore
+                "auth": serializer.validated_data["auth"],  # type: ignore
+            },
         )
-        return Response({"detail": "Subscribed successfully."}, status=status.HTTP_200_OK)
+        return Response(
+            {"detail": "Subscribed successfully."}, status=status.HTTP_200_OK
+        )
 
 
 class UnsubscribePushView(APIView):
     """POST /api/notifications/push/unsubscribe/"""
+
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request):
@@ -73,7 +77,14 @@ class UnsubscribePushView(APIView):
         if not endpoint:
             # If no endpoint provided, unsubscribe all for this user
             deleted, _ = PushSubscription.objects.filter(user=request.user).delete()
-            return Response({"detail": f"Unsubscribed {deleted} devices."}, status=status.HTTP_200_OK)
-            
-        deleted, _ = PushSubscription.objects.filter(user=request.user, endpoint=endpoint).delete()
-        return Response({"detail": "Unsubscribed successfully."}, status=status.HTTP_200_OK)
+            return Response(
+                {"detail": f"Unsubscribed {deleted} devices."},
+                status=status.HTTP_200_OK,
+            )
+
+        deleted, _ = PushSubscription.objects.filter(
+            user=request.user, endpoint=endpoint
+        ).delete()
+        return Response(
+            {"detail": "Unsubscribed successfully."}, status=status.HTTP_200_OK
+        )

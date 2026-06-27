@@ -31,7 +31,9 @@ describe("LandingPage", () => {
       </GoogleOAuthProvider>,
     );
 
-    const heading = screen.queryByText(/Enter the Sandbox/i) || screen.queryByText("landing.enter_sandbox");
+    const heading =
+      screen.queryByText(/Enter the Sandbox/i) ||
+      screen.queryByText("landing.enter_sandbox");
     expect(heading).toBeInTheDocument();
   });
 });

@@ -34,6 +34,32 @@ jobs:
               });
               console.log(`Assigned PR to @${author}`);
 
+              // First-time contributor welcome check
+              if (context.eventName === 'pull_request_target' && context.payload.action === 'opened') {
+                try {
+                  const { data: userPRs } = await github.rest.pulls.list({
+                    owner: owner,
+                    repo: repo,
+                    state: 'all',
+                    creator: author
+                  });
+
+                  if (userPRs.length <= 1) {
+                    const welcomeMsg = `Hello @${author}! 👋\n\nWelcome to Open Source Contribution Atelier, and thank you for opening your first pull request! 🎉\n\nTo help make your contribution successful, please check out our [Contributing Guidelines](https://github.com/${owner}/${repo}/blob/main/CONTRIBUTING.md) which detail:\n- How to format your code and run tests locally.\n- Expectations for matching your changes to the linked issue scope.\n\nOur automated validators will check your pull request shortly. If you need any assistance, feel free to ask. Happy contributing!`;
+                    
+                    await github.rest.issues.createComment({
+                      owner: owner,
+                      repo: repo,
+                      issue_number: pr.number,
+                      body: welcomeMsg
+                    });
+                    console.log(`Posted first-time contributor welcome comment to PR #${pr.number}`);
+                  }
+                } catch (welcomeError) {
+                  console.error('Error in first-time contributor check:', welcomeError);
+                }
+              }
+
               // 2. Extract issue number from PR body
               const issueRegex = /(?:close|closes|closed|fix|fixes|fixed|resolve|resolves|resolved)\s+#(\d+)/i;
               const match = body.match(issueRegex);

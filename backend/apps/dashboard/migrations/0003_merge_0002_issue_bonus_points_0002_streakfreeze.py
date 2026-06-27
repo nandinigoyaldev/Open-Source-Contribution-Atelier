@@ -6,9 +6,8 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('dashboard', '0002_issue_bonus_points'),
-        ('dashboard', '0002_streakfreeze'),
+        ("dashboard", "0002_issue_bonus_points"),
+        ("dashboard", "0002_streakfreeze"),
     ]
 
-    operations = [
-    ]
+    operations = []

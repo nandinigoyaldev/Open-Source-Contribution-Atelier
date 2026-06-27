@@ -27,7 +27,7 @@ export function LeaderboardPage() {
     queryFn: async ({ pageParam = 1 }) => {
       try {
         const data = await fetchApi(
-          `/leaderboard/?timeframe=${timeframe}&page=${pageParam}`
+          `/leaderboard/?timeframe=${timeframe}&page=${pageParam}`,
         );
         return data;
       } catch (err) {
@@ -35,9 +35,24 @@ export function LeaderboardPage() {
           // Fallback mock data in case API fails
           return {
             results: [
-              { username: "goyaljiiiiii", prs_merged: 42, issues_solved: 20, xp: 2220 },
-              { username: "nandini", prs_merged: 18, issues_solved: 10, xp: 1020 },
-              { username: "antigravity", prs_merged: 12, issues_solved: 5, xp: 720 },
+              {
+                username: "goyaljiiiiii",
+                prs_merged: 42,
+                issues_solved: 20,
+                xp: 2220,
+              },
+              {
+                username: "nandini",
+                prs_merged: 18,
+                issues_solved: 10,
+                xp: 1020,
+              },
+              {
+                username: "antigravity",
+                prs_merged: 12,
+                issues_solved: 5,
+                xp: 720,
+              },
               { username: "octocat", prs_merged: 6, issues_solved: 2, xp: 420 },
             ],
             next: null,
@@ -66,8 +81,13 @@ export function LeaderboardPage() {
     });
     return flattened.map(
       (
-        item: { username: string; prs_merged: number; issues_solved: number; xp: number },
-        idx: number
+        item: {
+          username: string;
+          prs_merged: number;
+          issues_solved: number;
+          xp: number;
+        },
+        idx: number,
       ) => ({
         rank: idx + 1,
         username: item.username,
@@ -76,13 +96,13 @@ export function LeaderboardPage() {
         prs: item.prs_merged,
         issues: item.issues_solved,
         xp: item.xp,
-      })
+      }),
     );
   }, [leaderboardData]);
 
   const filteredLeaderboard = useMemo(() => {
     return [...leaderboard].filter((item) =>
-      item.username.toLowerCase().includes(search.toLowerCase())
+      item.username.toLowerCase().includes(search.toLowerCase()),
     );
   }, [leaderboard, search]);
 
@@ -99,7 +119,7 @@ export function LeaderboardPage() {
       });
       if (node) observerRef.current.observe(node);
     },
-    [isFetchingNextPage, loadingLeaderboard, hasNextPage, fetchNextPage]
+    [isFetchingNextPage, loadingLeaderboard, hasNextPage, fetchNextPage],
   );
 
   // Websocket for real-time updates
@@ -144,12 +164,10 @@ export function LeaderboardPage() {
 
   return (
     <div className="space-y-10 max-w-7xl mx-auto pb-12">
-      <SectionCard
-        eyebrow="Hall of Fame"
-        title="Global Leaderboard"
-      >
+      <SectionCard eyebrow="Hall of Fame" title="Global Leaderboard">
         <p className="max-w-2xl text-sm leading-6 text-muted dark:text-[#c4bbae] font-bold">
-          See how you stack up against the best contributors. Earn XP by merging PRs, solving issues, and completing lessons.
+          See how you stack up against the best contributors. Earn XP by merging
+          PRs, solving issues, and completing lessons.
         </p>
       </SectionCard>
 
@@ -207,7 +225,9 @@ export function LeaderboardPage() {
                 <p className="font-black text-lg truncate dark:text-[#f0ebe2]">
                   {top3[1].username}
                 </p>
-                <p className="text-accent font-bold text-xl mt-2">{top3[1].xp} XP</p>
+                <p className="text-accent font-bold text-xl mt-2">
+                  {top3[1].xp} XP
+                </p>
               </div>
             </motion.div>
           )}
@@ -237,7 +257,9 @@ export function LeaderboardPage() {
                 <p className="font-black text-2xl truncate dark:text-[#f0ebe2]">
                   {top3[0].username}
                 </p>
-                <p className="text-accent font-black text-2xl mt-2">{top3[0].xp} XP</p>
+                <p className="text-accent font-black text-2xl mt-2">
+                  {top3[0].xp} XP
+                </p>
                 <p className="text-xs font-bold text-muted mt-1 uppercase tracking-wider dark:text-[#c4bbae]">
                   Champion
                 </p>
@@ -267,7 +289,9 @@ export function LeaderboardPage() {
                 <p className="font-black text-md truncate dark:text-[#f0ebe2]">
                   {top3[2].username}
                 </p>
-                <p className="text-accent font-bold text-lg mt-1">{top3[2].xp} XP</p>
+                <p className="text-accent font-bold text-lg mt-1">
+                  {top3[2].xp} XP
+                </p>
               </div>
             </motion.div>
           )}
@@ -295,15 +319,20 @@ export function LeaderboardPage() {
             virtualized={true}
             containerHeight="600px"
             lastElementRef={lastElementRef}
-            footerContent={isFetchingNextPage ? "Loading more contributors..." : null}
+            footerContent={
+              isFetchingNextPage ? "Loading more contributors..." : null
+            }
             rowClassName={(item) =>
-              user?.username === item.username ? "bg-accent/10 dark:bg-accent/20" : ""
+              user?.username === item.username
+                ? "bg-accent/10 dark:bg-accent/20"
+                : ""
             }
             columns={[
               {
                 header: "Rank",
                 accessor: (item) => `#${item.rank}`,
-                className: "text-center font-black text-muted dark:text-[#c4bbae]",
+                className:
+                  "text-center font-black text-muted dark:text-[#c4bbae]",
               },
               {
                 header: "Contributor",

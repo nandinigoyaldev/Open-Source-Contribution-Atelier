@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 import React, { useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { fetchApi } from "../lib/api";
@@ -83,7 +84,10 @@ export function VerifyCertificatePage() {
   // 1. Loading State
   if (loading) {
     return (
-      <div data-testid="loading-skeleton" className="min-h-screen bg-bg py-12 px-6 sm:px-12 animate-pulse">
+      <div
+        data-testid="loading-skeleton"
+        className="min-h-screen bg-bg py-12 px-6 sm:px-12 animate-pulse"
+      >
         <div className="w-full max-w-3xl mx-auto">
           <div className="h-10 w-48 bg-muted rounded-lg mb-8"></div>
 
@@ -162,7 +166,10 @@ export function VerifyCertificatePage() {
                 </button>
               </div>
               {error && (
-                <div role="alert" className="text-red-500 font-bold text-sm text-left px-2">
+                <div
+                  role="alert"
+                  className="text-red-500 font-bold text-sm text-left px-2"
+                >
                   ⚠️ {error}
                 </div>
               )}

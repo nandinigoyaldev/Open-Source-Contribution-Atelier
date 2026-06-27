@@ -13,7 +13,7 @@ describe("VerifyCertificatePage", () => {
     (fetchApi as ReturnType<typeof vi.fn>).mockReturnValue(
       new Promise(() => {}),
     );
-    const { container } = render(
+    render(
       <MemoryRouter initialEntries={["/verify/123"]}>
         <Routes>
           <Route path="/verify/:hash" element={<VerifyCertificatePage />} />

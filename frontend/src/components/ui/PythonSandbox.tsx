@@ -1,12 +1,8 @@
-import React, { useState, useEffect } from "react";
-import Editor from "react-simple-code-editor";
-import Prism from "prismjs";
-import "prismjs/components/prism-python";
-import "prismjs/themes/prism-tomorrow.css"; // Dark theme
+import React, { useState } from "react";
 import { Play, RotateCcw, CheckCircle2, XCircle } from "lucide-react";
 import { usePythonSandbox } from "../../hooks/usePythonSandbox";
 import { PythonExercise } from "../../lib/lessons";
-import { DiffViewer } from "./DiffViewer";
+import { CodeEditor } from "./CodeEditor";
 
 interface PythonSandboxProps {
   exercise: PythonExercise;
@@ -21,30 +17,21 @@ export function PythonSandbox({ exercise, onSuccess }: PythonSandboxProps) {
   const [outputMismatch, setOutputMismatch] = useState(false);
   const { runPythonCode, isExecuting, isReady } = usePythonSandbox();
 
-  // Reset if exercise changes
-  useEffect(() => {
-    setCode(exercise.starterCode);
-    setOutput("");
-    setError(null);
-    setIsSuccess(false);
-    setOutputMismatch(false);
-  }, [exercise]);
-
   const handleRun = async () => {
     if (isExecuting || !isReady) return;
 
     // We append the hidden test code to the user's code
-    const fullCode = `${code}\n\n${exercise.testCode || ""}`;
-    
+    const fullCode = `${code}\n\n${exercise.testCode}`;
+
     setOutput("Executing...\n");
     setError(null);
     setIsSuccess(false);
     setOutputMismatch(false);
 
     const result = await runPythonCode(fullCode);
-    
+
     setOutput(result.output);
-    
+
     if (result.error) {
       setError(result.error);
     } else {
@@ -87,7 +74,7 @@ export function PythonSandbox({ exercise, onSuccess }: PythonSandboxProps) {
             disabled={isExecuting || !isReady}
             className="flex items-center gap-2 px-4 py-1.5 text-sm font-bold border-2 border-black dark:border-[#2e2924] bg-accent text-white rounded-lg hover:brightness-110 disabled:opacity-50 disabled:cursor-not-allowed transition-all"
           >
-            <Play className="w-4 h-4" /> 
+            <Play className="w-4 h-4" />
             {isExecuting ? "Running..." : "Run"}
           </button>
         </div>
@@ -101,32 +88,25 @@ export function PythonSandbox({ exercise, onSuccess }: PythonSandboxProps) {
       )}
 
       {/* Editor */}
-      <div className="p-4 font-mono text-sm bg-white dark:bg-[#151411]">
-        <Editor
-          value={code}
-          onValueChange={(code) => setCode(code)}
-          highlight={(code) => Prism.highlight(code, Prism.languages.python, "python")}
-          padding={10}
-          style={{
-            fontFamily: '"Fira Code", "JetBrains Mono", monospace',
-            fontSize: 14,
-            minHeight: "200px",
-            backgroundColor: "transparent",
-            outline: "none"
-          }}
-          textareaClassName="focus:outline-none"
+      <div className="p-4">
+        <CodeEditor
+          code={code}
+          onChange={(code) => setCode(code)}
+          language="python"
         />
       </div>
 
       {/* Output Console */}
       <div className="p-4 border-t-4 border-black dark:border-[#2e2924] bg-[#1e1e1e] text-white min-h-[120px] max-h-[300px] overflow-y-auto font-mono text-sm">
-        <div className="text-gray-400 mb-2 text-xs uppercase font-bold tracking-wider">Console Output</div>
+        <div className="text-gray-400 mb-2 text-xs uppercase font-bold tracking-wider">
+          Console Output
+        </div>
         {output ? (
           <pre className="whitespace-pre-wrap">{output}</pre>
         ) : (
           <div className="text-gray-500 italic">No output...</div>
         )}
-        
+
         {error && (
           <div className="mt-4 pt-4 border-t border-red-900/50">
             <div className="flex items-center gap-2 text-red-400 font-bold mb-2">
@@ -140,11 +120,12 @@ export function PythonSandbox({ exercise, onSuccess }: PythonSandboxProps) {
             )}
           </div>
         )}
-        
+
         {isSuccess && (
           <div className="mt-4 pt-4 border-t border-green-900/50">
             <div className="flex items-center gap-2 text-green-400 font-bold">
-              <CheckCircle2 className="w-5 h-5" /> All tests passed! You earned points.
+              <CheckCircle2 className="w-5 h-5" /> All tests passed! You earned
+              points.
             </div>
           </div>
         )}
