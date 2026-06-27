@@ -1,6 +1,13 @@
 #!/bin/bash
-echo "Creating 50 issues..."
-jq -c '.[]' issues.json | while read i; do
+DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" && pwd )"
+echo "Creating 50 issues from $DIR/issues.json..."
+
+if [ ! -f "$DIR/issues.json" ]; then
+  echo "Error: $DIR/issues.json not found. Run 'python3 $DIR/generate_issues.py' first."
+  exit 1
+fi
+
+jq -c '.[]' "$DIR/issues.json" | while read i; do
   TITLE=$(echo $i | jq -r '.title')
   BODY=$(echo $i | jq -r '.body')
   LABEL=$(echo $i | jq -r '.label')

@@ -7,41 +7,64 @@ assignees: ''
 
 ---
 
-## Summary
+<!--
+  IMPORTANT: Bug reports that do not include steps to reproduce, environment information,
+  and proof/evidence of the issue (such as logs or screenshots) will be closed.
+-->
 
-Describe the bug in one or two sentences.
+## 🐞 Bug Description
+<!-- A clear and concise description of what the bug is. -->
 
-## Steps To Reproduce
 
-1. 
-2. 
-3. 
+## 🚀 Steps to Reproduce
+<!-- 
+  Provide exact steps to reproduce the behavior. 
+  Issues that cannot be reproduced by maintainers will be marked as 'can't reproduce' or closed.
+-->
+1. Go to '...'
+2. Click on '...'
+3. Scroll down to '...'
+4. See error
 
-## Expected Behavior
+## 🎯 Expected Behavior
+<!-- A clear and concise description of what you expected to happen. -->
 
-What should have happened?
 
-## Actual Behavior
+## ⚠️ Actual Behavior
+<!-- A clear and concise description of what actually happened. -->
 
-What happened instead?
 
-## Scope
+## 📂 Location / Code Reference
+<!-- 
+  If you have identified the location of the bug:
+  Include the exact file path and line number range.
+  Example: `backend/challenges/views.py#L34-L40`
+-->
 
-- [ ] Frontend
-- [ ] Backend API
-- [ ] Sandbox / verifier
-- [ ] Documentation
 
-## Environment
+## 💻 Environment Details
+<!-- Please provide details about your configuration. -->
+- **OS**: [e.g. macOS, Windows, Linux]
+- **Browser (if applicable)**: [e.g. Chrome, Firefox, Safari]
+- **Node.js/Python version**: [e.g. Node 20, Python 3.9]
+- **API/Frontend Commit Hash (optional)**: 
 
-- OS:
-- Browser:
-- API/Frontend commit (optional):
+## 📸 Evidence & Logs (MANDATORY)
+<!-- 
+  You MUST provide proof of the bug. 
+  - Attach screenshots, GIFs, or video recordings showing the issue.
+  - Paste any relevant stack traces, console logs, or network tab requests below.
+-->
 
-## Evidence
+<details>
+<summary><b>Screenshots / Recordings</b></summary>
+<!-- Paste visual evidence here -->
+</details>
 
-Logs, screenshots, or terminal output.
+<details>
+<summary><b>Error Logs / Stack Traces</b></summary>
 
-## Suggested Fix (Optional)
-
-If you know where the issue might be, add file paths or a short proposal.
+```text
+# Paste error output, stack trace, or terminal logs here
+```
+</details>

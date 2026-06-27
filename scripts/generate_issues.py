@@ -1,4 +1,5 @@
 import json
+import os
 import random
 
 issues = [
@@ -61,6 +62,11 @@ issues = [
     {"title": "Add feature flags system", "body": "We need a simple mechanism (database table + context processor) to toggle features on/off without deploying.", "label": "medium", "type": "feature"}
 ]
 
-with open('issues.json', 'w') as f:
+# Write to scripts/issues.json dynamically
+script_dir = os.path.dirname(os.path.abspath(__file__))
+output_path = os.path.join(script_dir, 'issues.json')
+
+with open(output_path, 'w') as f:
     json.dump(issues, f, indent=2)
-print(f"Generated {len(issues)} issues.")
+
+print(f"Generated {len(issues)} issues at {output_path}")
