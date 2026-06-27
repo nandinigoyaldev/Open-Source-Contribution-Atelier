@@ -1,6 +1,7 @@
 from apps.dashboard.models import Issue, PullRequest
 from apps.progress.models import LessonProgress, ExerciseAttempt
 from apps.progress.badge_evaluator import BadgeEvaluator
+from apps.progress.streak_engine import StreakEngine
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 from django.contrib.auth.models import User
@@ -8,6 +9,7 @@ from django.core.cache import cache
 from django.db.models import Sum
 from django.db.models.signals import post_delete, post_save, pre_save
 from django.dispatch import receiver
+from django.utils import timezone
 
 
 def clear_dashboard_caches(user_id=None):
@@ -77,6 +79,13 @@ def handle_progress_change(sender, instance, **kwargs):
 def handle_exercise_attempt_change(sender, instance, **kwargs):
     clear_dashboard_caches(user_id=instance.user.id)
     BadgeEvaluator.evaluate(instance.user)
+
+    # Record streak activity on a correct exercise attempt
+    if getattr(instance, "is_correct", False):
+        try:
+            StreakEngine.record_activity(instance.user, timezone.localdate())
+        except Exception:  # pragma: no cover
+            pass  # streak errors must never fail exercise grading
 
 
 def _broadcast_xp_update(user):

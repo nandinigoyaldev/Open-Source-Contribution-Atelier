@@ -5,7 +5,8 @@ from .views import (BadgeListView, BulkProgressUpdateView,
                     CommunityStatsView, ContributorTimelineView,
                     HelpRequestListCreateView, MentorHelpRequestListView,
                     MyCertificateView, MyProgressView, QuizAttemptView,
-                    RecommendationsView, CodeSubmissionView, PeerReviewView)
+                    RecommendationsView, CodeSubmissionView, PeerReviewView,
+                    StreakStatusView)
 
 urlpatterns = [
     path("badges/", BadgeListView.as_view(), name="badges"),
@@ -35,4 +36,5 @@ urlpatterns = [
     ),
     path("code-submissions/", CodeSubmissionView.as_view(), name="code-submissions"),
     path("code-submissions/<int:submission_id>/reviews/", PeerReviewView.as_view(), name="peer-reviews"),
+    path("streak/", StreakStatusView.as_view(), name="streak-status"),
 ]

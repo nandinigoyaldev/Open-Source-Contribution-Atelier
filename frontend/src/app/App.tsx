@@ -6,17 +6,20 @@ import { queryClient } from "../lib/queryClient";
 import { CommandPalette } from "../components/CommandPalette";
 import { ErrorBoundary } from "../components/ui/ErrorBoundary";
 import { CookieConsentBanner } from "../components/ui/CookieConsentBanner";
+import { NetworkStatusProvider } from "../context/NetworkStatusContext";
 
 export function App() {
   return (
     <ErrorBoundary>
       <QueryClientProvider client={queryClient}>
-        <BrowserRouter>
-          <AppRouter />
-          <ScrollToTop />
-          <CommandPalette />
-          <CookieConsentBanner />
-        </BrowserRouter>
+        <NetworkStatusProvider>
+          <BrowserRouter>
+            <AppRouter />
+            <ScrollToTop />
+            <CommandPalette />
+            <CookieConsentBanner />
+          </BrowserRouter>
+        </NetworkStatusProvider>
       </QueryClientProvider>
     </ErrorBoundary>
   );

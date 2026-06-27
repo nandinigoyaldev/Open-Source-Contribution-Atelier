@@ -19,8 +19,11 @@ import { useUserProgress } from "../hooks/useUserProgress";
 import { useBookmarks } from "../hooks/useBookmarks";
 import { useLessonNote } from "../hooks/useLessonNote";
 import { fetchApi } from "../lib/api";
-import { Lesson, fetchLessonsApi, fetchLessonContent } from "../lib/lessons";
+import { Lesson, fetchLessonsApi } from "../lib/lessons";
 import { RichTextEditor } from "../components/ui/RichTextEditor";
+import { useOfflineLesson } from "../hooks/useOfflineLesson";
+import { OfflineStatusBadge } from "../components/ui/OfflineStatusBadge";
+import { OfflineBanner } from "../components/ui/OfflineBanner";
 
 const MarkdownRenderer = React.lazy(() =>
   import("../components/ui/MarkdownRenderer").then((module) => ({
@@ -52,8 +55,23 @@ export function LessonPage() {
 
   const [lesson, setLesson] = useState<Lesson | undefined>(undefined);
   const [lessonsList, setLessonsList] = useState<Lesson[]>([]);
-  const [markdownContent, setMarkdownContent] = useState("");
   const [isLoading, setIsLoading] = useState(true);
+  const [isRefreshing, setIsRefreshing] = useState(false);
+
+  // Offline-first markdown content
+  const {
+    markdown: markdownContent,
+    source: contentSource,
+    isLoading: isContentLoading,
+    refresh: refreshContent,
+    isCached: isLessonCached,
+  } = useOfflineLesson(lesson);
+
+  const handleRefresh = () => {
+    setIsRefreshing(true);
+    refreshContent();
+    setTimeout(() => setIsRefreshing(false), 1500);
+  };
 
   // Curriculum modules list for sidebar
   const [modules, setModules] = useState<
@@ -163,7 +181,7 @@ export function LessonPage() {
       });
   }, [slug, navigate]);
 
-  // 2. Fetch markdown content and reset interactive state when lesson changes
+  // 2. Reset interactive state when lesson changes (content fetched offline-first via useOfflineLesson)
   useEffect(() => {
     if (!lesson) return;
 
@@ -177,14 +195,6 @@ export function LessonPage() {
     setCurrentQuizIndex(0);
     setSelectedOption(null);
     setQuizFeedback(null);
-
-    if (lesson.filePath) {
-      fetchLessonContent(lesson.filePath).then((content) => {
-        setMarkdownContent(content);
-      });
-    } else {
-      setMarkdownContent(`# ${lesson.title}\n\n${lesson.explanation}`);
-    }
   }, [lesson]);
 
   // 3. Scroll tracking for reading progress
@@ -457,24 +467,40 @@ export function LessonPage() {
                   {lesson.title}
                 </h1>
               </div>
-              {isCompleted && (
-                <div className="self-start sm:self-center bg-green-100 text-green-700 px-4 py-1.5 rounded-2xl text-xs font-black border-4 border-black shadow-card-sm">
-                  COMPLETED ✅
-                </div>
-              )}
-              <button
-                onClick={() => toggleBookmark.mutate({ slug: lesson.slug, isBookmarked: isBookmarked(lesson.slug) })}
-                disabled={toggleBookmark.isPending}
-                className="self-start sm:self-center ml-auto flex items-center justify-center p-2 rounded-xl border-4 border-black bg-surface-low hover:-translate-y-1 hover:shadow-card-sm transition-all"
-                title={isBookmarked(lesson.slug) ? "Remove from Read Later" : "Save for later"}
-              >
-                <Bookmark className={isBookmarked(lesson.slug) ? "fill-primary text-primary" : "text-black dark:text-[#f0ebe2]"} size={24} />
-              </button>
+              <div className="flex items-center gap-2 self-start sm:self-center">
+                {isCompleted && (
+                  <div className="bg-green-100 text-green-700 px-4 py-1.5 rounded-2xl text-xs font-black border-4 border-black shadow-card-sm">
+                    COMPLETED ✅
+                  </div>
+                )}
+                {/* Offline cache status badge */}
+                <OfflineStatusBadge
+                  source={contentSource}
+                  onRefresh={handleRefresh}
+                  isRefreshing={isRefreshing || isContentLoading}
+                />
+                <button
+                  onClick={() => toggleBookmark.mutate({ slug: lesson.slug, isBookmarked: isBookmarked(lesson.slug) })}
+                  disabled={toggleBookmark.isPending}
+                  className="ml-1 flex items-center justify-center p-2 rounded-xl border-4 border-black bg-surface-low hover:-translate-y-1 hover:shadow-card-sm transition-all"
+                  title={isBookmarked(lesson.slug) ? "Remove from Read Later" : "Save for later"}
+                >
+                  <Bookmark className={isBookmarked(lesson.slug) ? "fill-primary text-primary" : "text-black dark:text-[#f0ebe2]"} size={24} />
+                </button>
+              </div>
             </div>
 
             <p className="text-xl font-bold text-muted dark:text-[#c4bbae]">
               {lesson.description}
             </p>
+
+            {/* Offline banner — shown when offline or using cache */}
+            {(contentSource === "cache" || contentSource === "fallback") && (
+              <OfflineBanner
+                lessonTitle={lesson.title}
+                isCached={contentSource === "cache" && isLessonCached}
+              />
+            )}
 
             <hr className="border-2 border-black/10 dark:border-[#2e2924]/40" />
 

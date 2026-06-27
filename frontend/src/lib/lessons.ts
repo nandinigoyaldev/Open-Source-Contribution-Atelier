@@ -17,6 +17,7 @@ export interface PythonExercise {
   prompt: string;
   starterCode: string;
   testCode: string; // Hidden code appended after user code to run assertions
+  expectedOutput?: string; // Used for diff validation instead of assertions if provided
   hint?: string;
 }
 

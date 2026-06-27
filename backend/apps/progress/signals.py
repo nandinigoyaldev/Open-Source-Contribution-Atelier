@@ -4,8 +4,10 @@ from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 from django.db.models.signals import post_save
 from django.dispatch import receiver
+from django.utils import timezone
 
 from .models import LessonProgress
+from .streak_engine import StreakEngine
 
 logger = logging.getLogger(__name__)
 
@@ -46,6 +48,21 @@ def on_lesson_completed(sender, instance, created, **kwargs):
             pass
 
     channel_layer = get_channel_layer()
+
+    # -------------------------------------------------------------------
+    # Streak update — record today's activity and refresh the multiplier.
+    # Wrapped in its own try/except so a streak failure never breaks the
+    # primary lesson-completion flow.
+    # -------------------------------------------------------------------
+    try:
+        StreakEngine.record_activity(instance.user, timezone.localdate())
+    except Exception as streak_exc:  # pragma: no cover
+        logger.error(
+            "Failed to update streak for user %s on lesson completion: %s",
+            instance.user.username,
+            streak_exc,
+        )
+
     if channel_layer is None:
         logger.warning("No channel layer configured; skipping leaderboard broadcast.")
         return
@@ -76,3 +93,14 @@ def on_lesson_completed(sender, instance, created, **kwargs):
         )
     except Exception as exc:
         logger.error("Failed to push leaderboard update: %s", exc)
+
+
+@receiver(post_save, sender="progress.CodeSubmission")
+def on_code_submission_saved(sender, instance, created, **kwargs):
+    """
+    Trigger the asynchronous plagiarism analysis when a new CodeSubmission is created.
+    """
+    if created:
+        from apps.progress.tasks import analyze_submission_plagiarism
+        analyze_submission_plagiarism.delay(instance.id)
+        logger.info(f"Queued plagiarism analysis for submission {instance.id}")

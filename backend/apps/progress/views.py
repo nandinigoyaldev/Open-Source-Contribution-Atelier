@@ -21,6 +21,7 @@ from .serializers import (BadgeSerializer, BulkSyncSerializer,
                           LessonProgressCreateSerializer,
                           LessonProgressSerializer, QuizAttemptSerializer)
 from .throttles import HelpRequestRateThrottle
+from .streak_engine import StreakEngine
 
 
 @extend_schema(responses=BadgeSerializer(many=True))
@@ -49,7 +50,10 @@ class MyProgressView(APIView):
     def post(self, request):
         lesson_slug = request.data.get("lesson_slug")
         from apps.progress.models import XPMultiplierEvent
-        multiplier = XPMultiplierEvent.get_active_multiplier()
+        from .streak_engine import StreakEngine
+        event_multiplier = XPMultiplierEvent.get_active_multiplier()
+        streak_multiplier = StreakEngine.get_multiplier_for_user(request.user)
+        multiplier = round(event_multiplier * streak_multiplier, 2)
         base_score = request.data.get("score", 100)
         completed = request.data.get("completed", True)
 
@@ -110,7 +114,10 @@ class BulkSyncProgressView(APIView):
         synced = []
 
         from apps.progress.models import XPMultiplierEvent
-        multiplier = XPMultiplierEvent.get_active_multiplier()
+        from .streak_engine import StreakEngine
+        event_multiplier = XPMultiplierEvent.get_active_multiplier()
+        streak_multiplier = StreakEngine.get_multiplier_for_user(request.user)
+        multiplier = round(event_multiplier * streak_multiplier, 2)
 
         with transaction.atomic():
             for item in serializer.validated_data["lessons"]:
@@ -244,7 +251,10 @@ class BulkProgressUpdateView(APIView):
                 progress_to_update = []
 
                 from apps.progress.models import XPMultiplierEvent
-                multiplier = XPMultiplierEvent.get_active_multiplier()
+                from .streak_engine import StreakEngine
+                event_multiplier = XPMultiplierEvent.get_active_multiplier()
+                streak_multiplier = StreakEngine.get_multiplier_for_user(request.user)
+                multiplier = round(event_multiplier * streak_multiplier, 2)
 
                 for item in validated_data:
                     lesson = existing_lessons[item["lesson_slug"]]
@@ -749,3 +759,10 @@ class PeerReviewView(APIView):
                 submission.save(update_fields=["status"])
                 return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+class StreakStatusView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        from .streak_engine import StreakEngine
+        data = StreakEngine.get_streak_data(request.user)
+        return Response(data)
