@@ -8,6 +8,42 @@ export function SignupForm() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
+  const getPasswordStrength = (password: string) => {
+    let score = 0;
+
+    if (password.length >= 8) score++;
+    if (/[a-z]/.test(password)) score++;
+    if (/[A-Z]/.test(password)) score++;
+    if (/\d/.test(password)) score++;
+    if (/[^A-Za-z0-9]/.test(password)) score++;
+
+    if (password.length === 0) {
+      return { label: "", color: "", width: "0%" };
+    }
+
+    if (score <= 2) {
+      return {
+        label: "Weak",
+        color: "bg-red-500",
+        width: "33%",
+      };
+    }
+
+    if (score <= 4) {
+      return {
+        label: "Medium",
+        color: "bg-yellow-400",
+        width: "66%",
+      };
+    }
+
+    return {
+      label: "Strong",
+      color: "bg-green-500",
+      width: "100%",
+    };
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -28,6 +64,8 @@ export function SignupForm() {
       setLoading(false);
     }
   };
+
+  const strength = getPasswordStrength(password);
 
   return (
     <form className="space-y-6 pt-2" onSubmit={handleSubmit}>
@@ -82,6 +120,20 @@ export function SignupForm() {
           required
           disabled={loading}
         />
+        {password && (
+          <div className="mt-2">
+            <div className="w-full h-2 bg-gray-200 rounded-full">
+              <div
+                className={`h-2 rounded-full transition-all ${strength.color}`}
+                style={{ width: strength.width }}
+              />
+            </div>
+
+            <p className="mt-1 text-sm font-bold text-black">
+              Password Strength: {strength.label}
+            </p>
+          </div>
+        )}
       </div>
 
       <button

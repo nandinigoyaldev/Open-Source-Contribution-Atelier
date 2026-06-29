@@ -1,4 +1,4 @@
-import { queueProgressSync } from "./offlineQueue";
+import { enqueueOfflineAction } from "./offlineQueue";
 import toast from "react-hot-toast"; // <-- YEH HUMNE ADD KIYA HAI
 
 const API_BASE =
@@ -72,28 +72,44 @@ export async function fetchApi(endpoint: string, options: RequestOptions = {}) {
         }
     }
 
-    if (endpoint === "/progress/me/" && config.method === "POST") {
+    if (config.method === "POST") {
       const isOfflineOrNetworkError =
         !navigator.onLine || error instanceof TypeError;
       if (isOfflineOrNetworkError) {
         const bodyStr = config.body as string;
         try {
           const bodyObj = JSON.parse(bodyStr || "{}");
-          const lesson_slug = bodyObj.lesson_slug;
-          if (lesson_slug) {
-            console.log(
-              `[fetchApi] Offline/network error for ${lesson_slug}. Queuing for background sync.`,
-            );
-            await queueProgressSync({
-              lesson_slug,
-              score: bodyObj.score,
-              completed: bodyObj.completed,
-              headers: Object.fromEntries(headers.entries()),
-            });
+          const headersDict = Object.fromEntries(headers.entries());
+
+          if (endpoint === "/progress/me/") {
+            const lesson_slug = bodyObj.lesson_slug;
+            if (lesson_slug) {
+              console.log(`[fetchApi] Offline/network error for lesson ${lesson_slug}. Queuing for background sync.`);
+              await enqueueOfflineAction(endpoint, config.method, headersDict, bodyObj, "lesson", lesson_slug);
+              return {
+                lesson_slug,
+                completed: bodyObj.completed ?? true,
+                score: bodyObj.score ?? 100,
+                status: "queued",
+              };
+            }
+          } else if (endpoint === "/progress/quiz-attempts/") {
+            const question_id = bodyObj.question_id;
+            if (question_id) {
+              console.log(`[fetchApi] Offline/network error for quiz ${question_id}. Queuing for background sync.`);
+              await enqueueOfflineAction(endpoint, config.method, headersDict, bodyObj, "quiz", question_id);
+              return {
+                question_id,
+                is_correct: bodyObj.is_correct,
+                status: "queued",
+              };
+            }
+          } else if (endpoint === "/progress/code-submissions/") {
+            const temp_id = `sub-${Date.now()}`;
+            console.log(`[fetchApi] Offline/network error for code submission. Queuing for background sync.`);
+            await enqueueOfflineAction(endpoint, config.method, headersDict, bodyObj, "code_submission", temp_id);
             return {
-              lesson_slug,
-              completed: bodyObj.completed ?? true,
-              score: bodyObj.score ?? 100,
+              id: temp_id,
               status: "queued",
             };
           }

@@ -1,6 +1,6 @@
 import pytest
 
-from .verifiers import get_verifier, get_supported_languages
+from .verifiers import get_supported_languages, get_verifier
 from .verifiers.base import VerificationResult
 
 
