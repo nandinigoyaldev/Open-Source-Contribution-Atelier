@@ -26,7 +26,7 @@ export function SectionCard({
         </p>
       ) : null}
       {title ? (
-        <h2 className="mt-2 font-display text-2xl font-bold tracking-[-0.02em] text-text">
+        <h2 className="mt-2  text-2xl font-bold tracking-[-0.02em] text-text">
           {title}
         </h2>
       ) : null}

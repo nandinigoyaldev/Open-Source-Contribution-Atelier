@@ -9,16 +9,31 @@ import {
   BookOpen,
   CheckCircle2,
   Lock,
+  Bookmark,
 } from "lucide-react";
 
 import SkeletonLesson from "../components/ui/skeletons/SkeletonLesson";
 import { useUserProgress } from "../hooks/useUserProgress";
+import { useBookmarks } from "../hooks/useBookmarks";
 import { fetchApi } from "../lib/api";
 import { Lesson, fetchLessonsApi, fetchLessonContent } from "../lib/lessons";
-import { MarkdownRenderer } from "../components/ui/MarkdownRenderer";
-import { GitGraph } from "../components/ui/GitGraph";
+import { RichTextEditor } from "../components/ui/RichTextEditor";
 
-import { createInitialRepo, parseGitCommand, RepoState } from "../lib/gitSimulator";
+const MarkdownRenderer = React.lazy(() =>
+  import("../components/ui/MarkdownRenderer").then((module) => ({
+    default: module.MarkdownRenderer,
+  })),
+);
+import { GitGraph } from "../components/ui/GitGraph";
+import { NotePanel } from "../components/ui/NotePanel";
+import { PythonSandbox } from "../components/ui/PythonSandbox";
+import { TextToSpeechControls } from "../components/ui/TextToSpeechControls";
+
+import {
+  createInitialRepo,
+  parseGitCommand,
+  RepoState,
+} from "../lib/gitSimulator";
 
 function normalizeCommand(value: string) {
   return value.trim().replace(/\s+/g, " ").toLowerCase();
@@ -27,12 +42,14 @@ function normalizeCommand(value: string) {
 export function LessonPage() {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
-  const { syncProgress, isLessonCompleted, isLoading } = useUserProgress();
+  const { isLessonCompleted, syncProgress } = useUserProgress();
+  const { isBookmarked, toggleBookmark } = useBookmarks();
   const queryClient = useQueryClient();
 
   const [lesson, setLesson] = useState<Lesson | undefined>(undefined);
   const [lessonsList, setLessonsList] = useState<Lesson[]>([]);
   const [markdownContent, setMarkdownContent] = useState("");
+  const [isLoading, setIsLoading] = useState(true);
 
   // Curriculum modules list for sidebar
   const [modules, setModules] = useState<
@@ -85,6 +102,9 @@ export function LessonPage() {
   const [helpSuccessMessage, setHelpSuccessMessage] = useState("");
   const MAX_HELP_CHARS = 500;
 
+  // Note Panel
+  const [isNotePanelOpen, setIsNotePanelOpen] = useState(false);
+
   // Reading progress scroll ref
   const mainContentRef = useRef<HTMLDivElement>(null);
   const [scrollProgress, setScrollProgress] = useState(0);
@@ -111,6 +131,8 @@ export function LessonPage() {
 
   // 1. Fetch modules catalog & lessons
   useEffect(() => {
+    /* eslint-disable react-hooks/set-state-in-effect */
+    setIsLoading(true);
     fetch("/content/curriculum.json")
       .then((res) => res.json())
       .then((data) => {
@@ -132,18 +154,24 @@ export function LessonPage() {
       })
       .catch(() => {
         navigate("/dashboard", { replace: true });
+      })
+      .finally(() => {
+        setIsLoading(false);
       });
+    /* eslint-enable react-hooks/set-state-in-effect */
   }, [slug, navigate]);
 
   // 2. Fetch markdown content and reset interactive state when lesson changes
   useEffect(() => {
     if (!lesson) return;
 
+    /* eslint-disable react-hooks/set-state-in-effect */
     setFeedback("");
     setInput("");
     setShowHint(false);
     setTerminalOutput("");
     setRepoState(createInitialRepo());
+    /* eslint-enable react-hooks/set-state-in-effect */
 
     // Reset Quiz state
     setCurrentQuizIndex(0);
@@ -206,7 +234,7 @@ export function LessonPage() {
     }
 
     const expected = lesson.expected;
-    let isCorrect = false;
+    let isCorrect;
 
     if (typeof expected === "string") {
       isCorrect = normalizeCommand(input) === normalizeCommand(expected);
@@ -303,7 +331,7 @@ export function LessonPage() {
           onClick={() => setIsSidebarOpen((prev) => !prev)}
           aria-expanded={isSidebarOpen}
           aria-controls="course-sidebar"
-          className="flex items-center gap-2 font-black text-sm uppercase px-3 py-2 bg-surface-low border-2 border-black rounded-xl text-black"
+          className="flex items-center gap-2 font-black text-sm uppercase px-3 py-2 bg-surface-low border-2 border-black rounded-lg text-black"
         >
           {isSidebarOpen ? <X size={16} /> : <Menu size={16} />}
           {isSidebarOpen ? "Close Outline" : "Course Directory"}
@@ -373,7 +401,7 @@ export function LessonPage() {
                         key={les.slug}
                         to={`/lessons/${les.slug}`}
                         onClick={closeSidebar}
-                        className={`w-full flex items-center justify-between p-2.5 rounded-xl border-2 transition-all text-xs font-bold ${
+                        className={`w-full flex items-center justify-between p-2.5 rounded-lg border-2 transition-all text-xs font-bold ${
                           active
                             ? "bg-surface-low border-black shadow-card-sm text-text"
                             : "border-transparent hover:bg-surface-lowest hover:border-black/10 dark:text-[#c4bbae]"
@@ -434,6 +462,30 @@ export function LessonPage() {
                   COMPLETED ✅
                 </div>
               )}
+              <button
+                onClick={() =>
+                  toggleBookmark.mutate({
+                    slug: lesson.slug,
+                    isBookmarked: isBookmarked(lesson.slug),
+                  })
+                }
+                disabled={toggleBookmark.isPending}
+                className="self-start sm:self-center ml-auto flex items-center justify-center p-2 rounded-xl border-4 border-black bg-surface-low hover:-translate-y-1 hover:shadow-card-sm transition-all"
+                title={
+                  isBookmarked(lesson.slug)
+                    ? "Remove from Read Later"
+                    : "Save for later"
+                }
+              >
+                <Bookmark
+                  className={
+                    isBookmarked(lesson.slug)
+                      ? "fill-primary text-primary"
+                      : "text-black dark:text-[#f0ebe2]"
+                  }
+                  size={24}
+                />
+              </button>
             </div>
 
             <p className="text-xl font-bold text-muted dark:text-[#c4bbae]">
@@ -442,16 +494,37 @@ export function LessonPage() {
 
             <hr className="border-2 border-black/10 dark:border-[#2e2924]/40" />
 
+            <TextToSpeechControls content={markdownContent} />
+
             {/* Markdown rendering logic */}
             <article className="prose max-w-none">
-              <MarkdownRenderer content={markdownContent} />
+              <React.Suspense
+                fallback={
+                  <div className="w-full h-64 animate-pulse rounded-2xl border-4 border-black/20 bg-surface-low dark:border-[#2e2924]/50 dark:bg-[#151411]" />
+                }
+              >
+                <MarkdownRenderer content={markdownContent} />
+              </React.Suspense>
             </article>
 
             {/* Exercises & validation section */}
             <div className="pt-8 space-y-6">
-              {hasQuiz ? (
+              {lesson.pythonExercise ? (
+                <div className="mt-8">
+                  <PythonSandbox
+                    exercise={lesson.pythonExercise}
+                    onSuccess={() => {
+                      syncProgress({
+                        lesson_slug: lesson.slug,
+                        score: lesson.points || 20,
+                        completed: true,
+                      });
+                    }}
+                  />
+                </div>
+              ) : hasQuiz ? (
                 // QUIZ MODE RENDER
-                <div className="rounded-3xl border-4 border-black bg-white p-6 shadow-card dark:bg-[#1f1c18] dark:border-[#2e2924]">
+                <div className="rounded-2xl border-4 border-black bg-white p-6 shadow-card dark:bg-[#1f1c18] dark:border-[#2e2924]">
                   <div className="flex items-center justify-between mb-4">
                     <span className="font-mono text-xs text-primary uppercase tracking-widest font-black">
                       Knowledge Check: Question {currentQuizIndex + 1} of{" "}
@@ -499,29 +572,11 @@ export function LessonPage() {
                           <button
                             key={idx}
                             onClick={() => {
-                              if (quizFeedback !== null) return; // Already answered
+                              if (quizFeedback !== null) return; // Already submitted — lock selection
                               setSelectedOption(idx);
-                              // Immediately validate the answer
-                              const isCorrect = idx === currentQuiz.answer;
-                              setQuizFeedback(
-                                isCorrect ? "correct" : "incorrect",
-                              );
-                              if (isCorrect) {
-                                if (
-                                  currentQuizIndex ===
-                                  lesson.quizzes!.length - 1
-                                ) {
-                                  setFeedback("correct");
-                                  syncProgress({
-                                    lesson_slug: lesson.slug,
-                                    score: lesson.points || 15,
-                                    completed: true,
-                                  });
-                                }
-                              }
                             }}
                             disabled={quizFeedback !== null}
-                            className={`w-full text-left p-4 rounded-xl border-4 border-black font-bold text-sm transition-all flex items-center justify-between ${bgColor}`}
+                            className={`w-full text-left p-4 rounded-lg border-4 border-black font-bold text-sm transition-all flex items-center justify-between ${bgColor}`}
                           >
                             <span>{option}</span>
                             <div
@@ -539,7 +594,7 @@ export function LessonPage() {
                     <div
                       role="alert"
                       aria-live="assertive"
-                      className="mt-4 p-4 bg-green-50 text-green-800 border-4 border-green-600 rounded-xl font-bold text-sm"
+                      className="mt-4 p-4 bg-green-50 text-green-800 border-4 border-green-600 rounded-lg font-bold text-sm"
                     >
                       🎉 Correct!{" "}
                       {lesson.quizzes![currentQuizIndex].explanation}
@@ -550,7 +605,7 @@ export function LessonPage() {
                     <div
                       role="alert"
                       aria-live="assertive"
-                      className="mt-4 p-4 bg-red-50 text-red-800 border-4 border-red-600 rounded-xl font-bold text-sm"
+                      className="mt-4 p-4 bg-red-50 text-red-800 border-4 border-red-600 rounded-lg font-bold text-sm"
                     >
                       ❌ Not quite. Try reviewing the lesson text or options
                       again.
@@ -562,7 +617,7 @@ export function LessonPage() {
                       currentQuizIndex < lesson.quizzes!.length - 1 ? (
                         <button
                           onClick={handleNextQuizQuestion}
-                          className="px-5 py-2.5 bg-accent text-black font-black text-sm rounded-xl border-4 border-black shadow-card-sm hover:-translate-y-0.5 transition-all cursor-pointer"
+                          className="px-5 py-2.5 bg-accent text-black font-black text-sm rounded-lg border-4 border-black shadow-card-sm hover:-translate-y-0.5 transition-all cursor-pointer"
                         >
                           Next Question
                         </button>
@@ -575,7 +630,7 @@ export function LessonPage() {
                               completed: true,
                             });
                           }}
-                          className="px-6 py-2 bg-black text-white font-bold rounded-xl border-2 border-black shadow-brutal transition-transform active:translate-y-0.5"
+                          className="px-6 py-2 bg-black text-white font-bold rounded-lg border-2 border-black shadow-brutal transition-transform active:translate-y-0.5"
                         >
                           Finish Lesson
                         </button>
@@ -584,9 +639,9 @@ export function LessonPage() {
                       <button
                         onClick={handleQuizOptionCheck}
                         disabled={selectedOption === null}
-                        className="px-5 py-2.5 bg-primary text-black font-black text-sm rounded-xl border-4 border-black shadow-card-sm hover:-translate-y-0.5 disabled:opacity-50 transition-all cursor-pointer"
+                        className="px-5 py-2.5 bg-primary text-black font-black text-sm rounded-lg border-4 border-black shadow-card-sm hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-card-sm disabled:opacity-50 transition-all cursor-pointer"
                       >
-                        Check Answer
+                        Submit Answer
                       </button>
                     )}
                   </div>
@@ -594,14 +649,19 @@ export function LessonPage() {
               ) : hasConflict ? (
                 // CONFLICT SANDBOX MODE
                 <div className="mt-8">
-                  
                   {feedback === "correct" && (
-                    <div className="mt-6 text-green-700 font-bold bg-green-50 p-4 rounded-xl border-4 border-green-600 animate-bounce">
+                    <div
+                      role="status"
+                      className="mt-6 text-green-700 font-bold bg-green-50 p-4 rounded-lg border-4 border-green-600 animate-bounce"
+                    >
                       ✅ Correct! You successfully resolved the merge conflict.
                     </div>
                   )}
                   {feedback === "error" && (
-                    <div className="mt-6 text-red-700 font-bold bg-red-50 p-4 rounded-xl border-4 border-red-600">
+                    <div
+                      role="alert"
+                      className="mt-6 text-red-700 font-bold bg-red-50 p-4 rounded-lg border-4 border-red-600"
+                    >
                       ❌ The resolved output doesn't quite match what was
                       expected. Try reviewing your selections.
                     </div>
@@ -610,7 +670,7 @@ export function LessonPage() {
               ) : (
                 // TERMINAL INTERACTIVE COMMAND MODE
                 <div
-                  className={`rounded-3xl border-4 bg-surface-low p-6 shadow-card dark:bg-[#1f1c18] dark:border-[#2e2924]
+                  className={`rounded-2xl border-4 bg-surface-low p-6 shadow-card dark:bg-[#1f1c18] dark:border-[#2e2924]
                     ${
                       feedback === "error"
                         ? "border-red-600 shake-error"
@@ -634,8 +694,10 @@ export function LessonPage() {
                         $
                       </span>
                       <input
-                        className="flex-1 rounded-xl border-4 border-black bg-surface-lowest px-4 py-2.5 text-text font-bold outline-none placeholder:text-muted/40 dark:bg-[#151411] dark:border-[#2e2924]"
-                        placeholder={lesson.hint || "Type your git command here"}
+                        className="flex-1 min-w-0 rounded-lg border-4 border-black bg-surface-lowest px-4 py-2.5 text-text font-bold outline-none placeholder:text-muted/40 dark:bg-[#151411] dark:border-[#2e2924]"
+                        placeholder={
+                          lesson.hint || "Type your git command here"
+                        }
                         value={input}
                         onChange={(e) => setInput(e.target.value)}
                         onKeyDown={(e) => {
@@ -651,7 +713,7 @@ export function LessonPage() {
                       />
                       <button
                         type="submit"
-                        className="px-5 py-2.5 bg-primary text-black font-black text-sm rounded-xl border-4 border-black shadow-card-sm hover:-translate-y-0.5 disabled:opacity-50 transition-all cursor-pointer flex items-center justify-center gap-2 min-w-[72px]"
+                        className="px-5 py-2.5 bg-primary text-black font-black text-sm rounded-lg border-4 border-black shadow-card-sm hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-card-sm disabled:opacity-50 transition-all cursor-pointer flex items-center justify-center gap-2 min-w-[72px]"
                         disabled={
                           feedback === "correct" || !input.trim() || isExecuting
                         }
@@ -672,19 +734,25 @@ export function LessonPage() {
                     </div>
 
                     {terminalOutput && (
-                      <pre className="p-4 bg-[#151411] text-[#f0ebe2] font-mono text-xs rounded-xl border-4 border-black whitespace-pre-wrap overflow-x-auto shadow-inner">
+                      <pre className="p-4 bg-[#151411] text-[#f0ebe2] font-mono text-xs rounded-lg border-4 border-black whitespace-pre-wrap overflow-x-auto shadow-inner">
                         {terminalOutput}
                       </pre>
                     )}
 
                     {feedback === "correct" && (
-                      <div className="text-green-700 font-bold bg-green-50 p-4 rounded-xl border-4 border-green-600 animate-bounce">
+                      <div
+                        role="status"
+                        className="text-green-700 font-bold bg-green-50 p-4 rounded-lg border-4 border-green-600 animate-bounce"
+                      >
                         ✅ Correct! Progress synchronized to the Atelier server.
                       </div>
                     )}
 
                     {feedback === "error" && (
-                      <div className="text-red-700 font-bold bg-red-50 p-4 rounded-xl border-4 border-red-600">
+                      <div
+                        role="alert"
+                        className="text-red-700 font-bold bg-red-50 p-4 rounded-lg border-4 border-red-600"
+                      >
                         ❌ Not quite. Command output did not match sandbox
                         expectations.
                       </div>
@@ -699,7 +767,7 @@ export function LessonPage() {
                     </button>
 
                     {showHint && (
-                      <div className="p-4 bg-white rounded-xl border-4 border-black italic text-xs font-bold dark:bg-[#151411] dark:border-[#2e2924] shadow-card-sm">
+                      <div className="p-4 bg-white rounded-lg border-4 border-black italic text-xs font-bold dark:bg-[#151411] dark:border-[#2e2924] shadow-card-sm">
                         💡 {lesson.hint}
                       </div>
                     )}
@@ -709,23 +777,23 @@ export function LessonPage() {
             </div>
 
             {/* Course Navigation Footer */}
-            <div className="flex items-center justify-between pt-10 pb-12">
+            <div className="flex flex-col items-center gap-4 sm:flex-row sm:justify-between sm:gap-0 pt-10 pb-12">
               {previousLesson ? (
                 <Link
                   to={`/lessons/${previousLesson.slug}`}
-                  className="flex items-center gap-1 font-black text-sm uppercase px-4 py-2 bg-white border-4 border-black rounded-xl shadow-card-sm hover:-translate-y-0.5 transition-all"
+                  className="flex items-center gap-1 font-black text-sm uppercase px-4 py-2 bg-white border-4 border-black rounded-lg shadow-card-sm hover:-translate-y-0.5 transition-all"
                 >
                   <ChevronLeft size={16} />
                   Prev: {previousLesson.title}
                 </Link>
               ) : (
-                <div />
+                <div className="hidden sm:block" />
               )}
 
               {nextLesson ? (
                 <Link
                   to={`/lessons/${nextLesson.slug}`}
-                  className={`flex items-center gap-1 font-black text-sm uppercase px-4 py-2 border-4 border-black rounded-xl shadow-card-sm hover:-translate-y-0.5 transition-all ${
+                  className={`flex items-center gap-1 font-black text-sm uppercase px-4 py-2 border-4 border-black rounded-lg shadow-card-sm hover:-translate-y-0.5 transition-all ${
                     isCompleted
                       ? "bg-accent text-black"
                       : "bg-[#e2e8f0] text-black/50 border-black/35 cursor-not-allowed opacity-75"
@@ -749,7 +817,7 @@ export function LessonPage() {
               ) : (
                 <Link
                   to="/dashboard"
-                  className="flex items-center gap-1 font-black text-sm uppercase px-4 py-2 bg-green-500 text-white border-4 border-black rounded-xl shadow-card-sm hover:-translate-y-0.5 transition-all"
+                  className="flex items-center gap-1 font-black text-sm uppercase px-4 py-2 bg-green-500 text-white border-4 border-black rounded-lg shadow-card-sm hover:-translate-y-0.5 transition-all"
                 >
                   Graduate to Dashboard 🎓
                 </Link>
@@ -759,18 +827,32 @@ export function LessonPage() {
         </div>
 
         {/* Mentor Help Trigger Row */}
-        <div className="border-t-4 border-black p-4 bg-white dark:bg-[#151411] dark:border-[#2e2924] flex justify-end flex-shrink-0">
+        <div className="border-t-4 border-black p-4 bg-white dark:bg-[#151411] dark:border-[#2e2924] flex justify-end gap-4 flex-shrink-0">
+          <button
+            onClick={() => setIsNotePanelOpen(!isNotePanelOpen)}
+            className="px-4 py-2 bg-white text-text dark:bg-[#151411] dark:text-[#f0ebe2] font-black text-xs rounded-lg border-4 border-black shadow-card-sm hover:-translate-y-0.5 cursor-pointer"
+          >
+            {isNotePanelOpen ? "Close Notes 📝" : "Notes 📝"}
+          </button>
           <button
             onClick={() => {
               setIsHelpPanelOpen(true);
               setHelpSuccessMessage("");
             }}
-            className="px-4 py-2 bg-white text-text dark:bg-[#151411] dark:text-[#f0ebe2] font-black text-xs rounded-xl border-4 border-black shadow-card-sm hover:-translate-y-0.5 cursor-pointer"
+            className="px-4 py-2 bg-white text-text dark:bg-[#151411] dark:text-[#f0ebe2] font-black text-xs rounded-lg border-4 border-black shadow-card-sm hover:-translate-y-0.5 cursor-pointer"
           >
             Request Mentor Support 📬
           </button>
         </div>
       </div>
+
+      {/* Note Panel */}
+      {isNotePanelOpen && lesson && (
+        <NotePanel
+          lessonSlug={lesson.slug}
+          onClose={() => setIsNotePanelOpen(false)}
+        />
+      )}
 
       {/* Help support request Panel */}
       {isHelpPanelOpen && (
@@ -808,34 +890,37 @@ export function LessonPage() {
               >
                 Describe the conflict or checkout issue:
               </label>
-              <textarea
+              <RichTextEditor
                 id="help-message"
-                className="w-full rounded-xl border-4 border-black bg-white px-3 py-2 text-xs outline-none min-h-36 dark:bg-[#151411] dark:border-[#2e2924]"
+                className="w-full rounded-lg border-4 border-black bg-white px-3 py-2 text-xs outline-none min-h-36 dark:bg-[#151411] dark:border-[#2e2924]"
                 placeholder="Example: I'm stuck trying to stage feat/add-readme-badges, git status throws pathspec errors."
                 value={helpMessage}
-                onChange={(e) => setHelpMessage(e.target.value)}
+                onChange={setHelpMessage}
                 disabled={helpRequestMutation.isPending}
                 maxLength={MAX_HELP_CHARS}
               />
-              <p className={`text-xs font-black text-right ${helpMessage.length > MAX_HELP_CHARS ? "text-red-600" : "text-muted dark:text-[#c4bbae]"}`}>
-                {helpMessage.length} / {MAX_HELP_CHARS} characters
-              </p>
 
               {helpRequestMutation.isError && (
-                <div className="text-red-700 text-xs font-black bg-red-50 p-2 rounded-lg border-2 border-red-700">
+                <div
+                  role="alert"
+                  className="text-red-700 text-xs font-black bg-red-50 p-2 rounded-lg border-2 border-red-700"
+                >
                   Couldn&apos;t submit request. Re-run backend server checks.
                 </div>
               )}
 
               {helpSuccessMessage && (
-                <div className="text-green-700 text-xs font-black bg-green-50 p-2 rounded-lg border-2 border-green-700">
+                <div
+                  role="status"
+                  className="text-green-700 text-xs font-black bg-green-50 p-2 rounded-lg border-2 border-green-700"
+                >
                   {helpSuccessMessage}
                 </div>
               )}
 
               <button
                 type="submit"
-                className="w-full px-4 py-2 bg-primary text-black font-bold rounded-xl border-4 border-black shadow-gel hover:bg-[#E62814] disabled:opacity-60"
+                className="w-full px-4 py-2 bg-primary text-black font-bold rounded-lg border-4 border-black shadow-card hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-card-sm transition-all disabled:opacity-60"
                 disabled={!helpMessage.trim() || helpRequestMutation.isPending}
               >
                 {helpRequestMutation.isPending

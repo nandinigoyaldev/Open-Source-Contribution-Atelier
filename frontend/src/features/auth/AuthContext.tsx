@@ -1,5 +1,11 @@
 /* eslint-disable react-refresh/only-export-components */
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+} from "react";
 import { fetchApi } from "../../lib/api";
 
 type User = {
@@ -7,6 +13,12 @@ type User = {
   username: string;
   email: string;
   is_staff: boolean;
+  avatar_url?: string | null;
+  cover_image_url?: string | null;
+  timezone?: string;
+  twitter_url?: string;
+  linkedin_url?: string;
+  github_url?: string;
 };
 
 type AuthContextType = {
@@ -31,9 +43,19 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       return null;
     }
   }
+  function sanitizeStorageData(value: string): string {
+    if (!value) return value;
+    return value
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#x27;");
+  }
+
   function safeSetItem(key: string, value: string) {
     try {
-      localStorage.setItem(key, value);
+      localStorage.setItem(key, sanitizeStorageData(value));
     } catch {
       /* localStorage unavailable */
     }
@@ -52,13 +74,35 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     checkUser();
   };
 
-  const logout = () => {
+  const logout = async () => {
+    try {
+      if ("serviceWorker" in navigator && "PushManager" in window) {
+        const reg = await navigator.serviceWorker.ready;
+        const sub = await reg.pushManager.getSubscription();
+        if (sub) {
+          const endpoint = sub.endpoint;
+          await sub.unsubscribe();
+          try {
+            await fetchApi("/notifications/push/unsubscribe/", {
+              method: "POST",
+              requireAuth: true,
+              body: JSON.stringify({ endpoint }),
+            });
+          } catch (e) {
+            console.error("Failed to notify backend of push unsubscribe", e);
+          }
+        }
+      }
+    } catch (e) {
+      console.error("Error unsubscribing push on logout", e);
+    }
+
     safeRemoveItem("accessToken");
     safeRemoveItem("refreshToken");
     setUser(null);
   };
 
-  const checkUser = async () => {
+  const checkUser = useCallback(async () => {
     try {
       const token = safeGetItem("accessToken");
       if (!token) {
@@ -66,27 +110,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         return;
       }
 
-      // Some setups can temporarily fail right after login (network hiccup / token not yet accepted).
-      // Avoid logging the user out on the first failure.
       try {
         const data = await fetchApi("/auth/me/");
         setUser(data);
-        return;
       } catch {
-        const data = await fetchApi("/auth/me/");
-        setUser(data);
+        setUser(null);
       }
     } catch {
       setUser(null);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     checkUser();
-  }, []);
-
+  }, [checkUser]);
   return (
     <AuthContext.Provider
       value={{

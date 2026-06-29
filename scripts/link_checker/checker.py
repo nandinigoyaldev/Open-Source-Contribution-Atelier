@@ -88,10 +88,19 @@ async def check_url(session, url, file_path, semaphore):
 
 async def process_files(directory_or_files):
     files_to_check = []
+    base_dir = Path.cwd().resolve()
     
     # If a list of files is provided via args
     for item in directory_or_files:
-        path = Path(item)
+        path = Path(item).resolve()
+        
+        # Prevent path traversal outside the current working directory
+        try:
+            path.relative_to(base_dir)
+        except ValueError:
+            print(Fore.RED + f"Security Error: Path '{item}' is outside the allowed directory.")
+            continue
+
         if path.is_file() and path.suffix == '.md':
             files_to_check.append(path)
         elif path.is_dir():

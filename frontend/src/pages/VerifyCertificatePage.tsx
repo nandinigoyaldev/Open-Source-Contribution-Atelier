@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/set-state-in-effect */
 import React, { useEffect, useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { fetchApi } from "../lib/api";
@@ -30,6 +31,7 @@ export function VerifyCertificatePage() {
   const [searchHash, setSearchHash] = useState("");
 
   useEffect(() => {
+    /* eslint-disable react-hooks/set-state-in-effect */
     const verifyHash = async () => {
       setLoading(true);
       setError("");
@@ -64,10 +66,12 @@ export function VerifyCertificatePage() {
     if (hash) {
       verifyHash();
     } else {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setLoading(false);
       setError("");
       setData(null);
     }
+    /* eslint-enable react-hooks/set-state-in-effect */
   }, [hash]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
@@ -83,11 +87,23 @@ export function VerifyCertificatePage() {
   // 1. Loading State
   if (loading) {
     return (
-      <div className="min-h-screen bg-bg flex flex-col items-center justify-center p-6">
-        <div className="animate-pulse flex flex-col items-center gap-4">
-          <div className="h-16 w-16 bg-muted rounded-full animate-spin"></div>
-          <div className="h-6 w-48 bg-muted rounded-xl"></div>
-          <p className="text-black font-bold">Verifying Certificate...</p>
+      <div
+        data-testid="loading-skeleton"
+        className="min-h-screen bg-bg py-12 px-6 sm:px-12 animate-pulse"
+      >
+        <div className="w-full max-w-3xl mx-auto">
+          <div className="h-10 w-48 bg-muted rounded-lg mb-8"></div>
+
+          <div className="bg-white border-4 border-black rounded-2xl p-8 space-y-6">
+            <div className="h-8 w-64 bg-muted rounded-lg"></div>
+
+            <div className="h-24 w-full bg-muted rounded-2xl"></div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+              <div className="h-32 bg-muted rounded-2xl"></div>
+              <div className="h-32 bg-muted rounded-2xl"></div>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -100,7 +116,7 @@ export function VerifyCertificatePage() {
         <div className="w-full max-w-3xl mb-8 flex items-center justify-between no-print">
           <Link
             to="/"
-            className="group flex items-center gap-2 font-bold text-black border-4 border-black bg-white px-4 py-2 rounded-xl shadow-card-sm transition-all hover:-translate-y-1 hover:shadow-card active:translate-y-0 active:shadow-none"
+            className="group flex items-center gap-2 font-bold text-black border-4 border-black bg-white px-4 py-2 rounded-lg shadow-card-sm transition-all hover:-translate-y-1 hover:shadow-card active:translate-y-0 active:shadow-none"
           >
             <ArrowLeft
               className="h-5 w-5 transition-transform group-hover:-translate-x-1"
@@ -113,7 +129,7 @@ export function VerifyCertificatePage() {
           </div>
         </div>
 
-        <div className="w-full max-w-3xl bg-white border-4 border-black rounded-3xl p-8 sm:p-12 shadow-card relative overflow-hidden">
+        <div className="w-full max-w-3xl bg-white border-4 border-black rounded-2xl p-8 sm:p-12 shadow-card relative overflow-hidden">
           <div className="absolute top-0 right-0 p-8 text-7xl opacity-10 pointer-events-none select-none">
             🎓
           </div>
@@ -146,14 +162,17 @@ export function VerifyCertificatePage() {
                 </div>
                 <button
                   type="submit"
-                  className="flex items-center justify-center gap-2 px-6 py-4 bg-accent text-black font-black border-4 border-black rounded-2xl shadow-card-sm transition-all hover:-translate-y-1 hover:shadow-card active:translate-y-0 active:shadow-none whitespace-nowrap"
+                  className="flex items-center justify-center gap-2 px-6 py-4 bg-accent text-black font-black border-4 border-black rounded-lg shadow-card-sm transition-all hover:-translate-y-1 hover:shadow-card active:translate-y-0 active:shadow-none whitespace-nowrap"
                 >
                   <Search className="h-5 w-5" strokeWidth={3} />
                   Verify
                 </button>
               </div>
               {error && (
-                <div className="text-red-500 font-bold text-sm text-left px-2">
+                <div
+                  role="alert"
+                  className="text-red-500 font-bold text-sm text-left px-2"
+                >
                   ⚠️ {error}
                 </div>
               )}
@@ -170,7 +189,7 @@ export function VerifyCertificatePage() {
       <div className="w-full max-w-3xl mb-8 flex items-center justify-between">
         <Link
           to="/verify"
-          className="group flex items-center gap-2 font-bold text-black border-4 border-black bg-white px-4 py-2 rounded-xl shadow-card-sm transition-all hover:-translate-y-1 hover:shadow-card active:translate-y-0 active:shadow-none"
+          className="group flex items-center gap-2 font-bold text-black border-4 border-black bg-white px-4 py-2 rounded-lg shadow-card-sm transition-all hover:-translate-y-1 hover:shadow-card active:translate-y-0 active:shadow-none"
         >
           <ArrowLeft
             className="h-5 w-5 transition-transform group-hover:-translate-x-1"
@@ -183,7 +202,7 @@ export function VerifyCertificatePage() {
         </div>
       </div>
 
-      <div className="w-full max-w-3xl bg-white border-4 border-black rounded-3xl p-8 sm:p-12 shadow-card certificate-printable">
+      <div className="w-full max-w-3xl bg-white border-4 border-black rounded-2xl p-8 sm:p-12 shadow-card certificate-printable">
         {error && !data ? (
           /* Case 3a: Non-existent hash (404 Error) */
           <div className="flex flex-col items-center text-center space-y-6">
@@ -230,7 +249,7 @@ export function VerifyCertificatePage() {
             <div className="w-full space-y-6 opacity-60">
               {/* Learner Name */}
               <div className="bg-surface-low border-4 border-black rounded-2xl p-6 shadow-card-sm flex items-start gap-4">
-                <div className="bg-primary p-3 rounded-xl border-2 border-black">
+                <div className="bg-primary p-3 rounded-lg border-2 border-black">
                   <User className="h-6 w-6 text-black" strokeWidth={2.5} />
                 </div>
                 <div>
@@ -245,7 +264,7 @@ export function VerifyCertificatePage() {
 
               {/* Course Name */}
               <div className="bg-surface-low border-4 border-black rounded-2xl p-6 shadow-card-sm flex items-start gap-4">
-                <div className="bg-accent p-3 rounded-xl border-2 border-black">
+                <div className="bg-accent p-3 rounded-lg border-2 border-black">
                   <Award className="h-6 w-6 text-black" strokeWidth={2.5} />
                 </div>
                 <div>
@@ -261,7 +280,7 @@ export function VerifyCertificatePage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 {/* Date Issued */}
                 <div className="bg-surface-low border-4 border-black rounded-2xl p-6 shadow-card-sm flex items-start gap-4">
-                  <div className="bg-tertiary p-3 rounded-xl border-2 border-black">
+                  <div className="bg-tertiary p-3 rounded-lg border-2 border-black">
                     <Calendar
                       className="h-6 w-6 text-black"
                       strokeWidth={2.5}
@@ -283,7 +302,7 @@ export function VerifyCertificatePage() {
 
                 {/* Hash */}
                 <div className="bg-surface-low border-4 border-black rounded-2xl p-6 shadow-card-sm flex items-start gap-4">
-                  <div className="bg-yellow-300 p-3 rounded-xl border-2 border-black">
+                  <div className="bg-yellow-300 p-3 rounded-lg border-2 border-black">
                     <Hash className="h-6 w-6 text-black" strokeWidth={2.5} />
                   </div>
                   <div className="overflow-hidden">
@@ -320,7 +339,7 @@ export function VerifyCertificatePage() {
             <div className="w-full space-y-6">
               {/* Learner Name */}
               <div className="bg-surface-low border-4 border-black rounded-2xl p-6 shadow-card-sm flex items-start gap-4">
-                <div className="bg-primary p-3 rounded-xl border-2 border-black">
+                <div className="bg-primary p-3 rounded-lg border-2 border-black">
                   <User className="h-6 w-6 text-black" strokeWidth={2.5} />
                 </div>
                 <div>
@@ -335,7 +354,7 @@ export function VerifyCertificatePage() {
 
               {/* Course Name */}
               <div className="bg-surface-low border-4 border-black rounded-2xl p-6 shadow-card-sm flex items-start gap-4">
-                <div className="bg-accent p-3 rounded-xl border-2 border-black">
+                <div className="bg-accent p-3 rounded-lg border-2 border-black">
                   <Award className="h-6 w-6 text-black" strokeWidth={2.5} />
                 </div>
                 <div>
@@ -351,7 +370,7 @@ export function VerifyCertificatePage() {
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
                 {/* Date Issued */}
                 <div className="bg-surface-low border-4 border-black rounded-2xl p-6 shadow-card-sm flex items-start gap-4">
-                  <div className="bg-tertiary p-3 rounded-xl border-2 border-black">
+                  <div className="bg-tertiary p-3 rounded-lg border-2 border-black">
                     <Calendar
                       className="h-6 w-6 text-black"
                       strokeWidth={2.5}
@@ -373,7 +392,7 @@ export function VerifyCertificatePage() {
 
                 {/* Hash */}
                 <div className="bg-surface-low border-4 border-black rounded-2xl p-6 shadow-card-sm flex items-start gap-4">
-                  <div className="bg-yellow-300 p-3 rounded-xl border-2 border-black">
+                  <div className="bg-yellow-300 p-3 rounded-lg border-2 border-black">
                     <Hash className="h-6 w-6 text-black" strokeWidth={2.5} />
                   </div>
                   <div className="overflow-hidden">

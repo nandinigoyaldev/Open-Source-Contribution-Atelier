@@ -1,7 +1,7 @@
 import logging
 
-from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
+from channels.layers import get_channel_layer
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 
@@ -51,10 +51,12 @@ def on_lesson_completed(sender, instance, created, **kwargs):
         return
 
     try:
-        from django.db.models import Sum
         from apps.progress.models import LessonProgress as LP
+        from django.db.models import Sum
+
         total_xp = (
-            LP.objects.filter(user=instance.user).aggregate(total=Sum("score"))["total"] or 0
+            LP.objects.filter(user=instance.user).aggregate(total=Sum("score"))["total"]
+            or 0
         )
         async_to_sync(channel_layer.group_send)(
             "leaderboard",
@@ -74,3 +76,25 @@ def on_lesson_completed(sender, instance, created, **kwargs):
         )
     except Exception as exc:
         logger.error("Failed to push leaderboard update: %s", exc)
+
+    # Evaluate achievements on lesson completion
+    try:
+        from apps.progress.tasks import evaluate_achievements_task
+
+        evaluate_achievements_task.delay(instance.user.id)
+    except Exception as exc:
+        logger.error("Failed to enqueue achievement evaluation: %s", exc)
+
+
+from apps.progress.models import ExerciseAttempt
+
+
+@receiver(post_save, sender=ExerciseAttempt)
+def on_exercise_attempt(sender, instance, created, **kwargs):
+    if instance.is_correct:
+        try:
+            from apps.progress.tasks import evaluate_achievements_task
+
+            evaluate_achievements_task.delay(instance.user.id)
+        except Exception as exc:
+            logger.error("Failed to enqueue achievement evaluation: %s", exc)

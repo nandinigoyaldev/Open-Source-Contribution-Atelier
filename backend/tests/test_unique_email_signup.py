@@ -13,7 +13,6 @@ import pytest
 from django.contrib.auth.models import User
 from rest_framework.test import APIClient
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -72,7 +71,8 @@ class TestEmailUniquenessValidation:
         signup(client, "alice", "alice@example.com")
 
         response = signup(client, "bob", "alice@example.com")
-        assert "email" in response.data
+        assert "errors" in response.data
+        assert "email" in response.data["errors"]
 
     def test_error_message_mentions_already_exists(self):
         """The error message must clearly state the email is already taken."""
@@ -80,7 +80,7 @@ class TestEmailUniquenessValidation:
         signup(client, "alice", "alice@example.com")
 
         response = signup(client, "bob", "alice@example.com")
-        error_text = str(response.data["email"]).lower()
+        error_text = str(response.data["errors"]["email"]).lower()
         assert "already exists" in error_text
 
     def test_unique_username_different_email_still_succeeds(self):

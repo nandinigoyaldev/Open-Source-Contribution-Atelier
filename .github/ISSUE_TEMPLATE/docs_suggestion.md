@@ -7,22 +7,40 @@ assignees: []
 
 ---
 
-## Location
+> Please checkmark if you are contributing under SSoC 2026:
+- [ ] I am a SSoC26 contributor
 
-Which file(s) contain the issue? Include the full file path(s).
+<!--
+  IMPORTANT: Documentation issues must be specific. Broad or vague documentation suggestions 
+  without concrete text fixes or locations will be closed.
+-->
 
-## Current Content
+## 📍 Exact Location
+<!-- 
+  Provide the absolute path of the file and line number(s) where the update is needed.
+  Example: `docs/CONTENT_GUIDE.md#L45`
+-->
+- **File Path**: 
+- **Line Number(s)**: 
 
-What does the documentation currently say?
+## 📝 Current Content
+<!-- Quote the exact text or copy-paste the snippet that needs to be updated. -->
+```text
 
-## Suggested Edit
+```
 
-What should it say instead?
+## 🔄 Proposed Revision
+<!-- Provide the exact text that should replace the current content. -->
+```text
 
-## Reason
+```
 
-Why is this change needed? (e.g., typo, broken link, confusing phrasing, outdated instruction)
+## 💡 Rationale
+<!-- Explain why this change is necessary (e.g., grammatical error, broken link, outdated steps, API change). -->
 
-## Additional Context
 
-Any screenshots, references, or related issues.
+## 📸 Proof & Additional Context (MANDATORY)
+<!-- 
+  Attach a screenshot showing the rendered layout error, spelling highlight, or terminal error 
+  caused by the documentation mistake. 
+-->

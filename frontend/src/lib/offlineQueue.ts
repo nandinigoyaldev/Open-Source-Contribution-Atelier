@@ -84,9 +84,12 @@ export async function queueProgressSync(data: {
     try {
       const reg = await navigator.serviceWorker.ready;
       if ("sync" in reg) {
-        await (
-          reg as any
-        ).sync.register("sync-progress");
+        interface ServiceWorkerRegistrationWithSync extends ServiceWorkerRegistration {
+          sync: { register: (tag: string) => Promise<void> };
+        }
+        await (reg as ServiceWorkerRegistrationWithSync).sync.register(
+          "sync-progress",
+        );
         console.log(
           "[OfflineQueue] Registered background sync tag 'sync-progress'",
         );

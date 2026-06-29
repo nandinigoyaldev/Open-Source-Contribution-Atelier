@@ -7,5 +7,3 @@ class ProgressConfig(AppConfig):
 
     def ready(self):
         import apps.progress.signals  # noqa: F401
-
-

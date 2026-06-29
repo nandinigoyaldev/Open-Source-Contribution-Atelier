@@ -1,7 +1,11 @@
 import { useMemo } from "react";
 import { useAuth } from "../features/auth/AuthContext";
 import { useQuery } from "@tanstack/react-query";
-import { fetchLessonsApi, Lesson } from "../lib/lessons";
+import {
+  fetchLessonsApi,
+  Lesson,
+  buildModulesFromLessons,
+} from "../lib/lessons";
 import { useUserProgress } from "./useUserProgress";
 
 export interface CurriculumModule {
@@ -15,22 +19,23 @@ export function useEarnedBadges() {
   const { user } = useAuth();
   const { isLessonCompleted } = useUserProgress();
 
-  const { data: curriculumData = [], isLoading: isCurriculumLoading } = useQuery<CurriculumModule[]>({
-    queryKey: ["curriculum"],
-    queryFn: async () => {
-      const res = await fetch("/content/curriculum.json");
-      if (!res.ok) throw new Error("Failed to fetch curriculum");
-      const data = await res.json();
-      return data.modules || [];
-    },
-    enabled: !!user && !user.is_staff,
-  });
-
-  const { data: lessons = [], isLoading: isLessonsLoading } = useQuery<Lesson[]>({
+  const { data: lessons = [], isLoading: isLessonsLoading } = useQuery<
+    Lesson[]
+  >({
     queryKey: ["lessons"],
     queryFn: fetchLessonsApi,
     enabled: !!user && !user.is_staff,
   });
+
+  const curriculumData = useMemo(
+    () =>
+      buildModulesFromLessons(lessons) as {
+        id: string;
+        title: string;
+        lessons: { slug: string; title: string; difficulty?: string }[];
+      }[],
+    [lessons],
+  );
 
   const progressMetrics = useMemo(() => {
     if (!user || user.is_staff || !lessons.length || !curriculumData.length) {
@@ -39,7 +44,7 @@ export function useEarnedBadges() {
         totalLessonsCount: 0,
         completionPercentage: 0,
         activeLessonsQueue: [],
-        earnedBadges: []
+        earnedBadges: [],
       };
     }
 
@@ -50,8 +55,10 @@ export function useEarnedBadges() {
     const queue = lessons.filter((l) => !isLessonCompleted(l.slug)).slice(0, 3);
 
     const earned: string[] = [];
-    curriculumData.forEach((mod, index) => {
-      const allCompleted = mod.lessons.every((les) => isLessonCompleted(les.slug));
+    curriculumData.forEach((mod, index: number) => {
+      const allCompleted = mod.lessons.every((les) =>
+        isLessonCompleted(les.slug),
+      );
       if (allCompleted) {
         earned.push(`mod-${index + 1}`);
       }
@@ -66,7 +73,7 @@ export function useEarnedBadges() {
       totalLessonsCount: total,
       completionPercentage: percentage,
       activeLessonsQueue: queue,
-      earnedBadges: earned
+      earnedBadges: earned,
     };
   }, [lessons, curriculumData, isLessonCompleted, user]);
 
@@ -74,6 +81,6 @@ export function useEarnedBadges() {
     ...progressMetrics,
     lessons,
     curriculumData,
-    isLessonsLoading: isLessonsLoading || isCurriculumLoading
+    isLessonsLoading,
   };
 }

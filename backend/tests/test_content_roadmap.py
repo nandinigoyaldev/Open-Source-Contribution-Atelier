@@ -1,10 +1,11 @@
 import pytest
-from django.contrib.auth.models import User
-from rest_framework.test import APIClient
-from django.core.exceptions import ValidationError
-from apps.content.models import Lesson, Exercise
+from apps.content.models import Exercise, Lesson
 from apps.progress.models import LessonProgress
+from django.contrib.auth.models import User
 from django.core.cache import cache
+from django.core.exceptions import ValidationError
+from rest_framework.test import APIClient
+
 
 @pytest.fixture(autouse=True)
 def clear_cache_before_tests():
@@ -70,6 +71,7 @@ def test_roadmap_endpoint_includes_user_progress():
     assert response.data["track"][0]["slug"] == "branching-roadmap"
     assert response.data["track"][0]["completed"] is True
     assert response.data["track"][0]["score"] == 95
+
 
 @pytest.mark.django_db
 def test_estimated_minutes_below_range_raises_validation_error():

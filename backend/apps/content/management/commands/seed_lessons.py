@@ -1,9 +1,9 @@
+from apps.content.models import Exercise, Lesson
 from django.core.management.base import BaseCommand
 
-from apps.content.models import Exercise, Lesson
+from typing import Any, Dict, List
 
-
-LESSONS = [
+LESSONS: List[Dict[str, Any]] = [
     {
         "slug": "intro",
         "category": "basics",
@@ -111,7 +111,7 @@ LESSONS = [
             {
                 "title": "Commit with good message",
                 "prompt": "Create a commit with message Add contribution checklist.",
-                "expected_command": "git commit -m \"Add contribution checklist\"",
+                "expected_command": 'git commit -m "Add contribution checklist"',
                 "explanation": "Descriptive commits make review and rollback easier.",
                 "points": 10,
             }
@@ -292,6 +292,7 @@ class Command(BaseCommand):
     help = "Seed the database with example lessons and exercises. Safe to run multiple times."
 
     def handle(self, *args, **options):
+        previous_lesson = None
         for l in LESSONS:
             lesson_obj, _ = Lesson.objects.update_or_create(
                 slug=l["slug"],
@@ -308,20 +309,32 @@ class Command(BaseCommand):
                 },
             )
 
-            self.stdout.write(self.style.SUCCESS(f"Created/updated lesson: {lesson_obj.slug}"))
+            if previous_lesson:
+                lesson_obj.prerequisites.add(previous_lesson)
+            previous_lesson = lesson_obj
 
-            for ex in l.get("exercises", []):
-                ex_obj, _ = Exercise.objects.update_or_create(
-                    lesson=lesson_obj,
-                    title=ex["title"],
-                    defaults={
-                        "prompt": ex["prompt"],
-                        "expected_command": ex.get("expected_command", ""),
-                        "explanation": ex.get("explanation", ""),
-                        "points": ex.get("points", 10),
-                    },
-                )
+            self.stdout.write(
+                self.style.SUCCESS(f"Created/updated lesson: {lesson_obj.slug}")
+            )
 
-                self.stdout.write(self.style.SUCCESS(f"  Created/updated exercise: {ex_obj.title}"))
+            exercises = l.get("exercises", [])
+            if isinstance(exercises, list):
+                for ex in exercises:
+                    ex_obj, _ = Exercise.objects.update_or_create(
+                        lesson=lesson_obj,
+                        title=ex["title"],
+                        defaults={
+                            "prompt": ex["prompt"],
+                            "expected_command": ex.get("expected_command", ""),
+                            "explanation": ex.get("explanation", ""),
+                            "points": ex.get("points", 10),
+                        },
+                    )
+
+                    self.stdout.write(
+                        self.style.SUCCESS(
+                            f"  Created/updated exercise: {ex_obj.title}"
+                        )
+                    )
 
         self.stdout.write(self.style.SUCCESS("Seeding complete."))

@@ -3,7 +3,8 @@ import { AuthPageShell } from "../features/auth/AuthPageShell";
 import { fetchApi } from "../lib/api";
 import { useAuth } from "../features/auth/AuthContext";
 import { useGoogleLogin } from "@react-oauth/google";
-import { Github } from "lucide-react";
+import { GitBranch } from "lucide-react";
+import PasswordStrengthMeter from "../components/PasswordStrengthMeter";
 
 const githubAuthUrl =
   import.meta.env.VITE_GITHUB_OAUTH_URL ||
@@ -43,43 +44,6 @@ export function SignupPage() {
     },
   });
 
-  // ── PASSWORD STRENGTH HELPER ───────────────────────────────────────────────
-  // Scores the password 0–4 based on 4 criteria:
-  //   +1  length is at least 8 characters
-  //   +1  contains at least one uppercase letter (A-Z)
-  //   +1  contains at least one digit (0-9)
-  //   +1  contains at least one special character (!@#$ etc.)
-  // Returns the numeric score so the JSX below can derive bar color + label.
-  const getPasswordScore = (pwd: string): number =>
-    (pwd.length >= 8 ? 1 : 0) +
-    (/[A-Z]/.test(pwd) ? 1 : 0) +
-    (/[0-9]/.test(pwd) ? 1 : 0) +
-    (/[^A-Za-z0-9]/.test(pwd) ? 1 : 0);
-
-  // Maps a score to which of the 3 strength tiers we are in:
-  //   0-1  → index 0  (Weak)
-  //   2-3  → index 1  (Medium)
-  //   4    → index 2  (Strong)
-  const getStrengthIndex = (score: number): number =>
-    score <= 1 ? 0 : score <= 3 ? 1 : 2;
-
-  // One Tailwind color class per tier, applied to the filled bars.
-  // Matches the red / yellow / green traffic-light convention users expect.
-  const barColors = ["bg-red-500", "bg-yellow-400", "bg-green-500"] as const;
-
-  // Human-readable label shown below the bars.
-  const strengthLabels = [
-    "Weak password",
-    "Medium password",
-    "Strong password 💪",
-  ] as const;
-
-  // Text color for the label — keeps it consistent with the bar color.
-  const labelColors = [
-    "text-red-500",
-    "text-yellow-600",
-    "text-green-600",
-  ] as const;
   // ── END HELPER BLOCK ───────────────────────────────────────────────────────
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -105,7 +69,8 @@ export function SignupPage() {
     }
   };
 
-  const isFormValid = username.length > 0 && email.length > 0 && password.length > 0;
+  const isFormValid =
+    username.length > 0 && email.length > 0 && password.length > 0;
 
   return (
     <AuthPageShell
@@ -115,7 +80,10 @@ export function SignupPage() {
     >
       <form className="space-y-6 pt-2" onSubmit={handleSubmit}>
         {error && (
-          <div className="text-black font-bold text-sm bg-primary p-4 rounded-xl border-4 border-black shadow-card-sm">
+          <div
+            role="alert"
+            className="text-black font-bold text-sm bg-primary p-4 rounded-lg border-4 border-black shadow-card-sm"
+          >
             {error}
           </div>
         )}
@@ -126,7 +94,7 @@ export function SignupPage() {
           onClick={() => googleLoginHandler()}
           className="w-full bg-white border-4 border-black rounded-2xl p-4 flex items-center justify-center gap-3 font-bold hover:bg-surface-low transition-colors shadow-card-sm active:translate-y-1 active:shadow-none"
         >
-          <svg className="w-6 h-6" viewBox="0 0 24 24">
+          <svg className="w-6 h-6" viewBox="0 0 24 24" aria-hidden="true">
             <path
               fill="#4285F4"
               d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -150,11 +118,12 @@ export function SignupPage() {
         <button
           type="button"
           onClick={handleGithubSignIn}
-          className="group relative w-full overflow-hidden bg-black text-white border-4 border-black rounded-2xl p-4 flex items-center justify-center gap-3 font-black shadow-card-sm transition-all duration-300 hover:-translate-y-1 hover:bg-text hover:shadow-card-lg active:translate-y-1 active:shadow-none uppercase before:absolute before:inset-0 before:-translate-x-full before:bg-gradient-to-r before:from-transparent before:via-white/25 before:to-transparent before:transition-transform before:duration-500 hover:before:translate-x-full"
+          className="group relative w-full overflow-hidden bg-black text-white border-4 border-black rounded-lg p-4 flex items-center justify-center gap-3 font-black shadow-card-sm transition-all duration-300 hover:-translate-y-1 hover:bg-text hover:shadow-card-lg active:translate-y-1 active:shadow-none uppercase before:absolute before:inset-0 before:-translate-x-full before:bg-gradient-to-r before:from-transparent before:via-white/25 before:to-transparent before:transition-transform before:duration-500 hover:before:translate-x-full"
           aria-label="Sign up with GitHub"
         >
-          <Github
-            className="relative h-6 w-6 transition-transform duration-300 group-hover:rotate-[-8deg] group-hover:scale-110"
+          <GitBranch
+            className="mr-2 inline-block relative transition-transform duration-300 group-hover:rotate-[-8deg] group-hover:scale-110"
+            size={20}
             strokeWidth={2.75}
             aria-hidden="true"
           />
@@ -210,47 +179,7 @@ export function SignupPage() {
             required
           />
 
-          {/* ── PASSWORD STRENGTH INDICATOR ────────────────────────────────────
-              Only rendered once the user starts typing (password is non-empty).
-              Three segmented bars + a text label give instant visual feedback.
-          ──────────────────────────────────────────────────────────────────── */}
-          {password &&
-            (() => {
-              // Compute score and tier index once; reuse in bars + label below.
-              const score = getPasswordScore(password);
-              const tierIndex = getStrengthIndex(score);
-
-              return (
-                <div className="ml-1 mt-2">
-                  {/* Three segmented bars — one per tier (Weak / Medium / Strong).
-                    A bar is "filled" (colored) when its index ≤ the current tier.
-                    All bars share the same active color so the whole group reads
-                    as a single progress indicator, not three separate lights.     */}
-                  <div className="flex gap-1.5 mb-1">
-                    {(["Weak", "Medium", "Strong"] as const).map((_, i) => (
-                      <div
-                        key={i}
-                        className={[
-                          "h-2 flex-1 rounded-full border-2 border-black",
-                          "transition-all duration-300",
-                          // Fill bars up to and including the current tier index;
-                          // leave bars beyond the tier a neutral gray.
-                          i <= tierIndex ? barColors[tierIndex] : "bg-gray-200",
-                        ].join(" ")}
-                      />
-                    ))}
-                  </div>
-
-                  {/* Text label — matches the bar color so they feel connected. */}
-                  <p
-                    className={`text-xs font-bold ml-0.5 ${labelColors[tierIndex]}`}
-                  >
-                    {strengthLabels[tierIndex]}
-                  </p>
-                </div>
-              );
-            })()}
-          {/* ── END PASSWORD STRENGTH INDICATOR ────────────────────────────── */}
+          <PasswordStrengthMeter password={password} />
         </div>
 
         <button
@@ -269,7 +198,7 @@ export function SignupPage() {
         <p className="text-center text-sm font-bold text-black mt-6">
           Already stuck with us?{" "}
           <a
-            href="/login"
+            href="/"
             className="text-primary underline decoration-2 hover:text-black"
           >
             Log in here

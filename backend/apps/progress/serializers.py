@@ -1,6 +1,13 @@
 from rest_framework import serializers
 
-from .models import Badge, HelpRequest, LessonProgress, UserBadge, Certificate, QuizAttempt
+from .models import (
+    Badge,
+    Certificate,
+    HelpRequest,
+    LessonProgress,
+    QuizAttempt,
+    UserBadge,
+)
 
 
 class BadgeSerializer(serializers.ModelSerializer):
@@ -30,7 +37,16 @@ class LessonProgressSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = LessonProgress
-        fields = ["id", "user", "lesson", "lesson_slug", "completed", "score", "attempt_count", "updated_at"]
+        fields = [
+            "id",
+            "user",
+            "lesson",
+            "lesson_slug",
+            "completed",
+            "score",
+            "attempt_count",
+            "updated_at",
+        ]
 
 
 class HelpRequestSerializer(serializers.ModelSerializer):
@@ -50,28 +66,41 @@ class HelpRequestSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ["user", "status", "created_at", "updated_at"]
 
+
 class LessonProgressCreateSerializer(serializers.Serializer):
     lesson_slug = serializers.SlugField(help_text="Slug of the lesson")
     score = serializers.IntegerField(default=100, help_text="Numeric score")
-    completed = serializers.BooleanField(default=True, help_text="Whether the lesson is completed")
+    completed = serializers.BooleanField(
+        default=True, help_text="Whether the lesson is completed"
+    )
+
 
 class BulkLessonProgressSerializer(serializers.Serializer):
     lesson_slug = serializers.SlugField()
     score = serializers.IntegerField(default=100)
     completed = serializers.BooleanField(default=True)
 
+
 class BulkSyncSerializer(serializers.Serializer):
     lessons = BulkLessonProgressSerializer(many=True)
-    
+
+
 class CertificateVerificationSerializer(serializers.ModelSerializer):
     learner_name = serializers.SerializerMethodField()
 
     class Meta:
         model = Certificate
-        fields = ["verification_hash", "course_name", "issued_at", "learner_name", "is_active"]
+        fields = [
+            "verification_hash",
+            "course_name",
+            "issued_at",
+            "learner_name",
+            "is_active",
+        ]
 
     def get_learner_name(self, obj):
         return obj.user.get_full_name() or obj.user.username
+
 
 class QuizAttemptSerializer(serializers.ModelSerializer):
     class Meta:
@@ -88,3 +117,49 @@ class QuizAttemptSerializer(serializers.ModelSerializer):
             "created_at",
         ]
         read_only_fields = ["id", "user", "created_at"]
+
+
+from .models import CodeSubmission, PeerReview
+
+
+class CodeSubmissionSerializer(serializers.ModelSerializer):
+    username = serializers.ReadOnlyField(source="user.username")
+
+    class Meta:
+        model = CodeSubmission
+        fields = [
+            "id",
+            "user",
+            "username",
+            "title",
+            "code_snippet",
+            "description",
+            "status",
+            "created_at",
+        ]
+        read_only_fields = ["id", "user", "username", "status", "created_at"]
+
+
+class PeerReviewSerializer(serializers.ModelSerializer):
+    reviewer_username = serializers.ReadOnlyField(source="reviewer.username")
+
+    class Meta:
+        model = PeerReview
+        fields = [
+            "id",
+            "submission",
+            "reviewer",
+            "reviewer_username",
+            "feedback",
+            "rating",
+            "points_earned",
+            "created_at",
+        ]
+        read_only_fields = [
+            "id",
+            "submission",
+            "reviewer",
+            "reviewer_username",
+            "points_earned",
+            "created_at",
+        ]

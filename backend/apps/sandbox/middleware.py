@@ -1,10 +1,13 @@
 import json
 import logging
-from django.utils.deprecation import MiddlewareMixin
+
 from django.urls import reverse
+from django.utils.deprecation import MiddlewareMixin
+
 from .models import SandboxExecutionLog
 
 logger = logging.getLogger(__name__)
+
 
 class SandboxExecutionLogMiddleware(MiddlewareMixin):
     def _is_verify_request(self, request):
@@ -44,8 +47,12 @@ class SandboxExecutionLogMiddleware(MiddlewareMixin):
                     accepted = res_data.get("accepted", False)
                     feedback = res_data.get("feedback", "")
                     score_delta = res_data.get("score_delta", 0)
-                    
-                    user = request.user if hasattr(request, "user") and request.user.is_authenticated else None
+
+                    user = (
+                        request.user
+                        if hasattr(request, "user") and request.user.is_authenticated
+                        else None
+                    )
 
                     try:
                         SandboxExecutionLog.objects.create(

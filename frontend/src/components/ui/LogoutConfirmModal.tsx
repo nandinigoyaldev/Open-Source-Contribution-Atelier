@@ -1,5 +1,6 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
+import { useFocusTrap } from "../../hooks/useFocusTrap";
 
 type Props = {
   open: boolean;
@@ -16,6 +17,9 @@ export default function LogoutConfirmModal({
   onConfirm,
   onCancel,
 }: Props) {
+  const modalRef = useRef<HTMLDivElement>(null);
+  useFocusTrap(modalRef, open);
+
   useEffect(() => {
     if (!open) return;
     const onKey = (e: KeyboardEvent) => {
@@ -34,6 +38,7 @@ export default function LogoutConfirmModal({
       aria-hidden={!open}
     >
       <div
+        ref={modalRef}
         role="dialog"
         aria-modal="true"
         aria-labelledby="logout-modal-title"
@@ -47,7 +52,7 @@ export default function LogoutConfirmModal({
         <div className="flex gap-3 justify-end">
           <button
             type="button"
-            className="px-4 py-2 rounded-xl border-2 border-black text-sm font-bold bg-white hover:bg-gray-100 shadow-[3px_3px_0px_0px_#000] active:shadow-none active:translate-x-[3px] active:translate-y-[3px] transition-all"
+            className="px-4 py-2 rounded-lg border-2 border-black text-sm font-bold bg-white hover:bg-gray-100 shadow-[3px_3px_0px_0px_#000] active:shadow-none active:translate-x-[3px] active:translate-y-[3px] transition-all"
             onClick={onCancel}
             data-testid="cancel-button"
           >
@@ -56,7 +61,7 @@ export default function LogoutConfirmModal({
 
           <button
             type="button"
-            className="px-4 py-2 rounded-xl border-2 border-black text-sm font-black bg-[#ffb5e8] text-black shadow-[3px_3px_0px_0px_#000] active:shadow-none active:translate-x-[3px] active:translate-y-[3px] transition-all"
+            className="px-4 py-2 rounded-lg border-2 border-black text-sm font-black bg-[#ffb5e8] text-black shadow-[3px_3px_0px_0px_#000] active:shadow-none active:translate-x-[3px] active:translate-y-[3px] transition-all"
             onClick={onConfirm}
             data-testid="confirm-button"
           >

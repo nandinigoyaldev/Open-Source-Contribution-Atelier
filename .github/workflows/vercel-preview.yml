@@ -1,0 +1,37 @@
+name: Vercel Preview Deployment
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  deploy_preview:
+    name: Deploy PR Preview
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Deploy to Vercel Preview
+        uses: amondnet/vercel-action@v25
+        id: vercel_deploy
+        with:
+          vercel-token: ${{ secrets.VERCEL_TOKEN }}
+          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
+          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          vercel-args: '--prod=false' # Explicitly targets a preview environment, not production
+
+      - name: Comment Preview URL on PR
+        uses: actions/github-script@v7
+        if: success()
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: `🚀 **Vercel Preview Environment Deployed!**\n\n🔍 **Preview URL**: ${process.env.PREVIEW_URL}\n\n*Note: This preview environment will automatically update on subsequent commits to this PR.*`
+            })
+        env:
+          PREVIEW_URL: ${{ steps.vercel_deploy.outputs.preview-url }}

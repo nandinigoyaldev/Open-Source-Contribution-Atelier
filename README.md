@@ -1,155 +1,107 @@
-# Open Source Contribution Atelier
+<div align="center">
+  <img src="https://img.shields.io/badge/status-active-brightgreen?style=for-the-badge" alt="Status" />
+  <img src="https://img.shields.io/github/license/goyaljiiiiii/Open-Source-Contribution-Atelier?style=for-the-badge" alt="License" />
+  <img src="https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB" alt="React" />
+  <img src="https://img.shields.io/badge/Django-092E20?style=for-the-badge&logo=django&logoColor=white" alt="Django" />
+  <img src="https://img.shields.io/badge/Vercel-000000?style=for-the-badge&logo=vercel&logoColor=white" alt="Vercel" />
+</div>
 
-![Status](https://img.shields.io/badge/status-active-brightgreen?style=for-the-badge) ![License](https://img.shields.io/github/license/goyaljiiiiii/Open-Source-Contribution-Atelier?style=for-the-badge) ![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB) ![Django](https://img.shields.io/badge/Django-092E20?style=for-the-badge&logo=django&logoColor=white) ![TypeScript](https://img.shields.io/badge/TypeScript-007ACC?style=for-the-badge&logo=typescript&logoColor=white) ![Docker](https://img.shields.io/badge/Docker-2CA5E0?style=for-the-badge&logo=docker&logoColor=white) [![Live Demo](https://img.shields.io/badge/Live%20Demo-Visit-blue?style=for-the-badge)](https://contribution-atelier-frontend.onrender.com/)
+<br />
 
-Welcome to the **Open Source Contribution Atelier** — a complete Open Source Learning Platform designed to help a beginner confidently transition from *"I know nothing about Open Source"* to *"I can confidently contribute to real open source repositories."*
-
-The platform preserves a playful, neobrutalist developer console aesthetic while delivering a structured, gamified curriculum.
+<div align="center">
+  <h1>🚀 Open Source Contribution Atelier</h1>
+  <p><i>A complete Open Source Learning Platform designed to help beginners confidently transition from zero to real open-source contributions.</i></p>
+</div>
 
 ---
 
-## Technical Stack
+## ✨ Features
+
+- **Gamified Curriculum**: 8 core modules going from mindset basics to advanced conflict resolution.
+- **Interactive Quizzes**: Multiple-choice testing dashboards.
+- **Badges Cabinet**: Earn milestone rewards mapping directly to module progress.
+- **Printable Certificates**: Generates a gorgeous A4 neobrutalist certificate with verification hashes.
+- **Hall of Fame**: Cohort stats, active streak calendars, and GitHub contributor APIs recognition boards.
+- **Markdown-Driven Content**: Lessons are parsed dynamically. Adding content requires no code changes. See the [Content Guide](CONTENT_GUIDE.md).
+
+---
+
+## 🛠️ Technical Stack
 
 - **Frontend**: React 19, TypeScript, Vite, Tailwind CSS (Neobrutalist Theme), React Router 7, TanStack React Query
-- **Backend**: Django, Django REST Framework, Simple JWT, PostgreSQL, Redis (Caching)
-- **Deployment**: Configured for monorepo environments (e.g. Netlify for static frontend, Render/Docker for backend)
+- **Backend**: Django REST Framework, Simple JWT
+- **Deployment**: Configured as a monorepo for seamless **Vercel** deployment (Serverless Backend + Static Frontend).
 
 ---
 
-## Key Features
+## 🚀 Quick Start (Local Development)
 
-1. **Structured Learning Curriculum**: 8 core modules going from mindset basics to advanced conflict resolution.
-2. **Markdown-Driven Content**: Lessons and metadata are parsed dynamically. Adding content requires no code changes. See the [Content Guide](CONTENT_GUIDE.md).
-3. **Interactive Quizzes**: Theoretical modules feature multiple-choice checking dashboards.
-4. **Sandbox Terminal**: Practical Git lessons incorporate a mock-up sandbox terminal that validates inputs.
-5. **Gamification & Badges Cabinet**: Locked and unlocked milestone rewards mapping directly to module progress.
-6. **Printable Completion Certificates**: Generates a gorgeous A4 neobrutalist certificate with verification hashes once the curriculum hits 100%.
-7. **Hall of Fame & Leaderboard**: Cohort stats, active streak calendars, and GitHub contributor APIs recognition boards.
-8. **Onboarding Guide Tour**: Walkthrough sliders introduce the sandbox console to newcomers.
-
----
-
-## Learning Curriculum Overview
-
-- **Module 1: Introduction to Open Source**: Mindset, Why it matters, History, and Misconceptions.
-- **Module 2: Git Fundamentals**: Repos, Commits, Branching, Merging, and Remotes.
-- **Module 3: GitHub Fundamentals**: Forks, Pull Requests, Issues, Discussions, and Organizations.
-- **Module 4: Open Source Etiquette**: Respectful communication, Reading README & CONTRIBUTING files first, and Review processes.
-- **Module 5: First Contribution**: Interactive step-by-step mock PR setup drill.
-- **Module 6: Real Contribution Workflow**: Tracing Issue -> Assignment -> Develop -> PR -> Review -> Merge cycles.
-- **Module 7: Advanced Open Source**: Rebasing, Squashing, Conflict resolution, and CI/CD checks.
-- **Module 8: Finding Projects**: Discovering issues using filters, Hacktoberfest, and good first issues.
-
----
-
-## Directory Structure
-
-```text
-├── backend/            # Django REST API, views, tests, and caching logic
-├── frontend/           # React SPA frontend UI
-│   ├── public/         
-│   │   ├── content/    # Static Markdown files and curriculum.json metadata catalog
-│   │   └── _redirects  # Netlify single page application redirect configuration
-│   └── src/            # Components, pages, hooks, state
-├── netlify.toml        # Root Netlify configuration mapping monorepo builds
-└── CONTENT_GUIDE.md    # Playbook on how to write/add lessons, modules, and quizzes
-```
-
----
-
-## Quick Start
-
-### Docker Setup
-To boot both the Django backend and React frontend:
-```bash
-docker compose up --build
-```
-- Backend REST API: `http://localhost:8000/api/`
-- Frontend SPA: `http://localhost:5173/`
-
-### Manual Development Setup
-
-Follow these steps to run the client and server locally on your system.
-
-#### 1. Setup Environment Files
+### 1. Setup Environment
 ```bash
 cp backend/.env.example backend/.env
 cp frontend/.env.example frontend/.env
 ```
 
 > [!WARNING]
-> **Google OAuth login will not work without a valid `VITE_GOOGLE_CLIENT_ID`.**
-> If this variable is missing or incorrect in `frontend/.env`, the app will load but Google Sign-In will fail with an OAuth configuration error.
->
-> **How to set up your Google OAuth Client ID:**
->
-> 1. Go to [Google Cloud Console](https://console.cloud.google.com/) and sign in.
-> 2. Create a new project or select an existing one.
-> 3. In the left sidebar, go to **APIs & Services → OAuth consent screen**.
-> 4. Select **External** (recommended for local/dev setups).
-> 5. Fill in the required app details and add test users if needed.
-> 6. Continue through the setup screens until the configuration is complete.
-> 7. Next, go to **APIs & Services → Credentials** in the sidebar.
-> 8. Click **Create Credentials → OAuth Client ID**.
-> 9. Set the application type to **Web application**.
-> 10. Under **Authorised JavaScript origins**, add:
->     ```
->     http://localhost:5173
->     ```
-> 11. Under **Authorised redirect URIs**, add:
->     ```
->     http://localhost:5173
->     ```
-> 12. Click **Create** and copy the generated **Client ID**.
-> 13. Open `frontend/.env` and set:
->     ```
->     VITE_GOOGLE_CLIENT_ID=your-client-id-here
->     ```
->
-> ⚠️ Never commit your `.env` file — it is already covered by `.gitignore`.
+> **Google OAuth login requires a valid `VITE_GOOGLE_CLIENT_ID` in `frontend/.env`.**
+> Create credentials in the [Google Cloud Console](https://console.cloud.google.com/) with authorized redirect URIs set to `http://localhost:5173`.
 
-#### 2. Initialize Backend
-The Django backend supports **Python 3.9+** and defaults to a local SQLite database for effortless onboarding without needing PostgreSQL or Redis.
+> [!WARNING]
+> **GitHub OAuth login requires GitHub OAuth credentials.**
+> 1. Go to [GitHub OAuth Apps Settings](https://github.com/settings/developers)
+> 2. Click "OAuth Apps" → "New OAuth App"
+> 3. Fill in:
+>    - **Application name**: `Open Source Contribution Atelier`
+>    - **Homepage URL**: `http://localhost:8000`
+>    - **Authorization callback URL**: `http://localhost:8000/accounts/github/login/callback/`
+> 4. Copy `Client ID` and `Client Secret` to `backend/.env`:
+>    ```
+>    GITHUB_OAUTH_CLIENT_ID=your_client_id
+>    GITHUB_OAUTH_CLIENT_SECRET=your_client_secret
+>    ```
+
+### 2. Run the Backend (Django)
+Ensure you are using **Python 3.9+**.
 ```bash
 cd backend
 python3 -m venv .venv
 source .venv/bin/activate
-pip install --upgrade pip
 pip install -r requirements.txt
+
+# Setup the local SQLite database
 python manage.py migrate
 python manage.py seed_lessons
 python manage.py seed_dashboard
+
+# Start the server
 python manage.py runserver
 ```
-- Backend REST API: `http://localhost:8000/api/`
-- Interactive API Docs: `http://localhost:8000/api/docs/`
+- API: `http://localhost:8000/api/`
 
-#### 3. Run Frontend
-The frontend uses Vite and React. Ensure you are using **Node 20+**. We recommend using **NVM** to manage Node versions.
+### 3. Run the Frontend (React + Vite)
+Ensure you are using **Node 20+**.
 ```bash
 cd frontend
-# If using NVM, load it and switch to Node 20
-source ~/.nvm/nvm.sh && nvm use 20
 npm install
 npm run dev
 ```
-- Frontend SPA: `http://localhost:5173/`
+- SPA: `http://localhost:5173/`
 
 ---
 
-## 🧪 Testing
+## ☁️ Deployment (Vercel)
 
-Run tests locally to prevent regressions:
-- **Backend tests**: `cd backend && pytest`
-- **Frontend tests**: `cd frontend && npm run test`
+This project is fully configured to be deployed on **Vercel** as a monorepo.
+1. Import the repository into your Vercel dashboard.
+2. Vercel will automatically detect the configuration in `vercel.json` and deploy both the Vite frontend and the Django backend as a serverless API.
+3. Ensure you add all backend environment variables (from `backend/.env.example`) into your Vercel project settings.
 
 ---
 
-## 🧑‍💻 Contributing & Community Guides
+## 🧑‍💻 Contributing
 
 We welcome contributions of all levels suitable for **SSOC 2026** and long-term participation! Please review our guides:
-- **[CONTRIBUTING.md](CONTRIBUTING.md)**: Forking, branching guidelines, commit conventions, and review cycles.
-- **[SUPPORT.md](SUPPORT.md)**: How to get help, community channels, and asking questions.
-- **[CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md)**: Community participation guidelines.
-- **[SECURITY.md](SECURITY.md)**: Responsible vulnerability disclosure rules.
-- **[CONTENT_GUIDE.md](CONTENT_GUIDE.md)**: Write new modules, markdown lessons, or interactive quizzes without modifying code.
+- **[CONTRIBUTING.md](.github/CONTRIBUTING.md)**: Forking, branching guidelines, commit conventions, and review cycles.
+- **[SUPPORT.md](.github/SUPPORT.md)**: How to get help, community channels, and asking questions.
+- **[CODE_OF_CONDUCT.md](.github/CODE_OF_CONDUCT.md)**: Community participation guidelines.
+- **[SECURITY.md](.github/SECURITY.md)**: Responsible vulnerability disclosure rules.

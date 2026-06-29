@@ -1,5 +1,7 @@
 from django.contrib import admin
+
 from .models import SandboxExecutionLog
+
 
 @admin.register(SandboxExecutionLog)
 class SandboxExecutionLogAdmin(admin.ModelAdmin):

@@ -3,9 +3,9 @@ import { Link } from "react-router-dom";
 
 export default function VerifyNoticePage() {
   return (
-    <AuthPageShell 
-      title="Check your email." 
-      subtitle="We've sent a verification link to your inbox. You need to click it before you can join the club." 
+    <AuthPageShell
+      title="Check your email."
+      subtitle="We've sent a verification link to your inbox. You need to click it before you can join the club."
       mode="login"
     >
       <div className="text-center pt-4">
@@ -14,7 +14,7 @@ export default function VerifyNoticePage() {
         </p>
         <Link
           to="/signup"
-          className="inline-block w-full rounded-2xl border-4 border-black bg-primary px-5 py-4 font-black text-black shadow-card hover:bg-tertiary transition-colors"
+          className="inline-block w-full rounded-2xl border-4 border-black bg-primary px-5 py-4 font-black text-black shadow-card hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-card-sm transition-all"
         >
           Back to Signup
         </Link>

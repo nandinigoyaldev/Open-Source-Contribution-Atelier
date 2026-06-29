@@ -2,8 +2,8 @@
 
 import django.contrib.postgres.indexes
 import django.contrib.postgres.search
-from django.db import migrations, models
 import django.db.models.deletion
+from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
@@ -11,25 +11,48 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ('contenttypes', '0002_remove_content_type_name'),
+        ("contenttypes", "0002_remove_content_type_name"),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='SearchDocument',
+            name="SearchDocument",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('object_id', models.PositiveIntegerField()),
-                ('title', models.CharField(max_length=255)),
-                ('body_text', models.TextField()),
-                ('search_vector', django.contrib.postgres.search.SearchVectorField(blank=True, null=True)),
-                ('created_at', models.DateTimeField(auto_now_add=True)),
-                ('updated_at', models.DateTimeField(auto_now=True)),
-                ('content_type', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, to='contenttypes.contenttype')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("object_id", models.PositiveIntegerField()),
+                ("title", models.CharField(max_length=255)),
+                ("body_text", models.TextField()),
+                (
+                    "search_vector",
+                    django.contrib.postgres.search.SearchVectorField(
+                        blank=True, null=True
+                    ),
+                ),
+                ("created_at", models.DateTimeField(auto_now_add=True)),
+                ("updated_at", models.DateTimeField(auto_now=True)),
+                (
+                    "content_type",
+                    models.ForeignKey(
+                        on_delete=django.db.models.deletion.CASCADE,
+                        to="contenttypes.contenttype",
+                    ),
+                ),
             ],
             options={
-                'indexes': [django.contrib.postgres.indexes.GinIndex(fields=['search_vector'], name='search_vector_gin_idx')],
-                'unique_together': {('content_type', 'object_id')},
+                "indexes": [
+                    django.contrib.postgres.indexes.GinIndex(
+                        fields=["search_vector"], name="search_vector_gin_idx"
+                    )
+                ],
+                "unique_together": {("content_type", "object_id")},
             },
         ),
     ]

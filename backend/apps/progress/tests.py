@@ -1,14 +1,14 @@
 import uuid
 
+from apps.content.models import Lesson
+from django.contrib.auth.models import User
 from django.core.cache import cache
 from django.test import override_settings
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
-from django.contrib.auth.models import User
 
 from .models import Certificate, LessonProgress, QuizAttempt
-from apps.content.models import Lesson
 
 # ---------------------------------------------------------------------------
 # Shared helpers
@@ -50,6 +50,7 @@ def _clear_throttle_cache():
 # ---------------------------------------------------------------------------
 # CertificateVerificationView  (public – GET /api/progress/verify/<hash>/)
 # ---------------------------------------------------------------------------
+
 
 @override_settings(REST_FRAMEWORK=NO_THROTTLE_SETTINGS)
 class CertificateVerificationTests(APITestCase):
@@ -202,6 +203,7 @@ class CertificateVerificationTests(APITestCase):
 # MyCertificateView  (authenticated – GET /api/progress/certificate/)
 # ---------------------------------------------------------------------------
 
+
 @override_settings(REST_FRAMEWORK=NO_THROTTLE_SETTINGS)
 class MyCertificateTests(APITestCase):
     """Tests for the authenticated certificate generation/retrieval endpoint."""
@@ -314,7 +316,7 @@ class MyCertificateTests(APITestCase):
         """Subsequent calls return HTTP 200 (idempotent – already exists)."""
         self.client.force_authenticate(user=self.user)
         self._create_and_complete_lessons()
-        self.client.get(self.url)          # first – creates
+        self.client.get(self.url)  # first – creates
         response = self.client.get(self.url)  # second – retrieves
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
@@ -376,6 +378,7 @@ class MyCertificateTests(APITestCase):
 # RecommendationsView  (authenticated – GET /api/progress/recommendations/)
 # ---------------------------------------------------------------------------
 
+
 class RecommendationsTests(APITestCase):
     def setUp(self):
         self.user = User.objects.create_user(username="learner", password="password123")
@@ -401,13 +404,23 @@ class RecommendationsTests(APITestCase):
     def test_prioritizes_started_but_incomplete_categories(self):
         self.client.force_authenticate(user=self.user)
         # cat1: 1/3 completed = 33%
-        l1_1 = Lesson.objects.create(slug="c1-1", title="C1 L1", category="cat1", order=1)
-        l1_2 = Lesson.objects.create(slug="c1-2", title="C1 L2", category="cat1", order=2)
-        l1_3 = Lesson.objects.create(slug="c1-3", title="C1 L3", category="cat1", order=3)
+        l1_1 = Lesson.objects.create(
+            slug="c1-1", title="C1 L1", category="cat1", order=1
+        )
+        l1_2 = Lesson.objects.create(
+            slug="c1-2", title="C1 L2", category="cat1", order=2
+        )
+        l1_3 = Lesson.objects.create(
+            slug="c1-3", title="C1 L3", category="cat1", order=3
+        )
 
         # cat2: 1/2 completed = 50%
-        l2_1 = Lesson.objects.create(slug="c2-1", title="C2 L1", category="cat2", order=4)
-        l2_2 = Lesson.objects.create(slug="c2-2", title="C2 L2", category="cat2", order=5)
+        l2_1 = Lesson.objects.create(
+            slug="c2-1", title="C2 L1", category="cat2", order=4
+        )
+        l2_2 = Lesson.objects.create(
+            slug="c2-2", title="C2 L2", category="cat2", order=5
+        )
 
         LessonProgress.objects.create(user=self.user, lesson=l1_1, completed=True)
         LessonProgress.objects.create(user=self.user, lesson=l2_1, completed=True)
@@ -422,9 +435,13 @@ class RecommendationsTests(APITestCase):
     def test_ignores_fully_completed_categories(self):
         self.client.force_authenticate(user=self.user)
         # cat1: 1/1 completed = 100%
-        l1_1 = Lesson.objects.create(slug="c1-1", title="C1 L1", category="cat1", order=1)
+        l1_1 = Lesson.objects.create(
+            slug="c1-1", title="C1 L1", category="cat1", order=1
+        )
         # cat2: 0/1 completed = 0%
-        l2_1 = Lesson.objects.create(slug="c2-1", title="C2 L1", category="cat2", order=2)
+        l2_1 = Lesson.objects.create(
+            slug="c2-1", title="C2 L1", category="cat2", order=2
+        )
 
         LessonProgress.objects.create(user=self.user, lesson=l1_1, completed=True)
 
@@ -447,6 +464,7 @@ class RecommendationsTests(APITestCase):
 # QuizAttemptView  (authenticated – POST/GET /api/progress/quiz-attempts/)
 # ---------------------------------------------------------------------------
 
+
 class QuizAttemptTests(APITestCase):
     def setUp(self):
         self.user = User.objects.create_user(username="learner", password="password123")
@@ -464,7 +482,7 @@ class QuizAttemptTests(APITestCase):
             "selected_answer": "4",
             "correct_answer": "4",
             "is_correct": True,
-            "time_taken_seconds": 15
+            "time_taken_seconds": 15,
         }
         response = self.client.post(self.url, data)
         self.assertEqual(response.status_code, status.HTTP_201_CREATED)
@@ -492,12 +510,20 @@ class QuizAttemptTests(APITestCase):
     def test_get_quiz_attempts_list(self):
         self.client.force_authenticate(user=self.user)
         QuizAttempt.objects.create(
-            user=self.user, question_id="q1", question_text="q1",
-            selected_answer="a", correct_answer="a", is_correct=True
+            user=self.user,
+            question_id="q1",
+            question_text="q1",
+            selected_answer="a",
+            correct_answer="a",
+            is_correct=True,
         )
         QuizAttempt.objects.create(
-            user=self.user, question_id="q2", question_text="q2",
-            selected_answer="b", correct_answer="c", is_correct=False
+            user=self.user,
+            question_id="q2",
+            question_text="q2",
+            selected_answer="b",
+            correct_answer="c",
+            is_correct=False,
         )
 
         response = self.client.get(self.url)
@@ -511,12 +537,20 @@ class QuizAttemptTests(APITestCase):
     def test_get_quiz_attempts_filter_by_question_id(self):
         self.client.force_authenticate(user=self.user)
         QuizAttempt.objects.create(
-            user=self.user, question_id="q1", question_text="q1",
-            selected_answer="a", correct_answer="a", is_correct=True
+            user=self.user,
+            question_id="q1",
+            question_text="q1",
+            selected_answer="a",
+            correct_answer="a",
+            is_correct=True,
         )
         QuizAttempt.objects.create(
-            user=self.user, question_id="q2", question_text="q2",
-            selected_answer="b", correct_answer="c", is_correct=False
+            user=self.user,
+            question_id="q2",
+            question_text="q2",
+            selected_answer="b",
+            correct_answer="c",
+            is_correct=False,
         )
 
         response = self.client.get(f"{self.url}?question_id=q1")
@@ -525,3 +559,67 @@ class QuizAttemptTests(APITestCase):
         self.assertEqual(len(response.data["attempts"]), 1)
         self.assertEqual(response.data["attempts"][0]["question_id"], "q1")
 
+
+class PeerReviewTests(APITestCase):
+    def setUp(self):
+        self.user1 = User.objects.create_user(username="user1", password="password123")
+        self.user2 = User.objects.create_user(username="user2", password="password123")
+        self.code_submissions_url = reverse("code-submissions")
+
+    def test_submit_code(self):
+        self.client.force_authenticate(user=self.user1)
+        data = {
+            "title": "My solution",
+            "code_snippet": "print('hello')",
+            "description": "Please review",
+        }
+        response = self.client.post(self.code_submissions_url, data)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data["title"], "My solution")
+
+    def test_list_pending_submissions_excludes_own(self):
+        from .models import CodeSubmission
+
+        CodeSubmission.objects.create(
+            user=self.user1, title="user1 code", code_snippet="code"
+        )
+        CodeSubmission.objects.create(
+            user=self.user2, title="user2 code", code_snippet="code"
+        )
+
+        self.client.force_authenticate(user=self.user1)
+        response = self.client.get(self.code_submissions_url)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data[0]["username"], "user2")
+
+    def test_submit_review(self):
+        from .models import CodeSubmission
+
+        submission = CodeSubmission.objects.create(
+            user=self.user1, title="user1 code", code_snippet="code"
+        )
+
+        self.client.force_authenticate(user=self.user2)
+        url = reverse("peer-reviews", kwargs={"submission_id": submission.id})
+        data = {"feedback": "Looks good!", "rating": 5}
+        response = self.client.post(url, data)
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(response.data["points_earned"], 10)
+
+        submission.refresh_from_db()
+        self.assertEqual(submission.status, "reviewed")
+
+    def test_cannot_review_own_submission(self):
+        from .models import CodeSubmission
+
+        submission = CodeSubmission.objects.create(
+            user=self.user1, title="user1 code", code_snippet="code"
+        )
+
+        self.client.force_authenticate(user=self.user1)
+        url = reverse("peer-reviews", kwargs={"submission_id": submission.id})
+        data = {"feedback": "Looks good!", "rating": 5}
+        response = self.client.post(url, data)
+        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertIn("Cannot review your own", response.data["error"])

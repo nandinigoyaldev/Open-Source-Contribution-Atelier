@@ -1,8 +1,7 @@
 import pytest
-from django.contrib.auth.models import User
-
 from apps.content.models import Lesson
 from apps.progress.models import LessonProgress
+from django.contrib.auth.models import User
 
 
 @pytest.mark.django_db
@@ -44,7 +43,6 @@ class TestLessonProgressIndexes:
         with pytest.raises(IntegrityError):
             # completed differs intentionally — uniqueness is on (user, lesson) alone
             LessonProgress.objects.create(user=user, lesson=lesson, completed=True)
-
 
     def test_no_unique_together_on_meta(self):
         """Confirm the deprecated unique_together has been removed."""
