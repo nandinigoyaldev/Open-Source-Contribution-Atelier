@@ -68,17 +68,38 @@ import tempfile
 import json
 
 
-async def stream_python_execution(code: str, send_callback, timeout: int = 5):
+import asyncio
+import sys
+from .resource_manager import ResourceManagementEngine, SecurityViolation
+
+async def stream_python_execution(code: str, send_callback, user_id: str = "anonymous", timeout: int = ResourceManagementEngine.MAX_EXECUTION_TIME_SECONDS):
     """
-    Executes Python code in a subprocess and streams output asynchronously.
+    Executes Python code securely with resource limits in a subprocess and streams output asynchronously.
     """
-    await send_callback({"action": "execution_start"})
+    if not ResourceManagementEngine.acquire_execution_lock(user_id):
+        from asgiref.sync import sync_to_async
+        await sync_to_async(ResourceManagementEngine.log_violation)(user_id, code, "concurrency", "Exceeded concurrent executions limit.")
+        await send_callback({"action": "execution_error", "error": "Execution limit reached. Please wait for your previous code to finish."})
+        return
 
     try:
+        # 1. AST Static Security Analysis
+        try:
+            ResourceManagementEngine.analyze_ast(code)
+        except SecurityViolation as sv:
+            from asgiref.sync import sync_to_async
+            await sync_to_async(ResourceManagementEngine.log_violation)(user_id, code, "security", str(sv))
+            await send_callback({"action": "execution_error", "error": f"Security Violation: {sv}"})
+            return
+
+        await send_callback({"action": "execution_start"})
+
+        wrapper_code = ResourceManagementEngine.get_wrapper_script(code)
+        
         process = await asyncio.create_subprocess_exec(
             sys.executable,
             "-c",
-            code,
+            wrapper_code,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
@@ -107,10 +128,18 @@ async def stream_python_execution(code: str, send_callback, timeout: int = 5):
                 timeout=timeout,
             )
 
+            status = "Completed"
+            if process.returncode == 137:
+                status = "Memory Limit Exceeded"
+                from asgiref.sync import sync_to_async
+                await sync_to_async(ResourceManagementEngine.log_violation)(user_id, code, "memory", "Process returned 137")
+            elif process.returncode != 0:
+                status = "Failed"
+
             await send_callback(
                 {
                     "action": "execution_end",
-                    "status": "Completed" if process.returncode == 0 else "Failed",
+                    "status": status,
                     "returncode": process.returncode,
                 }
             )
@@ -119,12 +148,16 @@ async def stream_python_execution(code: str, send_callback, timeout: int = 5):
                 process.kill()
             except ProcessLookupError:
                 pass
+            from asgiref.sync import sync_to_async
+            await sync_to_async(ResourceManagementEngine.log_violation)(user_id, code, "timeout", "Execution exceeded time limit")
             await send_callback(
-                {"action": "execution_end", "status": "Timed Out", "returncode": -1}
+                {"action": "execution_end", "status": "Timed Out (CPU/Time Limit Exceeded)", "returncode": -1}
             )
 
     except Exception as e:
         await send_callback({"action": "execution_error", "error": str(e)})
+    finally:
+        ResourceManagementEngine.release_execution_lock(user_id)
 
 
 async def start_debug_session(code: str, breakpoints: list):

@@ -36,10 +36,16 @@ class SandboxConsumer(AsyncWebsocketConsumer):
                 code = text_data_json.get("code")
                 from .services import stream_python_execution
 
+                user_id = "anonymous"
+                if self.scope.get("user") and getattr(self.scope["user"], "is_authenticated", False):
+                    user_id = str(self.scope["user"].id)
+                else:
+                    user_id = self.channel_name
+
                 async def send_callback(message_data):
                     await self.send(text_data=json.dumps(message_data))
 
-                await stream_python_execution(code, send_callback)
+                await stream_python_execution(code, send_callback, user_id=user_id)
             
             elif action == "debug_start":
                 code = text_data_json.get("code")
@@ -95,7 +101,6 @@ class SandboxConsumer(AsyncWebsocketConsumer):
                     line = text_data_json.get("line")
                     self.debug_process.stdin.write(f"clear {line}\n".encode("utf-8"))
                     await self.debug_process.stdin.drain()
-                    
         except Exception:
             pass
 

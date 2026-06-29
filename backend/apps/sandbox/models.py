@@ -34,6 +34,33 @@ class SandboxExecutionLog(models.Model):
             f"[{'Accepted' if self.accepted else 'Rejected'}] {username}: {cmd_preview}"
         )
 
+class ExecutionViolationLog(models.Model):
+    class ViolationType(models.TextChoices):
+        MEMORY = "memory", "Memory Limit Exceeded"
+        TIMEOUT = "timeout", "Execution Timeout"
+        SECURITY = "security", "AST Security Violation"
+        CONCURRENCY = "concurrency", "Concurrency Limit Exceeded"
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="execution_violations"
+    )
+    user_identifier = models.CharField(max_length=255, help_text="Fallback for anonymous users (e.g., channel name)")
+    code_snippet = models.TextField()
+    violation_type = models.CharField(max_length=20, choices=ViolationType.choices)
+    details = models.TextField(blank=True)
+    timestamp = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-timestamp"]
+
+    def __str__(self):
+        return f"{self.violation_type} by {self.user_identifier or self.user} at {self.timestamp}"
+
+
 class CollabSession(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     created_at = models.DateTimeField(auto_now_add=True)
