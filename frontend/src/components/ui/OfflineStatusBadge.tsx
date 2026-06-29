@@ -4,7 +4,7 @@
  */
 import React from "react";
 import { Wifi, WifiOff, HardDrive, RefreshCw } from "lucide-react";
-import { useNetworkStatus } from "../../context/NetworkStatusContext";
+import { useNetworkStatus } from "../../context/useNetworkStatus";
 
 type ContentSource = "network" | "cache" | "fallback";
 

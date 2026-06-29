@@ -30,8 +30,15 @@ interface LearningPathwayProps {
   lessons: LessonNode[];
 }
 
+interface CustomNodeData {
+  title: string;
+  completed: boolean;
+  locked: boolean;
+  summary?: string;
+}
+
 // Custom Node Component to show locked/unlocked/completed state
-const CustomNode = ({ data }: { data: any }) => {
+const CustomNode = ({ data }: { data: CustomNodeData }) => {
   const { title, completed, locked } = data;
 
   const bgColor = completed
@@ -161,8 +168,8 @@ export const LearningPathway: React.FC<LearningPathwayProps> = ({
     return getLayoutedElements(nodes, edges);
   }, [lessons]);
 
-  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
-  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+  const [nodes, , onNodesChange] = useNodesState(initialNodes);
+  const [edges, , onEdgesChange] = useEdgesState(initialEdges);
 
   const onNodeClick = (event: React.MouseEvent, node: Node) => {
     if (!node.data.locked) {

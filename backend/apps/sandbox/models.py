@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.db import models
+import uuid
 
 
 class SandboxExecutionLog(models.Model):
@@ -32,3 +33,31 @@ class SandboxExecutionLog(models.Model):
         return (
             f"[{'Accepted' if self.accepted else 'Rejected'}] {username}: {cmd_preview}"
         )
+
+class CollabSession(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    is_active = models.BooleanField(default=True)
+    document_state = models.BinaryField(blank=True, null=True, help_text="Yjs binary document state")
+
+    def __str__(self):
+        return f"Session {self.id} (Active: {self.is_active})"
+
+
+class CollabSessionLog(models.Model):
+    session = models.ForeignKey(CollabSession, on_delete=models.CASCADE, related_name="logs")
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True
+    )
+    action = models.CharField(max_length=50, help_text="e.g., joined, left, modified")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        username = self.user.get_username() if self.user else "Anonymous"
+        return f"{username} {self.action} session {self.session_id} at {self.created_at}"

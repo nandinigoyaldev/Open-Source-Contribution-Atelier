@@ -66,6 +66,89 @@ class SoftDeleteManager(models.Manager):
         return SoftDeleteQuerySet(self.model, using=self._db).filter(is_deleted=False)
 
 
+class LessonThread(models.Model):
+    class DoesNotExist(ObjectDoesNotExist):
+        pass
+
+    objects = SoftDeleteManager()
+    all_objects = models.Manager()
+
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="lesson_threads"
+    )
+    lesson = models.ForeignKey(
+        "Lesson", on_delete=models.CASCADE, related_name="threads"
+    )
+    title = models.CharField(max_length=255)
+    content = models.TextField(help_text="Markdown body for the thread")
+    is_deleted = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(
+                fields=["lesson", "is_deleted"],
+                name="idx_lessonthread_lesson_is_deleted",
+            ),
+        ]
+
+    def delete(self, using=None, keep_parents=False, hard=False):
+        # Soft delete by default; restore by toggling `is_deleted`.
+        if hard:
+            return super().delete(using=using, keep_parents=keep_parents)  # type: ignore
+        self.is_deleted = True
+        self.save(update_fields=["is_deleted"])
+        return (1, {self._meta.label: 1})  # type: ignore
+
+    def restore(self):
+        self.is_deleted = False
+        self.save(update_fields=["is_deleted"])
+
+    def __str__(self):
+        return f"Thread by {self.user.username}"  # type: ignore
+
+
+class LessonComment(models.Model):
+    objects = SoftDeleteManager()
+    all_objects = models.Manager()
+
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="lesson_comments"
+    )
+    thread = models.ForeignKey(
+        "LessonThread", on_delete=models.CASCADE, related_name="comments"
+    )
+    content = models.TextField(help_text="Markdown body for the comment")
+    is_deleted = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["created_at"]
+        indexes = [
+            models.Index(
+                fields=["thread", "is_deleted"],
+                name="idx_lessoncomment_thread_is_deleted",
+            ),
+        ]
+
+    def delete(self, using=None, keep_parents=False, hard=False):
+        if hard:
+            return super().delete(using=using, keep_parents=keep_parents)  # type: ignore
+        self.is_deleted = True
+        self.save(update_fields=["is_deleted"])
+        return (1, {self._meta.label: 1})  # type: ignore
+
+    def restore(self):
+        self.is_deleted = False
+        self.save(update_fields=["is_deleted"])
+
+    def __str__(self):
+        return f"Comment by {self.user.username}"  # type: ignore
+
+
 class Comment(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="comments")
     lesson = models.ForeignKey(

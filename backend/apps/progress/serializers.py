@@ -73,12 +73,14 @@ class LessonProgressCreateSerializer(serializers.Serializer):
     completed = serializers.BooleanField(
         default=True, help_text="Whether the lesson is completed"
     )
+    client_timestamp = serializers.IntegerField(required=False, help_text="Client timestamp for conflict resolution")
 
 
 class BulkLessonProgressSerializer(serializers.Serializer):
     lesson_slug = serializers.SlugField()
     score = serializers.IntegerField(default=100)
     completed = serializers.BooleanField(default=True)
+    client_timestamp = serializers.IntegerField(required=False)
 
 
 class BulkSyncSerializer(serializers.Serializer):
@@ -103,6 +105,8 @@ class CertificateVerificationSerializer(serializers.ModelSerializer):
 
 
 class QuizAttemptSerializer(serializers.ModelSerializer):
+    client_timestamp = serializers.IntegerField(required=False, write_only=True)
+
     class Meta:
         model = QuizAttempt
         fields = [
@@ -124,6 +128,7 @@ from .models import CodeSubmission, PeerReview
 
 class CodeSubmissionSerializer(serializers.ModelSerializer):
     username = serializers.ReadOnlyField(source="user.username")
+    client_timestamp = serializers.IntegerField(required=False, write_only=True)
 
     class Meta:
         model = CodeSubmission

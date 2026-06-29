@@ -1,6 +1,6 @@
-import React from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { fetchApi } from '../../lib/api';
+import React from "react";
+import { useQuery } from "@tanstack/react-query";
+import { fetchApi } from "../../lib/api";
 
 interface Milestone {
   days: number;
@@ -18,10 +18,10 @@ interface StreakData {
 }
 
 export const StreakMultiplierWidget: React.FC = () => {
-  const { data, isLoading, error } = useQuery<StreakData>(
-    ['streak-status'],
-    () => fetchApi('/progress/streak/')
-  );
+  const { data, isLoading, error } = useQuery<StreakData>({
+    queryKey: ["streak-status"],
+    queryFn: () => fetchApi("/progress/streak/"),
+  });
 
   if (isLoading) {
     return (
@@ -80,7 +80,9 @@ export const StreakMultiplierWidget: React.FC = () => {
           />
         </svg>
         <div className="absolute inset-0 flex flex-col items-center justify-center">
-          <span className="text-2xl font-bold text-primary">{current_multiplier.toFixed(2)}×</span>
+          <span className="text-2xl font-bold text-primary">
+            {current_multiplier.toFixed(2)}×
+          </span>
           <span className="text-sm text-gray-600">Multiplier</span>
         </div>
       </div>

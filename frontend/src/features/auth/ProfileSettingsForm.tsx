@@ -174,11 +174,21 @@ export function ProfileSettingsForm() {
   const handleDownloadData = async () => {
     setDownloading(true);
     try {
-      const blob = await fetchApi("/auth/me/export/?export_format=csv", {
-        requireAuth: true,
-        responseType: "blob",
-      });
-      const url = window.URL.createObjectURL(blob as Blob);
+      const API_BASE =
+        import.meta.env.VITE_API_BASE_URL?.trim() ||
+        `${window.location.origin}/api`;
+      const token = localStorage.getItem("accessToken");
+      const response = await fetch(
+        `${API_BASE}/auth/me/export/?export_format=csv`,
+        {
+          headers: {
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+        },
+      );
+      if (!response.ok) throw new Error("Export failed");
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.style.display = "none";
       a.href = url;

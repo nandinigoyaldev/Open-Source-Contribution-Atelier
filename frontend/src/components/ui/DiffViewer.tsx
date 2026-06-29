@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import ReactDiffViewer, { DiffMethod } from "react-diff-viewer-continued";
 import { Columns, List, CheckCircle } from "lucide-react";
-import { useTheme } from "../../../hooks/useTheme";
+import { useTheme } from "../../hooks/useTheme";
 
 interface DiffViewerProps {
   expected: string;

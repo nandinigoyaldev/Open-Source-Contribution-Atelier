@@ -37,10 +37,14 @@ interface UseOfflineLessonResult {
 }
 
 const CACHE_MAX_AGE_MS =
-  Number((import.meta as { env?: Record<string, string> }).env?.VITE_LESSON_CACHE_MAX_AGE || 0) ||
-  7 * 24 * 60 * 60 * 1000; // 7 days default
+  Number(
+    (import.meta as { env?: Record<string, string> }).env
+      ?.VITE_LESSON_CACHE_MAX_AGE || 0,
+  ) || 7 * 24 * 60 * 60 * 1000; // 7 days default
 
-export function useOfflineLesson(lesson: Lesson | undefined): UseOfflineLessonResult {
+export function useOfflineLesson(
+  lesson: Lesson | undefined,
+): UseOfflineLessonResult {
   const { isOnline } = useNetworkStatus();
   const [markdown, setMarkdown] = useState("");
   const [source, setSource] = useState<ContentSource>("network");
@@ -58,7 +62,8 @@ export function useOfflineLesson(lesson: Lesson | undefined): UseOfflineLessonRe
     if (!lesson) return;
 
     let cancelled = false;
-    const slug = lesson.slug;
+    const l: Lesson = lesson; // narrowed to non-undefined for use inside async closure
+    const slug = l.slug;
     const now = Date.now();
 
     async function loadContent(forceNetwork: boolean) {
@@ -85,7 +90,7 @@ export function useOfflineLesson(lesson: Lesson | undefined): UseOfflineLessonRe
         if (!isOnline && !cached) {
           if (!cancelled) {
             setMarkdown(
-              `# ${lesson.title}\n\n> **You are offline** and this lesson has not been cached yet.\n> Connect to the internet to view this lesson for the first time.`
+              `# ${l.title}\n\n> **You are offline** and this lesson has not been cached yet.\n> Connect to the internet to view this lesson for the first time.`,
             );
             setSource("fallback");
           }
@@ -94,10 +99,10 @@ export function useOfflineLesson(lesson: Lesson | undefined): UseOfflineLessonRe
 
         // 4. Fetch from network
         let text: string;
-        if (lesson.filePath) {
-          text = await fetchLessonContent(lesson.filePath);
+        if (l.filePath) {
+          text = await fetchLessonContent(l.filePath);
         } else {
-          text = `# ${lesson.title}\n\n${lesson.explanation}`;
+          text = `# ${l.title}\n\n${l.explanation}`;
         }
 
         // 5. Store in IndexedDB for offline reuse
@@ -129,7 +134,7 @@ export function useOfflineLesson(lesson: Lesson | undefined): UseOfflineLessonRe
             setSource("cache");
           } else {
             setMarkdown(
-              `# Error loading lesson\n\nCould not load **${lesson.title}**. Please check your connection.`
+              `# Error loading lesson\n\nCould not load **${l.title}**. Please check your connection.`,
             );
             setSource("fallback");
           }

@@ -1,7 +1,11 @@
 import { useMemo } from "react";
 import { useAuth } from "../features/auth/AuthContext";
 import { useQuery } from "@tanstack/react-query";
-import { fetchLessonsApi, Lesson, buildModulesFromLessons } from "../lib/lessons";
+import {
+  fetchLessonsApi,
+  Lesson,
+  buildModulesFromLessons,
+} from "../lib/lessons";
 import { useUserProgress } from "./useUserProgress";
 
 export interface CurriculumModule {
@@ -23,7 +27,15 @@ export function useEarnedBadges() {
     enabled: !!user && !user.is_staff,
   });
 
-  const curriculumData = useMemo(() => buildModulesFromLessons(lessons) as any, [lessons]);
+  const curriculumData = useMemo(
+    () =>
+      buildModulesFromLessons(lessons) as {
+        id: string;
+        title: string;
+        lessons: { slug: string; title: string; difficulty?: string }[];
+      }[],
+    [lessons],
+  );
 
   const progressMetrics = useMemo(() => {
     if (!user || user.is_staff || !lessons.length || !curriculumData.length) {
@@ -43,7 +55,7 @@ export function useEarnedBadges() {
     const queue = lessons.filter((l) => !isLessonCompleted(l.slug)).slice(0, 3);
 
     const earned: string[] = [];
-    curriculumData.forEach((mod, index) => {
+    curriculumData.forEach((mod, index: number) => {
       const allCompleted = mod.lessons.every((les) =>
         isLessonCompleted(les.slug),
       );
