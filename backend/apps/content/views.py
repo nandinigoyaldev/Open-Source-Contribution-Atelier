@@ -275,3 +275,33 @@ class LessonPDFView(views.APIView):
         )
 
         return response_obj
+
+
+import json
+import os
+from django.conf import settings
+
+class QuizDetailView(views.APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request, quiz_id):
+        # Look for quizzes.json in the data directory
+        quizzes_file = os.path.join(settings.BASE_DIR, "data", "quizzes.json")
+        try:
+            with open(quizzes_file, "r") as f:
+                quizzes = json.load(f)
+        except (FileNotFoundError, json.JSONDecodeError):
+            return response.Response(
+                {"error": "Quizzes data not available"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+        
+        quiz_data = quizzes.get(quiz_id)
+        if not quiz_data:
+            return response.Response(
+                {"error": "Quiz not found"},
+                status=status.HTTP_404_NOT_FOUND
+            )
+            
+        return response.Response(quiz_data)
+

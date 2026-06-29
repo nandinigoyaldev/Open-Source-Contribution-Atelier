@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { queueProgressSync, syncOfflineQueue } from "../lib/offlineQueue";
+import { enqueueOfflineAction, syncOfflineQueue } from "../lib/offlineQueue";
 import { queryClient } from "../lib/queryClient";
 
 interface MockIDBRequest {
@@ -115,19 +115,21 @@ describe("Offline Progress Queue", () => {
       writable: true,
     });
 
-    await queueProgressSync({
-      lesson_slug: "git-basics",
-      score: 20,
-      completed: true,
-      headers: { Authorization: "Bearer test-token" },
-    });
+    await enqueueOfflineAction(
+      "/progress/me/",
+      "POST",
+      { Authorization: "Bearer test-token" },
+      { lesson_slug: "git-basics", score: 20, completed: true },
+      "lesson",
+      "git-basics"
+    );
 
     // Check localStorage
     const pendingLocal = JSON.parse(
       localStorage.getItem("atelier_pending_sync") || "[]",
     );
     expect(pendingLocal).toHaveLength(1);
-    expect(pendingLocal[0].lesson_slug).toBe("git-basics");
+    expect(pendingLocal[0].id).toBe("lesson-git-basics");
     expect(pendingLocal[0].score).toBe(20);
     expect(pendingLocal[0].completed).toBe(true);
 
@@ -135,8 +137,8 @@ describe("Offline Progress Queue", () => {
     await new Promise((resolve) => setTimeout(resolve, 10));
 
     // Check IndexedDB store
-    expect(mockStore.has("progress-sync-git-basics")).toBe(true);
-    const action = mockStore.get("progress-sync-git-basics");
+    expect(mockStore.has("lesson-git-basics")).toBe(true);
+    const action = mockStore.get("lesson-git-basics");
     expect(action.method).toBe("POST");
     expect(action.headers.Authorization).toBe("Bearer test-token");
     expect(JSON.parse(action.body).lesson_slug).toBe("git-basics");
@@ -144,12 +146,14 @@ describe("Offline Progress Queue", () => {
 
   it("should replay queued requests and clean up stores on successful sync", async () => {
     // 1. Manually populate queue
-    await queueProgressSync({
-      lesson_slug: "git-merge",
-      score: 15,
-      completed: true,
-      headers: { Authorization: "Bearer test-token" },
-    });
+    await enqueueOfflineAction(
+      "/progress/me/",
+      "POST",
+      { Authorization: "Bearer test-token" },
+      { lesson_slug: "git-merge", score: 15, completed: true },
+      "lesson",
+      "git-merge"
+    );
 
     await new Promise((resolve) => setTimeout(resolve, 10));
 
@@ -183,12 +187,14 @@ describe("Offline Progress Queue", () => {
   });
 
   it("should retain request in queue if replay fails with a network error", async () => {
-    await queueProgressSync({
-      lesson_slug: "git-rebase",
-      score: 30,
-      completed: true,
-      headers: { Authorization: "Bearer test-token" },
-    });
+    await enqueueOfflineAction(
+      "/progress/me/",
+      "POST",
+      { Authorization: "Bearer test-token" },
+      { lesson_slug: "git-rebase", score: 30, completed: true },
+      "lesson",
+      "git-rebase"
+    );
 
     await new Promise((resolve) => setTimeout(resolve, 10));
 

@@ -721,6 +721,47 @@ class MagicLinkVerifyView(APIView):
             },
             status=status.HTTP_200_OK,
         )
+from rest_framework import status
+from rest_framework.response import Response
+from rest_framework.views import APIView
+from rest_framework.permissions import IsAuthenticated
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.exceptions import TokenError
+
+class LogoutView(APIView):
+    """
+    Accepts a refresh token in the request body and adds it to the blacklist.
+    Requires user to be authenticated.
+    """
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request):
+        try:
+            refresh_token = request.data.get("refresh")
+            if not refresh_token:
+                return Response(
+                    {"error": "Refresh token is required"}, 
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            
+            # This automatically adds the token to the BlacklistedToken model
+            token = RefreshToken(refresh_token)
+            token.blacklist()
+            
+            return Response(
+                {"message": "Successfully logged out."}, 
+                status=status.HTTP_205_RESET_CONTENT
+            )
+        except TokenError:
+            return Response(
+                {"error": "Invalid or expired refresh token."}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        except Exception as e:
+            return Response(
+                {"error": str(e)}, 
+                status=status.HTTP_400_BAD_REQUEST
+            )
 
 
 from django.http import HttpResponse, JsonResponse

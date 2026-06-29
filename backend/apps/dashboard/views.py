@@ -1,11 +1,13 @@
 from datetime import timedelta
 
+from apps.challenges.models import ChallengeCompletion
 from apps.content.models import Lesson
 from apps.dashboard.models import Issue, PullRequest, StreakFreeze
 from apps.progress.models import ExerciseAttempt, LessonProgress
 from django.contrib.auth.models import User
 from django.core.cache import cache
-from django.db.models import Count, F, IntegerField, OuterRef, Subquery, Sum, Value
+from django.db.models import (Count, F, IntegerField, OuterRef, Subquery, Sum,
+                              Value)
 from django.db.models.functions import Coalesce
 from django.utils import timezone
 from rest_framework import permissions, serializers
@@ -73,6 +75,13 @@ class LeaderboardView(ListAPIView):
             .values("total")
         )
 
+        challenge_bonus_xp = (
+            ChallengeCompletion.objects.filter(user=OuterRef("pk"))
+            .values("user")
+            .annotate(total=Sum("bonus_earned"))
+            .values("total")
+        )
+
         prs_merged = (
             PullRequest.objects.filter(**pr_filter)
             .values("user")
@@ -102,9 +111,12 @@ class LeaderboardView(ListAPIView):
                 issues_xp=Coalesce(
                     Subquery(issues_xp, output_field=IntegerField()), Value(0)
                 ),
+                challenge_xp=Coalesce(
+                    Subquery(challenge_bonus_xp, output_field=IntegerField()), Value(0)
+                ),
             )
             .annotate(
-                xp=F("lesson_xp") + F("issues_xp"),
+                xp=F("lesson_xp") + F("issues_xp") + F("challenge_xp"),
             )
             .order_by("-xp", "username", "id")
         )
@@ -257,7 +269,13 @@ class ContributorDashboardView(APIView):
                 assigned_to=user, status=Issue.Status.SOLVED
             ).aggregate(p_sum=Sum("points"), b_sum=Sum("bonus_points"))
             issues_xp = (issues_agg["p_sum"] or 0) + (issues_agg["b_sum"] or 0)
-            total_xp = lesson_xp + issues_xp
+            challenge_bonus_xp = (
+                ChallengeCompletion.objects.filter(user=user).aggregate(
+                    total=Sum("bonus_earned")
+                )["total"]
+                or 0
+            )
+            total_xp = lesson_xp + issues_xp + challenge_bonus_xp
 
             # Calculate streak based on unique days of activity (attempts or completed lessons) and active/used freezes
             activity_days = set()
@@ -453,7 +471,6 @@ class ContributorDashboardView(APIView):
 from django.db import transaction
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
-
 
 
 class BuyStreakFreezeView(APIView):
