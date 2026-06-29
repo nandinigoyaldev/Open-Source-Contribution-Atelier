@@ -16,12 +16,24 @@ from .views import (
     RefreshView,
     SignupView,
     UserListView,
+    PasswordResetRequestView,
+    PasswordResetConfirmView,
+    OtpRequestView,
+    OtpVerifyView,
+    LogoutView,
     UserStatisticsView,
     SecureAccountDeleteView,
 )
 
 urlpatterns = [
     # ── Core Auth ──────────────────────────────────────────────────────────────
+    path("signup/",           SignupView.as_view(),             name="signup"),
+    path("login/",            LoginView.as_view(),              name="login"),
+    path("refresh/",          RefreshView.as_view(),            name="refresh"),
+    path("me/",               MeView.as_view(),                 name="me"),
+    path("users/",            UserListView.as_view(),           name="user-list"),
+    path("logout/",           LogoutView.as_view(),             name="logout"),
+
     path("signup/", SignupView.as_view(), name="signup"),
     path("login/", LoginView.as_view(), name="login"),
     path("refresh/", RefreshView.as_view(), name="refresh"),

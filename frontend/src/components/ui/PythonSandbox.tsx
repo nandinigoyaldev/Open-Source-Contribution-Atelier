@@ -3,7 +3,7 @@ import Editor from "react-simple-code-editor";
 import Prism from "prismjs";
 import "prismjs/components/prism-python";
 import "prismjs/themes/prism-tomorrow.css"; // Dark theme
-import { Play, RotateCcw, CheckCircle2, XCircle } from "lucide-react";
+import { Play, RotateCcw, CheckCircle2, XCircle, Users } from "lucide-react";
 import { usePythonSandbox } from "../../hooks/usePythonSandbox";
 import { PythonExercise } from "../../lib/lessons";
 
@@ -58,6 +58,13 @@ export function PythonSandbox({ exercise, onSuccess }: PythonSandboxProps) {
     setIsSuccess(false);
   };
 
+  const handleStartCollab = () => {
+    const newSessionId = crypto.randomUUID();
+    const url = new URL(window.location.href);
+    url.searchParams.set("session", newSessionId);
+    window.location.href = url.toString();
+  };
+
   return (
     <div className="flex flex-col gap-4 w-full border-4 border-black dark:border-[#2e2924] rounded-xl overflow-hidden bg-surface dark:bg-[#151411]">
       {/* Header */}
@@ -66,6 +73,12 @@ export function PythonSandbox({ exercise, onSuccess }: PythonSandboxProps) {
           🐍 Python Sandbox
         </h3>
         <div className="flex items-center gap-2">
+          <button
+            onClick={handleStartCollab}
+            className="flex items-center gap-2 px-3 py-1.5 text-sm font-bold border-2 border-black dark:border-[#2e2924] text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors"
+          >
+            <Users className="w-4 h-4" /> Collab
+          </button>
           <button
             onClick={handleReset}
             className="flex items-center gap-2 px-3 py-1.5 text-sm font-bold border-2 border-black dark:border-[#2e2924] rounded-lg hover:bg-black hover:text-white dark:hover:bg-[#f0ebe2] dark:hover:text-black transition-colors"

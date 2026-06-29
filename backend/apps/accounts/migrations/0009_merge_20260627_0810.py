@@ -9,7 +9,6 @@ class Migration(migrations.Migration):
         ('accounts', '0007_alter_userprofile_timezone'),
         ('accounts', '0007_merge_20260624_1225'),
         ('accounts', '0007_merge_20260624_1318'),
-        ('accounts', '0007_merge_20260624_1417'),
         ('accounts', '0008_userprofile_github_url_userprofile_linkedin_url_and_more'),
     ]
 

@@ -27,6 +27,9 @@ const MarkdownRenderer = React.lazy(() =>
 import { GitGraph } from "../components/ui/GitGraph";
 import { NotePanel } from "../components/ui/NotePanel";
 import { PythonSandbox } from "../components/ui/PythonSandbox";
+import { CollabPythonSandbox } from "../components/ui/CollabPythonSandbox";
+import { JSSandbox } from "../components/ui/JSSandbox";
+import { InteractiveDebugger } from "../components/ui/InteractiveDebugger";
 import { TextToSpeechControls } from "../components/ui/TextToSpeechControls";
 
 import {
@@ -326,7 +329,7 @@ export function LessonPage() {
   return (
     <div className="min-h-screen pt-20 flex flex-col lg:flex-row relative">
       {/* 1. Mobile Sidebar Toggle */}
-      <div className="lg:hidden bg-white border-b-4 border-black dark:bg-[#151411] dark:border-[#2e2924] p-4 flex items-center justify-between z-10">
+      <div className="lg:hidden bg-white border-b-4 border-black dark:bg-[#151411] dark:border-[#2e2924] p-4 flex items-center justify-between z-[80]">
         <button
           onClick={() => setIsSidebarOpen((prev) => !prev)}
           aria-expanded={isSidebarOpen}
@@ -344,7 +347,7 @@ export function LessonPage() {
       {/* Backdrop overlay — closes drawer on click-outside on mobile */}
       {isSidebarOpen && (
         <div
-          className="fixed inset-0 z-10 bg-black/40 lg:hidden"
+          className="fixed inset-0 z-[90] bg-black/40 lg:hidden"
           aria-hidden="true"
           onClick={closeSidebar}
         />
@@ -354,7 +357,7 @@ export function LessonPage() {
       <aside
         id="course-sidebar"
         ref={sidebarRef}
-        className={`fixed top-0 left-0 h-full w-[300px] border-r-4 border-black bg-white dark:bg-[#151411] dark:border-[#2e2924] overflow-y-auto p-6 transition-transform duration-300 ease-in-out z-20 pt-20
+        className={`fixed top-0 left-0 h-full w-[300px] border-r-4 border-black bg-white dark:bg-[#151411] dark:border-[#2e2924] overflow-y-auto p-6 transition-transform duration-300 ease-in-out z-[100] pt-20
           ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"}
           lg:relative lg:top-auto lg:left-auto lg:h-auto lg:w-[320px] lg:flex-shrink-0 lg:translate-x-0 lg:block lg:max-h-[calc(100vh-80px)]`}
       >
@@ -511,12 +514,52 @@ export function LessonPage() {
             <div className="pt-8 space-y-6">
               {lesson.pythonExercise ? (
                 <div className="mt-8">
-                  <PythonSandbox
-                    exercise={lesson.pythonExercise}
+                  {new URLSearchParams(window.location.search).get("session") ? (
+                    <CollabPythonSandbox
+                      exercise={lesson.pythonExercise}
+                      roomId={new URLSearchParams(window.location.search).get("session")!}
+                      onSuccess={() => {
+                        syncProgress({
+                          lesson_slug: lesson.slug,
+                          score: lesson.points || 20,
+                          completed: true,
+                        });
+                      }}
+                    />
+                  ) : (
+                    <PythonSandbox
+                      exercise={lesson.pythonExercise}
+                      onSuccess={() => {
+                        syncProgress({
+                          lesson_slug: lesson.slug,
+                          score: lesson.points || 20,
+                          completed: true,
+                        });
+                      }}
+                    />
+                  )}
+                </div>
+              ) : lesson.jsExercise ? (
+                <div className="mt-8">
+                  <JSSandbox
+                    exercise={lesson.jsExercise}
                     onSuccess={() => {
                       syncProgress({
                         lesson_slug: lesson.slug,
                         score: lesson.points || 20,
+                        completed: true,
+                      });
+                    }}
+                  />
+                </div>
+              ) : lesson.debugExercise ? (
+                <div className="mt-8">
+                  <InteractiveDebugger
+                    exercise={lesson.debugExercise}
+                    onSuccess={() => {
+                      syncProgress({
+                        lesson_slug: lesson.slug,
+                        score: lesson.points || 30,
                         completed: true,
                       });
                     }}

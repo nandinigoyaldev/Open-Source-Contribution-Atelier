@@ -1,5 +1,7 @@
 import React from "react";
 import CopyButton from "./CopyButton";
+import { pluginRegistry } from "../../lib/markdownPlugins";
+
 interface MarkdownRendererProps {
   content: string;
 }
@@ -340,7 +342,39 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
       continue;
     }
 
-    // 9. Standard Paragraph
+    // 9. Plugin Shortcodes: [plugin-name key="value"]
+    const pluginMatch = line.trim().match(/^\[([a-zA-Z0-9-]+)(?:\s+(.*?))?\]$/);
+    if (pluginMatch && !line.includes("](")) {
+      const pluginName = pluginMatch[1];
+      const propsString = pluginMatch[2] || "";
+      
+      const PluginComponent = pluginRegistry[pluginName];
+      if (PluginComponent) {
+        // Parse props like key="value"
+        const props: Record<string, string> = {};
+        const propRegex = /([a-zA-Z0-9-]+)="([^"]*)"/g;
+        let match;
+        while ((match = propRegex.exec(propsString)) !== null) {
+          props[match[1]] = match[2];
+        }
+        
+        blocks.push(
+          <div key={index} className="my-4">
+            <PluginComponent {...props} />
+          </div>
+        );
+      } else {
+        blocks.push(
+          <div key={index} className="p-4 my-4 bg-red-50 border-4 border-red-500 rounded-xl text-red-700 font-bold shadow-card-sm">
+            Unsupported interactive component: {pluginName}
+          </div>
+        );
+      }
+      index++;
+      continue;
+    }
+
+    // 10. Standard Paragraph
     blocks.push(
       <p
         key={index}
