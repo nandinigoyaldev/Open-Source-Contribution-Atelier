@@ -10,7 +10,6 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 
 
-
 class StreakFreezeTests(APITestCase):
     def setUp(self):
         self.user = User.objects.create_user(username="testuser", password="password")

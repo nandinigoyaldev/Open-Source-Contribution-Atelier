@@ -63,6 +63,9 @@ def verify_git_command(command: str, expected_command: str) -> VerificationResul
 
 import asyncio
 import sys
+import os
+import tempfile
+import json
 
 
 async def stream_python_execution(code: str, send_callback, timeout: int = 5):
@@ -122,3 +125,27 @@ async def stream_python_execution(code: str, send_callback, timeout: int = 5):
 
     except Exception as e:
         await send_callback({"action": "execution_error", "error": str(e)})
+
+
+async def start_debug_session(code: str, breakpoints: list):
+    """
+    Starts a debugging session by writing code to a temp file and launching debugger_script.py
+    Returns the subprocess and the temp file path.
+    """
+    fd, path = tempfile.mkstemp(suffix=".py")
+    with os.fdopen(fd, "w") as f:
+        f.write(code)
+    
+    debugger_script = os.path.join(os.path.dirname(__file__), "debugger_script.py")
+    
+    process = await asyncio.create_subprocess_exec(
+        sys.executable,
+        debugger_script,
+        path,
+        json.dumps(breakpoints),
+        stdin=asyncio.subprocess.PIPE,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+    )
+    
+    return process, path
