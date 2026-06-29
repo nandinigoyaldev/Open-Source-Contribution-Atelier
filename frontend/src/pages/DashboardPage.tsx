@@ -42,7 +42,7 @@ import {
 } from "recharts";
 import { OnboardingTour } from "../components/ui/OnboardingTour";
 import { NotesWidget } from "../components/ui/NotesWidget";
-import { RecommendationsList } from "../components/ui/RecommendationsList";
+import { ChallengeOfTheDayWidget } from "../components/ui/ChallengeOfTheDayWidget";
 
 const FACTS = [
   "Git was created in 2005 by Linus Torvalds because he was frustrated with the commercial tool they were using for Linux development.",
@@ -772,6 +772,9 @@ export function DashboardPage() {
           )}
         </div>
       </section>
+
+      {/* 2b. Challenge of the Day */}
+      <ChallengeOfTheDayWidget />
 
       {/* 3. Learning Queue Sidebar & Course Completion Chart */}
       <section className="grid gap-6 xl:grid-cols-[1.3fr_0.7fr]">

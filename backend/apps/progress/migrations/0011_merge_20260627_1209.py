@@ -8,7 +8,6 @@ class Migration(migrations.Migration):
     dependencies = [
         ("progress", "0009_merge_20260624_1225"),
         ("progress", "0009_merge_20260624_1318"),
-        ("progress", "0009_merge_20260624_1417"),
         ("progress", "0010_alter_lessonnote_unique_together_and_more"),
     ]
 
