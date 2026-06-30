@@ -1,3 +1,4 @@
+import re
 import difflib
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
@@ -26,6 +27,8 @@ COMMAND_RULES: Dict[str, Dict[str, Any]] = {
     "log": {},
 }
 
+# Regex to catch shell metacharacters and prevent injection chaining
+FORBIDDEN_CHARS = re.compile(r'[;&|$\n\r<>]')
 
 def get_hint(subcommand: str) -> str:
     """Provides a helpful hint for a specific Git subcommand."""
@@ -44,9 +47,18 @@ def get_hint(subcommand: str) -> str:
 
 def lint_command(command: str) -> LintResult:
     """
-    Performs basic syntax checking on a Git command string using rule-based validation.
+    Performs basic syntax checking on a Git command string using strict lexical boundaries and rule-based validation.
+    Prevents shell injection and ReDoS vulnerabilities.
     """
     normalized = command.strip()
+
+    # 1. Hard length constraint to prevent memory exhaustion
+    if len(normalized) > 200:
+        return LintResult(is_valid=False, message="Command length exceeds the maximum allowed limit of 200 characters.")
+
+    # 2. Block shell execution metacharacters
+    if FORBIDDEN_CHARS.search(normalized):
+        return LintResult(is_valid=False, message="Shell metacharacters (;, &, |, $, etc.) are strictly prohibited.")
 
     if not normalized:
         return LintResult(is_valid=False, message="Command cannot be empty.")
@@ -74,7 +86,7 @@ def lint_command(command: str) -> LintResult:
     sub_command = parts[1]
     args = parts[2:]
 
-    # Use difflib for smart typo detection
+    # Use difflib for smart typo detection and verb allowlisting
     if sub_command not in COMMAND_RULES:
         suggestions = difflib.get_close_matches(
             sub_command, list(COMMAND_RULES.keys()), n=1, cutoff=0.7
@@ -85,7 +97,7 @@ def lint_command(command: str) -> LintResult:
                 message=f"Unknown Git command '{sub_command}'. Did you mean 'git {suggestions[0]}'?",
             )
         return LintResult(
-            is_valid=False, message=f"Unknown Git command '{sub_command}'."
+            is_valid=False, message=f"Git operation '{sub_command}' is restricted or invalid."
         )
 
     # Rule-based validation
