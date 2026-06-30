@@ -4,7 +4,7 @@
 
 ---
 
-### 💡 Why You Should Contribute
+## 💡 Why You Should Contribute
 
 - **Level Up Your Skills**: Working on large codebases exposes you to collaborative workflows, advanced design patterns, testing frameworks, and lint tools.
 
