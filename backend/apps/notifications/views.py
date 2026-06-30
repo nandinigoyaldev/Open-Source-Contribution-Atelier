@@ -8,7 +8,8 @@ from .serializers import NotificationSerializer
 
 class NotificationListView(generics.ListAPIView):
     """GET /api/notifications/ — list current user's notifications"""
-    serializer_class   = NotificationSerializer
+
+    serializer_class = NotificationSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
@@ -17,15 +18,19 @@ class NotificationListView(generics.ListAPIView):
 
 class MarkAllReadView(APIView):
     """POST /api/notifications/mark-all-read/"""
+
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request):
-        updated = Notification.objects.filter(recipient=request.user, is_read=False).update(is_read=True)
+        updated = Notification.objects.filter(
+            recipient=request.user, is_read=False
+        ).update(is_read=True)
         return Response({"marked_read": updated}, status=status.HTTP_200_OK)
 
 
 class MarkOneReadView(APIView):
     """POST /api/notifications/<pk>/read/"""
+
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request, pk):

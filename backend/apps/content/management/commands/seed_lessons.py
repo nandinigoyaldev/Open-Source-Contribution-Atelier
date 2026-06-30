@@ -2,7 +2,6 @@ from django.core.management.base import BaseCommand
 
 from apps.content.models import Exercise, Lesson
 
-
 LESSONS = [
     {
         "slug": "intro",
@@ -107,7 +106,7 @@ LESSONS = [
             {
                 "title": "Commit with good message",
                 "prompt": "Create a commit with message Add contribution checklist.",
-                "expected_command": "git commit -m \"Add contribution checklist\"",
+                "expected_command": 'git commit -m "Add contribution checklist"',
                 "explanation": "Descriptive commits make review and rollback easier.",
                 "points": 10,
             }
@@ -297,7 +296,9 @@ class Command(BaseCommand):
                 },
             )
 
-            self.stdout.write(self.style.SUCCESS(f"Created/updated lesson: {lesson_obj.slug}"))
+            self.stdout.write(
+                self.style.SUCCESS(f"Created/updated lesson: {lesson_obj.slug}")
+            )
 
             for ex in l.get("exercises", []):
                 ex_obj, _ = Exercise.objects.update_or_create(
@@ -311,6 +312,8 @@ class Command(BaseCommand):
                     },
                 )
 
-                self.stdout.write(self.style.SUCCESS(f"  Created/updated exercise: {ex_obj.title}"))
+                self.stdout.write(
+                    self.style.SUCCESS(f"  Created/updated exercise: {ex_obj.title}")
+                )
 
         self.stdout.write(self.style.SUCCESS("Seeding complete."))

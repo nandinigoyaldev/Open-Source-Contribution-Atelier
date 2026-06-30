@@ -11,10 +11,7 @@ class Issue(models.Model):
     title = models.CharField(max_length=255)
     description = models.TextField()
     status = models.CharField(
-        max_length=20,
-        choices=Status.choices,
-        default=Status.OPEN,
-        db_index=True
+        max_length=20, choices=Status.choices, default=Status.OPEN, db_index=True
     )
     points = models.PositiveIntegerField(default=50)
     assigned_to = models.ForeignKey(
@@ -22,7 +19,7 @@ class Issue(models.Model):
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name="assigned_issues"
+        related_name="assigned_issues",
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -39,22 +36,17 @@ class PullRequest(models.Model):
 
     title = models.CharField(max_length=255)
     status = models.CharField(
-        max_length=20,
-        choices=Status.choices,
-        default=Status.OPEN,
-        db_index=True
+        max_length=20, choices=Status.choices, default=Status.OPEN, db_index=True
     )
     issue = models.ForeignKey(
         Issue,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
-        related_name="pull_requests"
+        related_name="pull_requests",
     )
     user = models.ForeignKey(
-        User,
-        on_delete=models.CASCADE,
-        related_name="pull_requests"
+        User, on_delete=models.CASCADE, related_name="pull_requests"
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

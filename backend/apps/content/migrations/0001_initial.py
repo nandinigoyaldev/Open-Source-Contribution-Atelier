@@ -10,7 +10,15 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name="Lesson",
             fields=[
-                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
                 ("difficulty", models.CharField(max_length=32)),
                 ("title", models.CharField(max_length=255)),
                 ("slug", models.SlugField(unique=True)),
@@ -24,14 +32,28 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name="Exercise",
             fields=[
-                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
                 ("title", models.CharField(max_length=255)),
                 ("prompt", models.TextField()),
                 ("expected_command", models.CharField(max_length=255)),
                 ("explanation", models.TextField(blank=True)),
                 ("points", models.PositiveIntegerField(default=10)),
-                ("lesson", models.ForeignKey(on_delete=models.deletion.CASCADE, related_name="exercises", to="content.lesson")),
+                (
+                    "lesson",
+                    models.ForeignKey(
+                        on_delete=models.deletion.CASCADE,
+                        related_name="exercises",
+                        to="content.lesson",
+                    ),
+                ),
             ],
         ),
     ]
-

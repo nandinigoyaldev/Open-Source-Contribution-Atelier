@@ -1,6 +1,5 @@
 from dataclasses import dataclass
 
-
 ALLOWED_PREFIXES = (
     "git status",
     "git init",

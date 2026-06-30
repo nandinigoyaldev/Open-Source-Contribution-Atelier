@@ -10,6 +10,7 @@ from .throttles import SandboxAnonRateThrottle, SandboxUserRateThrottle
 
 class ChallengeViewSet(viewsets.ReadOnlyModelViewSet):
     """Existing view — untouched."""
+
     queryset = Challenge.objects.all()
     serializer_class = ChallengeSerializer
 
@@ -39,8 +40,7 @@ class SandboxExecutionView(APIView):
 
         if not code:
             return Response(
-                {"detail": "No code provided."},
-                status=status.HTTP_400_BAD_REQUEST
+                {"detail": "No code provided."}, status=status.HTTP_400_BAD_REQUEST
             )
 
         # TODO: replace with actual sandbox execution call

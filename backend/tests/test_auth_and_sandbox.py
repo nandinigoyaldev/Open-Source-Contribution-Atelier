@@ -9,7 +9,11 @@ def test_signup_and_login_flow():
     client = APIClient()
     signup_response = client.post(
         "/api/auth/signup/",
-        {"username": "mentor", "email": "mentor@example.com", "password": "strongpass123"},
+        {
+            "username": "mentor",
+            "email": "mentor@example.com",
+            "password": "strongpass123",
+        },
         format="json",
     )
     assert signup_response.status_code == 201
@@ -73,13 +77,18 @@ def test_github_oauth_start_redirects_to_github(monkeypatch):
     assert response.status_code == 302
     assert response["Location"].startswith("https://github.com/login/oauth/authorize?")
     assert "client_id=github-client-id" in response["Location"]
-    assert "redirect_uri=http%3A%2F%2Ftestserver%2Fapi%2Fauth%2Fgithub%2Fcallback%2F" in response["Location"]
+    assert (
+        "redirect_uri=http%3A%2F%2Ftestserver%2Fapi%2Fauth%2Fgithub%2Fcallback%2F"
+        in response["Location"]
+    )
 
 
 @pytest.mark.django_db
 @patch("apps.accounts.views.http_requests.get")
 @patch("apps.accounts.views.http_requests.post")
-def test_github_oauth_callback_creates_user_and_redirects_with_tokens(mock_post, mock_get, monkeypatch):
+def test_github_oauth_callback_creates_user_and_redirects_with_tokens(
+    mock_post, mock_get, monkeypatch
+):
     client = APIClient()
     monkeypatch.setenv("GITHUB_CLIENT_ID", "github-client-id")
     monkeypatch.setenv("GITHUB_CLIENT_SECRET", "github-client-secret")
@@ -98,7 +107,9 @@ def test_github_oauth_callback_creates_user_and_redirects_with_tokens(mock_post,
     response = client.get("/api/auth/github/callback/?code=fake-code")
 
     assert response.status_code == 302
-    assert response["Location"].startswith("http://localhost:5173/auth/github/callback?")
+    assert response["Location"].startswith(
+        "http://localhost:5173/auth/github/callback?"
+    )
     assert "access=" in response["Location"]
     assert "refresh=" in response["Location"]
     assert User.objects.filter(email="octo@example.com").exists()
@@ -118,4 +129,3 @@ def test_sandbox_verifier_rejects_unsafe_command():
 
     assert response.status_code == 200
     assert response.data["accepted"] is False
-

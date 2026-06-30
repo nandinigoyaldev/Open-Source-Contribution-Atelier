@@ -25,8 +25,12 @@ def test_authenticated_user_can_retrieve_badges_and_progress_points():
         description="Completed your first lesson.",
     )
     UserBadge.objects.create(user=user, badge=badge)
-    LessonProgress.objects.create(user=user, lesson=create_lesson(), completed=True, score=75)
-    LessonProgress.objects.create(user=user, lesson=create_lesson("branching"), completed=True, score=25)
+    LessonProgress.objects.create(
+        user=user, lesson=create_lesson(), completed=True, score=75
+    )
+    LessonProgress.objects.create(
+        user=user, lesson=create_lesson("branching"), completed=True, score=25
+    )
 
     client = APIClient()
     client.force_authenticate(user=user)
@@ -73,8 +77,12 @@ def test_badges_endpoint_returns_only_authenticated_users_stats():
     )
     UserBadge.objects.create(user=user, badge=own_badge)
     UserBadge.objects.create(user=other_user, badge=other_badge)
-    LessonProgress.objects.create(user=user, lesson=create_lesson(), completed=True, score=40)
-    LessonProgress.objects.create(user=other_user, lesson=create_lesson("other"), completed=True, score=90)
+    LessonProgress.objects.create(
+        user=user, lesson=create_lesson(), completed=True, score=40
+    )
+    LessonProgress.objects.create(
+        user=other_user, lesson=create_lesson("other"), completed=True, score=90
+    )
 
     client = APIClient()
     client.force_authenticate(user=user)

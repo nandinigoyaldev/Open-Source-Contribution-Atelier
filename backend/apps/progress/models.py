@@ -11,7 +11,9 @@ class Badge(models.Model):
 
 
 class UserBadge(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="earned_badges")
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="earned_badges"
+    )
     badge = models.ForeignKey(Badge, on_delete=models.CASCADE, related_name="earned_by")
     earned_at = models.DateTimeField(auto_now_add=True)
 
@@ -43,9 +45,15 @@ class HelpRequest(models.Model):
         OPEN = "open", "Open"
         RESOLVED = "resolved", "Resolved"
 
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="help_requests")
-    lesson = models.ForeignKey(Lesson, on_delete=models.CASCADE, related_name="help_requests")
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="help_requests"
+    )
+    lesson = models.ForeignKey(
+        Lesson, on_delete=models.CASCADE, related_name="help_requests"
+    )
     message = models.TextField()
-    status = models.CharField(max_length=20, choices=Status.choices, default=Status.OPEN, db_index=True)
+    status = models.CharField(
+        max_length=20, choices=Status.choices, default=Status.OPEN, db_index=True
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

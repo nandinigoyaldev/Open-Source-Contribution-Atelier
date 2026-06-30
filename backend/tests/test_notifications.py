@@ -8,9 +8,11 @@ from apps.notifications.models import Notification
 def user_a(db):
     return User.objects.create_user(username="user_a", password="pass")
 
+
 @pytest.fixture
 def user_b(db):
     return User.objects.create_user(username="user_b", password="pass")
+
 
 @pytest.fixture
 def notif_for_a(db, user_a):
@@ -19,6 +21,7 @@ def notif_for_a(db, user_a):
         message="Hello user_a",
         is_read=False,
     )
+
 
 @pytest.fixture
 def notif_for_b(db, user_b):

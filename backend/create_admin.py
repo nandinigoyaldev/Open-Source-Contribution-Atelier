@@ -7,7 +7,7 @@ django.setup()
 from django.contrib.auth.models import User
 
 username = os.environ.get("DJANGO_ADMIN_USER", "")
-email    = os.environ.get("DJANGO_ADMIN_EMAIL", "")
+email = os.environ.get("DJANGO_ADMIN_EMAIL", "")
 password = os.environ.get("DJANGO_ADMIN_PASSWORD", "")
 
 if not all([username, email, password]):

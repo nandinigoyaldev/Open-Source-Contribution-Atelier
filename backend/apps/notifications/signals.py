@@ -5,6 +5,7 @@ Signals that fire when:
 
 Adapt the sender models to match the actual models in apps/
 """
+
 import logging
 
 from asgiref.sync import async_to_sync
@@ -28,11 +29,13 @@ def _push_notification(notification: Notification):
         async_to_sync(channel_layer.group_send)(
             group_name,
             {
-                "type":         "send_notification",   # matches consumer method
+                "type": "send_notification",  # matches consumer method
                 "notification": data,
             },
         )
-        logger.info("Pushed notification id=%s to group=%s", notification.id, group_name)
+        logger.info(
+            "Pushed notification id=%s to group=%s", notification.id, group_name
+        )
     except Exception as exc:
         logger.error("Failed to push notification: %s", exc)
 
@@ -86,14 +89,16 @@ def _push_notification(notification: Notification):
 # ------------------------------------------------------------------ #
 # Utility: call this anywhere in your codebase to send a manual notif #
 # ------------------------------------------------------------------ #
-def create_and_push_notification(recipient, notif_type, title, message, sender=None, meta=None):
+def create_and_push_notification(
+    recipient, notif_type, title, message, sender=None, meta=None
+):
     notif = Notification.objects.create(
-        recipient  = recipient,
-        sender     = sender,
-        notif_type = notif_type,
-        title      = title,
-        message    = message,
-        meta       = meta or {},
+        recipient=recipient,
+        sender=sender,
+        notif_type=notif_type,
+        title=title,
+        message=message,
+        meta=meta or {},
     )
     _push_notification(notif)
     return notif

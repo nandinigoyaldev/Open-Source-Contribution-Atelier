@@ -17,10 +17,11 @@ class Lesson(models.Model):
 
 
 class Exercise(models.Model):
-    lesson = models.ForeignKey(Lesson, related_name="exercises", on_delete=models.CASCADE)
+    lesson = models.ForeignKey(
+        Lesson, related_name="exercises", on_delete=models.CASCADE
+    )
     title = models.CharField(max_length=255)
     prompt = models.TextField()
     expected_command = models.CharField(max_length=255)
     explanation = models.TextField(blank=True)
     points = models.PositiveIntegerField(default=10)
-

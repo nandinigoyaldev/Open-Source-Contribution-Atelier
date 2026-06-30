@@ -10,7 +10,7 @@ from apps.progress.models import LessonProgress
 def clear_dashboard_caches(user_id=None):
     # Always clear the global admin stats cache
     cache.delete("dashboard_admin_stats_v2")
-    
+
     # If a specific user is affected, clear their specific contributor stats cache
     if user_id:
         cache.delete(f"dashboard_contributor_stats_{user_id}")

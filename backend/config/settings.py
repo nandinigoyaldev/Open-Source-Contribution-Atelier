@@ -2,7 +2,6 @@ import os
 from datetime import timedelta
 from pathlib import Path
 
-
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
@@ -28,7 +27,9 @@ ALLOWED_HOSTS = [
     if host.strip()
 ]
 CORS_ALLOWED_ORIGINS = [
-    origin.strip() for origin in os.getenv("CORS_ALLOWED_ORIGINS", "").split(",") if origin.strip()
+    origin.strip()
+    for origin in os.getenv("CORS_ALLOWED_ORIGINS", "").split(",")
+    if origin.strip()
 ]
 if DEBUG:
     CORS_ALLOW_ALL_ORIGINS = True
@@ -40,7 +41,7 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    'django_filters',
+    "django_filters",
     "corsheaders",
     "rest_framework",
     "rest_framework_simplejwt",
@@ -90,7 +91,9 @@ DATABASES = {
 }
 
 AUTH_PASSWORD_VALIDATORS = [
-    {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
+    {
+        "NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"
+    },
     {"NAME": "django.contrib.auth.password_validation.MinimumLengthValidator"},
     {"NAME": "django.contrib.auth.password_validation.CommonPasswordValidator"},
 ]
@@ -107,10 +110,9 @@ REST_FRAMEWORK = {
     # ── Sandbox Rate Limiting (10 requests/minute) ──────────────────────────
     # Scoped throttling: ONLY affects sandbox endpoints, not global API routes.
     "DEFAULT_THROTTLE_RATES": {
-        "sandbox_anon": "10/minute",   # Anonymous users — throttled by IP
-        "sandbox_user": "10/minute",   # Authenticated users — throttled by user ID
+        "sandbox_anon": "10/minute",  # Anonymous users — throttled by IP
+        "sandbox_user": "10/minute",  # Authenticated users — throttled by user ID
     },
-
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework_simplejwt.authentication.JWTAuthentication",
     ),
@@ -121,8 +123,12 @@ REST_FRAMEWORK = {
 }
 
 SIMPLE_JWT = {
-    "ACCESS_TOKEN_LIFETIME": timedelta(minutes=int(os.getenv("ACCESS_TOKEN_LIFETIME_MINUTES", "30"))),
-    "REFRESH_TOKEN_LIFETIME": timedelta(days=int(os.getenv("REFRESH_TOKEN_LIFETIME_DAYS", "7"))),
+    "ACCESS_TOKEN_LIFETIME": timedelta(
+        minutes=int(os.getenv("ACCESS_TOKEN_LIFETIME_MINUTES", "30"))
+    ),
+    "REFRESH_TOKEN_LIFETIME": timedelta(
+        days=int(os.getenv("REFRESH_TOKEN_LIFETIME_DAYS", "7"))
+    ),
 }
 
 # ──────────────────────────────────────────
@@ -141,6 +147,7 @@ INSTALLED_APPS += [
 # ──────────────────────────────────────────
 import socket
 
+
 def is_redis_available(url):
     try:
         if not url:
@@ -155,7 +162,7 @@ def is_redis_available(url):
         else:
             host = host_port
             port = 6379
-        
+
         # Test connection with a very short timeout
         s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         s.settimeout(0.5)
@@ -164,6 +171,7 @@ def is_redis_available(url):
         return True
     except Exception:
         return False
+
 
 # Candidates check: use REDIS_URL if set, or default to standard local redis host for check
 ENV_REDIS_URL = os.getenv("REDIS_URL", "")
@@ -199,5 +207,3 @@ else:
             "LOCATION": "atelier-unique-cache",
         }
     }
-
-

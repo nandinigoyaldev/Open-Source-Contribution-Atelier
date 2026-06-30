@@ -18,7 +18,11 @@ from urllib.parse import urlencode
 from django.db.models import Sum
 from apps.progress.models import LessonProgress, UserBadge
 from apps.progress.serializers import UserBadgeSerializer
-from .serializers import SignupSerializer, UserListSerializer, EmailOrUsernameTokenObtainPairSerializer
+from .serializers import (
+    SignupSerializer,
+    UserListSerializer,
+    EmailOrUsernameTokenObtainPairSerializer,
+)
 
 
 def unique_username_from_value(value: str) -> str:
@@ -34,7 +38,11 @@ def unique_username_from_value(value: str) -> str:
 
 
 def frontend_url(path: str, query: Optional[dict[str, str]] = None) -> str:
-    base_url = os.getenv("FRONTEND_URL") or (settings.CORS_ALLOWED_ORIGINS[0] if settings.CORS_ALLOWED_ORIGINS else "http://localhost:5173")
+    base_url = os.getenv("FRONTEND_URL") or (
+        settings.CORS_ALLOWED_ORIGINS[0]
+        if settings.CORS_ALLOWED_ORIGINS
+        else "http://localhost:5173"
+    )
     url = f"{base_url.rstrip('/')}{path}"
     if query:
         url = f"{url}?{urlencode(query)}"
@@ -69,7 +77,10 @@ class MyBadgesView(APIView):
             .order_by("-earned_at", "badge__name")
         )
         progress_points = (
-            LessonProgress.objects.filter(user=request.user).aggregate(total=Sum("score"))["total"] or 0
+            LessonProgress.objects.filter(user=request.user).aggregate(
+                total=Sum("score")
+            )["total"]
+            or 0
         )
         serializer = UserBadgeSerializer(earned_badges, many=True)
 
@@ -100,7 +111,10 @@ class GoogleLoginView(APIView):
     def post(self, request):
         token = request.data.get("access_token")
         if not token:
-            return Response({"detail": "No access token provided"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"detail": "No access token provided"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         try:
             # Use OAuth2 userinfo endpoint with Bearer auth for better compatibility.
@@ -111,12 +125,18 @@ class GoogleLoginView(APIView):
             )
 
             if not user_info_resp.ok:
-                return Response({"detail": "Failed to verify Google token"}, status=status.HTTP_401_UNAUTHORIZED)
+                return Response(
+                    {"detail": "Failed to verify Google token"},
+                    status=status.HTTP_401_UNAUTHORIZED,
+                )
 
             idinfo = user_info_resp.json()
             email = idinfo.get("email")
             if not email:
-                return Response({"detail": "Google account has no email"}, status=status.HTTP_400_BAD_REQUEST)
+                return Response(
+                    {"detail": "Google account has no email"},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
 
             user = User.objects.filter(email__iexact=email).first()
             if not user:
@@ -150,7 +170,10 @@ class GitHubOAuthStartView(APIView):
     def get(self, request):
         client_id = os.getenv("GITHUB_CLIENT_ID", "")
         if not client_id:
-            return Response({"detail": "GitHub OAuth is not configured."}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"detail": "GitHub OAuth is not configured."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         callback_url = request.build_absolute_uri("/api/auth/github/callback/")
         params = urlencode(
@@ -169,12 +192,16 @@ class GitHubOAuthCallbackView(APIView):
     def get(self, request):
         code = request.query_params.get("code")
         if not code:
-            return redirect(frontend_url("/", {"auth_error": "GitHub authorization was cancelled."}))
+            return redirect(
+                frontend_url("/", {"auth_error": "GitHub authorization was cancelled."})
+            )
 
         client_id = os.getenv("GITHUB_CLIENT_ID", "")
         client_secret = os.getenv("GITHUB_CLIENT_SECRET", "")
         if not client_id or not client_secret:
-            return redirect(frontend_url("/", {"auth_error": "GitHub OAuth is not configured."}))
+            return redirect(
+                frontend_url("/", {"auth_error": "GitHub OAuth is not configured."})
+            )
 
         callback_url = request.build_absolute_uri("/api/auth/github/callback/")
 
@@ -193,23 +220,47 @@ class GitHubOAuthCallbackView(APIView):
             token_response.raise_for_status()
             access_token = token_response.json().get("access_token")
             if not access_token:
-                return redirect(frontend_url("/", {"auth_error": "GitHub did not return an access token."}))
+                return redirect(
+                    frontend_url(
+                        "/", {"auth_error": "GitHub did not return an access token."}
+                    )
+                )
 
-            github_headers = {"Authorization": f"Bearer {access_token}", "Accept": "application/vnd.github+json"}
-            user_response = http_requests.get("https://api.github.com/user", headers=github_headers, timeout=10)
+            github_headers = {
+                "Authorization": f"Bearer {access_token}",
+                "Accept": "application/vnd.github+json",
+            }
+            user_response = http_requests.get(
+                "https://api.github.com/user", headers=github_headers, timeout=10
+            )
             user_response.raise_for_status()
             github_user = user_response.json()
 
             email = github_user.get("email")
             if not email:
-                email_response = http_requests.get("https://api.github.com/user/emails", headers=github_headers, timeout=10)
+                email_response = http_requests.get(
+                    "https://api.github.com/user/emails",
+                    headers=github_headers,
+                    timeout=10,
+                )
                 email_response.raise_for_status()
                 emails = email_response.json()
-                primary_email = next((item for item in emails if item.get("primary") and item.get("verified")), None)
+                primary_email = next(
+                    (
+                        item
+                        for item in emails
+                        if item.get("primary") and item.get("verified")
+                    ),
+                    None,
+                )
                 email = primary_email.get("email") if primary_email else None
 
             if not email:
-                return redirect(frontend_url("/", {"auth_error": "GitHub account has no verified email."}))
+                return redirect(
+                    frontend_url(
+                        "/", {"auth_error": "GitHub account has no verified email."}
+                    )
+                )
 
             user = User.objects.filter(email__iexact=email).first()
             if not user:
@@ -231,7 +282,9 @@ class GitHubOAuthCallbackView(APIView):
                 )
             )
         except Exception:
-            return redirect(frontend_url("/", {"auth_error": "GitHub authentication failed."}))
+            return redirect(
+                frontend_url("/", {"auth_error": "GitHub authentication failed."})
+            )
 
 
 class UserListView(generics.ListAPIView):
@@ -239,6 +292,10 @@ class UserListView(generics.ListAPIView):
     permission_classes = [permissions.IsAuthenticated]
     serializer_class = UserListSerializer
 
-    filter_backends = [DjangoFilterBackend, filters.SearchFilter, filters.OrderingFilter]
+    filter_backends = [
+        DjangoFilterBackend,
+        filters.SearchFilter,
+        filters.OrderingFilter,
+    ]
     search_fields = ["username"]
     ordering_fields = ["id", "username"]

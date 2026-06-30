@@ -11,4 +11,3 @@ urlpatterns = router.urls + [
     path("search/", SearchView.as_view(), name="search"),
     path("roadmap/", RoadmapView.as_view(), name="roadmap"),
 ]
-
