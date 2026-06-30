@@ -51,8 +51,9 @@ def on_lesson_completed(sender, instance, created, **kwargs):
         return
 
     try:
-        from apps.progress.models import LessonProgress as LP
         from django.db.models import Sum
+
+        from apps.progress.models import LessonProgress as LP
 
         total_xp = (
             LP.objects.filter(user=instance.user).aggregate(total=Sum("score"))["total"]

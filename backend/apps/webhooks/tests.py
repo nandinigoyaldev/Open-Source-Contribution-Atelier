@@ -4,10 +4,11 @@ import json
 from unittest.mock import MagicMock, patch
 
 import pytest
-from apps.webhooks.models import WebhookDelivery, WebhookEndpoint
-from apps.webhooks.tasks import deliver_webhook, dispatch_event, generate_signature
 from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient
+
+from apps.webhooks.models import WebhookDelivery, WebhookEndpoint
+from apps.webhooks.tasks import deliver_webhook, dispatch_event, generate_signature
 
 User = get_user_model()
 

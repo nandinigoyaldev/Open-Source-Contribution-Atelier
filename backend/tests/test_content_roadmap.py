@@ -1,10 +1,11 @@
 import pytest
-from apps.content.models import Exercise, Lesson
-from apps.progress.models import LessonProgress
 from django.contrib.auth.models import User
 from django.core.cache import cache
 from django.core.exceptions import ValidationError
 from rest_framework.test import APIClient
+
+from apps.content.models import Exercise, Lesson
+from apps.progress.models import LessonProgress
 
 
 @pytest.fixture(autouse=True)

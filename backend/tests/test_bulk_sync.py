@@ -1,8 +1,9 @@
 import pytest
-from apps.content.models import Lesson
-from apps.progress.models import LessonProgress
 from django.contrib.auth.models import User
 from rest_framework.test import APIClient
+
+from apps.content.models import Lesson
+from apps.progress.models import LessonProgress
 
 
 @pytest.mark.django_db

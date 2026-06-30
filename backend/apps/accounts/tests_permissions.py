@@ -1,12 +1,13 @@
+from django.contrib.auth.models import AnonymousUser, Group, User
+from django.test import TestCase
+from rest_framework.test import APIRequestFactory
+from rest_framework.views import APIView
+
 from apps.accounts.permissions import (
     IsAdminOrModeratorRole,
     IsAdminRole,
     IsModeratorRole,
 )
-from django.contrib.auth.models import AnonymousUser, Group, User
-from django.test import TestCase
-from rest_framework.test import APIRequestFactory
-from rest_framework.views import APIView
 
 
 class TestView(APIView):
@@ -129,8 +130,9 @@ class PermissionTests(TestCase):
         self.assertTrue(permission.has_permission(request, self.view))
 
 
-from apps.accounts.views import UserListView
 from rest_framework.test import force_authenticate
+
+from apps.accounts.views import UserListView
 
 
 class UserListViewTests(TestCase):

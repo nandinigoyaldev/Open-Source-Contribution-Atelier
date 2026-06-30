@@ -15,8 +15,24 @@ vi.mock("lucide-react", async (importOriginal) => {
   };
 });
 
-vi.mock("../hooks/ThemeContext", () => ({
-  useTheme: () => ({ theme: "light", setTheme: vi.fn(), toggleTheme: vi.fn() }),
+vi.mock("../hooks/useTheme", async (importOriginal) => {
+  const actual = await importOriginal<typeof import("../hooks/useTheme")>();
+  return {
+    ...actual,
+    useTheme: () => ({
+      theme: "light",
+      setTheme: vi.fn(),
+      toggleTheme: vi.fn(),
+    }),
+  };
+});
+
+// Google OAuth doesn't work in JSDOM; mock the hook to be a no-op
+vi.mock("@react-oauth/google", () => ({
+  GoogleOAuthProvider: ({ children }: { children: React.ReactNode }) => (
+    <>{children}</>
+  ),
+  useGoogleLogin: () => vi.fn(),
 }));
 
 describe("LandingPage", () => {

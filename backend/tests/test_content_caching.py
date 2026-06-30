@@ -1,7 +1,8 @@
 import pytest
+from django.core.cache import cache
+
 from apps.content.models import Lesson
 from apps.content.views import get_active_lessons
-from django.core.cache import cache
 
 
 @pytest.fixture(autouse=True)

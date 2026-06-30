@@ -19,6 +19,10 @@ export const handlers = [
     return HttpResponse.json(mockContributorDashboardStats);
   }),
 
+  http.get(matchUrl("/api/auth/me/"), () => {
+    return HttpResponse.json(null);
+  }),
+
   http.get(matchUrl("/api/leaderboard/"), () => {
     return HttpResponse.json(mockLeaderboard);
   }),

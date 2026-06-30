@@ -1,6 +1,7 @@
+from django.contrib.auth.models import User
+
 from apps.content.models import Lesson
 from apps.progress.models import Certificate, LessonProgress
-from django.contrib.auth.models import User
 
 # Create user
 user, created = User.objects.get_or_create(

@@ -1,12 +1,13 @@
 import random
 from datetime import timedelta
 
-from apps.content.models import Exercise, Lesson
-from apps.dashboard.models import Issue, PullRequest
-from apps.progress.models import Certificate, ExerciseAttempt, LessonProgress
 from django.contrib.auth.models import User
 from django.core.management.base import BaseCommand
 from django.utils import timezone
+
+from apps.content.models import Exercise, Lesson
+from apps.dashboard.models import Issue, PullRequest
+from apps.progress.models import Certificate, ExerciseAttempt, LessonProgress
 
 
 class Command(BaseCommand):

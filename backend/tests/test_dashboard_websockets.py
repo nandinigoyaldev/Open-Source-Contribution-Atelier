@@ -1,10 +1,11 @@
 import pytest
-from apps.content.models import Lesson
-from apps.progress.models import LessonProgress
 from channels.layers import get_channel_layer
 from channels.testing import WebsocketCommunicator
-from config.asgi import application
 from django.contrib.auth.models import User
+
+from apps.content.models import Lesson
+from apps.progress.models import LessonProgress
+from config.asgi import application
 
 
 @pytest.mark.asyncio

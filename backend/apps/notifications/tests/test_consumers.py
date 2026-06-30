@@ -1,13 +1,14 @@
 import json
 
 import pytest
-from apps.notifications.models import Notification
 from channels.db import database_sync_to_async
 from channels.layers import get_channel_layer
 from channels.testing import WebsocketCommunicator
-from config.asgi import application
 from django.contrib.auth import get_user_model
 from rest_framework_simplejwt.tokens import AccessToken
+
+from apps.notifications.models import Notification
+from config.asgi import application
 
 User = get_user_model()
 

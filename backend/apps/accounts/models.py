@@ -1,8 +1,9 @@
 import uuid
 
-from apps.content.models import Lesson
 from django.conf import settings
 from django.db import models
+
+from apps.content.models import Lesson
 
 
 class MentorProfile(models.Model):

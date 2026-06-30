@@ -1,13 +1,14 @@
 import logging
 import sys
 
-from apps.challenges.models import Challenge
-from apps.content.models import Lesson
-from apps.dashboard.models import Issue
 from django.contrib.auth import get_user_model
 from django.db.models.signals import post_delete, post_save
 from django.dispatch import receiver
 from kombu.exceptions import OperationalError
+
+from apps.challenges.models import Challenge
+from apps.content.models import Lesson
+from apps.dashboard.models import Issue
 
 from .tasks import index_model_for_search, remove_model_from_search
 

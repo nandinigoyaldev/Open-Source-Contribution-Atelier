@@ -1,4 +1,5 @@
 import pytest
+
 from apps.sandbox.linter import lint_command
 
 

@@ -1,6 +1,7 @@
 import pytest
-from apps.content.models import Lesson
 from rest_framework.test import APIClient
+
+from apps.content.models import Lesson
 
 
 @pytest.mark.django_db

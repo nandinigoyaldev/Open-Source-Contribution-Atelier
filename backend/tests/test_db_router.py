@@ -1,10 +1,11 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
-from config.db_router import PrimaryReplicaRouter
 from django.conf import settings
 from django.db import transaction
 from django.db.utils import OperationalError
+
+from config.db_router import PrimaryReplicaRouter
 
 
 class TestPrimaryReplicaRouter:

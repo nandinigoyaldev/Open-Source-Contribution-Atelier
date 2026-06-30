@@ -1,11 +1,12 @@
 import pytest
-from apps.content.models import Exercise, Lesson
-from apps.dashboard.models import Issue, PullRequest
-from apps.progress.models import ExerciseAttempt, LessonProgress
 from django.contrib.auth import get_user_model
 from django.db import connection, reset_queries
 from django.test import override_settings
 from rest_framework.test import APIClient
+
+from apps.content.models import Exercise, Lesson
+from apps.dashboard.models import Issue, PullRequest
+from apps.progress.models import ExerciseAttempt, LessonProgress
 
 User = get_user_model()
 

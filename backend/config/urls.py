@@ -1,9 +1,10 @@
-from apps.dashboard.views import LeaderboardView
 from django.contrib import admin
 from django.urls import include, path
 from django.views.decorators.csrf import csrf_exempt
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 from graphene_django.views import GraphQLView
+
+from apps.dashboard.views import LeaderboardView
 
 from .health_view import health_view
 from .version_view import version_view

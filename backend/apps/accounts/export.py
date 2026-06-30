@@ -3,6 +3,9 @@ import io
 import json
 import zipfile
 
+from django.core.serializers.json import DjangoJSONEncoder
+from django.db.models import QuerySet
+
 from apps.accounts.models import MentorProfile
 from apps.chat.models import Message
 from apps.content.models import Comment
@@ -20,8 +23,6 @@ from apps.progress.models import (
 )
 from apps.sandbox.models import SandboxExecutionLog
 from apps.webhooks.models import WebhookEndpoint
-from django.core.serializers.json import DjangoJSONEncoder
-from django.db.models import QuerySet
 
 
 class DataExportService:

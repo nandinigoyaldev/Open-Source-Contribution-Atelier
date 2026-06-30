@@ -1,10 +1,11 @@
 from unittest.mock import patch
 
 import pytest
-from apps.accounts.models import MagicLinkToken
 from django.contrib.auth.models import User
 from django.urls import reverse
 from rest_framework import status
+
+from apps.accounts.models import MagicLinkToken
 
 
 @pytest.fixture

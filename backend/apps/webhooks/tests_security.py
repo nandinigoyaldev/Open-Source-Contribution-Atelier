@@ -1,13 +1,14 @@
 import json
 
 import pytest
+from django.http import HttpResponse, JsonResponse
+from django.test import RequestFactory
+
 from apps.webhooks.security import (
     compute_signature,
     require_webhook_signature,
     verify_signature,
 )
-from django.http import HttpResponse, JsonResponse
-from django.test import RequestFactory
 
 SECRET = "my_super_secret_key"
 PAYLOAD = json.dumps({"event": "user.signup", "id": 123}).encode("utf-8")

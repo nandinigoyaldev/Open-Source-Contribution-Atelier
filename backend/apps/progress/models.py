@@ -1,9 +1,10 @@
-from apps.content.models import Exercise, Lesson
-from apps.organizations.models import Organization
 from django.contrib.auth.models import User
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import models
 from django.utils import timezone
+
+from apps.content.models import Exercise, Lesson
+from apps.organizations.models import Organization
 
 
 class XPMultiplierEvent(models.Model):

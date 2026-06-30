@@ -4,6 +4,10 @@ import zipfile
 from datetime import timedelta
 
 import pytest
+from django.contrib.auth import get_user_model
+from django.utils import timezone
+from rest_framework.test import APIClient
+
 from apps.chat.models import Message
 from apps.content.models import Comment, Exercise, Lesson
 from apps.dashboard.models import Issue, StreakFreeze
@@ -14,9 +18,6 @@ from apps.progress.models import (
     PeerReview,
     UserBadge,
 )
-from django.contrib.auth import get_user_model
-from django.utils import timezone
-from rest_framework.test import APIClient
 
 User = get_user_model()
 

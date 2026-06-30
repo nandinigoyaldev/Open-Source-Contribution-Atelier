@@ -20,3 +20,12 @@ build
 # Docker
 Dockerfile
 .dockerignore
+
+# Production build exclusions
+media/
+staticfiles/
+data/
+tests/
+
+# Secrets
+*.pem

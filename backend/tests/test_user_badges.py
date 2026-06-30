@@ -1,8 +1,9 @@
 import pytest
-from apps.content.models import Lesson
-from apps.progress.models import Badge, LessonProgress, UserBadge
 from django.contrib.auth.models import User
 from rest_framework.test import APIClient
+
+from apps.content.models import Lesson
+from apps.progress.models import Badge, LessonProgress, UserBadge
 
 
 def create_lesson(slug="intro"):

@@ -1,10 +1,11 @@
 from datetime import timedelta
 
-from apps.progress.models import Badge, ExerciseAttempt, LessonProgress, UserBadge
 from celery import current_app  # type: ignore
 from celery import shared_task  # type: ignore
 from django.contrib.auth import get_user_model
 from django.utils import timezone
+
+from apps.progress.models import Badge, ExerciseAttempt, LessonProgress, UserBadge
 
 User = get_user_model()
 
@@ -56,8 +57,9 @@ def send_weekly_progress_summary():
 
 @shared_task
 def evaluate_achievements_task(user_id):
-    from apps.notifications.signals import create_and_push_notification
     from django.contrib.auth import get_user_model
+
+    from apps.notifications.signals import create_and_push_notification
 
     User = get_user_model()
 

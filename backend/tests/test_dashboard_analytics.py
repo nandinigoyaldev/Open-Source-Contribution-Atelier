@@ -1,10 +1,11 @@
 import pytest
-from apps.content.models import Lesson
-from apps.dashboard.models import Issue, PullRequest
-from apps.progress.models import LessonProgress
 from django.contrib.auth.models import User
 from django.core.cache import cache
 from rest_framework.test import APIClient
+
+from apps.content.models import Lesson
+from apps.dashboard.models import Issue, PullRequest
+from apps.progress.models import LessonProgress
 
 
 @pytest.fixture(autouse=True)

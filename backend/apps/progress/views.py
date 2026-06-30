@@ -1,5 +1,3 @@
-from apps.content.models import Lesson
-from apps.content.serializers import LessonSerializer
 from django.contrib.auth.models import User
 from django.db import transaction
 from django.db.models import Count, Min, Sum
@@ -11,6 +9,9 @@ from rest_framework.permissions import BasePermission
 from rest_framework.response import Response
 from rest_framework.throttling import AnonRateThrottle
 from rest_framework.views import APIView
+
+from apps.content.models import Lesson
+from apps.content.serializers import LessonSerializer
 
 from .models import (
     Badge,

@@ -1,11 +1,12 @@
 from unittest.mock import Mock, patch
 
 import pytest
-from apps.content.models import Lesson
-from apps.progress.models import LessonProgress
 from django.contrib.auth.models import User
 from rest_framework import status
 from rest_framework.test import APIClient, APITestCase
+
+from apps.content.models import Lesson
+from apps.progress.models import LessonProgress
 
 
 class UserProfileUpdateTests(APITestCase):

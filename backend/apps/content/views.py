@@ -1,9 +1,5 @@
 from io import BytesIO
 
-from apps.challenges.models import Challenge
-from apps.challenges.serializers import ChallengeSerializer
-from apps.progress.models import LessonProgress
-from apps.search.models import SearchDocument
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.postgres.search import SearchQuery, SearchRank, TrigramSimilarity
 from django.core.cache import cache
@@ -21,6 +17,11 @@ from rest_framework import (
     viewsets,
 )
 from rest_framework.permissions import AllowAny
+
+from apps.challenges.models import Challenge
+from apps.challenges.serializers import ChallengeSerializer
+from apps.progress.models import LessonProgress
+from apps.search.models import SearchDocument
 
 from . import semantic_search
 from .models import Lesson, Organization

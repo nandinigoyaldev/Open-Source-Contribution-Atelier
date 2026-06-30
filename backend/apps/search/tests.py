@@ -1,14 +1,15 @@
 import unittest
 
+from django.conf import settings
+from django.contrib.auth import get_user_model
+from django.test import RequestFactory, TestCase
+
 from apps.challenges.models import Challenge
 from apps.content.models import Lesson
 from apps.dashboard.models import Issue
 from apps.search.models import SearchDocument
 from apps.search.tasks import index_model_for_search, remove_model_from_search
 from apps.search.views import UnifiedSearchView
-from django.conf import settings
-from django.contrib.auth import get_user_model
-from django.test import RequestFactory, TestCase
 
 User = get_user_model()
 

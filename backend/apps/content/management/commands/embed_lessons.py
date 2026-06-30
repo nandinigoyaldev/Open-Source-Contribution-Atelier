@@ -1,6 +1,7 @@
+from django.core.management.base import BaseCommand
+
 from apps.content.models import Lesson
 from apps.content.semantic_search import encode, is_available
-from django.core.management.base import BaseCommand
 
 
 class Command(BaseCommand):

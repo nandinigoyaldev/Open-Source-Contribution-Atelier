@@ -1,0 +1,23 @@
+services:
+  backend:
+    build:
+      context: ./backend
+      target: production
+    volumes: []
+    environment:
+      DEBUG: "False"
+    command: ["gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8000"]
+
+  celery_worker:
+    build:
+      context: ./services/notifications_worker
+      dockerfile: Dockerfile
+      target: production
+    volumes: []
+
+  frontend:
+    build: ./frontend
+    ports:
+      - "80:80"
+    volumes: []
+    command: ["nginx", "-g", "daemon off;"]

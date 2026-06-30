@@ -1,10 +1,11 @@
 import pytest
-from apps.content.models import Exercise
-from apps.progress.models import CodeSubmission, ExerciseAttempt, PeerReview
 from django.contrib.auth.models import User
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APIClient
+
+from apps.content.models import Exercise
+from apps.progress.models import CodeSubmission, ExerciseAttempt, PeerReview
 
 
 @pytest.fixture

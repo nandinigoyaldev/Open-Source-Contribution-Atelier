@@ -11,11 +11,12 @@ Verifies that the GET /api/progress/mentor/help-requests/ endpoint:
 from typing import List, Optional
 
 import pytest
+from django.contrib.auth.models import User
+from rest_framework.test import APIClient
+
 from apps.accounts.models import MentorProfile
 from apps.content.models import Lesson
 from apps.progress.models import HelpRequest
-from django.contrib.auth.models import User
-from rest_framework.test import APIClient
 
 MENTOR_ENDPOINT = "/api/progress/mentor/help-requests/"
 

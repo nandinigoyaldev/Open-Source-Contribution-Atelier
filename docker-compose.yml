@@ -35,7 +35,7 @@ services:
   # Django Backend API
   # ─────────────────────────────────────────────────
   backend:
-    image: python:3.11-slim
+    build: ./backend
     working_dir: /app
     volumes:
       # Mount the entire backend directory for hot-reloading

@@ -2,11 +2,12 @@ from datetime import timedelta
 from unittest.mock import patch
 
 import pytest
+from django.contrib.auth import get_user_model
+from django.utils import timezone
+
 from apps.content.models import Lesson
 from apps.progress.models import Badge, LessonProgress, UserBadge
 from apps.progress.tasks import send_weekly_progress_summary
-from django.contrib.auth import get_user_model
-from django.utils import timezone
 
 User = get_user_model()
 

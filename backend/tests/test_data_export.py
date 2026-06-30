@@ -4,10 +4,11 @@ import json
 import zipfile
 
 import pytest
-from apps.content.models import Lesson
-from apps.progress.models import LessonProgress
 from django.contrib.auth import get_user_model
 from rest_framework.test import APIClient
+
+from apps.content.models import Lesson
+from apps.progress.models import LessonProgress
 
 User = get_user_model()
 

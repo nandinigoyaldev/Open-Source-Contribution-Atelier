@@ -1,5 +1,6 @@
-import apps.content.schema
 import graphene
+
+import apps.content.schema
 
 
 class Query(apps.content.schema.Query, graphene.ObjectType):
