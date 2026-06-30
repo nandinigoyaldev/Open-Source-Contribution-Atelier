@@ -1,5 +1,7 @@
+import { useMemo } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchApi } from "../lib/api";
+import { useLocalSync } from "./useLocalSync";
 
 export interface ProgressEntry {
   id: number;
@@ -12,6 +14,7 @@ export interface ProgressEntry {
 
 export function useUserProgress() {
   const queryClient = useQueryClient();
+  useLocalSync();
 
   // 1. Query to fetch all progress
   const { data: progress = [], isLoading } = useQuery<ProgressEntry[]>({
@@ -22,7 +25,11 @@ export function useUserProgress() {
 
   // 2. Mutation to sync completion
   const syncMutation = useMutation({
-    mutationFn: (vars: { lesson_slug: string; score?: number; completed?: boolean }) =>
+    mutationFn: (vars: {
+      lesson_slug: string;
+      score?: number;
+      completed?: boolean;
+    }) =>
       fetchApi("/progress/me/", {
         method: "POST",
         body: JSON.stringify(vars),
@@ -35,12 +42,41 @@ export function useUserProgress() {
 
   // 3. Convenience helpers
   const isLessonCompleted = (slug: string) => {
-    // Assuming backend returns related lesson data or slug
-    // If not, we might need to adjust the serializer
-    return progress.some((p) => p.lesson_slug === slug && p.completed);
+    const isCompletedInBackend = progress.some(
+      (p) => p.lesson_slug === slug && p.completed,
+    );
+    if (isCompletedInBackend) return true;
+
+    try {
+      const pending = JSON.parse(
+        localStorage.getItem("atelier_pending_sync") || "[]",
+      ) as { lesson_slug: string; score: number; completed: boolean }[];
+      return pending.some((p) => p.lesson_slug === slug && p.completed);
+    } catch {
+      return false;
+    }
   };
 
-  const totalXP = progress.reduce((acc, p) => acc + p.score, 0);
+  const totalXP = useMemo(() => {
+    const backendXP = progress.reduce((acc, p) => acc + p.score, 0);
+    let pendingXP = 0;
+    try {
+      const pending = JSON.parse(
+        localStorage.getItem("atelier_pending_sync") || "[]",
+      ) as { lesson_slug: string; score: number; completed: boolean }[];
+      pending.forEach((p) => {
+        const inBackend = progress.some(
+          (bp) => bp.lesson_slug === p.lesson_slug,
+        );
+        if (!inBackend) {
+          pendingXP += p.score || 0;
+        }
+      });
+    } catch {
+      // Ignore invalid JSON in localStorage
+    }
+    return backendXP + pendingXP;
+  }, [progress]);
 
   return {
     progress,

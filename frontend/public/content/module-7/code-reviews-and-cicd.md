@@ -5,7 +5,9 @@ In open source, projects use **Continuous Integration (CI)** pipelines to run au
 ---
 
 ### What happens when you open a PR?
+
 GitHub automatically triggers runners that perform:
+
 - **Build Checks**: Verifies that the code compiles successfully without syntax errors.
 - **Unit & Integration Tests**: Runs the project's test suite (e.g. Jest, Pytest) to confirm all specs pass.
 - **Linter checks**: Confirms your code format follows standard styling expectations (Prettier, ESLint).

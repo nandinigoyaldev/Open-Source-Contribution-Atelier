@@ -5,6 +5,7 @@ Let's practice the complete sequence of actions to submit a feature pull request
 ---
 
 ### Step-by-Step Exercise
+
 Imagine you've forked the repository and cloned it locally. Now, follow this routine:
 
 1. **Create and Switch to a Feature Branch**:

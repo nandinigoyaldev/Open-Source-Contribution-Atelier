@@ -30,22 +30,6 @@
   color: "fcd3de" # Pastel Pink
   description: "Improvements or additions to README, setup docs, or guide outlines."
 
-- name: "accessibility"
-  color: "bf55ec" # Purple
-  description: "Screen reader, keyboard navigation, contrast, or aria standards."
-
-- name: "performance"
-  color: "55ff55" # Light Green
-  description: "Caching optimizations, query optimizations, or load time fixes."
-
-- name: "testing"
-  color: "ffd085" # Soft Orange
-  description: "Adding unit, integration, or visual regression test coverage."
-
-- name: "ui/ux"
-  color: "ff85ff" # Pink/Magenta
-  description: "Micro-animations, layout responsiveness, neobrutalist styling fixes."
-
 - name: "authentication"
   color: "ffc5c5" # Soft Red
   description: "Signups, logins, JWT refreshes, or OAuth callbacks."
@@ -58,18 +42,3 @@
   color: "008672" # Teal
   description: "Extra review needed or seeking community assistance."
 
-- name: "discussion needed"
-  color: "1d76db" # Blue
-  description: "Design decision or maintainer alignment required."
-
-- name: "priority-low"
-  color: "e0e0e0" # Light Grey
-  description: "Nice-to-have items with no immediate impact."
-
-- name: "priority-medium"
-  color: "ffaa00" # Orange
-  description: "Standard issues to be triaged for the current release."
-
-- name: "priority-high"
-  color: "d93f0b" # Deep Orange/Red
-  description: "Critical blocks or active bugs affecting cohort users."

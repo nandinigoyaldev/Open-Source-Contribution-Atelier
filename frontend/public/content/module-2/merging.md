@@ -5,11 +5,14 @@ Once you have finished development and tested your changes on a feature branch, 
 ---
 
 ### How Merging Works
+
 Merging combines two independent branch histories together. Git automatically finds the common base commit, compares the changes, and creates a special "merge commit" incorporating both histories.
 
 ### The Merge Command
+
 To merge changes:
-1. First, switch to the branch you want to merge *into* (e.g. `main`):
+
+1. First, switch to the branch you want to merge _into_ (e.g. `main`):
    ```bash
    git switch main
    ```

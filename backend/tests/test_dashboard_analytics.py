@@ -1,11 +1,10 @@
 import pytest
+from apps.content.models import Lesson
+from apps.dashboard.models import Issue, PullRequest
+from apps.progress.models import LessonProgress
 from django.contrib.auth.models import User
 from django.core.cache import cache
 from rest_framework.test import APIClient
-
-from apps.dashboard.models import Issue, PullRequest
-from apps.progress.models import LessonProgress
-from apps.content.models import Lesson
 
 
 @pytest.fixture(autouse=True)
@@ -35,9 +34,9 @@ def test_contributor_role_enforcement():
         username="contrib1",
         email="contrib1@example.com",
         password="password123",
-        is_staff=False
+        is_staff=False,
     )
-    
+
     client = APIClient()
     client.force_authenticate(user=contributor)
 
@@ -57,9 +56,9 @@ def test_admin_access_allowed():
         username="admin1",
         email="admin1@example.com",
         password="password123",
-        is_staff=True
+        is_staff=True,
     )
-    
+
     client = APIClient()
     client.force_authenticate(user=admin)
 
@@ -76,25 +75,45 @@ def test_admin_access_allowed():
 def test_admin_dashboard_statistics():
     admin = User.objects.create_user(username="admin", is_staff=True)
     contrib = User.objects.create_user(username="contrib", is_staff=False)
-    
+
     # Create mock issues
-    issue1 = Issue.objects.create(title="Issue 1", description="desc", status=Issue.Status.SOLVED, points=100, assigned_to=contrib)
-    issue2 = Issue.objects.create(title="Issue 2", description="desc", status=Issue.Status.OPEN, points=50)
+    issue1 = Issue.objects.create(
+        title="Issue 1",
+        description="desc",
+        status=Issue.Status.SOLVED,
+        points=100,
+        assigned_to=contrib,
+    )
+    issue2 = Issue.objects.create(
+        title="Issue 2", description="desc", status=Issue.Status.OPEN, points=50
+    )
 
     # Create mock PRs
-    pr1 = PullRequest.objects.create(title="PR 1", status=PullRequest.Status.MERGED, issue=issue1, user=contrib)
-    pr2 = PullRequest.objects.create(title="PR 2", status=PullRequest.Status.OPEN, issue=issue2, user=contrib)
+    pr1 = PullRequest.objects.create(
+        title="PR 1", status=PullRequest.Status.MERGED, issue=issue1, user=contrib
+    )
+    pr2 = PullRequest.objects.create(
+        title="PR 2", status=PullRequest.Status.OPEN, issue=issue2, user=contrib
+    )
 
     # Create mock lesson progress
-    lesson = Lesson.objects.create(title="Git Basics", slug="git-basics", summary="basics", content="content", order=1)
-    LessonProgress.objects.create(user=contrib, lesson=lesson, completed=True, score=200)
+    lesson = Lesson.objects.create(
+        title="Git Basics",
+        slug="git-basics",
+        summary="basics",
+        content="content",
+        order=1,
+    )
+    LessonProgress.objects.create(
+        user=contrib, lesson=lesson, completed=True, score=200
+    )
 
     client = APIClient()
     client.force_authenticate(user=admin)
 
     response = client.get("/api/dashboard/admin/")
     assert response.status_code == 200
-    
+
     stats = response.data["system_stats"]
     assert stats["total_issues"] == 2
     assert stats["solved_issues"] == 1
@@ -156,16 +175,32 @@ def test_leaderboard_is_paginated_to_twenty_contributors_per_page():
 @pytest.mark.django_db
 def test_contributor_dashboard_statistics():
     contrib = User.objects.create_user(username="contrib", is_staff=False)
-    
+
     # Create mock issues
-    issue = Issue.objects.create(title="My Assigned Issue", description="desc", status=Issue.Status.IN_PROGRESS, points=100, assigned_to=contrib)
-    
+    issue = Issue.objects.create(
+        title="My Assigned Issue",
+        description="desc",
+        status=Issue.Status.IN_PROGRESS,
+        points=100,
+        assigned_to=contrib,
+    )
+
     # Create mock PRs
-    PullRequest.objects.create(title="PR Title", status=PullRequest.Status.OPEN, issue=issue, user=contrib)
+    PullRequest.objects.create(
+        title="PR Title", status=PullRequest.Status.OPEN, issue=issue, user=contrib
+    )
 
     # Create mock lessons
-    lesson = Lesson.objects.create(title="Git Basics", slug="git-basics", summary="basics", content="content", order=1)
-    LessonProgress.objects.create(user=contrib, lesson=lesson, completed=True, score=150)
+    lesson = Lesson.objects.create(
+        title="Git Basics",
+        slug="git-basics",
+        summary="basics",
+        content="content",
+        order=1,
+    )
+    LessonProgress.objects.create(
+        user=contrib, lesson=lesson, completed=True, score=150
+    )
 
     client = APIClient()
     client.force_authenticate(user=contrib)
@@ -177,7 +212,9 @@ def test_contributor_dashboard_statistics():
     personal = response.data["personal_stats"]
     assert personal["issues_solved"] == 0
     assert personal["prs_merged"] == 0
-    assert personal["total_xp"] == 150 # 150 score from completed lesson, 0 from unresolved issue
+    assert (
+        personal["total_xp"] == 150
+    )  # 150 score from completed lesson, 0 from unresolved issue
 
     # Assigned issues assertions
     assigned = response.data["assigned_issues"]
@@ -214,7 +251,9 @@ def test_caching_and_signal_invalidation():
     # Manually add an issue to database (bypass django signals to simulate caching)
     # Actually django signals will fire here because we're calling Issue.objects.create,
     # so the cache will be invalidated. Let's verify that cache WAS cleared and stats updated!
-    Issue.objects.create(title="Direct Issue", description="desc", status=Issue.Status.OPEN)
+    Issue.objects.create(
+        title="Direct Issue", description="desc", status=Issue.Status.OPEN
+    )
 
     # Second request should get the new data because signals invalidated the cache
     response2 = client.get("/api/dashboard/admin/")

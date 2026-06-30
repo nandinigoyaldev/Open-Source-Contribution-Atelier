@@ -1,0 +1,36 @@
+name: Welcome First-Time Contributor
+
+on:
+  issues:
+    types: [opened]
+  pull_request_target:
+    types: [opened]
+
+permissions:
+  issues: write
+  pull-requests: write
+
+jobs:
+  welcome:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Welcome Action
+        uses: actions/first-interaction@v1
+        with:
+          repo-token: ${{ secrets.GITHUB_TOKEN }}
+          issue-message: |
+            👋 Welcome to **Open-Source-Contribution-Atelier**! 
+            
+            Thank you so much for opening your first issue. We are excited to have you contribute! 
+            
+            If you're looking to start working on this, please make sure you check out our [Content Guide](https://github.com/${{ github.repository }}/blob/main/docs/CONTENT_GUIDE.md) and wait until a maintainer assigns the issue to you.
+            
+            Happy open-sourcing! 🎉
+          pr-message: |
+            👋 Welcome to **Open-Source-Contribution-Atelier**! 
+            
+            Thank you so much for your first Pull Request! We're thrilled to have your contribution.
+            
+            Our automated CI will run checks on your code shortly. Please ensure you've reviewed the **Pre-push checklist** locally (Frontend lint/tests, Backend black/pytest) to help get your PR merged smoothly.
+            
+            A maintainer will review your code as soon as possible. Happy open-sourcing! 🎉

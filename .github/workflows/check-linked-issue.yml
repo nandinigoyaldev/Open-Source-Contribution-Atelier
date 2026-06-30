@@ -1,0 +1,40 @@
+name: Check Linked Issue
+on:
+  pull_request_target:
+    types: [opened, edited]
+jobs:
+  check-issue:
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b
+        with:
+          script: |
+            const body = context.payload.pull_request.body || '';
+            const issuePattern = /\b(closes|fixes|resolves|related to|ref)\b\s*#\d+/i;
+            const warningText = '⚠️ **No linked issue found!**';
+            if (!issuePattern.test(body)) {
+              const comments = await github.paginate(
+                github.rest.issues.listComments,
+                {
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: context.payload.pull_request.number
+                }
+              );
+              const alreadyCommented = comments.some(
+                c => c.user.type === 'Bot' && c.body.includes(warningText)
+              );
+              if (!alreadyCommented) {
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: context.payload.pull_request.number,
+                  body: `⚠️ **No linked issue found!**\nThis PR cannot be reviewed until a related issue is linked.\nPlease add \`Closes #issue_number\` in your PR description.`
+                });
+              }
+              core.setFailed('PR must reference a linked issue.');
+            } else {
+              console.log('✅ Linked issue found.');
+            }

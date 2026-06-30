@@ -9,6 +9,39 @@ export interface Exercise {
   points?: number;
 }
 
+export interface ConflictScenario {
+  baseBranchName: string;
+  featureBranchName: string;
+  fileContent: string; // The file content containing Git conflict markers (<<<<<<< HEAD)
+}
+
+export interface PythonExercise {
+  prompt: string;
+  starterCode: string;
+  testCode: string; // Hidden code appended after user code to run assertions
+  hint?: string;
+}
+
+export interface JSExercise {
+  prompt: string;
+  starterCode: string;
+  testCode: string;
+  hint?: string;
+}
+
+export interface DebugExercise {
+  prompt: string;
+  starterCode: string;
+  hint?: string;
+}
+
+export interface RustExercise {
+  prompt?: string;
+  starterCode: string;
+  expected?: string;
+  hint?: string;
+}
+
 export interface Lesson {
   slug: string; // used for URL
   title: string;
@@ -30,6 +63,11 @@ export interface Lesson {
     answer: number;
     explanation: string;
   }>;
+  conflictScenario?: ConflictScenario;
+  pythonExercise?: PythonExercise;
+  jsExercise?: JSExercise;
+  debugExercise?: DebugExercise;
+  category?: string;
 }
 
 // Small built-in fallback lessons (used if API unreachable)
@@ -56,46 +94,72 @@ export const lessons: Lesson[] = [
   },
 ];
 
-// Fetch lessons from local curriculum JSON asset
+// Fetch lessons from live API
 export async function fetchLessonsApi(): Promise<Lesson[]> {
   try {
-    const response = await fetch("/content/curriculum.json");
-    if (!response.ok) {
-      throw new Error("Failed to load curriculum.json");
-    }
-    const data = await response.json();
-    if (!data || !Array.isArray(data.modules)) return lessons;
+    const data = await fetchApi("/content/lessons/", { requireAuth: false });
+    if (!Array.isArray(data)) return lessons;
 
-    const allLessons: Lesson[] = [];
-    let orderIndex = 0;
-
-    for (const mod of data.modules) {
-      if (!Array.isArray(mod.lessons)) continue;
-      for (const les of mod.lessons) {
-        allLessons.push({
-          slug: les.slug,
-          title: les.title,
-          description: les.description || "",
-          explanation: "", // Will load dynamically from markdown content
-          expected: les.expected || "",
-          hint: les.hint || "Read the lesson contents and solve the check.",
-          difficulty: les.difficulty || "beginner",
-          points: les.points || 15,
-          estimatedMinutes: les.estimatedMinutes || 10,
-          learningObjectives: les.learningObjectives || [],
-          tips: les.tips || [],
-          exercises: les.exercises || [],
-          quizzes: les.quizzes || [],
-          order: orderIndex++,
-          filePath: les.filePath,
-        });
-      }
-    }
-    return allLessons;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return (data as any[]).map((les, index: number) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const firstExercise = (les.exercises as any[] | undefined)?.[0];
+      return {
+        slug: String(les.slug ?? ""),
+        title: String(les.title ?? ""),
+        description: String(les.summary ?? ""),
+        explanation: String(les.content ?? ""),
+        expected: String(firstExercise?.expectedCommand ?? ""),
+        hint: String(
+          firstExercise?.explanation ??
+          "Read the lesson contents and solve the check."
+        ),
+        difficulty: String(les.difficulty ?? "beginner"),
+        points: Number(firstExercise?.points ?? 15),
+        estimatedMinutes: Number(les.estimatedMinutes ?? 10),
+        learningObjectives: Array.isArray(les.learningObjectives) ? les.learningObjectives : [],
+        tips: Array.isArray(les.tips) ? les.tips : [],
+        exercises: Array.isArray(les.exercises) ? les.exercises : [],
+        quizzes: Array.isArray(les.quizzes) ? les.quizzes : [],
+        conflictScenario: les.conflictScenario ?? undefined,
+        pythonExercise: les.pythonExercise ?? undefined,
+        jsExercise: les.jsExercise ?? undefined,
+        debugExercise: les.debugExercise ?? undefined,
+        order: Number(les.order ?? index),
+        category: String(les.category ?? "general"),
+        filePath: les.filePath ? String(les.filePath) : undefined,
+      } satisfies Lesson;
+    });
   } catch (err) {
-    console.error("Error loading curriculum JSON:", err);
+    console.error("Error loading live curriculum:", err);
     return lessons;
   }
+}
+
+export function buildModulesFromLessons(lessonsList: Lesson[]) {
+  type ModuleEntry = {
+    id: string;
+    title: string;
+    lessons: { slug: string; title: string; difficulty?: string }[];
+  };
+  const modulesMap = new Map<string, ModuleEntry>();
+  lessonsList.forEach((les) => {
+    const cat = les.category || "general";
+    if (!modulesMap.has(cat)) {
+      modulesMap.set(cat, {
+        id: cat,
+        title: cat.charAt(0).toUpperCase() + cat.slice(1).replace(/-/g, " "),
+        lessons: [],
+      });
+    }
+    // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
+    modulesMap.get(cat)!.lessons.push({
+      slug: les.slug,
+      title: les.title,
+      difficulty: les.difficulty,
+    });
+  });
+  return Array.from(modulesMap.values());
 }
 
 // Fetch markdown text content for a lesson
@@ -109,4 +173,3 @@ export async function fetchLessonContent(filePath: string): Promise<string> {
     return "# Content not found\nCould not retrieve the detailed documentation for this lesson.";
   }
 }
-

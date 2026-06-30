@@ -23,7 +23,9 @@ export function GitHubAuthCallbackPage() {
   return (
     <div className="min-h-[85vh] flex items-center justify-center p-4">
       <div className="rounded-2xl border-4 border-black bg-white px-8 py-6 text-center shadow-card-lg">
-        <p className="text-lg font-black uppercase text-black">Finishing GitHub sign in...</p>
+        <p className="text-lg font-black uppercase text-black">
+          Finishing GitHub sign in...
+        </p>
       </div>
     </div>
   );

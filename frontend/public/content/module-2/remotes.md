@@ -5,10 +5,12 @@ A local repository on your machine lives in isolation. To share code with others
 ---
 
 ### Origin vs. Upstream
+
 - **Origin**: This is the default name Git gives to the server repository you cloned or pushed code to. Typically, it points to your personal fork of a project.
 - **Upstream**: In open source, "upstream" refers to the original parent project repository that you forked from. Keeping sync with upstream is essential to avoid conflicts.
 
 ### Working with Remotes
+
 - **List Remotes**:
   ```bash
   git remote -v

@@ -2,11 +2,16 @@ export default function SkeletonCard() {
   return (
     <div
       aria-hidden="true"
-      className="border-4 border-black rounded-[2rem] shadow-card bg-surface-low motion-safe:animate-pulse p-6 space-y-4"
+      className="border-2 border-black rounded-lg p-2.5 flex items-center gap-2 bg-white animate-pulse"
     >
-      <div className="h-6 w-1/2 rounded bg-surface-high"></div>
-      <div className="h-4 w-full rounded bg-surface-high"></div>
-      <div className="h-4 w-3/4 rounded bg-surface-high"></div>
+      {/* Logo placeholder */}
+      <div className="w-8 h-8 rounded-lg bg-surface-high flex-shrink-0" />
+
+      {/* Text placeholder */}
+      <div className="flex flex-col gap-1.5 flex-1 min-w-0">
+        <div className="h-3 w-3/4 rounded bg-surface-high" />
+        <div className="h-2.5 w-1/3 rounded bg-surface-high" />
+      </div>
     </div>
   );
 }

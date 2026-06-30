@@ -5,16 +5,21 @@ The daily cycle of a developer consists of checking file modifications, selectin
 ---
 
 ### The Status Check
+
 Before doing anything, always inspect the state of your working directory:
+
 ```bash
 git status
 ```
+
 This lists:
+
 - Which files have been modified.
 - Which files are staged and ready to commit.
 - Untracked files that Git isn't tracking yet.
 
 ### The Standard Workflow
+
 1. Make code changes in your text editor.
 2. Check changes: `git status`
 3. Stage files: `git add <filename>` (or `git add .` to stage all changes)

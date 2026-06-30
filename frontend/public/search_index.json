@@ -1,0 +1,470 @@
+[
+  {
+    "id": "idx-0",
+    "slug": "what-is-open-source",
+    "title": "What is Open Source?",
+    "subtitle": "Introduction to Open Source",
+    "content": "Understand the core philosophy of open source and collaboration.",
+    "type": "lesson",
+    "hash": ""
+  },
+  {
+    "id": "idx-1",
+    "slug": "what-is-open-source",
+    "title": "What is Open Source?",
+    "subtitle": "What is Open Source?",
+    "content": "What is Open Source? At its core, Open Source describes software whose source code is released under a license that grants anyone the right to inspect, modify, distribute, and use it for any purpose. Instead of hiding source code inside proprietary boxes, open source projects embrace transparency and collaborative development . --- The Open Source Philosophy Open source is built on key principles: - Transparency : Anyone can review code changes, report problems, and examine the development history. - Participation : Diverse contributors from around the world pool their skills to improve software. - Collaboration : Decisions are often reached asynchronously through issues, discussions, and pull requests. - Inclusivity : Anyone, from student to expert, can participate and build upon open work. Open Source vs. Closed Source | Feature | Open Source | Closed Proprietary Source | | :--------------- | :---------------------------------------------- | :--------------------------------------------------- | | Source Code | Publicly accessible to view and edit | Locked; only visible to the owner company | | Development | Driven by community collaboration | Driven by company teams and specifications | | Trust | Auditable by anyone security is peer-reviewed | Security depends entirely on the publisher's promise | | Adaptability | You can fork and customize it | Restricted by copyright and end-user agreements | --- > !NOTE > Open source doesn't mean no rules . It relies on legal open-source licenses like MIT, Apache 2.0, or GPL to set the guidelines for copying and sharing.",
+    "type": "content",
+    "hash": ""
+  },
+  {
+    "id": "idx-2",
+    "slug": "why-open-source-matters",
+    "title": "Why Open Source Matters",
+    "subtitle": "Introduction to Open Source",
+    "content": "Explore the societal and technical impacts of open source projects.",
+    "type": "lesson",
+    "hash": ""
+  },
+  {
+    "id": "idx-3",
+    "slug": "why-open-source-matters",
+    "title": "Why Open Source Matters",
+    "subtitle": "Why Open Source Matters",
+    "content": "Why Open Source Matters Modern technology is built on a foundation of open source. From the servers hosting your favorite web apps Linux to the browsers you use Chromium and the languages you write Python, JavaScript, Go , open source forms the backbone of the internet. --- Key Benefits of Open Source 1. Quality and Innovation Because anyone can see the code, developers can collaborate, patch bugs, and introduce features much faster than a single isolated company. 2. Security through Peer Review \"Given enough eyes, all bugs are shallow\" Linus's Law . When code is public, security vulnerabilities are spotted and fixed quickly. 3. No Vendor Lock-In With proprietary software, you depend entirely on the vendor. With open source, if you need a feature or bug fix, you can add it yourself or fork the project. 4. Educational Value Open source is a massive, living classroom. You can read high-quality code written by senior engineers globally and receive feedback from them. --- > !TIP > Open source prevents developers from reinventing the wheel. Instead of rebuilding standard tools, teams can share libraries and focus on creating unique features.",
+    "type": "content",
+    "hash": ""
+  },
+  {
+    "id": "idx-4",
+    "slug": "history-of-open-source",
+    "title": "History of Open Source",
+    "subtitle": "Introduction to Open Source",
+    "content": "Discover the roots of the Free Software Movement and the transition to Open Source.",
+    "type": "lesson",
+    "hash": ""
+  },
+  {
+    "id": "idx-5",
+    "slug": "history-of-open-source",
+    "title": "History of Open Source",
+    "subtitle": "History of Open Source",
+    "content": "History of Open Source The open source movement did not start overnight. It grew from a cultural clash between corporate proprietary licensing and a hacker culture of sharing code. --- The Milestones - The Hacker Era 1950s - 1970s : In the early days of computing, software was shared freely alongside hardware. - The Proprietary Shift 1970s - 1980s : Companies started compiling software into binary format, restricting access to the source code to protect commercial profits. - The Free Software Movement 1983 : Richard Stallman launched the GNU Project and later created the Free Software Foundation FSF . He argued software should respect four essential user freedoms run, study, modify, and redistribute . - The Rise of Linux 1991 : Linus Torvalds released the Linux Kernel as a hobby project, which became the largest collaborative operating system in the world. - The \"Open Source\" Label 1998 : The term \"Open Source\" was coined at a meeting in Palo Alto, California, to present software sharing in a more business-friendly, pragmatic light. --- > !NOTE > While \"Free Software\" focuses on the philosophical freedoms of users, \"Open Source\" focuses on the pragmatic benefits of community collaboration and development.",
+    "type": "content",
+    "hash": ""
+  },
+  {
+    "id": "idx-6",
+    "slug": "benefits-of-contributing",
+    "title": "Benefits of Contributing",
+    "subtitle": "Introduction to Open Source",
+    "content": "How contributing to open source accelerates your personal and professional growth.",
+    "type": "lesson",
+    "hash": ""
+  },
+  {
+    "id": "idx-7",
+    "slug": "benefits-of-contributing",
+    "title": "Benefits of Contributing",
+    "subtitle": "Benefits of Contributing",
+    "content": "Benefits of Contributing Contributing to open source software OSS is one of the most effective ways to grow as a developer and build your career in public. --- Why You Should Contribute - Level Up Your Skills : Working on large codebases exposes you to advanced design patterns, testing frameworks, and lint tools. - Build a Public Portfolio : Your GitHub contribution graph serves as a public proof-of-work. Employers can see your coding style, problem-solving, and communication. - Collaborative Experience : You learn standard industry practices like code reviews, pull requests, CI/CD checks, and Git version control. - Find Mentors and Network : Collaborating with maintainers and other contributors connects you with engineers worldwide. --- > !TIP > The feedback you receive during code reviews on open source repositories is essentially free mentoring from experienced developers. Cherish it!",
+    "type": "content",
+    "hash": ""
+  },
+  {
+    "id": "idx-8",
+    "slug": "common-misconceptions",
+    "title": "Common Misconceptions",
+    "subtitle": "Introduction to Open Source",
+    "content": "Debunking myths about code perfection and contribution types in open source.",
+    "type": "lesson",
+    "hash": ""
+  },
+  {
+    "id": "idx-9",
+    "slug": "common-misconceptions",
+    "title": "Common Misconceptions",
+    "subtitle": "Common Misconceptions",
+    "content": "Common Misconceptions Many people are intimidated by open source, believing it's only for \"genius\" developers. Let's debunk the most common myths. --- Myth 1: \"I have to be a coding genius.\" Reality : Most open source contributions are small fixes, typo corrections, documentation improvements, or simple bug patches. You do not need to rewrite the compiler to help! Myth 2: \"Open source is only about writing code.\" Reality : Non-code contributions are highly valued. Projects need: - Documentation : Fixing typos, rewriting guides, translating text. - Design : Creating logos, improving UI layouts, styling components. - Triage : Testing issues, writing reproducing steps, tagging duplicates. - Community : Answering questions in discussions, mentoring others. Myth 3: \"My code must be perfect before submitting.\" Reality : Pull requests are collaborative spaces. Maintainers expect revisions and are usually happy to help you refine your work if you communicate politely. --- > !IMPORTANT > The most valued contributors are not those who write the flashiest code, but those who are helpful, communicate clearly, and respect the project's rules.",
+    "type": "content",
+    "hash": ""
+  },
+  {
+    "id": "idx-10",
+    "slug": "repositories-and-commits",
+    "title": "Repositories & Commits",
+    "subtitle": "Git Fundamentals",
+    "content": "How Git tracks project state. Initialize a repository.",
+    "type": "lesson",
+    "hash": ""
+  },
+  {
+    "id": "idx-11",
+    "slug": "repositories-and-commits",
+    "title": "Repositories & Commits",
+    "subtitle": "Repositories & Commits",
+    "content": "Repositories & Commits To collaborate in open source, you must understand Git , the distributed version control system that tracks the history of files. --- What is a Repository? A repository or \"repo\" is a directory containing all your project files and a hidden folder named .git . This .git folder holds the entire database of all changes, versions, and branches. What is a Commit? A commit is a snapshot of your files at a specific point in time. Think of it as a save game in a video game. If you make a mistake, you can revert back to any previous commit. --- Working Tree States In Git, files reside in one of three states: 1. Working Directory : Modifying files locally but not tracked yet. 2. Staging Area : Selecting files you want to include in your next snapshot. 3. Git Directory Repository : Files committed safely in the database. --- Getting Started To turn any local folder into a Git repository, run: bash git init > !TIP > Run git init in the terminal below to start tracking your project!",
+    "type": "content",
+    "hash": ""
+  },
+  {
+    "id": "idx-12",
+    "slug": "branches",
+    "title": "Branches",
+    "subtitle": "Git Fundamentals",
+    "content": "Isolating code paths using local branches.",
+    "type": "lesson",
+    "hash": ""
+  },
+  {
+    "id": "idx-13",
+    "slug": "branches",
+    "title": "Branches",
+    "subtitle": "Branches",
+    "content": "Git Branching In open source, multiple developers work on the same codebase simultaneously. To prevent people from overwriting each other's work, we use branches . --- What is a Branch? A branch is an independent line of development. By default, every repository starts with a default branch usually named main or master . When you want to add a feature or fix a bug: 1. You spin up a new branch branching off of main . 2. You write your code and commit changes on this new branch. 3. Your work is isolated: the main branch remains clean and stable. Creating and Switching Branches To create a new branch and switch to it immediately, run: bash git switch -c <branch-name> Or the older syntax: git checkout -b <branch-name> --- > !IMPORTANT > Always create descriptive branch names, e.g. feat/add-login or fix/nav-accessibility . Never make commits directly on the main branch!",
+    "type": "content",
+    "hash": ""
+  },
+  {
+    "id": "idx-14",
+    "slug": "merging",
+    "title": "Merging",
+    "subtitle": "Git Fundamentals",
+    "content": "Integrating branch histories back together.",
+    "type": "lesson",
+    "hash": ""
+  },
+  {
+    "id": "idx-15",
+    "slug": "merging",
+    "title": "Merging",
+    "subtitle": "Merging",
+    "content": "Merging Branches Once you have finished development and tested your changes on a feature branch, you need to bring those changes back into the main branch. This is called merging . --- How Merging Works Merging combines two independent branch histories together. Git automatically finds the common base commit, compares the changes, and creates a special \"merge commit\" incorporating both histories. The Merge Command To merge changes: 1. First, switch to the branch you want to merge into e.g. main : bash git switch main 2. Run the merge command with the name of the feature branch: bash git merge <feature-branch-name> --- > !NOTE > If changes overlap on the exact same lines, Git might trigger a Merge Conflict . Don't worry! We will learn how to handle conflicts in a later module.",
+    "type": "content",
+    "hash": ""
+  },
+  {
+    "id": "idx-16",
+    "slug": "remotes",
+    "title": "Remotes",
+    "subtitle": "Git Fundamentals",
+    "content": "Connecting your local workspace to remote hosting services.",
+    "type": "lesson",
+    "hash": ""
+  },
+  {
+    "id": "idx-17",
+    "slug": "remotes",
+    "title": "Remotes",
+    "subtitle": "Remotes",
+    "content": "Git Remotes A local repository on your machine lives in isolation. To share code with others, you must connect it to a remote repository hosted on a server like GitHub, GitLab, or Bitbucket . --- Origin vs. Upstream - Origin : This is the default name Git gives to the server repository you cloned or pushed code to. Typically, it points to your personal fork of a project. - Upstream : In open source, \"upstream\" refers to the original parent project repository that you forked from. Keeping sync with upstream is essential to avoid conflicts. Working with Remotes - List Remotes : bash git remote -v - Add a Remote : bash git remote add upstream <repository-url> - Fetch Remote Updates : bash git fetch origin --- > !TIP > Run git remote -v in the sandbox terminal below to inspect the registered remote links!",
+    "type": "content",
+    "hash": ""
+  },
+  {
+    "id": "idx-18",
+    "slug": "git-workflow",
+    "title": "Staging & Reviewing Status",
+    "subtitle": "Git Fundamentals",
+    "content": "Daily developer routine: check, stage, and commit.",
+    "type": "lesson",
+    "hash": ""
+  },
+  {
+    "id": "idx-19",
+    "slug": "git-workflow",
+    "title": "Staging & Reviewing Status",
+    "subtitle": "Staging & Reviewing Status",
+    "content": "Staging & Reviewing Status The daily cycle of a developer consists of checking file modifications, selecting what changes are ready for a commit, and logging them. --- The Status Check Before doing anything, always inspect the state of your working directory: bash git status This lists: - Which files have been modified. - Which files are staged and ready to commit. - Untracked files that Git isn't tracking yet. The Standard Workflow 1. Make code changes in your text editor. 2. Check changes: git status 3. Stage files: git add <filename> or git add . to stage all changes 4. Commit: git commit -m \"Describe the change in present tense\" --- > !CAUTION > Avoid running git add . blindly on unfamiliar open source projects. You might accidentally stage log files, API keys, or build outputs. Use git status to verify!",
+    "type": "content",
+    "hash": ""
+  },
+  {
+    "id": "idx-20",
+    "slug": "github-repositories",
+    "title": "GitHub Repositories",
+    "subtitle": "GitHub Fundamentals",
+    "content": "Understand hosting, forks, stars, and pull request tabs.",
+    "type": "lesson",
+    "hash": ""
+  },
+  {
+    "id": "idx-21",
+    "slug": "github-repositories",
+    "title": "GitHub Repositories",
+    "subtitle": "GitHub Repositories",
+    "content": "GitHub Repositories GitHub is a cloud platform that hosts Git repositories. It layers a powerful social and collaborative interface on top of Git's version control. --- Exploring a GitHub Repository When visiting a project repository on GitHub, you'll see several key tabs: - Code : The file explorer showing branch directories, README, and licenses. - Issues : Task boards where bugs are reported and feature requests are tracked. - Pull Requests : Code proposals waiting for peer reviews and merging. - Discussions : The community forum for questions, ideas, and general chats. - Actions : The automated workflow engine that builds code and runs tests CI/CD . Star and Watch - Star ⭐ : Similar to bookmarking. It shows appreciation and registers your interest. - Watch 👀 : Subscribes you to notifications issues, PRs, releases so you can follow the project's development live.",
+    "type": "content",
+    "hash": ""
+  },
+  {
+    "id": "idx-22",
+    "slug": "forks",
+    "title": "Forks",
+    "subtitle": "GitHub Fundamentals",
+    "content": "Creating your own copy of an upstream repository to build features.",
+    "type": "lesson",
+    "hash": ""
+  },
+  {
+    "id": "idx-23",
+    "slug": "forks",
+    "title": "Forks",
+    "subtitle": "Forks",
+    "content": "Forks on GitHub In open source, you usually do not have direct write permissions to edit the main repository of a project. To make changes, you use a Fork . --- What is a Fork? A Fork is a copy of a repository that is created under your own GitHub account. Because the fork belongs to you: - You have complete write permission to create branches, push commits, and delete files. - The original upstream project remains unaffected by your local edits. The Fork-and-PR Workflow 1. Find a repository you want to contribute to. 2. Click the Fork button on GitHub to copy it to your account. 3. Clone your fork to your computer: bash git clone <your-fork-url> 4. Create a branch, edit files, and push changes back to your fork origin . 5. Open a Pull Request from your fork's branch to the original project's main branch.",
+    "type": "content",
+    "hash": ""
+  },
+  {
+    "id": "idx-24",
+    "slug": "pull-requests",
+    "title": "Pull Requests",
+    "subtitle": "GitHub Fundamentals",
+    "content": "Proposing changes to a main branch for code review.",
+    "type": "lesson",
+    "hash": ""
+  },
+  {
+    "id": "idx-25",
+    "slug": "pull-requests",
+    "title": "Pull Requests",
+    "subtitle": "Pull Requests",
+    "content": "Pull Requests PRs A Pull Request is the bridge between your isolated fork and the main project. It's a formal proposal to merge your code changes into the official codebase. --- Key Elements of a Good PR - Title : Clear, descriptive summary of the change e.g. feat: implement dark mode switcher . - Description : Explains: - Why the change is necessary. - How it was implemented. - Links to related issues e.g. Closes 42 . - Files Changed : A diff view showing exactly which lines were added, modified, or removed. - Reviewers : Maintainers and other contributors who comment, request revisions, or approve the code. --- The Pull Request Cycle 1. You push your branch to GitHub and click Compare & pull request . 2. Automated tests CI/CD run to verify that your code doesn't break existing features. 3. Reviewers review your code, request changes, or leave comments. 4. You make updates on your local branch and push them; the PR updates automatically. 5. The maintainer clicks Merge , and your code is integrated!",
+    "type": "content",
+    "hash": ""
+  },
+  {
+    "id": "idx-26",
+    "slug": "issues",
+    "title": "GitHub Issues",
+    "subtitle": "GitHub Fundamentals",
+    "content": "Reporting bugs, requesting features, and discussing repository state.",
+    "type": "lesson",
+    "hash": ""
+  },
+  {
+    "id": "idx-27",
+    "slug": "issues",
+    "title": "GitHub Issues",
+    "subtitle": "GitHub Issues",
+    "content": "GitHub Issues Before writing any code, work in open source almost always begins inside an Issue . --- What is an Issue? An Issue is a tracking ticket. It is used to record bugs, suggest new ideas, request documentation improvements, or discuss architectural shifts. Elements of an Issue - Labels : Color-coded tags like bug , enhancement , good first issue , documentation that categorize the task. - Assignee : The developer who is currently responsible for resolving the task. - Milestones : Target release goals that group related issues together. --- > !NOTE > Opening an issue is a contribution! If you find a bug and provide detailed reproduction steps, you are saving the maintainers valuable time.",
+    "type": "content",
+    "hash": ""
+  },
+  {
+    "id": "idx-28",
+    "slug": "discussions",
+    "title": "GitHub Discussions",
+    "subtitle": "GitHub Fundamentals",
+    "content": "Participating in Q&A, community forums, and general chats.",
+    "type": "lesson",
+    "hash": ""
+  },
+  {
+    "id": "idx-29",
+    "slug": "discussions",
+    "title": "GitHub Discussions",
+    "subtitle": "GitHub Discussions",
+    "content": "GitHub Discussions Unlike Issues, which track concrete work tasks, GitHub Discussions act as a community forum. --- What are Discussions used for? - Asking Questions : \"How do I configure this plugin for Windows?\" - Brainstorming Ideas : \"What do you all think about adding a GraphQL API?\" - General Announcements : Maintainers sharing news, release roadmaps, or introducing new team members. - Show-and-Tell : Showing off projects you've built using the repository's tools. --- > !TIP > If you are unsure if a bug is actually a bug, or if you just need configuration advice, ask in Discussions first instead of opening an Issue .",
+    "type": "content",
+    "hash": ""
+  },
+  {
+    "id": "idx-30",
+    "slug": "organizations",
+    "title": "GitHub Organizations",
+    "subtitle": "GitHub Fundamentals",
+    "content": "Working with repositories under team structures.",
+    "type": "lesson",
+    "hash": ""
+  },
+  {
+    "id": "idx-31",
+    "slug": "organizations",
+    "title": "GitHub Organizations",
+    "subtitle": "GitHub Organizations",
+    "content": "GitHub Organizations Large open-source projects are rarely owned by single personal accounts. Instead, they reside inside GitHub Organizations . --- Why Organizations Exist - Shared Ownership : Multiple administrators can manage settings and billing together. - Teams : Developers can be grouped into teams e.g. @babel/core-team , @webpack/docs-team to manage notifications and code owner reviews. - Fine-Grained Permissions : You can grant read access to some, write access to triage teams, and admin control to core maintainers. --- > !NOTE > Examples of famous open source organizations include facebook React , vercel Next.js , django Django , and kubernetes Kubernetes .",
+    "type": "content",
+    "hash": ""
+  },
+  {
+    "id": "idx-32",
+    "slug": "respect-and-communication",
+    "title": "Respect & Communication",
+    "subtitle": "Open Source Etiquette",
+    "content": "How to address maintainers and write professional comments.",
+    "type": "lesson",
+    "hash": ""
+  },
+  {
+    "id": "idx-33",
+    "slug": "respect-and-communication",
+    "title": "Respect & Communication",
+    "subtitle": "Respect & Communication",
+    "content": "Respect & Communication Open source is a community of people. Good communication is just as important as writing clean code. --- Key Etiquette Rules - Respect Maintainers' Time : The vast majority of maintainers are volunteers. They might take days or weeks to respond to your issues or PRs. Do not spam them. - Write Clear, Context-Rich Messages : When asking for help, provide logs, your OS details, step-by-step reproduction steps, and what you've tried. - Be Kind and Professional : Follow the project's Code of Conduct . Disagreements should focus on the code and technical trade-offs, never on personal attacks. --- > !IMPORTANT > A polite, detailed issue or pull request description sets a collaborative tone and gets reviewed much faster than a demanding or cryptic one.",
+    "type": "content",
+    "hash": ""
+  },
+  {
+    "id": "idx-34",
+    "slug": "read-readme-and-contributing",
+    "title": "Reading Guidelines First",
+    "subtitle": "Open Source Etiquette",
+    "content": "The importance of checking README, CONTRIBUTING, and Code of Conduct documents.",
+    "type": "lesson",
+    "hash": ""
+  },
+  {
+    "id": "idx-35",
+    "slug": "read-readme-and-contributing",
+    "title": "Reading Guidelines First",
+    "subtitle": "Reading Guidelines First",
+    "content": "Reading Guidelines First Before you start writing code or opening issues, you must understand the project's rules. These are always laid out in two critical files: --- README.md Read Me The entry point of the project. It outlines: - What the software does. - How to install and run it locally. - Quick usage examples. CONTRIBUTING.md How to Contribute The contributor's playbook. It explains: - The codebase architecture. - Preferred branch naming styles e.g. fix/... vs bug/... . - How to run tests and linters locally. - Pull request submission templates. --- > !WARNING > Submitting code that violates the style guide or fails existing tests because you didn't read CONTRIBUTING.md wastes maintainers' time. Always inspect guidelines first!",
+    "type": "content",
+    "hash": ""
+  },
+  {
+    "id": "idx-36",
+    "slug": "professional-prs-and-issues",
+    "title": "Professional Submissions",
+    "subtitle": "Open Source Etiquette",
+    "content": "Avoid duplicate issues, spam PRs, and working without issue assignment.",
+    "type": "lesson",
+    "hash": ""
+  },
+  {
+    "id": "idx-37",
+    "slug": "professional-prs-and-issues",
+    "title": "Professional Submissions",
+    "subtitle": "Professional Submissions",
+    "content": "Professional Submissions To keep open-source repositories healthy, you should avoid common anti-patterns that create noise and overhead for maintainers. --- Avoid These Anti-Patterns: 1. The Hit-and-Run PR : Creating a pull request and never responding to review comments or feedback. 2. Spam Pull Requests : Making trivial edits like adding a single space or fixing punctuation in a comment just to increase your GitHub contribution count e.g. during Hacktoberfest . 3. Working Without Assignment : Starting work on a complex issue without checking if someone else is already assigned to it or asking the maintainers first. 4. Duplicate Issues : Opening a bug report without searching existing issues first to check if it's already reported. --- > !CAUTION > Spamming or ignoring contribution guidelines can get your PR tagged as spam, which can lead to your GitHub account being restricted. Always make meaningful contributions!",
+    "type": "content",
+    "hash": ""
+  },
+  {
+    "id": "idx-38",
+    "slug": "maintainer-review-processes",
+    "title": "Review & Revision Habits",
+    "subtitle": "Open Source Etiquette",
+    "content": "Understand how code reviews work and how to handle revision requests.",
+    "type": "lesson",
+    "hash": ""
+  },
+  {
+    "id": "idx-39",
+    "slug": "maintainer-review-processes",
+    "title": "Review & Revision Habits",
+    "subtitle": "Review & Revision Habits",
+    "content": "Review & Revision Habits Once you submit a pull request, the collaboration has just begun. Maintainers will review your work to verify it aligns with project expectations. --- The Review States A maintainer's review can result in one of three states on GitHub: - Approved : Your changes look great, are tested, and are ready to merge. - Changes Requested : The maintainer identified issues, design bugs, or missing tests. You must update your code before merging. - Comment : General questions, suggestions, or clarifications without a formal block. Best Practices for Revisions 1. Be Constructive : Do not take critique personally. It's a review of the code, not you. 2. Comment on Threads : Reply on the conversation threads to indicate what was resolved or explain your design choices. 3. Commit to the Same Branch : You do not need to open a new PR to apply requested changes. Simply commit and push to your feature branch, and the PR will automatically update!",
+    "type": "content",
+    "hash": ""
+  },
+  {
+    "id": "idx-40",
+    "slug": "first-contribution-walkthrough",
+    "title": "Submit a Mock PR",
+    "subtitle": "First Contribution Walkthrough",
+    "content": "Walk through cloning, branching, and pushing a commit to mock origin.",
+    "type": "lesson",
+    "hash": ""
+  },
+  {
+    "id": "idx-41",
+    "slug": "first-contribution-walkthrough",
+    "title": "Submit a Mock PR",
+    "subtitle": "Submit a Mock PR",
+    "content": "Submit a Mock PR Let's practice the complete sequence of actions to submit a feature pull request! --- Step-by-Step Exercise Imagine you've forked the repository and cloned it locally. Now, follow this routine: 1. Create and Switch to a Feature Branch : bash git switch -c feat/my-first-pr 2. Make Edits : Create or modify a file e.g. contrib.md . 3. Stage Changes : bash git add contrib.md 4. Commit with standard imperatve message : bash git commit -m \"Add my contributor profile\" 5. Push Branch and Set Upstream tracking : bash git push -u origin feat/my-first-pr --- > !TIP > Run the final push command in the sandbox terminal below to simulate submitting your first pull request upstream!",
+    "type": "content",
+    "hash": ""
+  },
+  {
+    "id": "idx-42",
+    "slug": "contribution-lifecycle",
+    "title": "The PR Lifecycle",
+    "subtitle": "Real Contribution Workflow",
+    "content": "From finding an issue to getting the PR merged.",
+    "type": "lesson",
+    "hash": ""
+  },
+  {
+    "id": "idx-43",
+    "slug": "contribution-lifecycle",
+    "title": "The PR Lifecycle",
+    "subtitle": "The PR Lifecycle",
+    "content": "The PR Lifecycle A successful contribution is a structured journey. Let's look at the standard roadmap of a professional contribution from beginning to merge. --- The 9-Step Lifecycle mermaid graph TD A 1. Identify Issue --> B 2. Check Discussions B --> C 3. Request Assignment C --> D 4. Create Branch D --> E 5. Develop Locally E --> F 6. Run Local Tests F --> G 7. Submit Pull Request G --> H 8. Review & Revisions H --> I 9. Merge & Close 1. Issue : Locate an existing issue or report a bug. 2. Discussion : Coordinate with maintainers about how you plan to solve the problem. 3. Assignment : Wait for the maintainer to assign the issue to you so you don't duplicate work. 4. Branch : Checkout a feature branch from the latest main . 5. Development : Write clean code, following the project style guide. 6. Testing : Run test suites locally to ensure no regressions occur. 7. Pull Request : Open a PR detailing why and how changes were made. 8. Review : Reviewers request comments or edits. You apply changes. 9. Merge : The core maintainer merges the branch and closes the issue.",
+    "type": "content",
+    "hash": ""
+  },
+  {
+    "id": "idx-44",
+    "slug": "rebasing-and-squashing",
+    "title": "Rebasing & Squashing",
+    "subtitle": "Advanced Open Source",
+    "content": "Keeping commit logs clean and history linear.",
+    "type": "lesson",
+    "hash": ""
+  },
+  {
+    "id": "idx-45",
+    "slug": "rebasing-and-squashing",
+    "title": "Rebasing & Squashing",
+    "subtitle": "Rebasing & Squashing",
+    "content": "Rebasing & Squashing In large open source projects, commit histories can quickly become messy. Maintainers prefer clean, linear histories using rebase and squash . --- What is Rebasing? Rebasing is the process of moving or combining a sequence of commits to a new base commit. Instead of a merge commit, rebasing rewrites history by applying your branch's changes one-by-one on top of the target branch e.g. main . Before Rebase: A---B---C feature / D---E---F---G main After Rebase: A'--B'--C' feature / D---E---F---G main What is Squashing? Squashing combines multiple local commits e.g. fix typo , add test , fix lint into a single, clean commit e.g. feat: add email verification before merging. This keeps the project's main branch log neat. --- Syncing with Rebase To update your feature branch with the latest changes on main : bash git fetch origin git rebase origin/main > !TIP > Run git rebase main in the terminal below to practice applying your changes directly on top of the master branch!",
+    "type": "content",
+    "hash": ""
+  },
+  {
+    "id": "idx-46",
+    "slug": "conflict-resolution",
+    "title": "Conflict Resolution",
+    "subtitle": "Advanced Open Source",
+    "content": "Fixing code overlaps and continuing the rebase process.",
+    "type": "lesson",
+    "hash": ""
+  },
+  {
+    "id": "idx-47",
+    "slug": "conflict-resolution",
+    "title": "Conflict Resolution",
+    "subtitle": "Conflict Resolution",
+    "content": "Conflict Resolution When two branches modify the exact same line of a file, Git doesn't know which version to keep. This triggers a Merge Conflict . --- Understanding Conflict Markers When a conflict happens, Git pauses and writes markers directly into the files: md <<<<<<< HEAD Our changes here on the target branch ======= Their changes here on the feature branch > > > > > > > feature-branch-name To resolve: 1. Open the file in your code editor. 2. Edit the file to choose the correct code, and delete the Git markers <<<<<<< , ======= , >>>>>>> . 3. Save the file. Resuming after resolution Once you resolve conflicts in a file: 1. Stage the file: bash git add <filename> 2. Continue the paused rebase process: bash git rebase --continue --- > !TIP > Run the resume command in the sandbox below to continue your rebase once conflict resolution is staged: git rebase --continue",
+    "type": "content",
+    "hash": ""
+  },
+  {
+    "id": "idx-48",
+    "slug": "code-reviews-and-cicd",
+    "title": "CI/CD and Check Lists",
+    "subtitle": "Advanced Open Source",
+    "content": "Understanding test checks, lints, and pull request requirements.",
+    "type": "lesson",
+    "hash": ""
+  },
+  {
+    "id": "idx-49",
+    "slug": "code-reviews-and-cicd",
+    "title": "CI/CD and Check Lists",
+    "subtitle": "CI/CD and Check Lists",
+    "content": "CI/CD and Check Lists In open source, projects use Continuous Integration CI pipelines to run automated tests on every single pull request. This ensures that new contributions do not break the existing program. --- What happens when you open a PR? GitHub automatically triggers runners that perform: - Build Checks : Verifies that the code compiles successfully without syntax errors. - Unit & Integration Tests : Runs the project's test suite e.g. Jest, Pytest to confirm all specs pass. - Linter checks : Confirms your code format follows standard styling expectations Prettier, ESLint . - Code Coverage : Tracks what percentage of the new lines are tested. --- > !IMPORTANT > If a check fails indicated by a red cross ❌ on GitHub , check the test logs! Fix the issues locally and push updates to your branch to trigger the tests again. Do not ask for reviews if tests are red!",
+    "type": "content",
+    "hash": ""
+  },
+  {
+    "id": "idx-50",
+    "slug": "finding-projects",
+    "title": "Good First Issues",
+    "subtitle": "Finding Projects",
+    "content": "Using search filters, discovering projects, and participating in Hacktoberfest.",
+    "type": "lesson",
+    "hash": ""
+  },
+  {
+    "id": "idx-51",
+    "slug": "finding-projects",
+    "title": "Good First Issues",
+    "subtitle": "Good First Issues",
+    "content": "Good First Issues Finding your very first project to contribute to can feel overwhelming. Let's look at tools and search queries to discover newcomer-friendly tasks. --- Discovering Projects on GitHub 1. GitHub Explore / Topics : Browse pages like github.com/explore or search by tags like react , django , or cli . 2. Issue Search Filters : Use GitHub's search bar to filter for issues marked specifically for beginners: text is:open is:issue label:\"good first issue\" is:open is:issue label:\"beginner-friendly\" language:javascript 3. Dedicated Platforms : - Good First Issue goodfirstissue.dev : Aggregates beginner-friendly issues across top open source repositories. - First Contributions firstcontributions.github.io : A hands-on playground repo to help you practice your first PR. --- Community Events - Hacktoberfest : A month-long celebration of open source software held every October. Completing 4 PRs often earns you badges, stickers, and tree plantings! - Google Summer of Code GSoC : A global program where students are paid stipends to contribute to open source organizations for 10-12 weeks under developer mentorship.",
+    "type": "content",
+    "hash": ""
+  }
+]

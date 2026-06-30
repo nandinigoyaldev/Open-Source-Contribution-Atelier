@@ -1,88 +1,51 @@
 # Contributing to Open Source Contribution Atelier
 
-Thank you for your interest in contributing! We want this repository to be a model of open-source best practices and a friendly playground for developers of all levels.
+Thank you for your interest in contributing! We welcome all contributions, from documentation fixes to major feature enhancements. To make the contribution process smooth and successful, please follow these guidelines.
 
 ---
 
-## 🌟 Our Contribution Philosophy
-- **Inclusivity First**: We welcome contributions from absolute beginners (typo fixes, documentation rewrites) to advanced developers.
-- **Clear Communication**: Respect volunteer maintainers' time. Explain *what* your PR accomplishes and *why*.
-- **Quality Over Quantity**: Trivial PRs opened just to boost stats (e.g. adding empty lines or formatting comments) will be marked as spam. Focus on meaningful edits!
+## 🛠️ Local Development Setup
 
----
+To get started quickly, we provide a `Makefile` that wraps the core commands. 
 
-## 🛣️ The Contributor Journey
-
-```
-1. Find an Issue ──> 2. Request Assignment ──> 3. Fork & Clone ──> 4. Create Branch
-                                                                        │
-5. PR Merge ◄── 8. Review & Revisions ◄── 7. Open Pull Request ◄── 6. Develop & Test
-```
-
-### 1. Find an Issue
-Explore open tasks on the [Issues Board](https://github.com/goyaljiiiiii/Open-Source-Contribution-Atelier/issues).
-- Look for `good first issue` or `beginner-friendly` labels if you are a newcomer.
-- Look for `bug`, `enhancement`, or `curriculum` depending on your interest.
-
-### 2. Request Assignment
-Comment on the issue explaining how you plan to solve it, and ask to be assigned. **Do not start coding until a maintainer assigns the issue to you!** This prevents duplicate work.
-
-### 3. Fork & Clone
-1. Click the **Fork** button on GitHub.
-2. Clone your personal fork locally:
+1. **Install Dependencies**:
    ```bash
-   git clone https://github.com/your-username/Open-Source-Contribution-Atelier.git
+   make install
+   ```
+2. **Start the Development Servers (via Docker)**:
+   This boots Postgres, Redis, the Django backend, and the Vite frontend:
+   ```bash
+   make start
+   ```
+3. **Run Linting & Formatting**:
+   Ensure your changes are formatted properly before committing. Pre-commit hooks are configured, but you can also run:
+   ```bash
+   make format
+   ```
+4. **Run Unit Tests**:
+   ```bash
+   make test
    ```
 
-### 4. Create a Feature Branch
-Keep your default `main` branch synchronized with the upstream project. Always do work on a feature branch:
-```bash
-git checkout -b feat/add-git-rebase-lesson
-# or using switch
-git switch -c feat/add-git-rebase-lesson
-```
-**Branch Naming Conventions:**
-- `feat/...` for new features or lessons.
-- `fix/...` for bugs or UI fixes.
-- `docs/...` for updates to documentation.
-- `refactor/...` for cleaning up code.
-
-### 5. Develop & Run Local Tests
-Follow the setup in [README.md](README.md) to run the client and server.
-Run testing commands locally before pushing:
-- Frontend: `cd frontend && npm run test`
-- Backend: `cd backend && pytest`
-- Lint: `cd frontend && npm run lint`
-
-### 6. Submit a Pull Request
-Push your branch to your fork on GitHub and click **New Pull Request**.
-
-Use the template below for your description:
-```markdown
-### Summary
-Describe what your PR changes and the technical approach.
-
-### Related Issues
-Closes #issue_number
-
-### Testing & Verification
-List how you tested your changes (e.g., screenshot, Vitest log, manual terminal output).
-```
-
 ---
 
-## ✍️ Contribution Paths
+## 📋 Pull Request Requirements
 
-### 1. Contributing Content (Lessons & Quizzes)
-If you want to add a lesson, write a quiz, or edit the curriculum, you **do not** need to write code. Please refer to our detailed **[Content Guide](CONTENT_GUIDE.md)**.
+We maintain strict quality controls on pull requests to ensure our tests remain green and contributions align with the project goals.
 
-### 2. Contributing Code (React or Django)
-- Keep components small, modular, and accessible.
-- Maintain type safety inside TypeScript files.
-- Python code should conform to Pep8 standard formatting (e.g., using `black`).
-- Do not commit sensitive details, `.env` configurations, or generated build directories.
+### 1. Linking an Issue
+All pull requests must resolve a corresponding open issue. Please reference the issue in your PR description using one of the closing keywords (e.g. `Closes #123` or `Fixes #123`).
 
----
+### 2. Matching Scope Verification
+To prevent partial implementations, the files modified in your pull request must correspond to the scope promised in the linked issue:
+- If the issue description mentions **backend** tasks, the PR must modify files in the `backend/` directory.
+- If the issue description mentions **frontend** or **ui** tasks, the PR must modify files in the `frontend/` directory.
+- If the issue description mentions **database** or **migrations**, the PR must include backend database models or migrations.
 
-## 💬 Code of Conduct
-We enforce a respectful, safe, and professional environment. Please read and follow our [Code of Conduct](CODE_OF_CONDUCT.md).
+**Partial Scope Exemption**: If you are only implementing a specific part of a multi-part issue (e.g., you only know frontend and want to implement the UI layout first), you can easily override the scope verification check by explicitly writing one of the following phrases in your pull request description:
+* `Frontend only` / `only frontend`
+* `Backend only` / `only backend`
+* `Database only`
+
+### 3. SSoC26 Contributors
+If you are participating in SSoC26, please check the contributor checkmark `- [x] I am a SSoC26 contributor` in the issue/PR templates. The automation will sync the `SSoC26` label to both your PR and linked issue, and automatically assign them to you.
