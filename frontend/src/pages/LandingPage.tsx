@@ -24,7 +24,7 @@ export function LandingPage() {
   try {
     const auth = useAuth();
     login = auth.login;
-  } catch (e) {
+  } catch {
     // No AuthProvider in the tree; proceed with fallback login.
   }
   const { theme, toggleTheme } = useTheme();

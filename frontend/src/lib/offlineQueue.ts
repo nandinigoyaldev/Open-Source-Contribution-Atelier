@@ -180,7 +180,7 @@ export async function syncOfflineQueue() {
               continue; // Skip the POST, move to next item
             }
           }
-        } catch (checkErr) {
+        } catch {
           // If pre-flight GET fails (e.g., 405 Method Not Allowed), just proceed normally
           console.debug(`[OfflineQueue] Pre-flight check skipped for ${action.id}`);
         }
