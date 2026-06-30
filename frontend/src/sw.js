@@ -182,15 +182,11 @@ async function syncProgressQueue() {
             await deleteFromStore(db, action.id);
 
             // Notify clients
-            let bodyObj = {};
-            try {
-              bodyObj = JSON.parse(action.body);
-            } catch (e) {}
-
             await notifyClients({
               type: "SYNC_SUCCESS",
               id: action.id,
-              lesson_slug: bodyObj.lesson_slug,
+              entity_type: action.entity_type,
+              entity_id: action.entity_id,
             });
           } else {
             console.warn(

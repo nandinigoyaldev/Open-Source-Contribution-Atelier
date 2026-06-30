@@ -1,14 +1,18 @@
 from datetime import timedelta
 
+from apps.challenges.models import ChallengeCompletion
 from apps.content.models import Lesson
 from apps.dashboard.models import Issue, PullRequest, StreakFreeze
-from apps.progress.models import ExerciseAttempt, LessonProgress
+from apps.progress.models import ExerciseAttempt, LessonProgress, QuizAttempt, CodeSubmission
 from django.contrib.auth.models import User
 from django.core.cache import cache
-from django.db.models import Count, F, IntegerField, OuterRef, Subquery, Sum, Value
+from django.db.models import (Count, F, IntegerField, OuterRef, Subquery, Sum,
+                              Value)
 from django.db.models.functions import Coalesce
 from django.utils import timezone
+from django.db.models.functions import TruncDate
 from rest_framework import permissions, serializers
+from apps.rbac.permissions import HasRole
 from rest_framework.generics import ListAPIView
 from rest_framework.pagination import CursorPagination
 from rest_framework.response import Response
@@ -73,6 +77,13 @@ class LeaderboardView(ListAPIView):
             .values("total")
         )
 
+        challenge_bonus_xp = (
+            ChallengeCompletion.objects.filter(user=OuterRef("pk"))
+            .values("user")
+            .annotate(total=Sum("bonus_earned"))
+            .values("total")
+        )
+
         prs_merged = (
             PullRequest.objects.filter(**pr_filter)
             .values("user")
@@ -102,9 +113,12 @@ class LeaderboardView(ListAPIView):
                 issues_xp=Coalesce(
                     Subquery(issues_xp, output_field=IntegerField()), Value(0)
                 ),
+                challenge_xp=Coalesce(
+                    Subquery(challenge_bonus_xp, output_field=IntegerField()), Value(0)
+                ),
             )
             .annotate(
-                xp=F("lesson_xp") + F("issues_xp"),
+                xp=F("lesson_xp") + F("issues_xp") + F("challenge_xp"),
             )
             .order_by("-xp", "username", "id")
         )
@@ -257,7 +271,13 @@ class ContributorDashboardView(APIView):
                 assigned_to=user, status=Issue.Status.SOLVED
             ).aggregate(p_sum=Sum("points"), b_sum=Sum("bonus_points"))
             issues_xp = (issues_agg["p_sum"] or 0) + (issues_agg["b_sum"] or 0)
-            total_xp = lesson_xp + issues_xp
+            challenge_bonus_xp = (
+                ChallengeCompletion.objects.filter(user=user).aggregate(
+                    total=Sum("bonus_earned")
+                )["total"]
+                or 0
+            )
+            total_xp = lesson_xp + issues_xp + challenge_bonus_xp
 
             # Calculate streak based on unique days of activity (attempts or completed lessons) and active/used freezes
             activity_days = set()
@@ -455,7 +475,6 @@ from drf_spectacular.utils import extend_schema
 from rest_framework import status
 
 
-
 class BuyStreakFreezeView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
@@ -531,3 +550,62 @@ class BuyStreakFreezeView(APIView):
                 },
                 status=status.HTTP_201_CREATED,
             )
+
+from django.db import models
+from apps.rbac.models import UserRole
+
+class IsModeratorOrAdmin(permissions.BasePermission):
+    def has_permission(self, request, view):
+        if not request.user or not request.user.is_authenticated:
+            return False
+        if request.user.is_superuser or request.user.is_staff:
+            return True
+        return UserRole.objects.filter(user=request.user, role__name__in=["Moderator", "Administrator"]).exists()
+
+class ModeratorAnalyticsView(APIView):
+    permission_classes = [permissions.IsAuthenticated, IsModeratorOrAdmin]
+
+    def get(self, request):
+        thirty_days_ago = timezone.now() - timedelta(days=30)
+        
+        # 1. Registrations
+        registrations = (
+            User.objects.filter(date_joined__gte=thirty_days_ago)
+            .annotate(date=TruncDate('date_joined'))
+            .values('date')
+            .annotate(count=Count('id'))
+            .order_by('date')
+        )
+        
+        # 2. Course Enrollments vs Completions
+        progress_stats = (
+            LessonProgress.objects.filter(updated_at__gte=thirty_days_ago)
+            .annotate(date=TruncDate('updated_at'))
+            .values('date')
+            .annotate(
+                completed=Count('id', filter=models.Q(completed=True)),
+                enrolled=Count('id')
+            )
+            .order_by('date')
+        )
+        
+        # 3. Quiz Performance
+        quiz_stats = (
+            QuizAttempt.objects.filter(created_at__gte=thirty_days_ago)
+            .values('is_correct')
+            .annotate(count=Count('id'))
+        )
+        
+        # 4. Coding Challenges
+        challenge_stats = (
+            CodeSubmission.objects.filter(created_at__gte=thirty_days_ago)
+            .values('status')
+            .annotate(count=Count('id'))
+        )
+
+        return Response({
+            "registrations": list(registrations),
+            "progress_stats": list(progress_stats),
+            "quiz_stats": list(quiz_stats),
+            "challenge_stats": list(challenge_stats)
+        })

@@ -26,6 +26,9 @@ urlpatterns = [
     path("api/webhooks/", include("apps.webhooks.urls")),
     path("api/notes/", include("apps.notes.urls")),
     path("api/chat/", include("apps.chat.urls")),
+    path("api/recommendations/", include("apps.recommendations.urls")),
+    path("api/rbac/", include("apps.rbac.urls")),
+    path("api/uploads/", include("apps.uploads.urls")),
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
     path(
         "api/docs/",

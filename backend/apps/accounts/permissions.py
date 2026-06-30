@@ -1,4 +1,5 @@
 from rest_framework import permissions
+from apps.rbac.permissions import HasRole
 
 
 class IsAdminRole(permissions.BasePermission):
@@ -8,15 +9,13 @@ class IsAdminRole(permissions.BasePermission):
     """
 
     def has_permission(self, request, view):
-        user = request.user
-        if not user or not user.is_authenticated:
+        if not request.user or not request.user.is_authenticated:
             return False
 
-        return bool(
-            user.is_superuser
-            or user.is_staff
-            or user.groups.filter(name="Admin").exists()
-        )
+        if request.user.is_superuser or request.user.is_staff:
+            return True
+            
+        return HasRole("Administrator").has_permission(request, view)
 
 
 class IsModeratorRole(permissions.BasePermission):
@@ -26,11 +25,10 @@ class IsModeratorRole(permissions.BasePermission):
     """
 
     def has_permission(self, request, view):
-        user = request.user
-        if not user or not user.is_authenticated:
+        if not request.user or not request.user.is_authenticated:
             return False
 
-        return bool(user.groups.filter(name="Moderator").exists())
+        return HasRole("Moderator").has_permission(request, view)
 
 
 class IsAdminOrModeratorRole(permissions.BasePermission):
@@ -39,12 +37,10 @@ class IsAdminOrModeratorRole(permissions.BasePermission):
     """
 
     def has_permission(self, request, view):
-        user = request.user
-        if not user or not user.is_authenticated:
+        if not request.user or not request.user.is_authenticated:
             return False
 
-        return bool(
-            user.is_superuser
-            or user.is_staff
-            or user.groups.filter(name__in=["Admin", "Moderator"]).exists()
-        )
+        if request.user.is_superuser or request.user.is_staff:
+            return True
+            
+        return HasRole("Administrator").has_permission(request, view) or HasRole("Moderator").has_permission(request, view)

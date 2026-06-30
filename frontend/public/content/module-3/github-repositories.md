@@ -48,5 +48,14 @@ The automated workflow engine that builds code and runs tests (CI/CD).
 
 ## ✨ Starring and Watching a Repository
 
+
 - **⭐ Star**: Similar to bookmarking. It shows appreciation and registers your interest.
 - **👀 Watch**: Subscribes you to notifications (issues, PRs, releases) so you can follow the project's development live.
+
+- **Star ⭐**: Similar to bookmarking. It shows appreciation and registers your interest.
+- **Watch 👀**: Subscribes you to notifications (issues, PRs, releases) so you can follow the project's development live.
+
+### Knowledge Check
+
+[interactive-quiz id="quiz-git-1"]
+

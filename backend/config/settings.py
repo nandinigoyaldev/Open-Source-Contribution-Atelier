@@ -52,6 +52,7 @@ INSTALLED_APPS = [
     "corsheaders",
     "rest_framework",
     "rest_framework_simplejwt",
+    'rest_framework_simplejwt.token_blacklist',
     # ── Django-allauth ─────────────────────────────────────────────────────────
     "django.contrib.sites",
     "allauth",
@@ -66,6 +67,9 @@ INSTALLED_APPS = [
     "apps.organizations",
     "apps.webhooks",
     "apps.notes",
+    "apps.recommendations",
+    "apps.rbac",
+    "apps.uploads",
     "rest_framework_simplejwt.token_blacklist",
     "graphene_django",
     "apps.feature_flags",

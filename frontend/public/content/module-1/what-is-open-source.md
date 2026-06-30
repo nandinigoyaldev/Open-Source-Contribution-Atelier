@@ -30,3 +30,7 @@ Open source is built on the following key principles:
 
 > [!NOTE]
 > Open source doesn't mean _no rules_. It relies on legal **open-source licenses** (like MIT, Apache 2.0, or GPL) to set the guidelines for copying and sharing.
+
+### Knowledge Check
+
+[interactive-quiz id="quiz-1"]

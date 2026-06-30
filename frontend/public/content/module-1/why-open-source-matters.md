@@ -19,3 +19,7 @@
 
 > [!TIP]
 > Open source prevents developers from reinventing the wheel. Instead of rebuilding standard tools, teams can share libraries and focus on creating unique features.
+
+### Knowledge Check
+
+[interactive-quiz id="quiz-2"]

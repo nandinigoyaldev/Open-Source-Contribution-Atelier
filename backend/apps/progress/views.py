@@ -76,10 +76,20 @@ class MyProgressView(APIView):
                 difficulty="beginner",
             )
 
+        client_timestamp_ms = request.data.get("client_timestamp")
+
         try:
             progress = LessonProgress.objects.get(user=request.user, lesson=lesson)
             created = False
-            if progress.base_score != base_score or progress.completed != completed:
+            
+            skip_update = False
+            if client_timestamp_ms:
+                import datetime
+                client_dt = datetime.datetime.fromtimestamp(client_timestamp_ms / 1000.0, tz=datetime.timezone.utc)
+                if progress.updated_at > client_dt:
+                    skip_update = True
+
+            if not skip_update and (progress.base_score != base_score or progress.completed != completed):
                 progress.completed = completed
                 progress.base_score = base_score
                 progress.multiplier_applied = multiplier
@@ -145,7 +155,15 @@ class BulkSyncProgressView(APIView):
                     progress = LessonProgress.objects.get(
                         user=request.user, lesson=lesson
                     )
-                    if (
+                    client_timestamp_ms = item.get("client_timestamp")
+                    skip_update = False
+                    if client_timestamp_ms:
+                        import datetime
+                        client_dt = datetime.datetime.fromtimestamp(client_timestamp_ms / 1000.0, tz=datetime.timezone.utc)
+                        if progress.updated_at > client_dt:
+                            skip_update = True
+
+                    if not skip_update and (
                         progress.base_score != base_score
                         or progress.completed != completed
                     ):
@@ -270,7 +288,16 @@ class BulkProgressUpdateView(APIView):
 
                     if lesson.id in existing_progress:
                         prog = existing_progress[lesson.id]
-                        if prog.base_score != base_score or prog.completed != completed:
+                        
+                        client_timestamp_ms = item.get("client_timestamp")
+                        skip_update = False
+                        if client_timestamp_ms:
+                            import datetime
+                            client_dt = datetime.datetime.fromtimestamp(client_timestamp_ms / 1000.0, tz=datetime.timezone.utc)
+                            if prog.updated_at > client_dt:
+                                skip_update = True
+
+                        if not skip_update and (prog.base_score != base_score or prog.completed != completed):
                             prog.completed = completed
                             prog.base_score = base_score
                             prog.multiplier_applied = multiplier

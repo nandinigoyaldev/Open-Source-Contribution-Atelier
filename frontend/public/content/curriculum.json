@@ -587,6 +587,49 @@
           }
         }
       ]
+    },
+    {
+      "id": "module-javascript",
+      "title": "Interactive JS/TS Sandbox",
+      "description": "Learn to code using embedded JavaScript/TypeScript Sandboxes in the browser.",
+      "lessons": [
+        {
+          "slug": "hello-javascript",
+          "title": "Hello, JavaScript",
+          "description": "Write your first JavaScript program using Web Workers.",
+          "difficulty": "beginner",
+          "estimatedMinutes": 5,
+          "points": 20,
+          "filePath": "module-javascript/hello-javascript.md",
+          "jsExercise": {
+            "prompt": "Write a JavaScript function `multiply` that returns the product of two numbers. Log the result of `multiply(4, 5)` to the console.",
+            "starterCode": "function multiply(a, b) {\n  // Write your code here\n}\n\nconsole.log(multiply(4, 5));\n",
+            "testCode": "if (typeof multiply !== 'function') throw new Error('multiply function is not defined');\nif (multiply(2, 3) !== 6) throw new Error('multiply(2, 3) should return 6');",
+            "hint": "Use the return keyword to send back the product (a * b)."
+          }
+        }
+      ]
+    },
+    {
+      "id": "module-debug",
+      "title": "Interactive Code Debugging",
+      "description": "Learn to step through execution, inspect variables, and track call stacks in real time.",
+      "lessons": [
+        {
+          "slug": "debugging-101",
+          "title": "Interactive Debugger",
+          "description": "Set a breakpoint and step through a loop.",
+          "difficulty": "beginner",
+          "estimatedMinutes": 5,
+          "points": 30,
+          "filePath": "module-debug/debugging-101.md",
+          "debugExercise": {
+            "prompt": "Set a breakpoint on line 4, then step through the loop to watch `sum` increase.",
+            "starterCode": "def calculate_sum(n):\n    total = 0\n    for i in range(1, n + 1):\n        total += i\n        print(f'Added {i}, total is now {total}')\n    return total\n\nresult = calculate_sum(5)\nprint(f'Final result: {result}')\n",
+            "hint": "Click the margin next to line 4 to add a breakpoint, then click Start Debugging."
+          }
+        }
+      ]
     }
   ]
 }
