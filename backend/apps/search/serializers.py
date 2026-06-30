@@ -1,6 +1,13 @@
 from rest_framework import serializers
 
-from .models import SearchDocument
+from .models import SearchAnalytics, SearchDocument
+
+
+class SearchAnalyticsSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SearchAnalytics
+        fields = ["query", "result_count", "user", "ip_address"]
+        read_only_fields = ["user", "ip_address"]
 
 
 class SearchDocumentSerializer(serializers.ModelSerializer):
