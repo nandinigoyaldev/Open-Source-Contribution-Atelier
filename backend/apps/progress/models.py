@@ -3,6 +3,12 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.db import models
 from django.utils import timezone
 
+STREAK_MILESTONES = [
+    {"days": 3, "multiplier": 1.1, "label": "3-Day Streak"},
+    {"days": 7, "multiplier": 1.25, "label": "1-Week Streak"},
+    {"days": 14, "multiplier": 1.5, "label": "2-Week Streak"},
+    {"days": 30, "multiplier": 2.0, "label": "1-Month Streak"},
+]
 from apps.content.models import Exercise, Lesson
 from apps.organizations.models import Organization
 
@@ -292,6 +298,19 @@ class PeerReview(models.Model):
     def __str__(self):
         return f"Review by {self.reviewer.username} for {self.submission.title}"
 
+from django.conf import settings
+
+class StreakProfile(models.Model):
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="streak_profile"
+    )
+    current_streak = models.IntegerField(default=0)
+    longest_streak = models.IntegerField(default=0)
+    current_multiplier = models.FloatField(default=1.0)
+    last_activity_date = models.DateField(null=True, blank=True)
+
+    def __str__(self):
+        return f"StreakProfile({self.user.username})"
 
 class StreakProfile(models.Model):
     """

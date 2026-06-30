@@ -1,5 +1,7 @@
 import uuid
 
+
+from apps.content.models import Lesson
 from django.conf import settings
 from django.db import models
 
@@ -123,11 +125,10 @@ def get_timezone_choices():
 
     return sorted((tz, tz) for tz in available_timezones())
 
-
 class UserProfile(models.Model):
     """
     Standard user profile linking to the main User model.
-    Stores the user's avatar image.
+    Stores the user's avatar image, bio, and settings.
     """
 
     user = models.OneToOneField(
@@ -135,6 +136,13 @@ class UserProfile(models.Model):
     )
     avatar = models.ImageField(upload_to="avatars/", null=True, blank=True)
     cover_image = models.ImageField(upload_to="covers/", null=True, blank=True)
+    
+    # --- Missing Fields Added Back ---
+    bio = models.TextField(blank=True, default="", max_length=1500, help_text="User bio in Markdown.")
+    bio_html = models.TextField(blank=True, default="", editable=False)
+    dnd_enabled = models.BooleanField(default=False) # The culprit of the 78 failed tests!
+    # ---------------------------------
+
     last_password_change = models.DateTimeField(auto_now_add=True)
     timezone = models.CharField(
         max_length=64,
@@ -182,4 +190,18 @@ class UserProfile(models.Model):
     def save(self, *args, **kwargs):
         self._convert_to_webp(self.avatar)
         self._convert_to_webp(self.cover_image)
+        
+        # Parse Markdown to HTML and securely sanitize it
+        if self.bio:
+            import markdown
+            import bleach
+            raw_html = markdown.markdown(self.bio, extensions=["fenced_code", "tables"])
+            allowed_tags = bleach.ALLOWED_TAGS + [
+                "p", "h1", "h2", "h3", "h4", "h5", "h6", "pre", "code",
+                "table", "thead", "tbody", "tr", "th", "td", "strong", "em", "br"
+            ]
+            self.bio_html = bleach.clean(raw_html, tags=allowed_tags, strip=True)
+        else:
+            self.bio_html = ""
+
         super().save(*args, **kwargs)
