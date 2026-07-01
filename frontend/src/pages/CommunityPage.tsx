@@ -9,8 +9,7 @@ import { fetchApi } from "../lib/api";
 import SkeletonStatGrid from "../components/ui/skeletons/SkeletonStatGrid";
 import { Trophy, Award } from "lucide-react";
 import { useAuth } from "../features/auth/AuthContext";
-import { ResponsiveTable } from "../components/ui/ResponsiveTable";
-import { ChatContainer } from "../components/chat/ChatContainer";
+import VirtualizedLeaderboard from '../components/VirtualizedLeaderboard';
 
 export function CommunityPage() {
   const { user } = useAuth();
@@ -213,94 +212,11 @@ export function CommunityPage() {
             Contributor Leaderboard
           </h3>
 
-          <div className="flex flex-col sm:flex-row gap-4 mb-6">
-            <input
-              type="text"
-              placeholder="Search contributor..."
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              className="w-full sm:flex-1 border-4 border-black px-4 py-2 rounded-lg text-sm font-black bg-white text-black shadow-card-sm focus:outline-none focus:translate-x-0.5 focus:translate-y-0.5 focus:shadow-none transition-all dark:bg-[#151411] dark:border-[#2e2924] dark:text-[#f0ebe2] placeholder-muted"
-            />
-            <select
-              value={sortOrder}
-              onChange={(e) => setSortOrder(e.target.value as "desc" | "asc")}
-              className="w-full sm:w-auto border-4 border-black px-4 py-2 rounded-lg text-sm font-black bg-[#ffb5e8] text-black shadow-card-sm focus:outline-none cursor-pointer dark:bg-[#151411] dark:border-[#2e2924] dark:text-[#f0ebe2]"
-            >
-              <option value="desc">Highest XP</option>
-              <option value="asc">Lowest XP</option>
-            </select>
-          </div>
-
-          {loadingLeaderboard && leaderboard.length === 0 ? (
-            <p className="text-sm text-muted animate-pulse font-bold">
-              Assembling standings...
-            </p>
+          {loadingLeaderboard ? (
+             <p className="text-sm text-muted animate-pulse font-bold">Assembling standings...</p>
           ) : (
-            <ResponsiveTable
-              data={filteredLeaderboard}
-              keyExtractor={(item) => item.username}
-              emptyMessage="No matching contributors found."
-              virtualized={true}
-              containerHeight="600px"
-              lastElementRef={lastElementRef}
-              footerContent={
-                isFetchingNextPage ? "Loading more contributors..." : null
-              }
-              rowClassName={(item) =>
-                user?.username === item.username ? "bg-accent/20" : ""
-              }
-              columns={[
-                {
-                  header: "Rank",
-                  accessor: (item, idx) => {
-                    if (idx === 0) return "🥇";
-                    if (idx === 1) return "🥈";
-                    if (idx === 2) return "🥉";
-                    return `#${idx + 1}`;
-                  },
-                  className: "text-center font-black",
-                },
-                {
-                  header: "Contributor",
-                  accessor: (item) => (
-                    <div className="flex items-center gap-2 overflow-hidden w-full">
-                      <img
-                        src={item.avatar_url}
-                        alt={item.username}
-                        className="w-6 h-6 rounded-full border border-black flex-shrink-0"
-                      />
-                      <a
-                        href={item.html_url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-primary hover:underline truncate"
-                      >
-                        @{item.username}
-                      </a>
-                      {user?.username === item.username && (
-                        <span className="text-[8px] bg-black text-white px-1.5 py-0.5 rounded uppercase font-black tracking-wider dark:bg-[#2e2924] flex-shrink-0">
-                          You
-                        </span>
-                      )}
-                    </div>
-                  ),
-                },
-                {
-                  header: "Commits",
-                  accessor: "contributions",
-                },
-                {
-                  header: "Estimated XP",
-                  accessor: (item) => (
-                    <span className="text-primary font-black">
-                      {item.xp} XP
-                    </span>
-                  ),
-                },
-              ]}
-            />
-          )}
-        </div>
+             <VirtualizedLeaderboard data={leaderboard} darkMode={false} />
+         )}
 
         {/* Dynamic Cohort Ranks Card */}
         <div className="rounded-2xl border-4 border-black bg-accent p-4 sm:p-6 shadow-card dark:bg-[#1f1c18] dark:border-[#2e2924] dark:shadow-none flex flex-col justify-between">
