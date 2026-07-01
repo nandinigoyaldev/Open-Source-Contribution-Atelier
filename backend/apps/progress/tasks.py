@@ -1,21 +1,23 @@
+import logging
 from datetime import timedelta
 
-from celery import current_app  # type: ignore
-from celery import shared_task  # type: ignore
+from django_q.tasks import async_task
 from django.contrib.auth import get_user_model
 from django.utils import timezone
 
 from apps.progress.models import Badge, ExerciseAttempt, LessonProgress, UserBadge
 
+logger = logging.getLogger(__name__)
 User = get_user_model()
 
 
-@shared_task
 def send_weekly_progress_summary():
     """
-    Celery cron task to calculate learning progress over the past 7 days
+    Django-Q scheduled task to calculate learning progress over the past 7 days
     for each active user, and dispatch an email summary.
     """
+    from apps.notifications.tasks import send_bulk_email
+
     seven_days_ago = timezone.now() - timedelta(days=7)
 
     # Process active users in chunks
@@ -48,14 +50,9 @@ def send_weekly_progress_summary():
                     "badge_names": badge_names,
                 },
             }
-
-            # Dispatch email using the existing bulk email worker
-            current_app.send_task(
-                "apps.notifications.tasks.send_bulk_email", kwargs={"payload": payload}
-            )
+            async_task("apps.notifications.tasks.send_bulk_email", payload)
 
 
-@shared_task
 def evaluate_achievements_task(user_id):
     from django.contrib.auth import get_user_model
 
@@ -143,12 +140,10 @@ def evaluate_achievements_task(user_id):
                 )
 
 
-@shared_task
 def evaluate_user_badges_task(user_id):
     evaluate_achievements_task(user_id)
 
 
-@shared_task
 def analyze_submission_plagiarism(submission_id: int):
     """Check a code submission for plagiarism against other submissions.
 
@@ -156,7 +151,9 @@ def analyze_submission_plagiarism(submission_id: int):
     Only exact structural matches (score == 1.0) are flagged, matching the test expectations.
     """
     from apps.progress.models import CodeSubmission, PlagiarismReport
-    from apps.progress.services.plagiarism_detector import calculate_structural_similarity
+    from apps.progress.services.plagiarism_detector import (
+        calculate_structural_similarity,
+    )
 
     try:
         submission = CodeSubmission.objects.get(id=submission_id)
@@ -164,9 +161,13 @@ def analyze_submission_plagiarism(submission_id: int):
         return
 
     # Compare with other submissions for the same exercise (if any)
-    candidates = CodeSubmission.objects.filter(exercise=submission.exercise).exclude(id=submission.id)
+    candidates = CodeSubmission.objects.filter(exercise=submission.exercise).exclude(
+        id=submission.id
+    )
     for other in candidates:
-        score = calculate_structural_similarity(submission.code_snippet, other.code_snippet)
+        score = calculate_structural_similarity(
+            submission.code_snippet, other.code_snippet
+        )
         if score == 1.0:
             PlagiarismReport.objects.create(
                 submission=submission,

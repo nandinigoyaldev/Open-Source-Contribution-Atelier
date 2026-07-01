@@ -6,7 +6,7 @@ from django.test import TestCase
 from .tasks import send_otp_email_task, send_password_reset_email_task
 
 
-class CeleryEmailTasksTests(TestCase):
+class DjangoQEmailTasksTests(TestCase):
     @patch("apps.accounts.tasks.send_mail")
     def test_send_password_reset_email_task(self, mock_send_mail):
         """Verify the password reset email task formats correctly and calls send_mail."""

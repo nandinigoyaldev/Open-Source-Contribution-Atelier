@@ -22,6 +22,7 @@ import { useAuth } from "../features/auth/AuthContext";
 import SkeletonLesson from "../components/ui/skeletons/SkeletonLesson";
 import { PathwayPage } from "../pages/PathwayPage";
 import { LearningPathPage } from "../pages/LearningPathPage";
+import AnalyticsDashboardPage from "../pages/AnalyticsDashboardPage";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();

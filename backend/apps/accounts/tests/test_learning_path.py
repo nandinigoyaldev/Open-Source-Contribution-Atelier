@@ -1,9 +1,9 @@
-from django.urls import reverse
+from apps.content.models import Lesson
+from apps.progress.models import Badge, LessonProgress, QuizAttempt, UserBadge
 from django.contrib.auth.models import User
+from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
-from apps.content.models import Lesson
-from apps.progress.models import LessonProgress, QuizAttempt, Badge, UserBadge
 
 
 class LearningPathTests(APITestCase):

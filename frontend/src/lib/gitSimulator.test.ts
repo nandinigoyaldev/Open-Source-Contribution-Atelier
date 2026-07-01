@@ -59,26 +59,40 @@ describe("gitSimulator", () => {
 
   it('should handle "git merge <branch>" without conflicts', () => {
     let current = state;
+    current = parseGitCommand('git commit -m "main work"', current).newState;
     current = parseGitCommand("git checkout -b feature", current).newState;
     current = parseGitCommand(
       'git commit -m "feature commit"',
       current,
     ).newState;
     current = parseGitCommand("git checkout main", current).newState;
+    current = parseGitCommand(
+      'git commit -m "more main work"',
+      current,
+    ).newState;
     current = parseGitCommand("git merge feature", current).newState;
 
-    expect(current.commits.length).toBe(3); // Initial, feature commit, merge commit
-    expect(current.commits[2].message).toContain("Merge branch 'feature'");
+    expect(current.commits.length).toBe(5); // Initial, main work, feature commit, more main work, merge commit
+    expect(current.commits[4].message).toContain("Merge branch 'feature'");
   });
 
   it('should handle "git merge <branch>" with conflicts', () => {
     let current = state;
+    current = parseGitCommand('git commit -m "main work"', current).newState;
     current = parseGitCommand(
       "git checkout -b conflict-test",
       current,
     ).newState;
+    current = parseGitCommand(
+      'git commit -m "conflict work"',
+      current,
+    ).newState;
     current = parseGitCommand("git checkout main", current).newState;
-    const mergeRes = parseGitCommand("git merge conflict-test", current); // merging into main
+    current = parseGitCommand(
+      'git commit -m "more main work"',
+      current,
+    ).newState;
+    const mergeRes = parseGitCommand("git merge conflict-test", current);
 
     expect(mergeRes.error).toContain("Automatic merge failed");
     expect(mergeRes.newState.conflicts.length).toBe(1);
@@ -87,11 +101,20 @@ describe("gitSimulator", () => {
 
   it("should block commands when in conflict state", () => {
     let current = state;
+    current = parseGitCommand('git commit -m "main work"', current).newState;
     current = parseGitCommand(
       "git checkout -b conflict-test",
       current,
     ).newState;
+    current = parseGitCommand(
+      'git commit -m "conflict work"',
+      current,
+    ).newState;
     current = parseGitCommand("git checkout main", current).newState;
+    current = parseGitCommand(
+      'git commit -m "more main work"',
+      current,
+    ).newState;
     const mergeRes = parseGitCommand("git merge conflict-test", current);
 
     expect(mergeRes.newState.conflicts.length).toBeGreaterThan(0);
@@ -107,11 +130,20 @@ describe("gitSimulator", () => {
 
   it("should resolve conflicts when committing", () => {
     let current = state;
+    current = parseGitCommand('git commit -m "main work"', current).newState;
     current = parseGitCommand(
       "git checkout -b conflict-test",
       current,
     ).newState;
+    current = parseGitCommand(
+      'git commit -m "conflict work"',
+      current,
+    ).newState;
     current = parseGitCommand("git checkout main", current).newState;
+    current = parseGitCommand(
+      'git commit -m "more main work"',
+      current,
+    ).newState;
     current = parseGitCommand("git merge conflict-test", current).newState;
 
     expect(current.conflicts.length).toBeGreaterThan(0);

@@ -75,20 +75,24 @@ class TestWebhookCRUD:
 
 @pytest.mark.django_db
 class TestWebhookDelivery:
-    @patch("apps.webhooks.tasks.deliver_webhook.delay")
-    def test_event_triggering(self, mock_delay, endpoint):
+    @patch("apps.webhooks.tasks.async_task")
+    def test_event_triggering(self, mock_async_task, endpoint):
         dispatch_event("test.event", {"hello": "world"})
         assert WebhookDelivery.objects.count() == 1
         delivery = WebhookDelivery.objects.first()
         assert delivery.event_type == "test.event"
         assert delivery.payload == {"hello": "world"}
-        mock_delay.assert_called_once_with(delivery.id)
+        mock_async_task.assert_called_once_with(
+            "apps.webhooks.tasks.deliver_webhook",
+            delivery.id,
+            attempt=1,
+        )
 
-    @patch("apps.webhooks.tasks.deliver_webhook.delay")
-    def test_no_dispatch_if_not_subscribed(self, mock_delay, endpoint):
+    @patch("apps.webhooks.tasks.async_task")
+    def test_no_dispatch_if_not_subscribed(self, mock_async_task, endpoint):
         dispatch_event("other.event", {"hello": "world"})
         assert WebhookDelivery.objects.count() == 0
-        mock_delay.assert_not_called()
+        mock_async_task.assert_not_called()
 
     def test_signature_validation(self):
         payload = {"data": "test"}
@@ -121,8 +125,8 @@ class TestWebhookDelivery:
         assert "X-Webhook-Signature" in kwargs["headers"]
 
     @patch("requests.post")
-    @patch("apps.webhooks.tasks.deliver_webhook.retry")
-    def test_retry_behavior(self, mock_retry, mock_post, endpoint):
+    @patch("apps.webhooks.tasks.async_task")
+    def test_retry_behavior(self, mock_async_task, mock_post, endpoint):
         import requests
 
         mock_post.side_effect = requests.exceptions.RequestException("Timeout")
@@ -130,19 +134,20 @@ class TestWebhookDelivery:
         delivery = WebhookDelivery.objects.create(
             endpoint=endpoint, event_type="test.event", payload={"foo": "bar"}
         )
-        deliver_webhook(delivery.id)
+        deliver_webhook(delivery.id, attempt=1)
 
         delivery.refresh_from_db()
         assert delivery.status == "pending"
-        mock_retry.assert_called_once()
+        mock_async_task.assert_called_once_with(
+            "apps.webhooks.tasks.deliver_webhook",
+            delivery.id,
+            attempt=2,
+            q_options={"timeout": 150},
+        )
 
-    @patch("apps.webhooks.tasks.deliver_webhook.retry")
     @patch("requests.post")
-    def test_retry_on_429(self, mock_post, mock_retry, endpoint):
-        from celery.exceptions import Retry
-
-        mock_retry.side_effect = Retry()
-
+    @patch("apps.webhooks.tasks.async_task")
+    def test_retry_on_429(self, mock_async_task, mock_post, endpoint):
         mock_response = MagicMock()
         mock_response.status_code = 429
         mock_response.text = "Too Many Requests"
@@ -152,27 +157,30 @@ class TestWebhookDelivery:
             endpoint=endpoint, event_type="test.event", payload={"foo": "bar"}
         )
 
-        with pytest.raises(Retry):
-            deliver_webhook(delivery.id)
+        deliver_webhook(delivery.id, attempt=1)
 
         delivery.refresh_from_db()
         assert delivery.status == "pending"
         assert delivery.status_code == 429
+        mock_async_task.assert_called_once_with(
+            "apps.webhooks.tasks.deliver_webhook",
+            delivery.id,
+            attempt=2,
+            q_options={"timeout": 150},
+        )
 
     @patch("requests.post")
-    @patch("apps.webhooks.tasks.deliver_webhook.retry")
-    def test_max_retries_exceeded(self, mock_retry, mock_post, endpoint):
+    @patch("apps.webhooks.tasks.async_task")
+    def test_max_retries_exceeded(self, mock_async_task, mock_post, endpoint):
         import requests
-        from celery.exceptions import MaxRetriesExceededError
 
         mock_post.side_effect = requests.exceptions.RequestException("Timeout")
-        mock_retry.side_effect = MaxRetriesExceededError()
 
         delivery = WebhookDelivery.objects.create(
             endpoint=endpoint, event_type="test.event", payload={"foo": "bar"}
         )
-        deliver_webhook(delivery.id)
+        deliver_webhook(delivery.id, attempt=3)
 
         delivery.refresh_from_db()
         assert delivery.status == "failed"
-        mock_retry.assert_called_once()
+        mock_async_task.assert_not_called()

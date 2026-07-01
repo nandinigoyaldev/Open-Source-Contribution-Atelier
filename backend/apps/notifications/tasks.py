@@ -1,15 +1,16 @@
 import json
+import logging
 
-from celery import shared_task  # type: ignore
 from django.conf import settings
 from django.core.mail import send_mail
 from pywebpush import WebPushException, webpush  # type: ignore
 
 from .models import PushSubscription
 
+logger = logging.getLogger(__name__)
 
-@shared_task(bind=True, max_retries=3, default_retry_delay=60)
-def send_web_push_notification(self, user_id, title, message, url=None):
+
+def send_web_push_notification(user_id, title, message, url=None):
     """
     Sends a Web Push notification to all subscribed endpoints for a user.
     """
@@ -50,14 +51,12 @@ def send_web_push_notification(self, user_id, title, message, url=None):
             if ex.response and ex.response.status_code in [404, 410]:
                 sub.delete()
             else:
-                # Log the exception or handle retry if appropriate
-                pass
-        except Exception:
-            pass
+                logger.warning("Web push failed for subscription %s: %s", sub.id, ex)
+        except Exception as exc:
+            logger.warning("Unexpected error sending web push to user %s: %s", user_id, exc)
 
 
-@shared_task(bind=True, max_retries=3, default_retry_delay=60)
-def send_bulk_email(self, payload):
+def send_bulk_email(payload):
     """
     Sends bulk emails based on payload data.
     """
@@ -86,13 +85,20 @@ def send_bulk_email(self, payload):
 
         message += "\nKeep up the great work!\n"
 
-    try:
-        send_mail(
-            subject=subject,
-            message=message,
-            from_email=getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@atelier.dev"),
-            recipient_list=recipients,
-            fail_silently=False,
+    elif template_id == "badge_earned_email":
+        badge_name = data.get("badge_name", "")
+        username = data.get("username", "")
+        subject = "🏅 You Earned a New Badge!"
+        message = (
+            f"Hi {username},\n\n"
+            f"Congratulations! You earned the '{badge_name}' badge.\n\n"
+            "Keep up the great work!"
         )
-    except Exception as exc:
-        raise self.retry(exc=exc)
+
+    send_mail(
+        subject=subject,
+        message=message,
+        from_email=getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@atelier.dev"),
+        recipient_list=recipients,
+        fail_silently=False,
+    )

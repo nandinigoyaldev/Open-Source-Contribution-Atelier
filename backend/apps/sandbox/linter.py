@@ -1,5 +1,5 @@
-import re
 import difflib
+import re
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional
 
@@ -28,7 +28,8 @@ COMMAND_RULES: Dict[str, Dict[str, Any]] = {
 }
 
 # Regex to catch shell metacharacters and prevent injection chaining
-FORBIDDEN_CHARS = re.compile(r'[;&|$\n\r<>]')
+FORBIDDEN_CHARS = re.compile(r"[;&|$\n\r<>]")
+
 
 def get_hint(subcommand: str) -> str:
     """Provides a helpful hint for a specific Git subcommand."""
@@ -54,11 +55,17 @@ def lint_command(command: str) -> LintResult:
 
     # 1. Hard length constraint to prevent memory exhaustion
     if len(normalized) > 200:
-        return LintResult(is_valid=False, message="Command length exceeds the maximum allowed limit of 200 characters.")
+        return LintResult(
+            is_valid=False,
+            message="Command length exceeds the maximum allowed limit of 200 characters.",
+        )
 
     # 2. Block shell execution metacharacters
     if FORBIDDEN_CHARS.search(normalized):
-        return LintResult(is_valid=False, message="Shell metacharacters (;, &, |, $, etc.) are strictly prohibited.")
+        return LintResult(
+            is_valid=False,
+            message="Shell metacharacters (;, &, |, $, etc.) are strictly prohibited.",
+        )
 
     if not normalized:
         return LintResult(is_valid=False, message="Command cannot be empty.")
@@ -97,7 +104,8 @@ def lint_command(command: str) -> LintResult:
                 message=f"Unknown Git command '{sub_command}'. Did you mean 'git {suggestions[0]}'?",
             )
         return LintResult(
-            is_valid=False, message=f"Git operation '{sub_command}' is restricted or invalid."
+            is_valid=False,
+            message=f"Git operation '{sub_command}' is restricted or invalid.",
         )
 
     # Rule-based validation

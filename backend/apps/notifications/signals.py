@@ -15,7 +15,7 @@ from django.dispatch import receiver
 
 from .models import Notification
 from .serializers import NotificationSerializer
-from .tasks import send_web_push_notification
+from django_q.tasks import async_task
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +48,8 @@ def _push_notification(notification: Notification):
         elif notification.meta and "contribution_id" in notification.meta:  # type: ignore
             url = f"/contributions/{notification.meta['contribution_id']}"  # type: ignore
 
-        send_web_push_notification.delay(  # type: ignore
+        async_task(
+            "apps.notifications.tasks.send_web_push_notification",
             user_id=notification.recipient_id,  # type: ignore
             title=notification.title,
             message=notification.message,
@@ -87,19 +88,15 @@ def on_badge_awarded(sender, instance, created, **kwargs):
     if "test" in sys.argv or any("pytest" in arg for arg in sys.argv):
         return
 
-    from celery import current_app
-
-    current_app.send_task(
+    async_task(
         "apps.notifications.tasks.send_bulk_email",
-        kwargs={
-            "payload": {
-                "template_id": "badge_earned_email",
-                "recipients": [instance.user.email],
-                "data": {
-                    "badge_name": instance.badge.name,
-                    "username": instance.user.username,
-                },
-            }
+        payload={
+            "template_id": "badge_earned_email",
+            "recipients": [instance.user.email],
+            "data": {
+                "badge_name": instance.badge.name,
+                "username": instance.user.username,
+            },
         },
     )
 

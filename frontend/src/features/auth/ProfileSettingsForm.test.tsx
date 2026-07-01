@@ -48,6 +48,11 @@ vi.mock("../../hooks/useWebPush", () => ({
   }),
 }));
 
+function submitForm() {
+  const form = document.querySelector("form")!;
+  fireEvent.submit(form);
+}
+
 describe("ProfileSettingsForm Edge Cases", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -117,19 +122,30 @@ describe("ProfileSettingsForm Edge Cases", () => {
         <ProfileSettingsForm />
       </ToastProvider>,
     );
+
     const emailInput = screen.getByLabelText(
       /Email Address/i,
     ) as HTMLInputElement;
 
     fireEvent.change(emailInput, { target: { value: "new@example.com" } });
+
     await user.click(screen.getByRole("button", { name: /Save Settings/i }));
 
     await waitFor(() => {
-      expect(fetchApi).toHaveBeenCalled();
+      expect(fetchApi).toHaveBeenCalledWith("/auth/me/", {
+        method: "PUT",
+        requireAuth: true,
+        body: expect.stringContaining('"email":"new@example.com"'),
+      });
+
+      expect(
+        screen.getByText("Profile settings updated successfully!")
+      ).toBeInTheDocument();
     });
   });
 
   it("submits successfully with valid email and valid 8-character password", async () => {
+    vi.mocked(fetchApi).mockResolvedValue(undefined);
     const user = userEvent.setup();
 
     render(
@@ -137,6 +153,7 @@ describe("ProfileSettingsForm Edge Cases", () => {
         <ProfileSettingsForm />
       </ToastProvider>,
     );
+
     const emailInput = screen.getByLabelText(
       /Email Address/i,
     ) as HTMLInputElement;
@@ -149,7 +166,20 @@ describe("ProfileSettingsForm Edge Cases", () => {
     await user.click(screen.getByRole("button", { name: /Save Settings/i }));
 
     await waitFor(() => {
-      expect(fetchApi).toHaveBeenCalled();
+      expect(fetchApi).toHaveBeenCalledWith("/auth/me/", {
+        method: "PUT",
+        requireAuth: true,
+        body: expect.stringContaining('"email":"update@example.com"'),
+      });
+      expect(fetchApi).toHaveBeenCalledWith(
+        expect.any(String),
+        expect.objectContaining({
+          body: expect.stringContaining('"password":"validPassword123"'),
+        }),
+      );
+      expect(
+        screen.getAllByText("Profile settings updated successfully!").length,
+      ).toBeGreaterThanOrEqual(1);
     });
   });
 
@@ -165,9 +195,8 @@ describe("ProfileSettingsForm Edge Cases", () => {
         <ProfileSettingsForm />
       </ToastProvider>,
     );
-    const submitBtn = screen.getByRole("button", { name: /Save Settings/i });
 
-    await user.click(submitBtn);
+    await user.click(screen.getByRole("button", { name: /Save Settings/i }));
 
     await waitFor(() => {
       expect(

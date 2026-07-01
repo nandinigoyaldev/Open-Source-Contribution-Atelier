@@ -6,9 +6,8 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('progress', '0009_merge_20260624_1417'),
-        ('progress', '0016_restore_peer_review_fields'),
+        ("progress", "0009_merge_20260624_1417"),
+        ("progress", "0016_restore_peer_review_fields"),
     ]
 
-    operations = [
-    ]
+    operations = []

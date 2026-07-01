@@ -1,43 +1,11 @@
 from datetime import timedelta
 
-from apps.challenges.models import ChallengeCompletion
-from apps.content.models import Lesson
-from apps.dashboard.models import Issue, PullRequest, StreakFreeze
-from apps.progress.models import (
-feat/daily-coding-streaks-398
-    ExerciseAttempt,
-    LessonProgress,
-    QuizAttempt,
-    CodeSubmission,
-)
-from django.contrib.auth.models import User
-from django.core.cache import cache
-from django.db.models import Count, F, IntegerField, OuterRef, Subquery, Sum, Value
-from django.db.models.functions import Coalesce
-
-    CodeSubmission,
-    ExerciseAttempt,
-    LessonProgress,
-    QuizAttempt,
-)
-from apps.rbac.permissions import HasRole
-from apps.rbac.models import UserRole
-
 from django.contrib.auth.models import User
 from django.core.cache import cache
 from django.db import models, transaction
 from django.db.models import Count, F, IntegerField, OuterRef, Q, Subquery, Sum, Value
 from django.db.models.functions import Coalesce, TruncDate
-
- main
 from django.utils import timezone
-
-from drf_spectacular.utils import extend_schema
-from rest_framework import permissions, serializers, status
-from rest_framework.generics import ListAPIView
-from rest_framework.pagination import PageNumberPagination
-from rest_framework.response import Response
-from rest_framework.views import APIView
 
 from apps.challenges.models import ChallengeCompletion
 from apps.content.models import Lesson
@@ -49,7 +17,12 @@ from apps.progress.models import (
     QuizAttempt,
 )
 from apps.rbac.permissions import HasRole
+
+from rest_framework import serializers, permissions, status
 from rest_framework.views import APIView
+from rest_framework.generics import ListAPIView
+from rest_framework.pagination import PageNumberPagination
+from rest_framework.response import Response
 
 
 class LeaderboardPagination(PageNumberPagination):
@@ -320,7 +293,7 @@ class ContributorDashboardView(APIView):
             )
             total_xp = lesson_xp + issues_xp + challenge_bonus_xp
 
- feat/daily-coding-streaks-398
+
             # --- NEW CLEAN STREAK LOGIC ---
             from apps.progress.models import StreakProfile
 
@@ -383,7 +356,6 @@ class ContributorDashboardView(APIView):
             if modified_freezes:
                 with transaction.atomic():
                     StreakFreeze.objects.bulk_update(modified_freezes, ["used_on_date"])
- main
 
             # Determine Rank based on user XP vs others
             lesson_xp_sub = (

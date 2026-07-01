@@ -251,6 +251,7 @@ class PlagiarismReport(models.Model):
 
     Fields correspond to the migration that creates this table.
     """
+
     objects = models.Manager()
     submission = models.ForeignKey(
         CodeSubmission, on_delete=models.CASCADE, related_name="plagiarism_reports"
@@ -268,6 +269,7 @@ class PlagiarismReport(models.Model):
 
     def __str__(self):
         return f"PlagiarismReport(submission={self.submission.id}, matched={self.matched_submission.id}, score={self.similarity_score})"
+
 
 class PeerReview(models.Model):
     objects = models.Manager()

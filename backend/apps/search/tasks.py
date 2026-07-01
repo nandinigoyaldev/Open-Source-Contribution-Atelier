@@ -1,11 +1,9 @@
-from celery import shared_task
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.postgres.search import SearchVector
 
 from .models import SearchDocument
 
 
-@shared_task
 def index_model_for_search(app_label, model_name, object_id, title, body_text):
     """
     Background task to update the centralized search index asynchronously.
@@ -30,7 +28,6 @@ def index_model_for_search(app_label, model_name, object_id, title, body_text):
     )
 
 
-@shared_task
 def remove_model_from_search(app_label, model_name, object_id):
     """
     Background task to remove a deleted object from the search index.

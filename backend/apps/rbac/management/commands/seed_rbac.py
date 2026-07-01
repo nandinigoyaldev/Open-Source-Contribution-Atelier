@@ -4,7 +4,6 @@ from apps.rbac.models import Permission, Role
 
 
 
-
 class Command(BaseCommand):
     help = "Seeds the database with base RBAC roles and permissions"
 

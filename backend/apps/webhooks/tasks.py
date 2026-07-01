@@ -4,12 +4,14 @@ import json
 import logging
 
 import requests
-from celery import shared_task
-from django.utils import timezone
+from django_q.tasks import async_task
 
 from .models import WebhookDelivery, WebhookEndpoint
 
 logger = logging.getLogger(__name__)
+
+# Maximum number of delivery attempts before giving up.
+MAX_RETRIES = 3
 
 
 def generate_signature(payload, secret):
@@ -33,12 +35,15 @@ def dispatch_event(event_type, payload):
                 payload=payload,
                 status="pending",
             )
-            # Dispatch asynchronously
-            deliver_webhook.delay(delivery.id)
+            # Dispatch asynchronously — start with attempt=1
+            async_task(
+                "apps.webhooks.tasks.deliver_webhook",
+                delivery.id,
+                attempt=1,
+            )
 
 
-@shared_task(bind=True, max_retries=3)
-def deliver_webhook(self, delivery_id):
+def deliver_webhook(delivery_id, attempt=1):
     try:
         delivery = WebhookDelivery.objects.get(id=delivery_id)
     except WebhookDelivery.DoesNotExist:
@@ -63,22 +68,40 @@ def deliver_webhook(self, delivery_id):
         if 200 <= response.status_code < 300:
             delivery.status = "success"
         elif response.status_code == 429 or response.status_code >= 500:
-            # Trigger retry for rate limits and server errors
-            raise requests.exceptions.RequestException(
-                f"Recoverable error: {response.status_code}"
-            )
+            # Recoverable: retry with exponential backoff up to MAX_RETRIES
+            if attempt < MAX_RETRIES:
+                countdown = 2**attempt * 60  # 2min, 4min, ...
+                async_task(
+                    "apps.webhooks.tasks.deliver_webhook",
+                    delivery_id,
+                    attempt=attempt + 1,
+                    q_options={"timeout": countdown + 30},
+                )
+                delivery.status = "pending"
+            else:
+                delivery.status = "failed"
+                logger.error(
+                    "Max retries exceeded for webhook delivery %s", delivery.id
+                )
         else:
-            # 4xx errors (except 429) are client errors, do not retry
+            # 4xx errors (except 429) are client errors — do not retry
             delivery.status = "failed"
 
     except requests.exceptions.RequestException as e:
         delivery.response_body = str(e)[:2000]
-
-        # Retry with exponential backoff
-        try:
-            self.retry(exc=e, countdown=2**self.request.retries * 60)
-        except self.MaxRetriesExceededError:
+        if attempt < MAX_RETRIES:
+            countdown = 2**attempt * 60
+            async_task(
+                "apps.webhooks.tasks.deliver_webhook",
+                delivery_id,
+                attempt=attempt + 1,
+                q_options={"timeout": countdown + 30},
+            )
+            delivery.status = "pending"
+        else:
             delivery.status = "failed"
-            logger.error(f"Max retries exceeded for webhook delivery {delivery.id}")
+            logger.error(
+                "Max retries exceeded for webhook delivery %s: %s", delivery.id, e
+            )
     finally:
         delivery.save()

@@ -490,7 +490,7 @@ function runCommand(
         }
         // Validate that the markers are actually gone in the staged files
         for (const [key, content] of Object.entries(s.git.staged)) {
-          if (content.includes("<<" + "<".repeat(6))) {
+          if (content.includes("<<<<<<<")) {
             return {
               lines: [
                 out(

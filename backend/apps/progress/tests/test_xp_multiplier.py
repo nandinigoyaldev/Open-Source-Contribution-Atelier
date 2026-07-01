@@ -29,7 +29,7 @@ def issue(user):
 class TestXPMultiplier:
 
     def test_no_active_event(self, settings, user, lesson, issue):
-        settings.CELERY_TASK_ALWAYS_EAGER = True
+        settings.Q_CLUSTER = {"sync": True}
         client = APIClient()
         # 1. Lesson Progress creation without active event
         client.force_authenticate(user=user)
@@ -51,7 +51,7 @@ class TestXPMultiplier:
         assert issue.bonus_points == 0
 
     def test_active_event_multiplier(self, settings, user, lesson, issue):
-        settings.CELERY_TASK_ALWAYS_EAGER = True
+        settings.Q_CLUSTER = {"sync": True}
         client = APIClient()
         now = timezone.now()
         XPMultiplierEvent.objects.create(

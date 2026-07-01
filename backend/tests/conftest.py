@@ -9,8 +9,10 @@ def _disable_auth_throttle(settings):
 
 
 @pytest.fixture(autouse=True)
-def _configure_celery_test_settings(settings):
-    settings.CELERY_TASK_ALWAYS_EAGER = True
+def _configure_django_q_test_settings(settings):
+    settings.Q_CLUSTER = {
+        "sync": True,
+    }
     settings.CHANNEL_LAYERS = {
         "default": {
             "BACKEND": "channels.layers.InMemoryChannelLayer",

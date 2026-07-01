@@ -1,4 +1,3 @@
-/* eslint-disable react-hooks/set-state-in-effect */
 import { useEffect, useState } from "react";
 import { useGoogleLogin } from "@react-oauth/google";
 import { GitBranch, Moon, Sun } from "lucide-react";

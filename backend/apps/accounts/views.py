@@ -42,6 +42,7 @@ from .tasks import (
     send_otp_email_task,
     send_password_reset_email_task,
 )
+from django_q.tasks import async_task
 from .throttles import (
     LoginThrottle,
     MagicLinkRequestThrottle,
@@ -433,7 +434,8 @@ class PasswordResetRequestView(APIView):
             )
             timeout = getattr(settings, "PASSWORD_RESET_TIMEOUT_MINUTES", 15)
 
-            send_password_reset_email_task.delay(
+            async_task(
+                "apps.accounts.tasks.send_password_reset_email_task",
                 user_email=user.email,
                 user_username=user.username,
                 reset_url=reset_url,
@@ -545,7 +547,8 @@ class OtpRequestView(APIView):
             OTPToken.objects.filter(user=user, is_used=False).update(is_used=True)
             otp_obj = OTPToken.objects.create(user=user)
 
-            send_otp_email_task.delay(
+            async_task(
+                "apps.accounts.tasks.send_otp_email_task",
                 user_email=user.email,
                 user_username=user.username,
                 otp_token=otp_obj.token,
@@ -643,7 +646,8 @@ class MagicLinkRequestView(APIView):
             login_url = frontend_url("/magic-login", {"token": str(magic_token.token)})
             timeout = getattr(settings, "MAGIC_LINK_TIMEOUT_MINUTES", 15)
 
-            send_magic_link_email_task.delay(
+            async_task(
+                "apps.accounts.tasks.send_magic_link_email_task",
                 user_email=user.email,
                 user_username=user.username,
                 login_url=login_url,
@@ -732,8 +736,6 @@ from rest_framework_simplejwt.exceptions import TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
 
 
-
-
 class LogoutView(APIView):
     """
     Accepts a refresh token in the request body and adds it to the blacklist.
@@ -796,17 +798,17 @@ class ExportDataView(APIView):
         if export_format == "json":
             json_data = service.generate_json()
             response = HttpResponse(json_data, content_type="application/json")
-            response[
-                "Content-Disposition"
-            ] = f'attachment; filename="data_export_{request.user.username}.json"'
+            response["Content-Disposition"] = (
+                f'attachment; filename="data_export_{request.user.username}.json"'
+            )
             return response
 
         elif export_format == "csv":
             zip_data = service.generate_csv_zip()
             response = HttpResponse(zip_data, content_type="application/zip")
-            response[
-                "Content-Disposition"
-            ] = f'attachment; filename="data_export_{request.user.username}.zip"'
+            response["Content-Disposition"] = (
+                f'attachment; filename="data_export_{request.user.username}.zip"'
+            )
             return response
 
         return Response(

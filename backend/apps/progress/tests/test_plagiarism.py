@@ -1,9 +1,10 @@
-import pytest
 from unittest.mock import patch
+
+import pytest
 from apps.progress.models import CodeSubmission, PlagiarismReport
 from apps.progress.services.plagiarism_detector import (
-    extract_ast_nodes,
     calculate_structural_similarity,
+    extract_ast_nodes,
 )
 from apps.progress.tasks import analyze_submission_plagiarism
 from django.contrib.auth import get_user_model

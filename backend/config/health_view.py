@@ -27,7 +27,8 @@ def _check_postgres() -> dict[str, Any]:
 
 
 def _check_redis() -> dict[str, Any]:
-    redis_url = os.getenv("REDIS_URL") or getattr(settings, "CELERY_BROKER_URL", "")
+    q_cluster = getattr(settings, "Q_CLUSTER", {})
+    redis_url = os.getenv("REDIS_URL") or q_cluster.get("redis", "")
     if not redis_url:
         return {"status": "not_configured", "detail": "REDIS_URL is not set"}
 

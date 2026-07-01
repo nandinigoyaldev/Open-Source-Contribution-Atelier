@@ -149,7 +149,7 @@ class TestRedisCheck:
 
         with (
             patch("config.health_view.os.getenv", return_value=""),
-            patch("config.health_view.settings.CELERY_BROKER_URL", ""),
+            patch("config.health_view.settings.Q_CLUSTER", {}),
         ):
             result = _check_redis()
 

@@ -676,21 +676,18 @@ export function DashboardPage() {
             </span>
             <h1 className="text-4xl sm:text-5xl font-black text-white drop-shadow-[3.5px_3.5px_0_#000] mb-4 dark:text-[#f0ebe2] dark:drop-shadow-none">
               Welcome to the Atelier, {user?.username}.
-            <h1 className="text-4xl sm:text-5xl font-black text-white drop-shadow-[3.5px_3.5px_0_#000] mb-4 dark:text-[#f0ebe2] dark:drop-shadow-none">
-              Welcome to the Atelier, {user?.username}.
             </h1>
-            
+
             {/* --- NEW BIO RENDERER START --- */}
             {user?.bio_html && (
-              <div 
+              <div
                 className="prose prose-sm prose-invert mb-6 text-white dark:text-[#f0ebe2] max-w-2xl bg-black/20 p-4 rounded-xl border-2 border-white/20 shadow-inner"
-                dangerouslySetInnerHTML={{ __html: user.bio_html }} 
+                dangerouslySetInnerHTML={{ __html: user.bio_html }}
               />
             )}
             {/* --- NEW BIO RENDERER END --- */}
 
             <p className="text-lg font-bold text-black bg-white/95 p-4 rounded-lg border-4 border-black shadow-card-sm inline-block max-w-xl leading-relaxed dark:bg-[#151411] dark:border-[#2e2924] dark:text-[#f0ebe2]"></p>
-            </h1>
             <p className="text-lg font-bold text-black bg-white/95 p-4 rounded-lg border-4 border-black shadow-card-sm inline-block max-w-xl leading-relaxed dark:bg-[#151411] dark:border-[#2e2924] dark:text-[#f0ebe2]">
               You have completed {completedLessonsCount} of {totalLessonsCount}{" "}
               course modules, earning{" "}
@@ -753,9 +750,9 @@ export function DashboardPage() {
         </div>
       </section>
 
-       {/* 2. Fact of the Day, Quote, and Certificate Unlock */}
-       {/* Updated to grid-cols-3 to fit the new widget nicely */}
-       <section className="grid gap-6 md:grid-cols-[1fr_1fr_0.8fr]">
+      {/* 2. Fact of the Day, Quote, and Certificate Unlock */}
+      {/* Updated to grid-cols-3 to fit the new widget nicely */}
+      <section className="grid gap-6 md:grid-cols-[1fr_1fr_0.8fr]">
         <div
           id="tour-fact"
           className="rounded-2xl border-4 border-black bg-surface-low p-6 shadow-card dark:bg-[#1f1c18] dark:border-[#2e2924] dark:shadow-none flex items-start gap-4"

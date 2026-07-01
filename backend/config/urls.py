@@ -37,6 +37,7 @@ urlpatterns = [
         name="swagger-ui",
     ),
     path("api/graphql/", csrf_exempt(GraphQLView.as_view(graphiql=True))),
+    path("", include("django_prometheus.urls")),
 ]
 
 from django.conf import settings

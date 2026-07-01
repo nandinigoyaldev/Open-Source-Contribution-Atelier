@@ -125,6 +125,8 @@ describe("useGitShell - Merge Conflict Edge Cases", () => {
     const lines = result.current.lines;
     const lastLine = lines[lines.length - 1];
 
-    expect(lastLine.text).toBe("fatal: You have not <<<<<<< HEAD exists).");
+    expect(lastLine.text).toBe(
+      "fatal: You have not concluded your merge (MERGE_HEAD exists).",
+    );
   });
 });
