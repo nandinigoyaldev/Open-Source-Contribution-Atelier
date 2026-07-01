@@ -4,6 +4,7 @@ import pytest
 from django.contrib.auth.models import User
 from django.core.cache import cache
 from rest_framework.test import APIClient
+from apps.dashboard.signals import clear_dashboard_caches
 
 
 @pytest.fixture
@@ -26,7 +27,7 @@ class TestLeaderboardCaching:
 
     def test_caches_response_on_first_call(self, api_client):
         api_client.get("/api/leaderboard/")
-        assert cache.get("leaderboard_page_1") is not None
+        assert cache.get("leaderboard_v1_all_sz20_pg1") is not None
 
     def test_second_call_uses_cache_not_db(self, api_client):
         api_client.get("/api/leaderboard/")
@@ -45,9 +46,36 @@ class TestLeaderboardCaching:
         api_client.get("/api/leaderboard/?page=1")
         api_client.get("/api/leaderboard/?page=2")
 
-        assert cache.get("leaderboard_page_1") is not None
-        assert cache.get("leaderboard_page_2") is not None
-        assert cache.get("leaderboard_page_1") != cache.get("leaderboard_page_2")
+        assert cache.get("leaderboard_v1_all_sz20_pg1") is not None
+        assert cache.get("leaderboard_v1_all_sz20_pg2") is not None
+        assert cache.get("leaderboard_v1_all_sz20_pg1") != cache.get(
+            "leaderboard_v1_all_sz20_pg2"
+        )
+
+    def test_timeframe_cached_separately(self, api_client):
+        api_client.get("/api/leaderboard/?timeframe=weekly")
+        api_client.get("/api/leaderboard/?timeframe=monthly")
+
+        assert cache.get("leaderboard_v1_weekly_sz20_pg1") is not None
+        assert cache.get("leaderboard_v1_monthly_sz20_pg1") is not None
+
+    def test_page_size_cached_separately(self, api_client):
+        api_client.get("/api/leaderboard/?page_size=5")
+        api_client.get("/api/leaderboard/?page_size=10")
+
+        assert cache.get("leaderboard_v1_all_sz5_pg1") is not None
+        assert cache.get("leaderboard_v1_all_sz10_pg1") is not None
+
+    def test_cache_invalidation_increments_version(self, api_client):
+        api_client.get("/api/leaderboard/")
+        assert cache.get("leaderboard_v1_all_sz20_pg1") is not None
+
+        # Simulate clearing caches
+        clear_dashboard_caches()
+
+        assert cache.get("leaderboard_cache_version") == 2
+        api_client.get("/api/leaderboard/")
+        assert cache.get("leaderboard_v2_all_sz20_pg1") is not None
 
     def test_cache_expires_after_ttl(self, api_client):
         with patch("apps.dashboard.views.cache.set") as mock_set:
@@ -56,7 +84,7 @@ class TestLeaderboardCaching:
             leaderboard_calls = [
                 call
                 for call in mock_set.call_args_list
-                if call.args[0].startswith("leaderboard_page_")
+                if call.args[0].startswith("leaderboard_v1_")
             ]
             assert len(leaderboard_calls) == 1
             _, _, ttl = leaderboard_calls[0].args

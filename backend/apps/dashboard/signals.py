@@ -11,9 +11,17 @@ from apps.progress.badge_evaluator import BadgeEvaluator
 from apps.progress.models import ExerciseAttempt, LessonProgress
 
 
+def clear_leaderboard_cache():
+    try:
+        cache.incr("leaderboard_cache_version")
+    except ValueError:
+        cache.set("leaderboard_cache_version", 2)
+
+
 def clear_dashboard_caches(user_id=None):
     # Always clear the global admin stats cache
     cache.delete("dashboard_admin_stats_v2")
+    clear_leaderboard_cache()
 
     # If a specific user is affected, clear their specific contributor stats cache
     if user_id:

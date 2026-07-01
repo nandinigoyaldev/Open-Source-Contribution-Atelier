@@ -51,7 +51,11 @@ class LeaderboardView(ListAPIView):
 
     def list(self, request, *args, **kwargs):
         page = request.query_params.get("page", "1")
-        cache_key = f"leaderboard_page_{page}"
+        timeframe = request.query_params.get("timeframe", "all")
+        page_size = self.paginator.get_page_size(request) if self.paginator else 20
+
+        version = cache.get("leaderboard_cache_version", 1)
+        cache_key = f"leaderboard_v{version}_{timeframe}_sz{page_size}_pg{page}"
 
         cached_data = cache.get(cache_key)
         if cached_data is not None:
@@ -292,7 +296,6 @@ class ContributorDashboardView(APIView):
                 or 0
             )
             total_xp = lesson_xp + issues_xp + challenge_bonus_xp
-
 
             # --- NEW CLEAN STREAK LOGIC ---
             from apps.progress.models import StreakProfile
