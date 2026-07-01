@@ -1,12 +1,12 @@
-# Respect & Communication
+# 🙏 Respect & Communication
 
-Open source is a community of people. Good communication is just as important as writing clean code.
+### Open source is a community of people. Good, clear communication is just as important as writing good code.
 
 ---
 
-### Key Etiquette Rules
+### 📋 Key Etiquette Rules
 
-- **Respect Maintainers' Time**: The vast majority of maintainers are volunteers. They might take days or weeks to respond to your issues or PRs. Do not spam them.
+- **Respect Maintainers' Time**: The vast majority of maintainers are volunteers who have other things in their lives to tend to. They might take days or weeks to respond to your issues or PRs. Do not spam them or nag them on any platform.
 - **Write Clear, Context-Rich Messages**: When asking for help, provide logs, your OS details, step-by-step reproduction steps, and what you've tried.
 - **Be Kind and Professional**: Follow the project's **Code of Conduct**. Disagreements should focus on the code and technical trade-offs, never on personal attacks.
 
