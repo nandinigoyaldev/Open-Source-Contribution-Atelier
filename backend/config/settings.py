@@ -1,6 +1,7 @@
 import os
 from datetime import timedelta
 from pathlib import Path
+from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, SpectacularRedocView
 
 import dj_database_url
 
@@ -49,7 +50,8 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    "django_filters",
+    'django_filters',
+    "drf_spectacular",
     "corsheaders",
     "rest_framework",
     "rest_framework_simplejwt",
@@ -216,6 +218,13 @@ SIMPLE_JWT = {
     "BLACKLIST_AFTER_ROTATION": True,
 }
 
+SOCIALACCOUNT_AUTO_SIGNUP = True
+SOCIALACCOUNT_EMAIL_VERIFICATION = "optional"
+SOCIALACCOUNT_ADAPTER = "apps.accounts.allauth_adapter.CustomSocialAccountAdapter"
+ACCOUNT_EMAIL_REQUIRED = True
+ACCOUNT_UNIQUE_EMAIL = True
+
+
 # ──────────────────────────────────────────
 # Django-allauth Configuration
 # ──────────────────────────────────────────
@@ -286,6 +295,7 @@ def is_redis_available(url):
 # Candidates check: use REDIS_URL if set, or default to standard local redis host for check
 ENV_REDIS_URL = os.getenv("REDIS_URL", "")
 CHECK_REDIS_URL = ENV_REDIS_URL or "redis://127.0.0.1:6379"
+
 
 if is_redis_available(CHECK_REDIS_URL):
     REDIS_URL = CHECK_REDIS_URL
