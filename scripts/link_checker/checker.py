@@ -7,6 +7,7 @@ from pathlib import Path
 from bs4 import BeautifulSoup
 import markdown
 from colorama import init, Fore, Style
+import urllib.parse
 
 init(autoreset=True)
 
@@ -44,7 +45,7 @@ def extract_links_from_markdown(file_path):
     return links
 
 
-async def check_url(session, url, file_path, semaphore):
+async def check_url(session, url, file_path, semaphore, base_dir):
     # Check if ignored
     for pattern in EXCLUDE_DOMAINS:
         if re.search(pattern, url):
@@ -52,9 +53,24 @@ async def check_url(session, url, file_path, semaphore):
 
     # Check local relative paths
     if not url.startswith("http"):
-        # Resolve against the markdown file's directory
-        local_path = file_path.parent / url
-        if local_path.exists():
+        # Decode URL-encoded paths and strip anchors/queries
+        decoded_url = urllib.parse.unquote(url).split("?")[0].split("#")[0]
+        if not decoded_url:
+            return (url, "OK", file_path)
+
+        if decoded_url.startswith("/"):
+            local_path = base_dir / decoded_url.lstrip("/")
+        else:
+            local_path = file_path.parent / decoded_url
+
+        try:
+            resolved_path = local_path.resolve()
+            # Ensure resolved path is within base_dir
+            resolved_path.relative_to(base_dir)
+        except (ValueError, RuntimeError):
+            return (url, "OUTSIDE_WORKSPACE", file_path)
+
+        if resolved_path.exists():
             return (url, "OK", file_path)
         else:
             return (url, "BROKEN_LOCAL", file_path)
@@ -101,13 +117,13 @@ async def check_url(session, url, file_path, semaphore):
 
 async def process_files(directory_or_files):
     files_to_check = []
-    base_dir = Path.cwd().resolve()
+    base_dir = Path(__file__).resolve().parents[2]
 
     # If a list of files is provided via args
     for item in directory_or_files:
         path = Path(item).resolve()
 
-        # Prevent path traversal outside the current working directory
+        # Prevent path traversal outside the repository root directory
         try:
             path.relative_to(base_dir)
         except ValueError:
@@ -149,7 +165,7 @@ async def process_files(directory_or_files):
     conn = aiohttp.TCPConnector(limit=CONCURRENCY_LIMIT)
     async with aiohttp.ClientSession(connector=conn) as session:
         for url, file_paths in link_map.items():
-            tasks.append(check_url(session, url, file_paths[0], semaphore))
+            tasks.append(check_url(session, url, file_paths[0], semaphore, base_dir))
 
         results = await asyncio.gather(*tasks)
 

@@ -27,7 +27,7 @@ frontend/public/content/
 To add a new lesson or create a module:
 
 1. **Register it in `curriculum.json`**:
-   Open [curriculum.json](file:///Users/nandini/Downloads/open/Open-Source-Contribution-Atelier/frontend/public/content/curriculum.json) and add your module or lesson item to the `"modules"` array.
+   Open [curriculum.json](../frontend/public/content/curriculum.json) and add your module or lesson item to the `"modules"` array.
    
    Example lesson entry inside a module:
    ```json
@@ -100,4 +100,4 @@ We support:
 4. **Lists**:
    Use `-` for bullets, and `1.` for ordered lists.
 5. **Inline Styling**:
-   Use `**bold**`, `` `inline code` ``, and `[links](url)`.
+   Use `**bold**`, `` `inline code` ``, and `` `[links](url)` ``.
