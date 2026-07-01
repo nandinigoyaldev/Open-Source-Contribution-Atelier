@@ -18,7 +18,9 @@ def _safe_async(task_path, **kwargs):
     try:
         async_task(task_path, **kwargs)
     except Exception as exc:
-        logger.warning("Django-Q broker unavailable; skipping search indexing task: %s", exc)
+        logger.warning(
+            "Django-Q broker unavailable; skipping search indexing task: %s", exc
+        )
 
 
 # --- Lesson Indexing ---

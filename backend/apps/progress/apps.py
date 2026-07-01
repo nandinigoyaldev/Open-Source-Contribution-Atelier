@@ -11,6 +11,7 @@ class ProgressConfig(AppConfig):
         # Register Django-Q schedule for weekly progress summary
         try:
             from django_q.models import Schedule
+
             Schedule.objects.get_or_create(
                 name="send-weekly-progress-summary",
                 defaults={

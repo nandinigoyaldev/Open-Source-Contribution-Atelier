@@ -1,9 +1,14 @@
-from apps.content.models import Lesson
-from apps.progress.models import Badge, LessonProgress, QuizAttempt, UserBadge
+import json
+import os
+
+from django.conf import settings
 from django.contrib.auth.models import User
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
+
+from apps.content.models import Lesson
+from apps.progress.models import Badge, LessonProgress, QuizAttempt, UserBadge
 
 
 class LearningPathTests(APITestCase):
@@ -45,12 +50,36 @@ class LearningPathTests(APITestCase):
             order=4,
         )
 
-        # Second module: mod-2 lessons
+        # Second module: mod-2 lessons (all 5 from curriculum.json)
         self.l6 = Lesson.objects.create(
             slug="repositories-and-commits",
             title="Repositories & Commits",
             difficulty="beginner",
             order=5,
+        )
+        self.l7 = Lesson.objects.create(
+            slug="branches",
+            title="Branches",
+            difficulty="beginner",
+            order=6,
+        )
+        self.l8 = Lesson.objects.create(
+            slug="merging",
+            title="Merging",
+            difficulty="beginner",
+            order=7,
+        )
+        self.l9 = Lesson.objects.create(
+            slug="remotes",
+            title="Remotes",
+            difficulty="beginner",
+            order=8,
+        )
+        self.l10 = Lesson.objects.create(
+            slug="git-workflow",
+            title="Staging & Reviewing Status",
+            difficulty="beginner",
+            order=9,
         )
 
     def test_unauthenticated_returns_401(self):
@@ -124,8 +153,30 @@ class LearningPathTests(APITestCase):
     def test_scorer_handles_all_completed(self):
         self.client.force_authenticate(user=self.user)
 
-        # Mark all lessons in both modules as completed
-        for lesson in [self.l1, self.l2, self.l3, self.l4, self.l5, self.l6]:
+        # Dynamically load curriculum to create all lessons
+        curriculum_path = os.path.join(
+            settings.BASE_DIR, "..", "frontend", "public", "content", "curriculum.json"
+        )
+        with open(curriculum_path) as f:
+            curriculum = json.load(f)
+
+        all_lessons = []
+        order = 0
+        for mod in curriculum["modules"]:
+            for les_data in mod["lessons"]:
+                lesson, _ = Lesson.objects.get_or_create(
+                    slug=les_data["slug"],
+                    defaults={
+                        "title": les_data["title"],
+                        "difficulty": les_data.get("difficulty", "beginner"),
+                        "order": order,
+                    },
+                )
+                all_lessons.append(lesson)
+                order += 1
+
+        # Mark all as completed
+        for lesson in all_lessons:
             LessonProgress.objects.create(user=self.user, lesson=lesson, completed=True)
 
         response = self.client.get(self.url)

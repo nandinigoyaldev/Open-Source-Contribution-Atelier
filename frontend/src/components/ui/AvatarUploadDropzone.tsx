@@ -20,7 +20,6 @@ export function AvatarUploadDropzone({
 
   useEffect(() => {
     if (currentAvatarUrl && !previewUrl) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setPreviewUrl(currentAvatarUrl);
     }
   }, [currentAvatarUrl, previewUrl]);

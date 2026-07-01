@@ -18,7 +18,6 @@ export function useJSSandbox() {
       { type: "module" },
     );
 
-    /* eslint-disable-next-line react-hooks/set-state-in-effect */
     setIsReady(true);
     return () => {
       if (workerRef.current) {

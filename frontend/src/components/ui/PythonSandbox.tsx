@@ -21,12 +21,10 @@ export function PythonSandbox({ exercise, onSuccess }: PythonSandboxProps) {
 
   // Reset if exercise changes
   useEffect(() => {
-    /* eslint-disable react-hooks/set-state-in-effect */
     setCode(exercise.starterCode);
     setOutput("");
     setError(null);
     setIsSuccess(false);
-    /* eslint-enable react-hooks/set-state-in-effect */
   }, [exercise]);
 
   const handleRun = async () => {

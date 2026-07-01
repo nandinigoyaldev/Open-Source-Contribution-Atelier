@@ -46,7 +46,6 @@ export function PeerReviewPage() {
 
   useEffect(() => {
     if (activeTab === "review") {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       fetchPendingSubmissions();
     }
   }, [activeTab]);

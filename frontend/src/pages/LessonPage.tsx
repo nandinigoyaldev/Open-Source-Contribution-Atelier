@@ -155,7 +155,6 @@ export function LessonPage() {
   // there (e.g. curriculum.json and seed data are out of sync), fall back to
   // constructing a basic Lesson object from curriculum.json data.
   useEffect(() => {
-    /* eslint-disable react-hooks/set-state-in-effect */
     setIsLoading(true);
 
     Promise.all([
@@ -217,20 +216,17 @@ export function LessonPage() {
       .finally(() => {
         setIsLoading(false);
       });
-    /* eslint-enable react-hooks/set-state-in-effect */
   }, [slug, navigate]);
 
   // 2. Fetch markdown content and reset interactive state when lesson changes
   useEffect(() => {
     if (!lesson) return;
 
-    /* eslint-disable react-hooks/set-state-in-effect */
     setFeedback("");
     setInput("");
     setShowHint(false);
     setTerminalOutput("");
     setRepoState(createInitialRepo());
-    /* eslint-enable react-hooks/set-state-in-effect */
 
     // Reset Quiz state
     setCurrentQuizIndex(0);

@@ -1,7 +1,9 @@
 import { useState, useEffect } from "react";
 import { ArrowUp } from "lucide-react";
+import { useLocation } from "react-router-dom";
 
 export function ScrollToTop() {
+  const location = useLocation();
   const [isVisible, setIsVisible] = useState(false);
 
   useEffect(() => {
@@ -32,11 +34,15 @@ export function ScrollToTop() {
     return null;
   }
 
+  const isDashboard = location.pathname.startsWith("/dashboard");
+
   return (
     <button
       type="button"
       onClick={scrollToTop}
-      className="fixed bottom-8 right-8 p-3 rounded-full bg-accent text-black border-4 border-black shadow-card hover:shadow-none hover:translate-x-1 hover:translate-y-1 transition-all z-50 focus:outline-none focus:ring-4 focus:ring-primary dark:bg-[#2e2924] dark:text-[#f0ebe2] dark:border-black"
+      className={`fixed p-3 rounded-full bg-accent text-black border-4 border-black shadow-card hover:shadow-none hover:translate-x-1 hover:translate-y-1 transition-all z-50 focus:outline-none focus:ring-4 focus:ring-primary dark:bg-[#2e2924] dark:text-[#f0ebe2] dark:border-black ${
+        isDashboard ? "bottom-24 right-6" : "bottom-8 right-8"
+      }`}
       aria-label="Scroll to top"
       data-testid="scroll-to-top"
     >

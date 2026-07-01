@@ -95,19 +95,7 @@ export function DashboardPage() {
   const { bookmarks, isLoading: isLoadingBookmarks } = useBookmarks();
 
   const [tourKey, setTourKey] = useState(0);
-  const [showScrollTop, setShowScrollTop] = useState(false);
 
-  useEffect(() => {
-    const handleScroll = () => {
-      setShowScrollTop(window.scrollY > 300);
-    };
-
-    window.addEventListener("scroll", handleScroll);
-
-    return () => {
-      window.removeEventListener("scroll", handleScroll);
-    };
-  }, []);
   // 1. Fetch static modules catalog
   const [curriculumData, setCurriculumData] = useState<ModuleData[]>([]);
   useEffect(() => {
@@ -176,7 +164,6 @@ export function DashboardPage() {
 
   useEffect(() => {
     if (isLoading) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setShowSkeleton(true);
       return;
     }
@@ -268,7 +255,6 @@ export function DashboardPage() {
     if (user && !user.is_staff) {
       const isBoarded = localStorage.getItem("atelier_onboarded");
       if (!isBoarded) {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
         setShowOnboarding(true);
       }
     }
@@ -659,7 +645,10 @@ export function DashboardPage() {
   return (
     <div className="max-w-7xl mx-auto px-4 pt-24 pb-12 space-y-10">
       <OnboardingTour run={showOnboarding} onFinish={handleFinishOnboarding} />
-      <NotesWidget />
+      {/* Floating action buttons (bottom-right column) */}
+      <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3">
+        <NotesWidget embedded />
+      </div>
       {/* 1. Header Banner */}
       <section className="grid gap-6 xl:grid-cols-[1.3fr_0.7fr]">
         <div
@@ -714,7 +703,8 @@ export function DashboardPage() {
             </span>
             {/* Added longest streak display */}
             <div className="absolute top-2 right-2 bg-surface-low border-2 border-black rounded-full px-2 py-0.5 text-[8px] font-black text-muted flex items-center gap-1 dark:bg-[#151411]">
-              <span className="text-[10px]">🏆</span> Max: {personal_stats.longest_streak || personal_stats.streak_days}
+              <span className="text-[10px]">🏆</span> Max:{" "}
+              {personal_stats.longest_streak || personal_stats.streak_days}
             </div>
           </div>
 
@@ -1334,15 +1324,6 @@ export function DashboardPage() {
             </div>
           </div>
         </div>
-      )}
-      {showScrollTop && (
-        <button
-          onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-          aria-label="Scroll to top"
-          className="fixed bottom-6 right-6 z-50 rounded-lg bg-primary text-white border-4 border-black px-4 py-3 font-black shadow-card-sm hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-card-sm cursor-pointer"
-        >
-          ↑ Top
-        </button>
       )}
     </div>
   );

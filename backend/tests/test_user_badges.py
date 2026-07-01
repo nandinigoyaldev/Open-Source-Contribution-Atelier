@@ -39,13 +39,9 @@ def test_authenticated_user_can_retrieve_badges_and_progress_points():
 
     assert response.status_code == 200
     assert response.data["progress_points"] == 100
-    # The signal from LessonProgress creation also awards "first-lesson" badge
-    # Badge order may vary; both the manually created "first-steps" and
-    # signal-created "first-lesson" badge should be present
+    # BadgeEvaluator awards "first-steps" (min_lessons=1) via signals
     slugs = [b["slug"] for b in response.data["badges"]]
     assert "first-steps" in slugs
-    assert "first-lesson" in slugs
-    assert len(slugs) == 2
     assert response.data["badges"][0]["earned_at"]
 
 
@@ -88,10 +84,10 @@ def test_badges_endpoint_returns_only_authenticated_users_stats():
 
     assert response.status_code == 200
     assert response.data["progress_points"] == 40
-    # The signal from creating LessonProgress awards the "first-lesson" badge
+    # BadgeEvaluator awards "first-steps" (min_lessons=1) via signals
     badge_slugs = [badge["slug"] for badge in response.data["badges"]]
     assert "own-badge" in badge_slugs
-    assert "first-lesson" in badge_slugs
+    assert "first-steps" in badge_slugs
     assert "other-badge" not in badge_slugs
 
 

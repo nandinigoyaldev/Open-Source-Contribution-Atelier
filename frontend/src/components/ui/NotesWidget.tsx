@@ -17,7 +17,7 @@ interface DecryptedNote extends EncryptedNote {
   plaintext: string;
 }
 
-export function NotesWidget() {
+export function NotesWidget({ embedded }: { embedded?: boolean }) {
   const queryClient = useQueryClient();
   const [isOpen, setIsOpen] = useState(false);
   const [activeNote, setActiveNote] = useState<DecryptedNote | null>(null);
@@ -48,7 +48,6 @@ export function NotesWidget() {
     if (encryptedNotes.length > 0) {
       decryptAll();
     } else {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setDecryptedNotes([]);
     }
   }, [encryptedNotes]);
@@ -115,7 +114,7 @@ export function NotesWidget() {
   };
 
   return (
-    <div className="fixed bottom-6 right-6 z-50">
+    <div className={embedded ? "" : "fixed bottom-6 right-6 z-50"}>
       {!isOpen && (
         <button
           onClick={() => setIsOpen(true)}
@@ -127,7 +126,9 @@ export function NotesWidget() {
       )}
 
       {isOpen && (
-        <div className="bg-white dark:bg-[#151411] w-80 sm:w-96 rounded-2xl border-4 border-black dark:border-[#2e2924] shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] flex flex-col overflow-hidden max-h-[600px]">
+        <div
+          className={`bg-white dark:bg-[#151411] w-80 sm:w-96 rounded-2xl border-4 border-black dark:border-[#2e2924] shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] flex flex-col overflow-hidden max-h-[600px] ${embedded ? "fixed bottom-6 right-6 z-50" : ""}`}
+        >
           {/* Header */}
           <div className="bg-primary text-black p-4 border-b-4 border-black dark:border-[#2e2924] flex justify-between items-center">
             <div className="flex items-center gap-2">

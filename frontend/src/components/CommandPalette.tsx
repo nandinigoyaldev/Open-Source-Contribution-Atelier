@@ -1,4 +1,3 @@
-/* eslint-disable react-hooks/set-state-in-effect */
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
@@ -394,7 +393,9 @@ export const CommandPalette: React.FC = () => {
 
                     return (
                       <button
-                        key={item.type === "navigation" ? item.to : item.entry.id}
+                        key={
+                          item.type === "navigation" ? item.to : item.entry.id
+                        }
                         onClick={() => handleSelect(item)}
                         onMouseEnter={() => setSelectedIndex(i)}
                         className={`w-full flex items-center justify-between p-4 rounded-xl text-left transition-all ${

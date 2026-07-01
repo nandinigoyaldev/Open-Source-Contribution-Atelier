@@ -6,6 +6,11 @@ from django.db import models, transaction
 from django.db.models import Count, F, IntegerField, OuterRef, Q, Subquery, Sum, Value
 from django.db.models.functions import Coalesce, TruncDate
 from django.utils import timezone
+from rest_framework import permissions, serializers, status
+from rest_framework.generics import ListAPIView
+from rest_framework.pagination import PageNumberPagination
+from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from apps.challenges.models import ChallengeCompletion
 from apps.content.models import Lesson
@@ -17,12 +22,6 @@ from apps.progress.models import (
     QuizAttempt,
 )
 from apps.rbac.permissions import HasRole
-
-from rest_framework import serializers, permissions, status
-from rest_framework.views import APIView
-from rest_framework.generics import ListAPIView
-from rest_framework.pagination import PageNumberPagination
-from rest_framework.response import Response
 
 
 class LeaderboardPagination(PageNumberPagination):
@@ -292,7 +291,6 @@ class ContributorDashboardView(APIView):
                 or 0
             )
             total_xp = lesson_xp + issues_xp + challenge_bonus_xp
-
 
             # --- NEW CLEAN STREAK LOGIC ---
             from apps.progress.models import StreakProfile

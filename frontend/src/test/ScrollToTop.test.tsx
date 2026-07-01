@@ -6,7 +6,12 @@ import {
   act,
   cleanup,
 } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 import { ScrollToTop } from "../components/ui/ScrollToTop";
+
+function renderWithRouter(ui: React.ReactElement) {
+  return render(<MemoryRouter>{ui}</MemoryRouter>);
+}
 
 describe("ScrollToTop Component", () => {
   beforeEach(() => {
@@ -22,13 +27,13 @@ describe("ScrollToTop Component", () => {
   });
 
   it("is initially hidden when scroll position is 0", () => {
-    render(<ScrollToTop />);
+    renderWithRouter(<ScrollToTop />);
     const button = screen.queryByTestId("scroll-to-top");
     expect(button).not.toBeInTheDocument();
   });
 
   it("appears when scrolled past the threshold", () => {
-    render(<ScrollToTop />);
+    renderWithRouter(<ScrollToTop />);
     act(() => {
       Object.defineProperty(window, "scrollY", {
         value: 350,
@@ -42,7 +47,7 @@ describe("ScrollToTop Component", () => {
   });
 
   it("disappears when scrolled back up", () => {
-    render(<ScrollToTop />);
+    renderWithRouter(<ScrollToTop />);
 
     // Scroll down
     act(() => {
@@ -66,7 +71,7 @@ describe("ScrollToTop Component", () => {
   });
 
   it("scrolls to top smoothly when clicked", () => {
-    render(<ScrollToTop />);
+    renderWithRouter(<ScrollToTop />);
 
     act(() => {
       Object.defineProperty(window, "scrollY", {

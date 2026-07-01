@@ -344,7 +344,9 @@ class BulkProgressUpdateView(APIView):
 
                 from django_q.tasks import async_task
 
-                async_task("apps.progress.tasks.evaluate_user_badges_task", request.user.id)
+                async_task(
+                    "apps.progress.tasks.evaluate_user_badges_task", request.user.id
+                )
 
         except ValueError as ve:
             return Response(
