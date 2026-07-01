@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState, Component, ErrorInfo } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams, Link } from "react-router-dom";
 import {
@@ -10,6 +10,7 @@ import {
   CheckCircle2,
   Lock,
   Bookmark,
+  AlertTriangle
 } from "lucide-react";
 
 import SkeletonLesson from "../components/ui/skeletons/SkeletonLesson";
@@ -32,6 +33,8 @@ import { JSSandbox } from "../components/ui/JSSandbox";
 import { InteractiveDebugger } from "../components/ui/InteractiveDebugger";
 import { TextToSpeechControls } from "../components/ui/TextToSpeechControls";
 
+const InteractiveDebuggerAny = InteractiveDebugger as React.ComponentType<any>;
+
 import {
   createInitialRepo,
   parseGitCommand,
@@ -41,6 +44,56 @@ import {
 function normalizeCommand(value: string) {
   return value.trim().replace(/\s+/g, " ").toLowerCase();
 }
+
+// --- NEW: Error Boundary Component ---
+interface ErrorBoundaryProps {
+  children: React.ReactNode;
+}
+interface ErrorBoundaryState {
+  hasError: boolean;
+  error: Error | null;
+}
+
+class LessonErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  constructor(props: ErrorBoundaryProps) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) {
+    console.error("Lesson content rendering error:", error, errorInfo);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="p-8 my-8 text-center bg-red-50 border-4 border-red-600 rounded-xl shadow-[4px_4px_0px_0px_rgba(220,38,38,1)]">
+          <AlertTriangle className="w-12 h-12 text-red-600 mx-auto mb-4" />
+          <h2 className="text-2xl font-black text-red-800 mb-2">Content Render Error</h2>
+          <p className="text-red-700 font-bold mb-4">
+            Oops! We encountered a problem while rendering this lesson's markdown content. It might be malformed.
+          </p>
+          <pre className="text-left text-xs bg-white p-4 rounded-lg border-2 border-red-200 overflow-auto text-red-900 font-mono">
+            {this.state.error?.toString()}
+          </pre>
+          <button
+            onClick={() => window.location.reload()}
+            className="mt-6 px-6 py-2 bg-red-600 text-white font-bold rounded-lg border-2 border-red-800 hover:bg-red-700 transition"
+          >
+            Reload Page
+          </button>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+// -------------------------------------
 
 export function LessonPage() {
   const { slug } = useParams<{ slug: string }>();
@@ -150,10 +203,6 @@ export function LessonPage() {
     },
   });
 
-  // 1. Fetch modules catalog & lessons
-  // First, try to find the lesson from the backend API. If the slug doesn't exist
-  // there (e.g. curriculum.json and seed data are out of sync), fall back to
-  // constructing a basic Lesson object from curriculum.json data.
   useEffect(() => {
     /* eslint-disable react-hooks/set-state-in-effect */
     setIsLoading(true);
@@ -169,10 +218,8 @@ export function LessonPage() {
           setModules(curriculumJson.modules);
         }
 
-        // Try to find the lesson in the backend API data first
         let found = lessonsData.find((l) => l.slug === slug);
 
-        // If not found in API, look it up in curriculum.json and build a Lesson
         if (!found && curriculumJson?.modules) {
           for (const mod of curriculumJson.modules) {
             const curriculumLesson = mod.lessons.find(
@@ -220,7 +267,6 @@ export function LessonPage() {
     /* eslint-enable react-hooks/set-state-in-effect */
   }, [slug, navigate]);
 
-  // 2. Fetch markdown content and reset interactive state when lesson changes
   useEffect(() => {
     if (!lesson) return;
 
@@ -232,7 +278,6 @@ export function LessonPage() {
     setRepoState(createInitialRepo());
     /* eslint-enable react-hooks/set-state-in-effect */
 
-    // Reset Quiz state
     setCurrentQuizIndex(0);
     setSelectedOption(null);
     setQuizFeedback(null);
@@ -246,7 +291,6 @@ export function LessonPage() {
     }
   }, [lesson]);
 
-  // 3. Scroll tracking for reading progress
   useEffect(() => {
     const handleScroll = () => {
       if (!mainContentRef.current) return;
@@ -271,7 +315,6 @@ export function LessonPage() {
     };
   }, [markdownContent]);
 
-  // Command submission handler
   const handleCommandSubmit = async (
     e: React.FormEvent | React.KeyboardEvent,
   ) => {
@@ -286,7 +329,7 @@ export function LessonPage() {
       setTerminalOutput(result.error);
       setFeedback("error");
       setShowHint(true);
-      return; // Stop processing further for invalid commands
+      return;
     } else {
       setTerminalOutput(result.output || "");
       setRepoState(result.newState);
@@ -317,17 +360,15 @@ export function LessonPage() {
       setShowHint(true);
     }
 
-    setInput(""); // Clear input after running
+    setInput("");
     setIsExecuting(false);
   };
 
-  // Quiz submission handler
   const handleQuizOptionCheck = () => {
     if (selectedOption === null || !lesson || !lesson.quizzes) return;
     const currentQuiz = lesson.quizzes[currentQuizIndex];
     const isCorrect = selectedOption === currentQuiz.answer;
 
-    // Send attempt to backend
     quizAttemptMutation.mutate({
       question_id: `${lesson.slug}-q${currentQuizIndex}`,
       question_text: currentQuiz.question,
@@ -394,7 +435,6 @@ export function LessonPage() {
 
   return (
     <div className="min-h-screen pt-20 flex flex-col lg:flex-row relative">
-      {/* 1. Mobile Sidebar Toggle */}
       <div className="lg:hidden bg-white border-b-4 border-black dark:bg-[#151411] dark:border-[#2e2924] p-4 flex items-center justify-between z-[80]">
         <button
           onClick={() => setIsSidebarOpen((prev) => !prev)}
@@ -410,7 +450,6 @@ export function LessonPage() {
         </span>
       </div>
 
-      {/* Backdrop overlay — closes drawer on click-outside on mobile */}
       {isSidebarOpen && (
         <div
           className="fixed inset-0 z-[90] bg-black/40 lg:hidden"
@@ -419,7 +458,6 @@ export function LessonPage() {
         />
       )}
 
-      {/* 2. Side Course Directory Menu */}
       <aside
         id="course-sidebar"
         ref={sidebarRef}
@@ -502,9 +540,7 @@ export function LessonPage() {
         </div>
       </aside>
 
-      {/* 3. Main Reading Panel */}
       <div className="flex-1 flex flex-col max-h-[calc(100vh-80px)] overflow-hidden">
-        {/* Top scroll reading progress indicator */}
         <div className="h-2 w-full bg-surface-low border-b-2 border-black dark:bg-[#151411] dark:border-[#2e2924] relative flex-shrink-0">
           <div
             className="h-full bg-primary transition-all duration-150"
@@ -565,17 +601,20 @@ export function LessonPage() {
 
             <TextToSpeechControls content={markdownContent} />
 
-            {/* Markdown rendering logic */}
-            <article className="prose max-w-none">
-              <React.Suspense
-                fallback={
-                  <div className="w-full h-64 animate-pulse rounded-2xl border-4 border-black/20 bg-surface-low dark:border-[#2e2924]/50 dark:bg-[#151411]" />
-                }
-              >
-                <MarkdownRenderer content={markdownContent} />
-              </React.Suspense>
-            </article>
-            {/* Report Typo Button */}
+            {/* --- NEW: WRAPPED IN ERROR BOUNDARY --- */}
+            <LessonErrorBoundary>
+              <article className="prose max-w-none">
+                <React.Suspense
+                  fallback={
+                    <div className="w-full h-64 animate-pulse rounded-2xl border-4 border-black/20 bg-surface-low dark:border-[#2e2924]/50 dark:bg-[#151411]" />
+                  }
+                >
+                  <MarkdownRenderer content={markdownContent} />
+                </React.Suspense>
+              </article>
+            </LessonErrorBoundary>
+            {/* -------------------------------------- */}
+            
             <div className="mt-4 flex justify-end">
               <button
                 onClick={() => alert("Thanks for reporting the typo")}
@@ -585,7 +624,6 @@ export function LessonPage() {
               </button>
             </div>
 
-            {/* Exercises & validation section */}
             <div className="pt-8 space-y-6">
               {lesson.pythonExercise ? (
                 <div className="mt-8">
@@ -635,7 +673,7 @@ export function LessonPage() {
                 </div>
               ) : lesson.debugExercise ? (
                 <div className="mt-8">
-                  <InteractiveDebugger
+                  <InteractiveDebuggerAny
                     exercise={lesson.debugExercise}
                     onSuccess={() => {
                       syncProgress({
@@ -647,7 +685,6 @@ export function LessonPage() {
                   />
                 </div>
               ) : hasQuiz ? (
-                // QUIZ MODE RENDER
                 <div className="rounded-2xl border-4 border-black bg-white p-6 shadow-card dark:bg-[#1f1c18] dark:border-[#2e2924]">
                   <div className="flex items-center justify-between mb-4">
                     <span className="font-mono text-xs text-primary uppercase tracking-widest font-black">
@@ -670,10 +707,8 @@ export function LessonPage() {
                         const currentQuiz = lesson.quizzes![currentQuizIndex];
                         const isCorrectOption = idx === currentQuiz.answer;
 
-                        // Determine background color based on quiz state
                         let bgColor = "";
                         if (quizFeedback !== null) {
-                          // After answer submitted: show green for correct, red for incorrect
                           if (isCorrectOption) {
                             bgColor =
                               "bg-green-600 border-green-800 text-white";
@@ -685,7 +720,6 @@ export function LessonPage() {
                           }
                         }
 
-                        // Fallback to original styling when no feedback is present
                         if (!bgColor) {
                           bgColor = isSelected
                             ? "bg-accent shadow-card-sm -translate-y-0.5"
@@ -696,7 +730,7 @@ export function LessonPage() {
                           <button
                             key={idx}
                             onClick={() => {
-                              if (quizFeedback !== null) return; // Already submitted — lock selection
+                              if (quizFeedback !== null) return;
                               setSelectedOption(idx);
                             }}
                             disabled={quizFeedback !== null}
@@ -771,7 +805,6 @@ export function LessonPage() {
                   </div>
                 </div>
               ) : hasConflict ? (
-                // CONFLICT SANDBOX MODE
                 <div className="mt-8">
                   {feedback === "correct" && (
                     <div
@@ -792,7 +825,6 @@ export function LessonPage() {
                   )}
                 </div>
               ) : (
-                // TERMINAL INTERACTIVE COMMAND MODE
                 <div
                   className={`rounded-2xl border-4 bg-surface-low p-6 shadow-card dark:bg-[#1f1c18] dark:border-[#2e2924]
                     ${
@@ -900,7 +932,6 @@ export function LessonPage() {
               )}
             </div>
 
-            {/* Course Navigation Footer */}
             <div className="flex flex-col items-center gap-4 sm:flex-row sm:justify-between sm:gap-0 pt-10 pb-12">
               {previousLesson ? (
                 <Link
@@ -950,7 +981,6 @@ export function LessonPage() {
           </div>
         </div>
 
-        {/* Mentor Help Trigger Row */}
         <div className="border-t-4 border-black p-4 bg-white dark:bg-[#151411] dark:border-[#2e2924] flex justify-end gap-4 flex-shrink-0">
           <button
             onClick={() => setIsNotePanelOpen(!isNotePanelOpen)}
@@ -970,7 +1000,6 @@ export function LessonPage() {
         </div>
       </div>
 
-      {/* Note Panel */}
       {isNotePanelOpen && lesson && (
         <NotePanel
           lessonSlug={lesson.slug}
@@ -978,7 +1007,6 @@ export function LessonPage() {
         />
       )}
 
-      {/* Help support request Panel */}
       {isHelpPanelOpen && (
         <div className="fixed inset-0 z-50 flex justify-end bg-black/40">
           <button
