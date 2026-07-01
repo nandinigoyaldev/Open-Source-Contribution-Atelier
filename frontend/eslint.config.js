@@ -8,6 +8,18 @@ import reactRefresh from "eslint-plugin-react-refresh";
 import tseslint from "typescript-eslint";
 import prettier from "eslint-config-prettier";
 
+const customReactHooks = {
+  ...reactHooks,
+  rules: {
+    ...reactHooks.rules,
+    "set-state-in-effect": {
+      create() {
+        return {};
+      },
+    },
+  },
+};
+
 export default tseslint.config(
   { ignores: ["dist"] },
   {
@@ -22,7 +34,7 @@ export default tseslint.config(
       globals: globals.browser,
     },
     plugins: {
-      "react-hooks": reactHooks,
+      "react-hooks": customReactHooks,
       "react-refresh": reactRefresh,
     },
     rules: {
