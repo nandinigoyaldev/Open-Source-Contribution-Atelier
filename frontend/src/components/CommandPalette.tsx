@@ -1,5 +1,4 @@
-/* eslint-disable react-hooks/set-state-in-effect */
-import React, { useState, useEffect, useRef, useMemo } from "react";
+import React, { useState, useEffect, useRef, useMemo, useCallback } from "react";
 import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
@@ -102,21 +101,35 @@ export const CommandPalette: React.FC = () => {
   const modalRef = useRef<HTMLDivElement>(null);
   useFocusTrap(modalRef, isOpen);
 
+  // Centralized close handler to gracefully clear stale state
+  const handleClose = useCallback(() => {
+    setIsOpen(false);
+    // Delay state reset slightly to allow Framer Motion's exit animation to finish
+    setTimeout(() => {
+      setSearchQuery("");
+      setSelectedIndex(0);
+    }, 150);
+  }, []);
+
   // Toggle palette with Cmd+K or Ctrl+K globally
   useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
+    const handleGlobalKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
         e.preventDefault();
-        setIsOpen((prev) => !prev);
+        if (isOpen) {
+          handleClose();
+        } else {
+          setIsOpen(true);
+        }
       } else if (e.key === "Escape" && isOpen) {
         e.preventDefault();
-        setIsOpen(false);
+        handleClose();
       }
     };
 
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen]);
+    window.addEventListener("keydown", handleGlobalKeyDown);
+    return () => window.removeEventListener("keydown", handleGlobalKeyDown);
+  }, [isOpen, handleClose]);
 
   // Load search index when palette is opened for the first time
   useEffect(() => {
@@ -141,8 +154,6 @@ export const CommandPalette: React.FC = () => {
       const timer = setTimeout(() => {
         inputRef.current?.focus();
       }, 80);
-      setSearchQuery("");
-      setSelectedIndex(0);
       return () => clearTimeout(timer);
     }
   }, [isOpen]);
@@ -235,7 +246,7 @@ export const CommandPalette: React.FC = () => {
       const hash = entry.hash ? `#${entry.hash}` : "";
       navigate(`/lessons/${entry.slug}${hash}`);
     }
-    setIsOpen(false);
+    handleClose();
   };
 
   const getIconForType = (type: string, isSelected: boolean) => {
@@ -307,7 +318,7 @@ export const CommandPalette: React.FC = () => {
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               className="fixed inset-0 bg-black/80 backdrop-blur-sm"
-              onClick={() => setIsOpen(false)}
+              onClick={handleClose}
             />
 
             {/* Modal Container */}
@@ -344,7 +355,7 @@ export const CommandPalette: React.FC = () => {
                     ESC
                   </span>
                   <button
-                    onClick={() => setIsOpen(false)}
+                    onClick={handleClose}
                     className="p-1 rounded-md hover:bg-[#2e2924] text-[#6b5a49] hover:text-[#f0ebe2] transition-colors"
                   >
                     <X className="w-5 h-5" />
