@@ -161,6 +161,11 @@ class QuizAttempt(models.Model):
     user = models.ForeignKey(
         User, on_delete=models.CASCADE, related_name="quiz_attempts"
     )
+
+    # Idempotency key for offline replays.
+    # The client generates a stable id per attempt and re-sends it on retry.
+    client_attempt_id = models.CharField(max_length=64, db_index=True)
+
     question_id = models.CharField(max_length=255)
     question_text = models.TextField()
     selected_answer = models.CharField(max_length=255)
@@ -173,10 +178,22 @@ class QuizAttempt(models.Model):
         ordering = ["-created_at"]
         indexes = [
             models.Index(fields=["user", "is_correct"], name="idx_quiz_user_correct"),
+            models.Index(
+                fields=["user", "client_attempt_id"], name="idx_quiz_client_attempt"
+            ),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "client_attempt_id"],
+                name="unique_quizattempt_user_client_attempt_id",
+            )
         ]
 
     def __str__(self):
-        return f"{self.user.username} - {self.question_id} - {'✓' if self.is_correct else '✗'}"
+        return (
+            f"{self.user.username} - {self.question_id} - "
+            f"{'✓' if self.is_correct else '✗'}"
+        )
 
 
 import uuid

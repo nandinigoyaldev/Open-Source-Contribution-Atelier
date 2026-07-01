@@ -478,6 +478,7 @@ class QuizAttemptTests(APITestCase):
     def test_post_valid_data_creates_attempt(self):
         self.client.force_authenticate(user=self.user)
         data = {
+            "client_attempt_id": "attempt-1",
             "question_id": "q1",
             "question_text": "What is 2+2?",
             "selected_answer": "4",
@@ -497,15 +498,40 @@ class QuizAttemptTests(APITestCase):
         self.assertEqual(attempt.user, self.user)
         self.assertEqual(attempt.question_id, "q1")
 
+    def test_post_idempotent_same_client_attempt_id_does_not_duplicate(self):
+        self.client.force_authenticate(user=self.user)
+        data = {
+            "client_attempt_id": "attempt-idem-1",
+            "question_id": "q1",
+            "question_text": "What is 2+2?",
+            "selected_answer": "4",
+            "correct_answer": "4",
+            "is_correct": True,
+            "time_taken_seconds": 15,
+        }
+
+        r1 = self.client.post(self.url, data)
+        self.assertEqual(r1.status_code, status.HTTP_201_CREATED)
+        self.assertEqual(QuizAttempt.objects.count(), 1)
+
+        r2 = self.client.post(self.url, data)
+        # Second replay should be treated as success but not create a new row
+        self.assertIn(r2.status_code, [status.HTTP_200_OK, status.HTTP_201_CREATED])
+        self.assertEqual(QuizAttempt.objects.count(), 1)
+
     def test_post_missing_required_fields_returns_400(self):
         self.client.force_authenticate(user=self.user)
-        # Missing question_id, selected_answer, correct_answer
+        # Missing client_attempt_id and required quiz fields
         data = {"is_correct": True}
         response = self.client.post(self.url, data)
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertIn("question_id", response.data)
-        self.assertIn("selected_answer", response.data)
-        self.assertIn("correct_answer", response.data)
+        # Serializer may return multiple field errors; assert required ones are present.
+        self.assertTrue(
+            "client_attempt_id" in response.data
+            and "question_id" in response.data
+            and "selected_answer" in response.data
+            and "correct_answer" in response.data
+        )
         self.assertEqual(QuizAttempt.objects.count(), 0)
 
     def test_get_quiz_attempts_list(self):
