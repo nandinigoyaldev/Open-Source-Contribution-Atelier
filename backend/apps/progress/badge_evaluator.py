@@ -1,8 +1,13 @@
 from django.utils import timezone
 
 from apps.dashboard.models import PullRequest
-from apps.progress.models import Badge, ExerciseAttempt, LessonProgress, UserBadge
-from django.db import IntegrityError, transaction
+from apps.progress.models import (
+    Badge,
+    ExerciseAttempt,
+    ImpactEvent,
+    LessonProgress,
+    UserBadge,
+)
 from django.utils import timezone
 
 BADGE_RULES = {
@@ -194,11 +199,43 @@ class BadgeEvaluator:
                     slug=badge_slug,
                     defaults={"name": rule["name"], "description": rule["description"]},
                 )
+                UserBadge.objects.get_or_create(user=user, badge=badge)
 
-                # Guard against concurrent evaluation race conditions
-                try:
-                    with transaction.atomic():
-                        UserBadge.objects.get_or_create(user=user, badge=badge)
-                except IntegrityError:
-                    # Race condition caught and handled gracefully; badge was already awarded
-                    pass
+        # ------------------------------------------------------------------
+        # Verified Impact Events
+        # ------------------------------------------------------------------
+        verified_event_types = set(
+            ImpactEvent.objects.filter(user=user, verified=True).values_list(
+                "type", flat=True
+            )
+        )
+
+        impact_rules = {
+            "project-impact-checklist-1": {
+                "type": ImpactEvent.EventTypes.CONTRIBUTION_CHECKLIST_COMPLETED,
+                "name": "Project Impact",
+                "description": "Completed a contribution checklist (verified).",
+            },
+            "project-impact-mentor-review-1": {
+                "type": ImpactEvent.EventTypes.MENTOR_REVIEWED_SUBMISSION,
+                "name": "Project Impact",
+                "description": "Received a mentor-reviewed submission (verified).",
+            },
+        }
+
+        earned_impact_slugs = set(
+            UserBadge.objects.filter(
+                user=user, badge__slug__in=list(impact_rules)
+            ).values_list("badge__slug", flat=True)
+        )
+
+        for badge_slug, rule in impact_rules.items():
+            if badge_slug in earned_impact_slugs:
+                continue
+
+            if rule["type"] in verified_event_types:
+                badge, _ = Badge.objects.get_or_create(
+                    slug=badge_slug,
+                    defaults={"name": rule["name"], "description": rule["description"]},
+                )
+                UserBadge.objects.get_or_create(user=user, badge=badge)

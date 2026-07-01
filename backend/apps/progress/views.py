@@ -141,7 +141,6 @@ class BulkSyncProgressView(APIView):
 
         with transaction.atomic():
             for item in serializer.validated_data["lessons"]:
-
                 lesson_slug = item["lesson_slug"]
                 base_score = item.get("score", 100)
                 completed = item.get("completed", True)
@@ -607,20 +606,41 @@ class QuizAttemptView(APIView):
 
     def post(self, request):
         serializer = QuizAttemptSerializer(data=request.data)
-        if serializer.is_valid():
-            attempt = serializer.save(user=request.user)
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        client_attempt_id = serializer.validated_data.get("client_attempt_id")
+        if not client_attempt_id:
+            return Response(
+                {"client_attempt_id": ["This field is required."]},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        # Idempotency: if this exact attempt was already saved, treat as success.
+        existing = QuizAttempt.objects.filter(
+            user=request.user, client_attempt_id=client_attempt_id
+        ).first()
+        if existing:
             return Response(
                 {
-                    "id": attempt.id,
-                    "question_id": attempt.question_id,
-                    "is_correct": attempt.is_correct,
-                    "created_at": attempt.created_at.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                    "id": existing.id,
+                    "question_id": existing.question_id,
+                    "is_correct": existing.is_correct,
+                    "created_at": existing.created_at.strftime("%Y-%m-%dT%H:%M:%SZ"),
                 },
-                status=status.HTTP_201_CREATED,
+                status=status.HTTP_200_OK,
             )
-        # If there are field errors, extract the first one generically to match typical client expectations
-        # Or return all errors. DRF will return a dict like {"selected_answer": ["This field is required."]}
-        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+        attempt = serializer.save(user=request.user)
+        return Response(
+            {
+                "id": attempt.id,
+                "question_id": attempt.question_id,
+                "is_correct": attempt.is_correct,
+                "created_at": attempt.created_at.strftime("%Y-%m-%dT%H:%M:%SZ"),
+            },
+            status=status.HTTP_201_CREATED,
+        )
 
     def get(self, request):
         attempts = QuizAttempt.objects.filter(user=request.user)
@@ -835,27 +855,28 @@ class PeerReviewView(APIView):
                 review = serializer.save(
                     submission=submission, reviewer=request.user, points_earned=10
                 )
-                review_count = PeerReview.objects.filter(submission=submission).count()
-                if review_count >= 2:
-                    reviews = list(
-                        PeerReview.objects.filter(submission=submission).values_list(
-                            "is_approved", flat=True
-                        )
-                    )
-                    if all(reviews):
-                        submission.status = CodeSubmission.Status.REVIEWED
-                        submission.save(update_fields=["status"])
-                        if submission.exercise:
-                            ExerciseAttempt.objects.get_or_create(
-                                user=submission.user,
-                                exercise=submission.exercise,
-                                defaults={
-                                    "submitted_command": "peer_review_passed",
-                                    "is_correct": True,
-                                },
-                            )
-                    elif not all(reviews):
-                        submission.status = CodeSubmission.Status.ESCALATED
-                        submission.save(update_fields=["status"])
+                submission.status = CodeSubmission.Status.REVIEWED
+                submission.save(update_fields=["status"])
+
+                # Verified impact event: mentor-reviewed submission
+                from apps.progress.models import ImpactEvent
+
+                event_key = (
+                    f"{submission.user_id}|mentor_reviewed_submission|{submission.id}"
+                )
+                ImpactEvent.objects.get_or_create(
+                    event_key=event_key,
+                    defaults={
+                        "user": submission.user,
+                        "type": ImpactEvent.EventTypes.MENTOR_REVIEWED_SUBMISSION,
+                        "payload": {
+                            "submission_id": submission.id,
+                            "review_id": review.id,
+                            "reviewer_id": request.user.id,
+                        },
+                        "verified": True,
+                    },
+                )
+
                 return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

@@ -161,6 +161,11 @@ class QuizAttempt(models.Model):
     user = models.ForeignKey(
         User, on_delete=models.CASCADE, related_name="quiz_attempts"
     )
+
+    # Idempotency key for offline replays.
+    # The client generates a stable id per attempt and re-sends it on retry.
+    client_attempt_id = models.CharField(max_length=64, db_index=True)
+
     question_id = models.CharField(max_length=255)
     question_text = models.TextField()
     selected_answer = models.CharField(max_length=255)
@@ -173,10 +178,22 @@ class QuizAttempt(models.Model):
         ordering = ["-created_at"]
         indexes = [
             models.Index(fields=["user", "is_correct"], name="idx_quiz_user_correct"),
+            models.Index(
+                fields=["user", "client_attempt_id"], name="idx_quiz_client_attempt"
+            ),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "client_attempt_id"],
+                name="unique_quizattempt_user_client_attempt_id",
+            )
         ]
 
     def __str__(self):
-        return f"{self.user.username} - {self.question_id} - {'✓' if self.is_correct else '✗'}"
+        return (
+            f"{self.user.username} - {self.question_id} - "
+            f"{'✓' if self.is_correct else '✗'}"
+        )
 
 
 import uuid
@@ -246,29 +263,42 @@ class CodeSubmission(models.Model):
         return f"{self.title} by {self.user.username}"
 
 
-class PlagiarismReport(models.Model):
-    """Model to store plagiarism detection results for a code submission.
+class ImpactEvent(models.Model):
+    class EventTypes(models.TextChoices):
+        CONTRIBUTION_CHECKLIST_COMPLETED = (
+            "contribution_checklist_completed",
+            "Contribution checklist completed",
+        )
+        MENTOR_REVIEWED_SUBMISSION = (
+            "mentor_reviewed_submission",
+            "Mentor-reviewed submission",
+        )
+        LEARNING_MILESTONE_REACHED = (
+            "learning_milestone_reached",
+            "Learning milestone reached",
+        )
 
-    Fields correspond to the migration that creates this table.
-    """
+    class DoesNotExist(ObjectDoesNotExist):
+        pass
 
     objects = models.Manager()
-    submission = models.ForeignKey(
-        CodeSubmission, on_delete=models.CASCADE, related_name="plagiarism_reports"
+
+    # Stable identifier for idempotency (computed from user + type + payload).
+    event_key = models.CharField(max_length=128, db_index=True, unique=True)
+
+    type = models.CharField(max_length=120, choices=EventTypes.choices, db_index=True)
+    payload = models.JSONField(default=dict, blank=True)
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="impact_events"
     )
-    matched_submission = models.ForeignKey(
-        CodeSubmission, on_delete=models.CASCADE, related_name="matched_in_reports"
-    )
-    similarity_score = models.FloatField()
-    is_flagged = models.BooleanField(default=False)
-    created_at = models.DateTimeField(auto_now_add=True)
+    timestamp = models.DateTimeField(auto_now_add=True)
+    verified = models.BooleanField(default=False, db_index=True)
 
     class Meta:
-        ordering = ["-similarity_score"]
-        unique_together = ("submission", "matched_submission")
+        ordering = ["-timestamp"]
 
     def __str__(self):
-        return f"PlagiarismReport(submission={self.submission.id}, matched={self.matched_submission.id}, score={self.similarity_score})"
+        return f"ImpactEvent({self.type}) for {self.user_id} verified={self.verified}"
 
 
 class PeerReview(models.Model):
