@@ -1,5 +1,6 @@
 from io import BytesIO
-
+from django.utils.decorators import method_decorator
+from django.views.decorators.cache import cache_page
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.postgres.search import SearchQuery, SearchRank, TrigramSimilarity
 from django.core.cache import cache
@@ -206,6 +207,7 @@ class RoadmapView(views.APIView):
 
 
 # --- New: Organization View ---
+@method_decorator(cache_page(60 * 60), name='dispatch')  # <-- 1 Hour Caching (60 secs * 60 mins)
 class OrganizationListView(generics.ListAPIView):
     queryset = Organization.objects.all()  # type: ignore
     serializer_class = OrganizationSerializer
@@ -213,7 +215,6 @@ class OrganizationListView(generics.ListAPIView):
     filter_backends = [filters.OrderingFilter]
     ordering_fields = ["name", "date_added", "popularity_score"]
     ordering = ["-popularity_score"]
-
 
 class LessonPDFView(views.APIView):
     def get(self, request, pk):
