@@ -6,6 +6,7 @@ interface Props {
   badges: string[];
   modulesCompleted: number;
   avatarUrl?: string;
+  coverImageUrl?: string | null;
   maxXP?: number;
   rank?: string;
 }
@@ -32,7 +33,7 @@ const getDefaultBadgeColour = (index: number): string => {
 const getRankFromXP = (xp: number) => {
   if (xp >= 5000) return { label: "Legend", colour: "text-yellow-500" };
   if (xp >= 3000) return { label: "Expert", colour: "text-purple-500" };
-  if (xp >= 1500) return { label: "Advanced", colour: "text-blue-500" };
+  if (xp >= 1500) return { label: "Advanced", colour: "text-blue-600" };
   if (xp >= 500) return { label: "Intermediate", colour: "text-green-500" };
   return { label: "Beginner", colour: "text-gray-500" };
 };
@@ -55,6 +56,7 @@ const ContributorProfileCard: React.FC<Props> = ({
   badges = [],
   modulesCompleted = 0,
   avatarUrl,
+  coverImageUrl,
   maxXP = 5000,
   rank,
 }) => {
@@ -65,9 +67,13 @@ const ContributorProfileCard: React.FC<Props> = ({
 
   return (
     <article className="w-80 rounded-2xl bg-white shadow-lg border hover:shadow-xl transition">
-
       {/* HEADER */}
-      <div className="h-24 bg-gradient-to-r from-blue-600 to-purple-600"></div>
+      <div
+        className="h-24 bg-gradient-to-r from-blue-600 to-purple-600 bg-cover bg-center rounded-t-2xl"
+        style={
+          coverImageUrl ? { backgroundImage: `url(${coverImageUrl})` } : {}
+        }
+      ></div>
 
       {/* AVATAR */}
       <div className="flex justify-center -mt-10">
@@ -75,6 +81,7 @@ const ContributorProfileCard: React.FC<Props> = ({
           <img
             src={avatarUrl}
             alt="avatar"
+            loading="lazy"
             className="w-20 h-20 rounded-full border-4 border-white"
           />
         ) : (
@@ -86,7 +93,6 @@ const ContributorProfileCard: React.FC<Props> = ({
 
       {/* BODY */}
       <div className="p-4 text-center">
-
         <h2 className="text-lg font-bold">{name}</h2>
 
         <p className={`text-sm ${rankInfo.colour}`}>{displayRank}</p>
@@ -120,12 +126,8 @@ const ContributorProfileCard: React.FC<Props> = ({
         </div>
 
         {/* MODULES */}
-        <p className="mt-3 text-sm">
-          Modules Completed: {modulesCompleted}
-        </p>
-
+        <p className="mt-3 text-sm">Modules Completed: {modulesCompleted}</p>
       </div>
-
     </article>
   );
 };

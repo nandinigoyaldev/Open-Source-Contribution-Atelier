@@ -39,16 +39,3 @@ However, this exact fix was already merged into `main` via Pull Request #74. Bec
 We will close this PR. Thank you again for trying to help improve the onboarding experience!
 ```
 
----
-
-## 📬 Pull Request #65: chore(deps-dev): bump the npm_and_yarn group...
-- **Author**: `dependabot[bot]`
-- **Branch**: `dependabot/npm_and_yarn/frontend/npm_and_yarn-a265ebda7f`
-- **Recommendation**: **Approve & Merge**
-
-### Review Comments:
-```markdown
-### Code Review Feedback: Approved! 🤖
-
-Standard dev-dependency bumps for `postcss` and `vitest`. Local checks show no breaking changes in tests or styling rules. Proceeding to merge.
-```

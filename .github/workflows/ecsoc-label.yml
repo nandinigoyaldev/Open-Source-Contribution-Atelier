@@ -1,0 +1,26 @@
+name: ECSoC Label Check
+
+on:
+  pull_request_target:
+    types: [closed]
+
+jobs:
+  check-label:
+    if: github.event.pull_request.merged == true
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check ECSoC26 label
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+            const labels = pr.labels.map(l => l.name);
+            if (!labels.includes('ECSoC26')) {
+              core.setFailed('PR merged without ECSoC26 label. Please add the label before merging.');
+            } else {
+              console.log('ECSoC26 label present.');
+            }
+      - name: Log bonus tags (optional)
+        if: contains(github.event.pull_request.labels.*.name, 'good-issue') || contains(github.event.pull_request.labels.*.name, 'good-pr') || contains(github.event.pull_request.labels.*.name, 'good-ui') || contains(github.event.pull_request.labels.*.name, 'good-backbone')
+        run: |
+          echo "Bonus tags present: ${{ join(github.event.pull_request.labels.*.name, ', ') }}"

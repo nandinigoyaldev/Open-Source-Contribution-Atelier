@@ -1,4 +1,11 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
+/* eslint-disable react-refresh/only-export-components */
+import React, {
+  createContext,
+  useContext,
+  useState,
+  useEffect,
+  useCallback,
+} from "react";
 import { fetchApi } from "../../lib/api";
 
 type User = {
@@ -6,6 +13,14 @@ type User = {
   username: string;
   email: string;
   is_staff: boolean;
+  avatar_url?: string | null;
+  cover_image_url?: string | null;
+  bio?: string;
+  bio_html?: string;
+  timezone?: string;
+  twitter_url?: string;
+  linkedin_url?: string;
+  github_url?: string;
 };
 
 type AuthContextType = {
@@ -23,49 +38,107 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
+  function safeGetItem(key: string): string | null {
+    try {
+      return localStorage.getItem(key);
+    } catch {
+      return null;
+    }
+  }
+  function sanitizeStorageData(value: string): string {
+    if (!value) return value;
+    return value
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#x27;");
+  }
+
+  function safeSetItem(key: string, value: string) {
+    try {
+      localStorage.setItem(key, sanitizeStorageData(value));
+    } catch {
+      /* localStorage unavailable */
+    }
+  }
+  function safeRemoveItem(key: string) {
+    try {
+      localStorage.removeItem(key);
+    } catch {
+      /* localStorage unavailable */
+    }
+  }
+
   const login = (tokens: { access: string; refresh: string }) => {
-    localStorage.setItem("accessToken", tokens.access);
-    localStorage.setItem("refreshToken", tokens.refresh);
+    safeSetItem("accessToken", tokens.access);
+    safeSetItem("refreshToken", tokens.refresh);
     checkUser();
   };
 
-  const logout = () => {
-    localStorage.removeItem("accessToken");
-    localStorage.removeItem("refreshToken");
+  const logout = async () => {
+    try {
+      if ("serviceWorker" in navigator && "PushManager" in window) {
+        const reg = await navigator.serviceWorker.ready;
+        const sub = await reg.pushManager.getSubscription();
+        if (sub) {
+          const endpoint = sub.endpoint;
+          await sub.unsubscribe();
+          try {
+            await fetchApi("/notifications/push/unsubscribe/", {
+              method: "POST",
+              requireAuth: true,
+              body: JSON.stringify({ endpoint }),
+            });
+          } catch (e) {
+            console.error("Failed to notify backend of push unsubscribe", e);
+          }
+        }
+      }
+    } catch (e) {
+      console.error("Error unsubscribing push on logout", e);
+    }
+
+    safeRemoveItem("accessToken");
+    safeRemoveItem("refreshToken");
     setUser(null);
   };
 
-  const checkUser = async () => {
+  const checkUser = useCallback(async () => {
     try {
-      const token = localStorage.getItem("accessToken");
+      const token = safeGetItem("accessToken");
       if (!token) {
         setUser(null);
         return;
       }
 
-      // Some setups can temporarily fail right after login (network hiccup / token not yet accepted).
-      // Avoid logging the user out on the first failure.
       try {
         const data = await fetchApi("/auth/me/");
         setUser(data);
-        return;
       } catch {
-        const data = await fetchApi("/auth/me/");
-        setUser(data);
+        setUser(null);
       }
     } catch {
       setUser(null);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
   useEffect(() => {
     checkUser();
-  }, []);
-
+  }, [checkUser]);
   return (
-    <AuthContext.Provider value={{ user, isAuthenticated: !!user, isLoading, login, logout, checkUser }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        isAuthenticated: !!user,
+        isLoading,
+        login,
+        logout,
+        checkUser,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );

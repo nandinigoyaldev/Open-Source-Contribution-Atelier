@@ -34,7 +34,7 @@ export default function ScrollToTop() {
     <button
       onClick={handleClick}
       aria-label="Scroll to top"
-      className="fixed bottom-6 right-6 z-40 p-3 rounded-full border-2 border-black bg-white text-black shadow-md hover:scale-105"
+      className="fixed bottom-6 right-6 z-40 p-3 rounded-full border-2 border-black bg-white text-black shadow-card-sm hover:-translate-y-0.5 active:translate-y-0 transition-all cursor-pointer"
     >
       ↑
     </button>

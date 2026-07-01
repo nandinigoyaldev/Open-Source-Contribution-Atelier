@@ -479,13 +479,17 @@
         {
           "slug": "conflict-resolution",
           "title": "Conflict Resolution",
-          "description": "Fixing code overlaps and continuing the rebase process.",
+          "description": "When a conflict occurs, Git inserts markers into the file to indicate current and incoming changes. Resolve the conflict by editing the file, removing the markers, and keeping the desired code. Then stage the file and continue the rebase with `git rebase --continue`.",
           "difficulty": "advanced",
           "estimatedMinutes": 12,
           "points": 25,
           "filePath": "module-7/conflict-resolution.md",
-          "expected": "git rebase --continue",
-          "hint": "After staging resolved files, tell Git to resume: git rebase --continue"
+          "expected": "function greet(name) { return `Hello, ${name}!`; }",
+          "conflictScenario": {
+            "baseBranchName": "main",
+            "featureBranchName": "feat/update-greeting",
+            "fileContent": "function greet(name) {\n  return `Hello, ${name}!`;\n}"
+          }
         },
         {
           "slug": "code-reviews-and-cicd",
@@ -537,6 +541,93 @@
               "explanation": "Maintainers tag newcomer-friendly tasks with 'good first issue' or 'first-timers-only' to indicate they are self-contained and require minimal context."
             }
           ]
+        }
+      ]
+    },
+    {
+      "id": "module-python",
+      "title": "Interactive Python Sandboxes",
+      "description": "Learn to code using embedded Python Sandboxes in the browser.",
+      "lessons": [
+        {
+          "slug": "hello-python",
+          "title": "Hello, Python",
+          "description": "Write your first Python program.",
+          "difficulty": "beginner",
+          "estimatedMinutes": 5,
+          "points": 20,
+          "filePath": "module-python/hello-python.md",
+          "pythonExercise": {
+            "prompt": "Write a Python script that defines a function `add` that returns the sum of two numbers.",
+            "starterCode": "def add(a, b):\n    # Write your code here\n    pass\n",
+            "testCode": "assert add(2, 3) == 5, 'add(2, 3) should return 5'\nassert add(-1, 1) == 0, 'add(-1, 1) should return 0'\nprint('Tests passed!')",
+            "hint": "Use the return keyword to send back the sum."
+          }
+        }
+      ]
+    },
+    {
+      "id": "module-rust",
+      "title": "Interactive Rust Sandbox",
+      "description": "Learn to code using the Rust Sandbox with syntax highlighting.",
+      "lessons": [
+        {
+          "slug": "hello-rust",
+          "title": "Hello, Rust",
+          "description": "Write your first Rust program.",
+          "difficulty": "beginner",
+          "estimatedMinutes": 5,
+          "points": 20,
+          "filePath": "module-rust/hello-rust.md",
+          "rustExercise": {
+            "prompt": "Write a Rust function `add` that returns the sum of two i32 integers.",
+            "starterCode": "fn add(a: i32, b: i32) -> i32 {\n    // Write your code here\n    0\n}\n",
+            "expected": "fn add(a: i32, b: i32) -> i32 {\n    a + b\n}",
+            "hint": "In Rust, the last expression in a function is returned implicitly. Omit the semicolon to return the value."
+          }
+        }
+      ]
+    },
+    {
+      "id": "module-javascript",
+      "title": "Interactive JS/TS Sandbox",
+      "description": "Learn to code using embedded JavaScript/TypeScript Sandboxes in the browser.",
+      "lessons": [
+        {
+          "slug": "hello-javascript",
+          "title": "Hello, JavaScript",
+          "description": "Write your first JavaScript program using Web Workers.",
+          "difficulty": "beginner",
+          "estimatedMinutes": 5,
+          "points": 20,
+          "filePath": "module-javascript/hello-javascript.md",
+          "jsExercise": {
+            "prompt": "Write a JavaScript function `multiply` that returns the product of two numbers. Log the result of `multiply(4, 5)` to the console.",
+            "starterCode": "function multiply(a, b) {\n  // Write your code here\n}\n\nconsole.log(multiply(4, 5));\n",
+            "testCode": "if (typeof multiply !== 'function') throw new Error('multiply function is not defined');\nif (multiply(2, 3) !== 6) throw new Error('multiply(2, 3) should return 6');",
+            "hint": "Use the return keyword to send back the product (a * b)."
+          }
+        }
+      ]
+    },
+    {
+      "id": "module-debug",
+      "title": "Interactive Code Debugging",
+      "description": "Learn to step through execution, inspect variables, and track call stacks in real time.",
+      "lessons": [
+        {
+          "slug": "debugging-101",
+          "title": "Interactive Debugger",
+          "description": "Set a breakpoint and step through a loop.",
+          "difficulty": "beginner",
+          "estimatedMinutes": 5,
+          "points": 30,
+          "filePath": "module-debug/debugging-101.md",
+          "debugExercise": {
+            "prompt": "Set a breakpoint on line 4, then step through the loop to watch `sum` increase.",
+            "starterCode": "def calculate_sum(n):\n    total = 0\n    for i in range(1, n + 1):\n        total += i\n        print(f'Added {i}, total is now {total}')\n    return total\n\nresult = calculate_sum(5)\nprint(f'Final result: {result}')\n",
+            "hint": "Click the margin next to line 4 to add a breakpoint, then click Start Debugging."
+          }
         }
       ]
     }

@@ -1,22 +1,13 @@
-import { useState, useEffect } from "react";
+import { useContext } from "react";
+import { ThemeContext, type ThemeContextValue } from "./ThemeContext";
 
-export function useTheme() {
-  const [theme, setTheme] = useState(() => {
-    return localStorage.getItem("theme") || "light";
-  });
+export { ThemeProvider } from "./ThemeContext";
+export type { ThemeContextValue } from "./ThemeContext";
 
-  useEffect(() => {
-    localStorage.setItem("theme", theme);
-    if (theme === "dark") {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-    }
-  }, [theme]);
-
-  const toggleTheme = () => {
-    setTheme((prevTheme) => (prevTheme === "light" ? "dark" : "light"));
-  };
-
-  return { theme, toggleTheme };
+export function useTheme(): ThemeContextValue {
+  const ctx = useContext(ThemeContext);
+  if (!ctx) {
+    throw new Error("useTheme must be used within a ThemeProvider");
+  }
+  return ctx;
 }

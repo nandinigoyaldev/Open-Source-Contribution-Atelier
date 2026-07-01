@@ -5,6 +5,7 @@ A successful contribution is a structured journey. Let's look at the standard ro
 ---
 
 ### The 9-Step Lifecycle
+
 ```mermaid
 graph TD
     A[1. Identify Issue] --> B[2. Check Discussions]
@@ -23,6 +24,6 @@ graph TD
 4. **Branch**: Checkout a feature branch from the latest `main`.
 5. **Development**: Write clean code, following the project style guide.
 6. **Testing**: Run test suites locally to ensure no regressions occur.
-7. **Pull Request**: Open a PR detailing *why* and *how* changes were made.
+7. **Pull Request**: Open a PR detailing _why_ and _how_ changes were made.
 8. **Review**: Reviewers request comments or edits. You apply changes.
 9. **Merge**: The core maintainer merges the branch and closes the issue.

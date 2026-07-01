@@ -1,11 +1,13 @@
+from typing import Any, Dict, List
+
 from django.core.management.base import BaseCommand
 
 from apps.content.models import Exercise, Lesson
 
-
-LESSONS = [
+LESSONS: List[Dict[str, Any]] = [
     {
         "slug": "intro",
+        "category": "basics",
         "difficulty": "beginner",
         "title": "Open Source Mindset",
         "summary": "Understand how open source collaboration actually works.",
@@ -34,6 +36,7 @@ LESSONS = [
     },
     {
         "slug": "clone-and-setup",
+        "category": "basics",
         "difficulty": "beginner",
         "title": "Clone and Setup",
         "summary": "Clone a project and inspect the working tree.",
@@ -61,6 +64,7 @@ LESSONS = [
     },
     {
         "slug": "branching-basics",
+        "category": "git-workflow",
         "difficulty": "beginner",
         "title": "Branching Basics",
         "summary": "Create a branch for isolated work.",
@@ -88,6 +92,7 @@ LESSONS = [
     },
     {
         "slug": "staging-and-commits",
+        "category": "git-workflow",
         "difficulty": "beginner",
         "title": "Staging and Commits",
         "summary": "Stage targeted files and write clean commit messages.",
@@ -107,7 +112,7 @@ LESSONS = [
             {
                 "title": "Commit with good message",
                 "prompt": "Create a commit with message Add contribution checklist.",
-                "expected_command": "git commit -m \"Add contribution checklist\"",
+                "expected_command": 'git commit -m "Add contribution checklist"',
                 "explanation": "Descriptive commits make review and rollback easier.",
                 "points": 10,
             }
@@ -115,6 +120,7 @@ LESSONS = [
     },
     {
         "slug": "sync-and-rebase",
+        "category": "git-workflow",
         "difficulty": "intermediate",
         "title": "Sync and Rebase",
         "summary": "Keep your branch current with upstream changes.",
@@ -142,6 +148,7 @@ LESSONS = [
     },
     {
         "slug": "push-and-pr",
+        "category": "collaboration",
         "difficulty": "intermediate",
         "title": "Push and Pull Request",
         "summary": "Publish your branch and create a reviewable PR.",
@@ -169,6 +176,7 @@ LESSONS = [
     },
     {
         "slug": "issue-triage",
+        "category": "collaboration",
         "difficulty": "intermediate",
         "title": "Issue Triage",
         "summary": "Classify and refine issues so contributors can execute quickly.",
@@ -196,6 +204,7 @@ LESSONS = [
     },
     {
         "slug": "review-feedback",
+        "category": "collaboration",
         "difficulty": "intermediate",
         "title": "Code Review Feedback",
         "summary": "Respond to review comments efficiently and respectfully.",
@@ -223,6 +232,7 @@ LESSONS = [
     },
     {
         "slug": "conflict-resolution",
+        "category": "advanced",
         "difficulty": "advanced",
         "title": "Conflict Resolution",
         "summary": "Handle merge conflicts safely.",
@@ -250,6 +260,7 @@ LESSONS = [
     },
     {
         "slug": "maintainer-habits",
+        "category": "advanced",
         "difficulty": "advanced",
         "title": "Maintainer Habits",
         "summary": "Turn your project into an inviting contributor ecosystem.",
@@ -282,6 +293,7 @@ class Command(BaseCommand):
     help = "Seed the database with example lessons and exercises. Safe to run multiple times."
 
     def handle(self, *args, **options):
+        previous_lesson = None
         for l in LESSONS:
             lesson_obj, _ = Lesson.objects.update_or_create(
                 slug=l["slug"],
@@ -292,25 +304,38 @@ class Command(BaseCommand):
                     "content": l["content"],
                     "learning_objectives": l.get("learning_objectives", []),
                     "tips": l.get("tips", []),
+                    "category": l.get("category", "general"),
                     "order": l.get("order", 0),
                     "estimated_minutes": l.get("estimated_minutes", 15),
                 },
             )
 
-            self.stdout.write(self.style.SUCCESS(f"Created/updated lesson: {lesson_obj.slug}"))
+            if previous_lesson:
+                lesson_obj.prerequisites.add(previous_lesson)
+            previous_lesson = lesson_obj
 
-            for ex in l.get("exercises", []):
-                ex_obj, _ = Exercise.objects.update_or_create(
-                    lesson=lesson_obj,
-                    title=ex["title"],
-                    defaults={
-                        "prompt": ex["prompt"],
-                        "expected_command": ex.get("expected_command", ""),
-                        "explanation": ex.get("explanation", ""),
-                        "points": ex.get("points", 10),
-                    },
-                )
+            self.stdout.write(
+                self.style.SUCCESS(f"Created/updated lesson: {lesson_obj.slug}")
+            )
 
-                self.stdout.write(self.style.SUCCESS(f"  Created/updated exercise: {ex_obj.title}"))
+            exercises = l.get("exercises", [])
+            if isinstance(exercises, list):
+                for ex in exercises:
+                    ex_obj, _ = Exercise.objects.update_or_create(
+                        lesson=lesson_obj,
+                        title=ex["title"],
+                        defaults={
+                            "prompt": ex["prompt"],
+                            "expected_command": ex.get("expected_command", ""),
+                            "explanation": ex.get("explanation", ""),
+                            "points": ex.get("points", 10),
+                        },
+                    )
+
+                    self.stdout.write(
+                        self.style.SUCCESS(
+                            f"  Created/updated exercise: {ex_obj.title}"
+                        )
+                    )
 
         self.stdout.write(self.style.SUCCESS("Seeding complete."))

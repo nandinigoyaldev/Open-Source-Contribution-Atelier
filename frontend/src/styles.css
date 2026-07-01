@@ -7,6 +7,14 @@
   font-family: "Outfit", "Inter", sans-serif;
 }
 
+@layer base {
+  h1,
+  h2,
+  h3 {
+    font-family: "Inter", sans-serif;
+  }
+}
+
 body {
   margin: 0;
   min-width: 320px;
@@ -46,7 +54,7 @@ button {
 
 button:active {
   transform: translate(2px, 2px) !important;
-  box-shadow: 2px 2px 0px 0px rgba(0,0,0,1) !important;
+  box-shadow: 2px 2px 0px 0px rgba(0, 0, 0, 1) !important;
 }
 
 button,
@@ -57,4 +65,226 @@ input {
     transform 0.15s cubic-bezier(0.34, 1.56, 0.64, 1),
     box-shadow 0.15s ease-out,
     color 200ms cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@keyframes shake {
+  0% {
+    transform: translateX(0);
+  }
+  20% {
+    transform: translateX(-6px);
+  }
+  40% {
+    transform: translateX(6px);
+  }
+  60% {
+    transform: translateX(-6px);
+  }
+  80% {
+    transform: translateX(6px);
+  }
+  100% {
+    transform: translateX(0);
+  }
+}
+
+.shake-error {
+  animation: shake 0.4s ease-in-out;
+}
+@media print {
+  body * {
+    visibility: hidden;
+  }
+
+  .certificate-printable,
+  .certificate-printable * {
+    visibility: visible;
+  }
+
+  .certificate-printable {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    box-shadow: none !important;
+    border: none !important;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+}
+
+/* EasyMDE Custom Styles */
+.editor-toolbar {
+  border: none !important;
+  border-bottom: 4px solid #000 !important;
+  border-radius: 0 !important;
+  background-color: #fdfbf7 !important;
+  opacity: 1 !important;
+}
+html.dark .editor-toolbar {
+  background-color: #151411 !important;
+  border-bottom: 4px solid #2e2924 !important;
+}
+.editor-toolbar > button {
+  color: #000 !important;
+}
+html.dark .editor-toolbar > button {
+  color: #c4bbae !important;
+}
+html.dark .editor-toolbar > button:hover,
+html.dark .editor-toolbar > button.active {
+  background: #2e2924 !important;
+  border-color: #2e2924 !important;
+  color: #f0ebe2 !important;
+}
+.CodeMirror {
+  border: none !important;
+  border-radius: 0 !important;
+  background-color: #fff !important;
+  color: #000 !important;
+  font-family: "JetBrains Mono", monospace !important;
+  font-size: 0.875rem !important;
+}
+html.dark .CodeMirror {
+  background-color: #151411 !important;
+  color: #f0ebe2 !important;
+}
+.editor-preview {
+  background-color: #fff !important;
+}
+html.dark .editor-preview {
+  background-color: #151411 !important;
+}
+.editor-statusbar {
+  padding: 8px 12px !important;
+  border-top: 4px solid #000 !important;
+  font-family: "Outfit", sans-serif !important;
+  font-weight: 900 !important;
+}
+html.dark .editor-statusbar {
+  border-top: 4px solid #2e2924 !important;
+  color: #c4bbae !important;
+}
+
+/* HIGH CONTRAST MODE OVERRIDES */
+html.high-contrast {
+  --hc-bg: #000000;
+  --hc-text: #ffffff;
+  --hc-accent: #ffff00;
+  --hc-border: #ffffff;
+
+  color-scheme: dark !important;
+  background-color: var(--hc-bg) !important;
+  color: var(--hc-text) !important;
+}
+
+html.high-contrast body,
+html.high-contrast #root {
+  background-color: var(--hc-bg) !important;
+  background-image: none !important;
+  color: var(--hc-text) !important;
+}
+
+/* Force backgrounds */
+html.high-contrast .bg-white,
+html.high-contrast .bg-black,
+html.high-contrast .bg-surface,
+html.high-contrast .bg-surface-low,
+html.high-contrast .bg-surface-high,
+html.high-contrast .bg-surface-highest,
+html.high-contrast .bg-accent,
+html.high-contrast .bg-primary,
+html.high-contrast .bg-\[\#151411\],
+html.high-contrast .bg-\[\#1f1c18\],
+html.high-contrast .bg-\[\#0f0e0c\],
+html.high-contrast .dark\:bg-\[\#151411\],
+html.high-contrast .dark\:bg-\[\#1f1c18\],
+html.high-contrast .dark\:bg-\[\#0f0e0c\],
+html.high-contrast .bg-\[linear-gradient\(135deg\,\#4f46e5\,\#7c72ff\)\] {
+  background-color: var(--hc-bg) !important;
+  background-image: none !important;
+  color: var(--hc-text) !important;
+}
+
+/* Borders and Shadows */
+html.high-contrast * {
+  border-color: var(--hc-border) !important;
+  box-shadow: none !important;
+}
+
+/* Text Overrides */
+html.high-contrast .text-muted,
+html.high-contrast .text-text,
+html.high-contrast .text-primary,
+html.high-contrast .text-accent,
+html.high-contrast .dark\:text-\[\#c4bbae\],
+html.high-contrast .dark\:text-\[\#f0ebe2\] {
+  color: var(--hc-text) !important;
+}
+
+/* Links and Interactive Elements */
+html.high-contrast a,
+html.high-contrast button,
+html.high-contrast .hover\:text-primary:hover,
+html.high-contrast .hover\:text-accent:hover,
+html.high-contrast .group:hover .group-hover\:text-primary,
+html.high-contrast .group:hover .group-hover\:text-accent {
+  color: var(--hc-accent) !important;
+  border-color: var(--hc-accent) !important;
+}
+
+html.high-contrast a:hover,
+html.high-contrast button:hover {
+  background-color: var(--hc-accent) !important;
+  color: var(--hc-bg) !important;
+}
+
+/* Inputs */
+html.high-contrast input,
+html.high-contrast textarea,
+html.high-contrast select {
+  background-color: var(--hc-bg) !important;
+  color: var(--hc-text) !important;
+  border: 2px solid var(--hc-border) !important;
+}
+
+html.high-contrast input:focus,
+html.high-contrast textarea:focus,
+html.high-contrast select:focus {
+  border-color: var(--hc-accent) !important;
+  outline: 2px solid var(--hc-accent) !important;
+  outline-offset: 2px;
+}
+
+/* Global focus-visible indicator overrides for keyboard accessibility */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[tabindex]:focus-visible {
+  outline: 3px solid #FF3B30 !important; /* primary brand color */
+  outline-offset: 2px !important;
+}
+
+html.dark a:focus-visible,
+html.dark button:focus-visible,
+html.dark input:focus-visible,
+html.dark select:focus-visible,
+html.dark textarea:focus-visible,
+html.dark [tabindex]:focus-visible {
+  outline: 3px solid #FFCC00 !important; /* accent brand color in dark mode */
+  outline-offset: 2px !important;
+}
+
+html.high-contrast a:focus-visible,
+html.high-contrast button:focus-visible,
+html.high-contrast input:focus-visible,
+html.high-contrast select:focus-visible,
+html.high-contrast textarea:focus-visible,
+html.high-contrast [tabindex]:focus-visible {
+  outline: 3px solid var(--hc-accent) !important;
+  outline-offset: 2px !important;
 }

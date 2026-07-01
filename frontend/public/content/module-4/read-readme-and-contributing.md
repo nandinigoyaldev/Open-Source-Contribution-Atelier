@@ -5,13 +5,17 @@ Before you start writing code or opening issues, you must understand the project
 ---
 
 ### README.md (Read Me)
+
 The entry point of the project. It outlines:
+
 - What the software does.
 - How to install and run it locally.
 - Quick usage examples.
 
 ### CONTRIBUTING.md (How to Contribute)
+
 The contributor's playbook. It explains:
+
 - The codebase architecture.
 - Preferred branch naming styles (e.g. `fix/...` vs `bug/...`).
 - How to run tests and linters locally.

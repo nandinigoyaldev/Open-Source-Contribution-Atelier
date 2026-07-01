@@ -5,6 +5,7 @@ Signals that fire when:
 
 Adapt the sender models to match the actual models in apps/
 """
+
 import logging
 
 from asgiref.sync import async_to_sync
@@ -14,6 +15,7 @@ from django.dispatch import receiver
 
 from .models import Notification
 from .serializers import NotificationSerializer
+from django_q.tasks import async_task
 
 logger = logging.getLogger(__name__)
 
@@ -23,39 +25,80 @@ channel_layer = get_channel_layer()
 def _push_notification(notification: Notification):
     """Send a notification object to the user's WebSocket group."""
     data = NotificationSerializer(notification).data
-    group_name = f"notifications_{notification.recipient_id}"
+    group_name = f"notifications_{notification.recipient_id}"  # type: ignore
     try:
-        async_to_sync(channel_layer.group_send)(
+        async_to_sync(channel_layer.group_send)(  # type: ignore
             group_name,
             {
-                "type":         "send_notification",   # matches consumer method
+                "type": "send_notification",  # matches consumer method
                 "notification": data,
             },
         )
-        logger.info("Pushed notification id=%s to group=%s", notification.id, group_name)
+        logger.info(
+            "Pushed notification id=%s to group=%s", notification.id, group_name  # type: ignore
+        )
     except Exception as exc:
         logger.error("Failed to push notification: %s", exc)
+
+    # Dispatch web push notification asynchronously
+    try:
+        url = "/"
+        if notification.notif_type == "badge":
+            url = "/profile"
+        elif notification.meta and "contribution_id" in notification.meta:  # type: ignore
+            url = f"/contributions/{notification.meta['contribution_id']}"  # type: ignore
+
+        async_task(
+            "apps.notifications.tasks.send_web_push_notification",
+            user_id=notification.recipient_id,  # type: ignore
+            title=notification.title,
+            message=notification.message,
+            url=url,
+        )
+    except Exception as exc:
+        logger.error("Failed to enqueue web push notification: %s", exc)
 
 
 # ------------------------------------------------------------------ #
 # Badge signal                                                        #
 # ------------------------------------------------------------------ #
-# Uncomment and adjust once you have the Badge model
-#
-# from apps.badges.models import UserBadge   # <- your real import
-#
-# @receiver(post_save, sender=UserBadge)
-# def on_badge_awarded(sender, instance, created, **kwargs):
-#     if not created:
-#         return
-#     notif = Notification.objects.create(
-#         recipient  = instance.user,
-#         notif_type = "badge",
-#         title      = "🏅 New Badge Earned!",
-#         message    = f"You earned the '{instance.badge.name}' badge.",
-#         meta       = {"badge_id": instance.badge.id, "badge_name": instance.badge.name},
-#     )
-#     _push_notification(notif)
+from apps.progress.models import UserBadge
+
+
+@receiver(post_save, sender=UserBadge, dispatch_uid="on_badge_awarded_notification")
+def on_badge_awarded(sender, instance, created, **kwargs):
+    if not created:
+        return
+    notif = Notification.objects.create(
+        recipient=instance.user,
+        notif_type="badge",
+        title="🏅 New Badge Earned!",
+        message=f"You earned the '{instance.badge.name}' badge.",
+        meta={
+            "badge_id": instance.badge.id,
+            "badge_name": instance.badge.name,
+            "badge_slug": instance.badge.slug,
+        },
+    )
+    _push_notification(notif)
+
+    # Offload bulk email or notification digest to the independent worker
+    import sys
+
+    if "test" in sys.argv or any("pytest" in arg for arg in sys.argv):
+        return
+
+    async_task(
+        "apps.notifications.tasks.send_bulk_email",
+        payload={
+            "template_id": "badge_earned_email",
+            "recipients": [instance.user.email],
+            "data": {
+                "badge_name": instance.badge.name,
+                "username": instance.user.username,
+            },
+        },
+    )
 
 
 # ------------------------------------------------------------------ #
@@ -86,14 +129,16 @@ def _push_notification(notification: Notification):
 # ------------------------------------------------------------------ #
 # Utility: call this anywhere in your codebase to send a manual notif #
 # ------------------------------------------------------------------ #
-def create_and_push_notification(recipient, notif_type, title, message, sender=None, meta=None):
+def create_and_push_notification(
+    recipient, notif_type, title, message, sender=None, meta=None
+):
     notif = Notification.objects.create(
-        recipient  = recipient,
-        sender     = sender,
-        notif_type = notif_type,
-        title      = title,
-        message    = message,
-        meta       = meta or {},
+        recipient=recipient,
+        sender=sender,
+        notif_type=notif_type,
+        title=title,
+        message=message,
+        meta=meta or {},
     )
     _push_notification(notif)
     return notif

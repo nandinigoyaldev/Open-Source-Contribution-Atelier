@@ -1,0 +1,21 @@
+name: Issue Assignment Comment
+
+on:
+  issues:
+    types: [assigned]
+
+jobs:
+  comment:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Post assignment rule comment
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const issue = context.payload.issue;
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue.number,
+              body: 'Please review the project contribution guidelines and keep this issue updated. See `CONTRIBUTING.md` for details.'
+            });

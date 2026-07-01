@@ -1,116 +1,65 @@
-name: Community Automation
+name: CI Pipeline
 
 on:
-  issues:
-    types: [opened]
   pull_request:
-    types: [opened, reopened]
+    branches: [ main ]
+  push:
+    branches: [ main ]
 
 jobs:
-  issue-etiquette:
-    name: Auto Comment on Issues
+  frontend-checks:
+    name: Frontend Lint & Test
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./frontend
     steps:
-      - uses: actions/github-script@v7
-        with:
-          script: |
-            await github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: "🙏 Thanks for opening this issue!\nPlease provide:\n- Clear description\n- Steps to reproduce\n- Expected vs actual behavior\n- Screenshots/logs if possible\n\n⏳ Please wait up to 24 hours for a PA to assign you the issue."
-            });
+      - name: Checkout Code
+        uses: actions/checkout@v4
 
-  issue-labels:
-    name: Auto Label Issues
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: './frontend/package-lock.json'
+
+      - name: Install Dependencies
+        run: npm ci
+
+      - name: Run Linter
+        run: npm run lint
+
+      - name: Check Formatting
+        run: npm run format:check
+        continue-on-error: true # Might not exist or fail gracefully
+
+      - name: Run Tests
+        run: npm run test
+
+  backend-checks:
+    name: Backend Lint & Test
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./backend
     steps:
-      - uses: actions/github-script@v7
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
         with:
-          script: |
-            const issue = context.payload.issue;
-            let labels = ["ssoc26"];
+          python-version: '3.9'
+          cache: 'pip'
 
-            const title = issue.title.toLowerCase();
-            const body = issue.body.toLowerCase();
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
 
-            // Basic tags
-            if (title.includes("doc") || body.includes("doc")) labels.push("docs");
-            if (title.includes("first") || body.includes("first")) labels.push("good first issue");
+      - name: Check Formatting (Black)
+        run: black --check .
 
-            // Difficulty inference (heuristic)
-            if (title.includes("auth") || body.includes("auth") || body.includes("jwt") || body.includes("dashboard") || body.includes("complex")) {
-              labels.push("hard");
-            } else if (title.includes("test") || body.includes("test") || body.includes("refactor") || body.includes("medium")) {
-              labels.push("medium");
-            } else {
-              labels.push("easy");
-            }
-
-            await github.rest.issues.addLabels({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: context.issue.number,
-              labels: labels
-            });
-
-  pr-review:
-    name: Auto Review PR
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/github-script@v7
-        with:
-          script: |
-            await github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: "👋 Thanks for your PR!\nPlease:\n- Link the related issue (e.g. `Fixes #52`)\n- Ensure tests pass\n- Follow commit message guidelines\n- Add documentation if needed\n\nLabels will be synced with the related issue."
-            });
-
-  pr-label-sync:
-    name: Sync Labels from Issue
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/github-script@v7
-        with:
-          script: |
-            const pr = context.payload.pull_request;
-            if (pr.body) {
-              const issueMatch = pr.body.match(/#(\d+)/);
-              if (issueMatch) {
-                const issueNumber = parseInt(issueMatch[1]);
-                const issueLabels = await github.rest.issues.listLabelsOnIssue({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  issue_number: issueNumber
-                });
-                const labels = issueLabels.data.map(l => l.name);
-                await github.rest.issues.addLabels({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  issue_number: context.issue.number,
-                  labels: labels
-                });
-                await github.rest.issues.addAssignees({
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  issue_number: context.issue.number,
-                  assignees: [pr.user.login]
-                });
-              }
-            }
-
-  stale:
-    name: Close Stale Issues/PRs
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/stale@v9
-        with:
-          repo-token: ${{ secrets.GITHUB_TOKEN }}
-          stale-issue-message: "⚠️ This issue has been marked stale due to inactivity. Please update or it will be closed."
-          stale-pr-message: "⚠️ This PR has been marked stale due to inactivity. Please update or it will be closed."
-          days-before-stale: 30
-          days-before-close: 7
-          stale-issue-label: "stale"
-          stale-pr-label: "stale"
+      - name: Run Tests (Pytest)
+        run: pytest

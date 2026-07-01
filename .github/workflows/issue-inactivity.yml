@@ -1,0 +1,65 @@
+name: Issue Inactivity Bot
+
+on:
+  schedule:
+    - cron: '0 0 * * *'  # daily at midnight UTC
+
+jobs:
+  inactivity:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Find stale issues and manage reminders
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const threeDays = 3 * 24 * 60 * 60 * 1000;
+            const sixDays = 6 * 24 * 60 * 60 * 1000;
+            const now = new Date();
+            const { data: issues } = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open'
+            });
+            for (const issue of issues) {
+              if (!issue.assignee) continue; // only consider assigned issues
+              const updatedAt = new Date(issue.updated_at);
+              const age = now - updatedAt;
+
+              const hasStaleLabel = issue.labels.some(l => l.name === 'stale-reminder');
+
+              if (age >= threeDays && !hasStaleLabel) {
+                // first reminder
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issue.number,
+                  body: '⏰ This issue has been inactive for 3 days. Please provide an update or it may be unassigned.'
+                });
+                await github.rest.issues.addLabels({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issue.number,
+                  labels: ['stale-reminder']
+                });
+              } else if (age >= sixDays && hasStaleLabel) {
+                // no response after reminder, unassign
+                await github.rest.issues.removeAssignees({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issue.number,
+                  assignees: [issue.assignee.login]
+                });
+                await github.rest.issues.removeLabel({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issue.number,
+                  name: 'stale-reminder'
+                });
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issue.number,
+                  body: 'The issue has been unassigned due to prolonged inactivity. Feel free to request reassignment when you are ready.'
+                });
+              }
+            }

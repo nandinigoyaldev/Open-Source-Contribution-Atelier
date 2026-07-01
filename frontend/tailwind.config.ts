@@ -1,12 +1,14 @@
 import type { Config } from "tailwindcss";
 
-
 export default {
   darkMode: "class",
   content: ["./index.html", "./src/**/*.{ts,tsx}"],
   theme: {
     extend: {
       colors: {
+        blue: {
+          500: "#2D6FE0",
+        },
         surface: "#FFF9F0",
         "surface-lowest": "#FFFFFF",
         "surface-low": "#FFEBC2",
@@ -29,7 +31,32 @@ export default {
         card: "4px 4px 0px 0px rgba(0, 0, 0, 1)",
         "card-lg": "8px 8px 0px 0px rgba(0, 0, 0, 1)",
         "card-sm": "2px 2px 0px 0px rgba(0, 0, 0, 1)",
-        "gel": "0px 8px 0px 0px rgba(230, 40, 20, 1), 0px -4px 0px 0px rgba(255,100,80,1) inset",
+        gel: "0px 8px 0px 0px rgba(230, 40, 20, 1), 0px -4px 0px 0px rgba(255,100,80,1) inset",
+      },
+      scale: {
+        "102": "1.02",
+      },
+      keyframes: {
+        shake: {
+          "0%": { transform: "translateX(0)" },
+          "10%, 30%, 50%, 70%, 90%": { transform: "translateX(-8px)" },
+          "20%, 40%, 60%, 80%": { transform: "translateX(8px)" },
+          "100%": { transform: "translateX(0)" },
+        },
+        flash: {
+          "0%": { backgroundColor: "transparent" },
+          "50%": { backgroundColor: "rgba(255, 0, 0, 0.06)" },
+          "100%": { backgroundColor: "transparent" },
+        },
+        shimmer: {
+          "0%": { backgroundPosition: "-200% 0" },
+          "100%": { backgroundPosition: "200% 0" },
+        },
+      },
+      animation: {
+        shake: "shake 600ms cubic-bezier(.36,.07,.19,.97)",
+        flash: "flash 350ms ease-in-out",
+        shimmer: "shimmer 1.5s ease-in-out infinite",
       },
     },
   },

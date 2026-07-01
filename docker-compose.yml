@@ -1,75 +1,109 @@
-version: "3.9"
-
 services:
-  db:
-    image: postgres:16-alpine
-    container_name: contribution_atelier_db
+  # ─────────────────────────────────────────────────
+  # PostgreSQL Database
+  # ─────────────────────────────────────────────────
+  postgres:
+    image: postgres:15-alpine
     environment:
-      POSTGRES_DB: contribution_atelier
-      POSTGRES_USER: contribution_atelier
-      POSTGRES_PASSWORD: contribution_atelier
-    
-  redis:
-    image: redis:7-alpine
-    container_name: contribution_atelier_redis
-    ports:
-      - "6379:6379"
-
-volumes:
-      - postgres_data:/var/lib/postgresql/data
+      POSTGRES_DB: atelier
+      POSTGRES_USER: atelier
+      POSTGRES_PASSWORD: atelier
     ports:
       - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U atelier"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
-  backend:
-    build:
-      context: ./backend
-    container_name: contribution_atelier_backend
-    command: sh -c "python manage.py migrate && python manage.py seed_data && python manage.py runserver 0.0.0.0:8000"
-    env_file:
-      - ./backend/.env.example
-    
+  # ─────────────────────────────────────────────────
+  # Redis (broker for Celery + Django Channels)
+  # ─────────────────────────────────────────────────
   redis:
     image: redis:7-alpine
-    container_name: contribution_atelier_redis
     ports:
       - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
 
-volumes:
+  # ─────────────────────────────────────────────────
+  # Django Backend API
+  # ─────────────────────────────────────────────────
+  backend:
+    build: ./backend
+    working_dir: /app
+    volumes:
+      # Mount the entire backend directory for hot-reloading
       - ./backend:/app
     ports:
       - "8000:8000"
     depends_on:
-      - db
-      - redis
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      DATABASE_URL: postgres://atelier:atelier@postgres:5432/atelier
+      REDIS_URL: redis://redis:6379/0
+      DEBUG: "True"
+      SECRET_KEY: "docker-dev-key-not-for-production-32bytes!!"
+      ALLOWED_HOSTS: "localhost,127.0.0.1,backend"
+      CORS_ALLOWED_ORIGINS: "http://localhost:5173,http://localhost:3000"
+      EMAIL_BACKEND: django.core.mail.backends.console.EmailBackend
+    command: >
+      sh -c "
+        pip install --no-cache-dir -r requirements.txt &&
+        python manage.py migrate &&
+        python manage.py runserver 0.0.0.0:8000
+      "
 
-  frontend:
+  # ─────────────────────────────────────────────────
+  # Celery Worker (notifications & background tasks)
+  # ─────────────────────────────────────────────────
+  celery_worker:
     build:
-      context: ./frontend
-    container_name: contribution_atelier_frontend
-    command: sh -c "npm install && npm run dev -- --host 0.0.0.0"
-    env_file:
-      - ./frontend/.env.example
-    
-  redis:
-    image: redis:7-alpine
-    container_name: contribution_atelier_redis
-    ports:
-      - "6379:6379"
+      context: ./services/notifications_worker
+      dockerfile: Dockerfile
+    volumes:
+      # Mount the worker directory so code changes take effect immediately
+      # without needing to rebuild the image during local dev.
+      - ./services/notifications_worker:/app
+    depends_on:
+      redis:
+        condition: service_healthy
+      backend:
+        condition: service_started
+    environment:
+      REDIS_URL: redis://redis:6379/0
+      # Ensure the worker connects to the same broker as the Django backend
 
-volumes:
+  # ─────────────────────────────────────────────────
+  # Vite Frontend Dev Server
+  # ─────────────────────────────────────────────────
+  frontend:
+    image: node:22-alpine
+    working_dir: /app
+    volumes:
       - ./frontend:/app
+      # Anonymous volume to persist node_modules across container restarts
       - /app/node_modules
     ports:
       - "5173:5173"
     depends_on:
       - backend
-
-
-  redis:
-    image: redis:7-alpine
-    container_name: contribution_atelier_redis
-    ports:
-      - "6379:6379"
+    environment:
+      VITE_API_BASE_URL: http://localhost:8000/api
+      VITE_WS_BASE_URL: ws://localhost:8000/ws
+    command: >
+      sh -c "
+        npm install &&
+        npm run dev -- --host 0.0.0.0
+      "
 
 volumes:
   postgres_data:

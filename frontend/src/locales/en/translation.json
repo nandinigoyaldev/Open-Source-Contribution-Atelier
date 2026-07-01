@@ -1,0 +1,20 @@
+{
+  "landing": {
+    "authorized_access_only": "AUTHORIZED ACCESS ONLY 🔒",
+    "contributor": "Contributor",
+    "maintainer": "Maintainer",
+    "enter_sandbox": "Enter the Sandbox.",
+    "maintainer_login": "Maintainer Login.",
+    "sign_in_google": "Sign in with Google",
+    "sign_in_github": "Sign in with GitHub",
+    "or": "OR",
+    "username_email_placeholder": "Username or Email",
+    "password_placeholder": "••••••••",
+    "assemble_run": "Assemble & Run!",
+    "new_contributors": "NEW CONTRIBUTORS",
+    "create_account": "Create Account",
+    "error_login_failed": "Failed to login",
+    "error_google_auth_backend": "Google Auth Failed. Check Backend.",
+    "error_google_login_failed": "Google Login Failed / Cancelled."
+  }
+}
