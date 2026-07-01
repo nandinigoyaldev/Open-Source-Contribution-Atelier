@@ -3,6 +3,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { Navigation } from "./Navigation";
 import { BadgeToastNotifier } from "../ui/BadgeToastNotifier";
 import { ScrollToTop } from "../ui/ScrollToTop";
+import { Breadcrumbs } from "./Breadcrumbs"; // <-- NAYA IMPORT ADD KIYA
 
 export function AppLayout() {
   const location = useLocation();
@@ -41,6 +42,10 @@ export function AppLayout() {
         <main id="main-content" tabIndex={-1} className="lg:pl-[300px]">
           <div className="px-4 pb-10 pt-24 sm:px-6 lg:px-8">
             <div className="mx-auto max-w-7xl">
+              
+              {/* BREADCRUMBS COMPONENT YAHAN MOUNT HOGA */}
+              <Breadcrumbs />
+
               <AnimatePresence mode="wait" initial={false}>
                 <motion.div
                   key={location.pathname}
