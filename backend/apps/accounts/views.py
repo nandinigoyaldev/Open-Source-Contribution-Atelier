@@ -7,11 +7,13 @@ import requests as http_requests
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.core.mail import send_mail
-from django.db.models import Sum
+from django.db.models import Exists, OuterRef, Sum, Value
+from django.db.models.functions import Concat
 from django.shortcuts import redirect
 from django.utils import timezone
 from django.utils.text import slugify
 from django_filters.rest_framework import DjangoFilterBackend
+from django_q.tasks import async_task
 from drf_spectacular.utils import OpenApiResponse, extend_schema, extend_schema_view
 from rest_framework import filters, generics, permissions, status
 from rest_framework.pagination import LimitOffsetPagination
@@ -21,7 +23,8 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
-from apps.progress.models import LessonProgress, UserBadge
+from apps.content.models import Lesson
+from apps.progress.models import LessonProgress, QuizAttempt, UserBadge
 from apps.progress.serializers import UserBadgeSerializer
 
 from .models import MagicLinkToken, OTPToken, PasswordResetToken
@@ -42,7 +45,6 @@ from .tasks import (
     send_otp_email_task,
     send_password_reset_email_task,
 )
-from django_q.tasks import async_task
 from .throttles import (
     LoginThrottle,
     MagicLinkRequestThrottle,
@@ -876,6 +878,36 @@ class LearningPathView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
+        """
+        Get the personalized learning path for the authenticated user.
+
+        Response schema:
+        {
+            "modules": [
+                {
+                    "id": str,
+                    "title": str,
+                    "description": str,
+                    "status": "completed" | "in progress" | "not started",
+                    "score": int,
+                    "explanation": str,
+                    "lessons_count": int,
+                    "completed_lessons_count": int
+                },
+                ...
+            ],
+            "next_step": {
+                "id": str,
+                "title": str,
+                "description": str,
+                "status": "completed" | "in progress" | "not started",
+                "score": int,
+                "explanation": str,
+                "lessons_count": int,
+                "completed_lessons_count": int
+            } | None
+        }
+        """
         user = request.user
 
         # 1. Update badges dynamically
@@ -905,26 +937,28 @@ class LearningPathView(APIView):
 
         modules = curriculum_data.get("modules", [])
 
-        # 3. Fetch user progress, badges, and quiz attempts
-        from apps.progress.models import QuizAttempt
-
-        completed_lessons = set(
-            LessonProgress.objects.filter(user=user, completed=True).values_list(
-                "lesson__slug", flat=True
-            )
+        # 3. Fetch user progress, badges, and quiz attempts using database annotations
+        user_progress = LessonProgress.objects.filter(user=user, lesson=OuterRef("pk"))
+        failed_quizzes = QuizAttempt.objects.filter(
+            user=user,
+            is_correct=False,
+            question_id__startswith=Concat(OuterRef("slug"), Value("-q")),
         )
 
-        started_lessons = set(
-            LessonProgress.objects.filter(user=user).values_list(
-                "lesson__slug", flat=True
-            )
-        )
+        annotated_lessons = Lesson.objects.annotate(
+            is_completed=Exists(user_progress.filter(completed=True)),
+            is_started=Exists(user_progress),
+            has_weak_quizzes=Exists(failed_quizzes),
+        ).values("slug", "is_completed", "is_started", "has_weak_quizzes")
 
-        incorrect_questions = set(
-            QuizAttempt.objects.filter(user=user, is_correct=False).values_list(
-                "question_id", flat=True
-            )
-        )
+        lessons_status = {
+            l["slug"]: {
+                "completed": l["is_completed"],
+                "started": l["is_started"],
+                "has_weak_quizzes": l["has_weak_quizzes"],
+            }
+            for l in annotated_lessons
+        }
 
         earned_badges = set(
             UserBadge.objects.filter(user=user).values_list("badge__slug", flat=True)
@@ -939,11 +973,22 @@ class LearningPathView(APIView):
 
             lesson_slugs = [les.get("slug") for les in mod_lessons]
 
-            # Determine status
-            completed_count = sum(
-                1 for slug in lesson_slugs if slug in completed_lessons
-            )
-            started_count = sum(1 for slug in lesson_slugs if slug in started_lessons)
+            # Determine status by summing counts from annotated statuses
+            completed_count = 0
+            started_count = 0
+            has_weak_quizzes = False
+
+            for slug in lesson_slugs:
+                status_info = lessons_status.get(
+                    slug,
+                    {"completed": False, "started": False, "has_weak_quizzes": False},
+                )
+                if status_info["completed"]:
+                    completed_count += 1
+                if status_info["started"]:
+                    started_count += 1
+                if status_info["has_weak_quizzes"]:
+                    has_weak_quizzes = True
 
             if len(lesson_slugs) == 0:
                 status_str = "completed"
@@ -957,17 +1002,6 @@ class LearningPathView(APIView):
             # Base scorer
             score = 0
             explanation = ""
-
-            # Check incorrect quizzes for lessons in this module
-            has_weak_quizzes = False
-            for les_slug in lesson_slugs:
-                # Quizzes have ID format: {lesson_slug}-q{quiz_idx}
-                for q_id in incorrect_questions:
-                    if q_id.startswith(f"{les_slug}-q"):
-                        has_weak_quizzes = True
-                        break
-                if has_weak_quizzes:
-                    break
 
             if status_str == "completed":
                 score = 0
