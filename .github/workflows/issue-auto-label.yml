@@ -51,12 +51,14 @@ jobs:
       - name: Add labels to issue
         if: steps.decide.outputs.labels != '[]'
         uses: actions/github-script@v6
+        env:
+          LABELS: ${{ steps.decide.outputs.labels }}
         with:
           script: |
             const issueNumber = context.payload.issue.number;
-            const labels = JSON.parse('${{ steps.decide.outputs.labels }}');
+            const labels = JSON.parse(process.env.LABELS);
             if (labels.length) {
-              await github.issues.addLabels({
+              await github.rest.issues.addLabels({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 issue_number: issueNumber,

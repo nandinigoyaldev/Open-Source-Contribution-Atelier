@@ -34,7 +34,7 @@ jobs:
           script: |
             const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
             const { data: issues } = await github.paginate(
-              github.issues.listForRepo,
+              github.rest.issues.listForRepo,
               { owner: context.repo.owner, repo: context.repo.repo, state: 'open', per_page: 100 },
               (r) => r.data
             );
@@ -43,7 +43,7 @@ jobs:
               if (!issue.assignees?.length) continue;
               // Fetch events to locate the most recent assignment for each assignee
               const events = await github.paginate(
-                github.issues.listEvents,
+                github.rest.issues.listEvents,
                 { owner: context.repo.owner, repo: context.repo.repo, issue_number: issue.number, per_page: 100 },
                 (e) => e.data
               );
@@ -56,7 +56,7 @@ jobs:
                 if (assignedAt > threeDaysAgo) continue; // not yet 3 days old
                 // Did the assignee comment after being assigned?
                 const comments = await github.paginate(
-                  github.issues.listComments,
+                  github.rest.issues.listComments,
                   { owner: context.repo.owner, repo: context.repo.repo, issue_number: issue.number, per_page: 100 },
                   (c) => c.data
                 );
@@ -76,20 +76,22 @@ jobs:
       - name: Post reminder and label
         if: steps.stale.outputs.stale != '[]'
         uses: actions/github-script@v6
+        env:
+          STALE: ${{ steps.stale.outputs.stale }}
         with:
           script: |
-            const stale = JSON.parse('${{ steps.stale.outputs.stale }}');
+            const stale = JSON.parse(process.env.STALE);
             for (const item of stale) {
               const body = `👋 Hi @${item.assignee}, this issue has been assigned to you for **3 days** without an update. Please let us know the status or add a comment when you have a chance.`;
               // Post comment
-              await github.issues.createComment({
+              await github.rest.issues.createComment({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 issue_number: item.number,
                 body: body
               });
               // Add a temporary label so we can track the reminder time
-              await github.issues.addLabels({
+              await github.rest.issues.addLabels({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 issue_number: item.number,
@@ -108,7 +110,7 @@ jobs:
             const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
             // Get all open issues that have the temporary label
             const { data: labeledIssues } = await github.paginate(
-              github.issues.listForRepo,
+              github.rest.issues.listForRepo,
               { owner: context.repo.owner, repo: context.repo.repo, state: 'open', labels: 'reminder-pending', per_page: 100 },
               (r) => r.data
             );
@@ -116,7 +118,7 @@ jobs:
             for (const issue of labeledIssues) {
               // Find when the reminder-pending label was added
               const events = await github.paginate(
-                github.issues.listEvents,
+                github.rest.issues.listEvents,
                 { owner: context.repo.owner, repo: context.repo.repo, issue_number: issue.number, per_page: 100 },
                 (e) => e.data
               );
@@ -129,7 +131,7 @@ jobs:
 
               // Check if any assignee has commented since the label was added
               const comments = await github.paginate(
-                github.issues.listComments,
+                github.rest.issues.listComments,
                 { owner: context.repo.owner, repo: context.repo.repo, issue_number: issue.number, per_page: 100 },
                 (c) => c.data
               );
@@ -145,26 +147,28 @@ jobs:
       - name: Unassign and remove reminder label
         if: steps.overdue.outputs.to_unassign != '[]'
         uses: actions/github-script@v6
+        env:
+          TO_UNASSIGN: ${{ steps.overdue.outputs.to_unassign }}
         with:
           script: |
-            const items = JSON.parse('${{ steps.overdue.outputs.to_unassign }}');
+            const items = JSON.parse(process.env.TO_UNASSIGN);
             for (const item of items) {
               // Unassign all assignees that haven't replied
-              await github.issues.removeAssignees({
+              await github.rest.issues.removeAssignees({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 issue_number: item.number,
                 assignees: item.assignees
               });
               // Remove the temporary label
-              await github.issues.removeLabel({
+              await github.rest.issues.removeLabel({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 issue_number: item.number,
                 name: 'reminder-pending'
               });
               // Optional: add a follow‑up comment explaining the unassign
-              await github.issues.createComment({
+              await github.rest.issues.createComment({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 issue_number: item.number,

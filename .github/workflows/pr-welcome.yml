@@ -18,7 +18,7 @@ jobs:
           script: |
             const pr = context.payload.pull_request;
             const body = `👋 Hello @${pr.user.login}, thank you for your contribution! A reviewer will look at this PR soon.`; 
-            await github.issues.createComment({
+            await github.rest.issues.createComment({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: pr.number,

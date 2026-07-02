@@ -32,7 +32,7 @@ jobs:
             const body = (context.payload.pull_request.body || '').toLowerCase();
             const labels = [];
             // Look for explicit phrases – you can customise the keywords as needed
-            if (body.includes('ecsoc26') || body.includes('ecsoc26')) {
+            if (body.includes('ecsoc26') || body.includes('ecsoc')) {
               labels.push('ECSoC26');
             }
             if (body.includes('ssoc')) {
@@ -43,11 +43,13 @@ jobs:
       - name: Add detected labels to the PR
         if: steps.detect.outputs.labels != '[]'
         uses: actions/github-script@v6
+        env:
+          LABELS: ${{ steps.detect.outputs.labels }}
         with:
           script: |
-            const labels = JSON.parse('${{ steps.detect.outputs.labels }}');
+            const labels = JSON.parse(process.env.LABELS);
             if (labels.length === 0) return;
-            await github.issues.addLabels({
+            await github.rest.issues.addLabels({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: context.payload.pull_request.number,

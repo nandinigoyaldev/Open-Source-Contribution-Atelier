@@ -27,11 +27,14 @@ jobs:
             const title = context.payload.pull_request.title || ''
             const text = `${title}\n${prBody}`
             const issueNums = new Set()
-            const regex = /(?:close[sd]?|fix(e[sd])?|resolve[sd]?)[\s:]*#(\d+)|#(\d+)/gi
+            const regex = /#(\d+)/g
             let match
+            const prNumber = context.payload.pull_request.number
             while ((match = regex.exec(text)) !== null) {
-              const num = match[1] || match[2]
-              if (num) issueNums.add(parseInt(num, 10))
+              const num = parseInt(match[1], 10)
+              if (num !== prNumber) {
+                issueNums.add(num)
+              }
             }
             core.setOutput('issues', JSON.stringify(Array.from(issueNums)))
 
@@ -39,13 +42,15 @@ jobs:
         id: data
         if: steps.refs.outputs.issues != '[]'
         uses: actions/github-script@v6
+        env:
+          ISSUES: ${{ steps.refs.outputs.issues }}
         with:
           script: |
-            const issueNumbers = JSON.parse('${{ steps.refs.outputs.issues }}')
+            const issueNumbers = JSON.parse(process.env.ISSUES)
             const labels = new Set()
             const assignees = new Set()
             for (const num of issueNumbers) {
-              const { data } = await github.issues.get({ owner: context.repo.owner, repo: context.repo.repo, issue_number: num })
+              const { data } = await github.rest.issues.get({ owner: context.repo.owner, repo: context.repo.repo, issue_number: num })
               for (const label of data.labels) {
                 labels.add(label.name)
               }
@@ -59,11 +64,13 @@ jobs:
       - name: Apply labels to PR
         if: steps.data.outputs.labels != '[]'
         uses: actions/github-script@v6
+        env:
+          LABELS: ${{ steps.data.outputs.labels }}
         with:
           script: |
             const prNumber = context.payload.pull_request.number
-            const labels = JSON.parse('${{ steps.data.outputs.labels }}')
-            await github.issues.addLabels({
+            const labels = JSON.parse(process.env.LABELS)
+            await github.rest.issues.addLabels({
               owner: context.repo.owner,
               repo: context.repo.repo,
               issue_number: prNumber,
@@ -73,12 +80,14 @@ jobs:
       - name: Assign PR to same assignees as issue
         if: steps.data.outputs.assignees != '[]'
         uses: actions/github-script@v6
+        env:
+          ASSIGNEES: ${{ steps.data.outputs.assignees }}
         with:
           script: |
             const prNumber = context.payload.pull_request.number
-            const assignees = JSON.parse('${{ steps.data.outputs.assignees }}')
+            const assignees = JSON.parse(process.env.ASSIGNEES)
             if (assignees.length > 0) {
-              await github.issues.addAssignees({
+              await github.rest.issues.addAssignees({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
                 issue_number: prNumber,
