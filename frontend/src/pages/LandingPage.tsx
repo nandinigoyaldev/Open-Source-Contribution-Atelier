@@ -96,7 +96,7 @@ export function LandingPage() {
           </div>
 
           <h2 className="text-3xl font-black mb-6 text-center">
-            {authRole === "student" ? "Enter the Sandbox." : "Maintainer Login."}
+            {authRole === "student" ? "Contributor Login." : "Maintainer Login."}
           </h2>
           
           {error && <div className="text-black font-bold text-sm bg-primary p-3 rounded-xl border-4 border-black shadow-card-sm mb-4">{error}</div>}
