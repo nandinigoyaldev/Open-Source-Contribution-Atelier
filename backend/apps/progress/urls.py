@@ -1,5 +1,5 @@
 from django.urls import path
-from .views import ProgressUpdateView 
+
 from .views import (
     BadgeListView,
     BulkProgressUpdateView,
@@ -22,7 +22,6 @@ urlpatterns = [
     path("me/", MyProgressView.as_view(), name="my-progress"),
     path("bulk-sync/", BulkSyncProgressView.as_view(), name="bulk-sync"),
     path("bulk-update/", BulkProgressUpdateView.as_view(), name="bulk-update"),
-    path("progress/<int:module_id>/", ProgressUpdateView.as_view(), name="progress-update"),
     path("recommendations/", RecommendationsView.as_view(), name="recommendations"),
     path("community-stats/", CommunityStatsView.as_view(), name="community-stats"),
     path("help-requests/", HelpRequestListCreateView.as_view(), name="help-requests"),

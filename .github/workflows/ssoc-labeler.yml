@@ -20,8 +20,21 @@ jobs:
             const { owner, repo } = context.repo;
             const existing = context.payload.issue.labels.map(l => l.name.toLowerCase());
 
-            // Always add ssoc26 (this is an SSoC project)
-            if (!existing.includes('ssoc26')) {
-              console.log(`Adding ssoc26 to issue #${num}`);
-              await github.rest.issues.addLabels({ owner, repo, issue_number: num, labels: ['ssoc26'] });
+            let labelsToAdd = [];
+
+            // Check for ECSoC26 contributor checkbox
+            if (body.includes('I am an ECSoC26 contributor')) {
+              if (!existing.includes('ecsocs26')) {
+                labelsToAdd.push('ECSoC26');
+                console.log(`Adding ECSoC26 to issue #${num}`);
+              }
+            } else if (body.includes('I am a SSoC26 contributor')) {
+              if (!existing.includes('ssoc26')) {
+                labelsToAdd.push('ssoc26');
+                console.log(`Adding ssoc26 to issue #${num}`);
+              }
+            }
+
+            if (labelsToAdd.length > 0) {
+              await github.rest.issues.addLabels({ owner, repo, issue_number: num, labels: labelsToAdd });
             }

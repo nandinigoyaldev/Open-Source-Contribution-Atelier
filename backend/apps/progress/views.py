@@ -9,15 +9,10 @@ from rest_framework.permissions import BasePermission
 from rest_framework.response import Response
 from rest_framework.throttling import AnonRateThrottle
 from rest_framework.views import APIView
-from rest_framework.permissions import IsAuthenticated
+
 from apps.content.models import Lesson
 from apps.content.serializers import LessonSerializer
-from rest_framework import status
-from django.db import DatabaseError
-import logging
-from apps.progress.services.badge_evaluator import BadgeEvaluator
 
-logger = logging.getLogger(__name__)
 from .models import (
     Badge,
     Certificate,
@@ -864,65 +859,3 @@ class PeerReviewView(APIView):
                         submission.save(update_fields=["status"])
                 return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-
-class ProgressUpdateView(APIView):
-    """
-    View to update user progress with optimistic locking.
-    Prevents race conditions in badge evaluation.
-    """
-    permission_classes = [IsAuthenticated]
-    
-    def post(self, request, module_id):
-        """
-        Update user progress for a specific module.
-        
-        Args:
-            request: HTTP request with progress data
-            module_id: Module ID to update
-        
-        Returns:
-            Response: Updated progress status
-        """
-        user_id = request.user.id
-        progress_data = request.data.get('progress_data', {})
-        
-        if not progress_data:
-            return Response(
-                {'error': 'progress_data is required'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        try:
-            # Use optimistic locking for badge evaluation
-            result = BadgeEvaluator.evaluate_with_optimistic_lock(
-                user_id=user_id,
-                module_id=module_id,
-                progress_data=progress_data
-            )
-            
-            return Response({
-                'status': 'success',
-                'data': result
-            }, status=status.HTTP_200_OK)
-            
-        except DatabaseError as e:
-            logger.error(
-                f"Database conflict for user {user_id}, module {module_id}: {e}",
-                exc_info=True
-            )
-            return Response({
-                'status': 'error',
-                'code': 'CONFLICT',
-                'message': 'Concurrent update detected. Please refresh and try again.'
-            }, status=status.HTTP_409_CONFLICT)
-            
-        except Exception as e:
-            logger.error(
-                f"Unexpected error for user {user_id}, module {module_id}: {e}",
-                exc_info=True
-            )
-            return Response({
-                'status': 'error',
-                'code': 'SERVER_ERROR',
-                'message': 'Failed to update progress. Please try again later.'
-            }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)

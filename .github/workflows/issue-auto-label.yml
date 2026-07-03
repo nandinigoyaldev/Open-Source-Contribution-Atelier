@@ -1,0 +1,67 @@
+name: Issue Auto‑Label (Program & Difficulty)
+
+# Runs when an issue is opened or edited.
+# Automatically adds ECSoC26 or SSOC label based on keywords in title/body.
+# Then adds a difficulty tag:
+#   • ECSoC26 → easy | medium | difficult
+#   • SSOC   → easy | medium | hard
+# The difficulty is chosen randomly; you can replace the logic with any
+# deterministic rule you prefer.
+
+on:
+  issues:
+    types: [opened, edited]
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  auto_label:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (no code needed)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Decide labels
+        id: decide
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const issue = context.payload.issue;
+            const text = `${issue.title}\n${issue.body || ''}`.toLowerCase();
+            const labels = [];
+            let difficultyChoices = [];
+            // Detect ECSoC26 (accept "ecsoc26", "ssoc26", any case)
+            if (text.match(/\b(ssoc26|ecsoc26)\b/)) {
+              labels.push('ECSoC26');
+              difficultyChoices = []; // ECSoC26 difficulty is added by team separately
+            } else if (text.includes('ssoc')) { // plain SSOC (no 26)
+              labels.push('SSOC');
+              difficultyChoices = ['easy', 'medium', 'hard'];
+            }
+            if (difficultyChoices.length) {
+              const rand = Math.floor(Math.random() * difficultyChoices.length);
+              labels.push(difficultyChoices[rand]);
+            }
+            core.setOutput('labels', JSON.stringify(labels));
+
+      - name: Add labels to issue
+        if: steps.decide.outputs.labels != '[]'
+        uses: actions/github-script@v6
+        env:
+          LABELS: ${{ steps.decide.outputs.labels }}
+        with:
+          script: |
+            const issueNumber = context.payload.issue.number;
+            const labels = JSON.parse(process.env.LABELS);
+            if (labels.length) {
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issueNumber,
+                labels: labels
+              });
+            }

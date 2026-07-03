@@ -1,0 +1,177 @@
+name: Issue Assignment Reminder
+
+# Run daily at 02:00 UTC (adjust as needed)
+# This workflow both posts a reminder for assignees that have been idle for ≥3 days
+# and, 24 hours after the reminder, automatically unassigns them if they still
+# haven't responded.
+on:
+  schedule:
+    - cron: '0 2 * * *'
+
+permissions:
+  # Read issues to inspect comments, events, and labels
+  issues: read
+  # Write comments and modify assignees/labels
+  issues: write
+
+jobs:
+  reminder:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout (no code needed)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      # ------------------------------------------------------------
+      # 1️⃣ Find open issues that have an assignee older than 3 days
+      #    and that have not commented since the assignment.
+      # ------------------------------------------------------------
+      - name: Find stale assignments (≥3 days, no comment)
+        id: stale
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
+            const { data: issues } = await github.paginate(
+              github.rest.issues.listForRepo,
+              { owner: context.repo.owner, repo: context.repo.repo, state: 'open', per_page: 100 },
+              (r) => r.data
+            );
+            const stale = [];
+            for (const issue of issues) {
+              if (!issue.assignees?.length) continue;
+              // Fetch events to locate the most recent assignment for each assignee
+              const events = await github.paginate(
+                github.rest.issues.listEvents,
+                { owner: context.repo.owner, repo: context.repo.repo, issue_number: issue.number, per_page: 100 },
+                (e) => e.data
+              );
+              for (const assignee of issue.assignees) {
+                const assignEvent = events
+                  .filter(e => e.event === 'assigned' && e.assignee?.login === assignee.login)
+                  .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
+                if (!assignEvent) continue;
+                const assignedAt = new Date(assignEvent.created_at);
+                if (assignedAt > threeDaysAgo) continue; // not yet 3 days old
+                // Did the assignee comment after being assigned?
+                const comments = await github.paginate(
+                  github.rest.issues.listComments,
+                  { owner: context.repo.owner, repo: context.repo.repo, issue_number: issue.number, per_page: 100 },
+                  (c) => c.data
+                );
+                const hasComment = comments.some(c =>
+                  c.user?.login === assignee.login && new Date(c.created_at) > assignedAt
+                );
+                if (!hasComment) {
+                  stale.push({ number: issue.number, assignee: assignee.login });
+                }
+              }
+            }
+            core.setOutput('stale', JSON.stringify(stale));
+
+      # ------------------------------------------------------------
+      # 2️⃣ Post reminder comment and add a temporary label
+      # ------------------------------------------------------------
+      - name: Post reminder and label
+        if: steps.stale.outputs.stale != '[]'
+        uses: actions/github-script@v6
+        env:
+          STALE: ${{ steps.stale.outputs.stale }}
+        with:
+          script: |
+            const stale = JSON.parse(process.env.STALE);
+            for (const item of stale) {
+              const body = `👋 Hi @${item.assignee}, this issue has been assigned to you for **3 days** without an update. Please let us know the status or add a comment when you have a chance.`;
+              // Post comment
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: item.number,
+                body: body
+              });
+              // Add a temporary label so we can track the reminder time
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: item.number,
+                labels: ['reminder-pending']
+              });
+            }
+
+      # ------------------------------------------------------------
+      # 3️⃣ After 24 h, unassign any assignee that still hasn't replied
+      # ------------------------------------------------------------
+      - name: Find reminders older than 24 h without response
+        id: overdue
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const twentyFourHoursAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
+            // Get all open issues that have the temporary label
+            const { data: labeledIssues } = await github.paginate(
+              github.rest.issues.listForRepo,
+              { owner: context.repo.owner, repo: context.repo.repo, state: 'open', labels: 'reminder-pending', per_page: 100 },
+              (r) => r.data
+            );
+            const toUnassign = [];
+            for (const issue of labeledIssues) {
+              // Find when the reminder-pending label was added
+              const events = await github.paginate(
+                github.rest.issues.listEvents,
+                { owner: context.repo.owner, repo: context.repo.repo, issue_number: issue.number, per_page: 100 },
+                (e) => e.data
+              );
+              const labelEvent = events
+                .filter(e => e.event === 'labeled' && e.label?.name === 'reminder-pending')
+                .sort((a, b) => new Date(b.created_at) - new Date(a.created_at))[0];
+              if (!labelEvent) continue;
+              const labelAddedAt = new Date(labelEvent.created_at);
+              if (labelAddedAt > twentyFourHoursAgo) continue; // still within 24 h window
+
+              // Check if any assignee has commented since the label was added
+              const comments = await github.paginate(
+                github.rest.issues.listComments,
+                { owner: context.repo.owner, repo: context.repo.repo, issue_number: issue.number, per_page: 100 },
+                (c) => c.data
+              );
+              const stillNoComment = issue.assignees?.some(assignee =>
+                !comments.some(c => c.user?.login === assignee.login && new Date(c.created_at) > labelAddedAt)
+              );
+              if (stillNoComment) {
+                toUnassign.push({ number: issue.number, assignees: issue.assignees.map(a => a.login) });
+              }
+            }
+            core.setOutput('to_unassign', JSON.stringify(toUnassign));
+
+      - name: Unassign and remove reminder label
+        if: steps.overdue.outputs.to_unassign != '[]'
+        uses: actions/github-script@v6
+        env:
+          TO_UNASSIGN: ${{ steps.overdue.outputs.to_unassign }}
+        with:
+          script: |
+            const items = JSON.parse(process.env.TO_UNASSIGN);
+            for (const item of items) {
+              // Unassign all assignees that haven't replied
+              await github.rest.issues.removeAssignees({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: item.number,
+                assignees: item.assignees
+              });
+              // Remove the temporary label
+              await github.rest.issues.removeLabel({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: item.number,
+                name: 'reminder-pending'
+              });
+              // Optional: add a follow‑up comment explaining the unassign
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: item.number,
+                body: `⏳ No response was received within 24 hours, so the assignee(s) have been unassigned. Feel free to re‑assign when you’re ready to continue.`
+              });
+            }

@@ -5,6 +5,40 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 
+# All lesson slugs from curriculum.json — kept in sync with frontend/public/content/curriculum.json
+ALL_SLUGS = [
+    "what-is-open-source",
+    "why-open-source-matters",
+    "history-of-open-source",
+    "benefits-of-contributing",
+    "common-misconceptions",
+    "repositories-and-commits",
+    "branches",
+    "merging",
+    "remotes",
+    "git-workflow",
+    "github-repositories",
+    "forks",
+    "pull-requests",
+    "issues",
+    "discussions",
+    "organizations",
+    "respect-and-communication",
+    "read-readme-and-contributing",
+    "professional-prs-and-issues",
+    "maintainer-review-processes",
+    "first-contribution-walkthrough",
+    "contribution-lifecycle",
+    "rebasing-and-squashing",
+    "conflict-resolution",
+    "code-reviews-and-cicd",
+    "finding-projects",
+    "hello-python",
+    "hello-rust",
+    "hello-javascript",
+    "debugging-101",
+]
+
 
 class LearningPathTests(APITestCase):
     def setUp(self):
@@ -12,46 +46,14 @@ class LearningPathTests(APITestCase):
         self.user = User.objects.create_user(username="learner", password="password123")
         self.url = reverse("learning-path")
 
-        # Create some lessons that map to curriculum.json slugs
-        # First module: mod-1 lessons
-        self.l1 = Lesson.objects.create(
-            slug="what-is-open-source",
-            title="What is Open Source?",
-            difficulty="beginner",
-            order=0,
-        )
-        self.l2 = Lesson.objects.create(
-            slug="why-open-source-matters",
-            title="Why Open Source Matters",
-            difficulty="beginner",
-            order=1,
-        )
-        self.l3 = Lesson.objects.create(
-            slug="history-of-open-source",
-            title="History",
-            difficulty="beginner",
-            order=2,
-        )
-        self.l4 = Lesson.objects.create(
-            slug="benefits-of-contributing",
-            title="Benefits",
-            difficulty="beginner",
-            order=3,
-        )
-        self.l5 = Lesson.objects.create(
-            slug="common-misconceptions",
-            title="Misconceptions",
-            difficulty="beginner",
-            order=4,
-        )
-
-        # Second module: mod-2 lessons
-        self.l6 = Lesson.objects.create(
-            slug="repositories-and-commits",
-            title="Repositories & Commits",
-            difficulty="beginner",
-            order=5,
-        )
+        # Create Lesson records for all slugs (so curriculum modules are resolvable)
+        for i, slug in enumerate(ALL_SLUGS):
+            Lesson.objects.create(
+                slug=slug,
+                title=slug.replace("-", " ").title(),
+                difficulty="beginner",
+                order=i,
+            )
 
     def test_unauthenticated_returns_401(self):
         response = self.client.get(self.url)
@@ -75,7 +77,11 @@ class LearningPathTests(APITestCase):
         self.client.force_authenticate(user=self.user)
 
         # Mark first lesson of module-2 as in-progress (started but not completed)
-        LessonProgress.objects.create(user=self.user, lesson=self.l6, completed=False)
+        LessonProgress.objects.create(
+            user=self.user,
+            lesson=Lesson.objects.get(slug="repositories-and-commits"),
+            completed=False,
+        )
 
         # Mark all lessons of module-1 as not started (do nothing)
 
@@ -94,10 +100,18 @@ class LearningPathTests(APITestCase):
         self.client.force_authenticate(user=self.user)
 
         # Mark module-1 first lesson as started
-        LessonProgress.objects.create(user=self.user, lesson=self.l1, completed=False)
+        LessonProgress.objects.create(
+            user=self.user,
+            lesson=Lesson.objects.get(slug="what-is-open-source"),
+            completed=False,
+        )
 
         # Mark module-2 first lesson as started
-        LessonProgress.objects.create(user=self.user, lesson=self.l6, completed=False)
+        LessonProgress.objects.create(
+            user=self.user,
+            lesson=Lesson.objects.get(slug="repositories-and-commits"),
+            completed=False,
+        )
 
         # Both modules are "in progress" now.
         # Let's create an incorrect quiz attempt for a lesson in module-2 (repositories-and-commits)
@@ -124,8 +138,9 @@ class LearningPathTests(APITestCase):
     def test_scorer_handles_all_completed(self):
         self.client.force_authenticate(user=self.user)
 
-        # Mark all lessons in both modules as completed
-        for lesson in [self.l1, self.l2, self.l3, self.l4, self.l5, self.l6]:
+        # Mark all lessons across every curriculum module as completed
+        for slug in ALL_SLUGS:
+            lesson = Lesson.objects.get(slug=slug)
             LessonProgress.objects.create(user=self.user, lesson=lesson, completed=True)
 
         response = self.client.get(self.url)

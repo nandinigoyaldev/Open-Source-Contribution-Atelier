@@ -79,10 +79,6 @@ INSTALLED_APPS = [
 MIDDLEWARE = [
     "django_prometheus.middleware.PrometheusBeforeMiddleware",
     "corsheaders.middleware.CorsMiddleware",
-    # ========== ✅ ADD TRACING MIDDLEWARE FIRST ==========
-    "config.middleware.CorrelationIdMiddleware",  # ✅ ADD THIS
-    "config.middleware.PerformanceMonitoringMiddleware",  # ✅ ADD THIS
-    # =====================================================
     "django.middleware.security.SecurityMiddleware",
     "django.middleware.gzip.GZipMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
@@ -342,10 +338,10 @@ Q_CLUSTER = {
     **_q_broker,
 }
 
-# ============================================================
-# ✅ UPDATED LOGGING CONFIGURATION WITH STRUCTURED LOGGING
-# ============================================================
 
+# ──────────────────────────────────────────
+# Logging Configuration
+# ──────────────────────────────────────────
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
@@ -353,97 +349,41 @@ LOGGING = {
         "mask_sensitive_data": {
             "()": "config.logging_filters.SensitiveDataFilter",
         },
-        # ✅ ADD CORRELATION ID FILTER
-        "correlation_id": {
-            "()": "config.logging_filters.CorrelationIdFilter",
-        },
     },
     "formatters": {
         "verbose": {
             "format": "{levelname} {asctime} {module} {process:d} {thread:d} {message}",
             "style": "{",
         },
-        # ✅ ADD JSON FORMATTER FOR STRUCTURED LOGGING
-        "json": {
-            "()": "config.logging_filters.CustomJsonFormatter",
-        },
     },
     "handlers": {
         "console": {
             "class": "logging.StreamHandler",
-            "filters": ["mask_sensitive_data", "correlation_id"],  # ✅ ADD correlation_id
+            "filters": ["mask_sensitive_data"],
             "formatter": "verbose",
-        },
-        # ✅ ADD JSON FILE HANDLER
-        "json_file": {
-            "class": "logging.FileHandler",
-            "filename": "logs/app.json.log",
-            "filters": ["mask_sensitive_data", "correlation_id"],
-            "formatter": "json",
-            "level": "INFO",
-        },
-        # ✅ ADD ERROR FILE HANDLER
-        "error_file": {
-            "class": "logging.FileHandler",
-            "filename": "logs/error.json.log",
-            "filters": ["mask_sensitive_data", "correlation_id"],
-            "formatter": "json",
-            "level": "ERROR",
         },
     },
     "loggers": {
         "django": {
-            "handlers": ["console", "json_file"],  # ✅ ADD json_file
+            "handlers": ["console"],
             "level": "INFO",
             "propagate": False,
         },
         "django.server": {
-            "handlers": ["console", "json_file"],  # ✅ ADD json_file
+            "handlers": ["console"],
             "level": "INFO",
             "propagate": False,
         },
         "apps": {
-            "handlers": ["console", "json_file"],  # ✅ ADD json_file
-            "level": "DEBUG" if DEBUG else "INFO",
-            "propagate": False,
-        },
-        # ✅ ADD CELERY LOGGER WITH CORRELATION ID
-        "celery": {
-            "handlers": ["console", "json_file", "error_file"],
+            "handlers": ["console"],
             "level": "INFO",
             "propagate": False,
         },
     },
     "root": {
-        "handlers": ["console", "json_file", "error_file"],
-        "level": "DEBUG" if DEBUG else "INFO",
+        "handlers": ["console"],
+        "level": "INFO",
     },
 }
-
-# ============================================================
-# ✅ OPEN TELEMETRY / DISTRIBUTED TRACING CONFIGURATION
-# ============================================================
-
-# Enable/disable tracing
-ENABLE_TRACING = os.getenv("ENABLE_TRACING", "true").lower() == "true"
-TRACER_TYPE = os.getenv("TRACER_TYPE", "jaeger")  # 'jaeger' or 'zipkin'
-
-# Jaeger configuration
-JAEGER_HOST = os.getenv("JAEGER_HOST", "localhost")
-JAEGER_PORT = int(os.getenv("JAEGER_PORT", 6831))
-
-# Zipkin configuration
-ZIPKIN_ENDPOINT = os.getenv("ZIPKIN_ENDPOINT", "http://localhost:9411/api/v2/spans")
-
-# Initialize tracing if enabled
-if ENABLE_TRACING:
-    try:
-        from config.tracing import setup_tracing
-        setup_tracing()
-    except ImportError:
-        # Tracing module not available yet
-        pass
-    except Exception as e:
-        print(f"Warning: Failed to initialize tracing: {e}")
 
 GRAPHENE = {"SCHEMA": "config.schema.schema"}

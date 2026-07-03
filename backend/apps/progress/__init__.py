@@ -1,4 +1,1 @@
 
-"""
-Utilities for progress app.
-"""

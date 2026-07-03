@@ -1,6 +1,3 @@
-- name: "good first issue"
-  color: "70ffb2" # Neon Mint
-  description: "Beginner-friendly tasks, perfect for first-time contributors."
 
 - name: "easy"
   color: "a0ffd0" # Light Mint
@@ -14,31 +11,15 @@
   color: "ff8c70" # Neon Red/Orange
   description: "High complexity issues with architectural changes or core modules."
 
-- name: "bug"
-  color: "ff5555" # Red
-  description: "Something is broken in the client, server, or database."
+- name: "ECSoC26"
+  color: "8b00ff" # Vibrant Purple
+  description: "Contributions under ECSoC 2026 program."
 
-- name: "enhancement"
-  color: "c3c0ff" # Lavender
-  description: "Improvements or extensions to existing features."
+- name: "difficult"
+  color: "ff4d4d" # Bright Red
+  description: "High difficulty issues (hard level under ECSoC26)."
 
-- name: "feature"
-  color: "8ae2ff" # Sky Blue
-  description: "New components, lessons, sandbox drills, or pathways."
-
-- name: "documentation"
-  color: "fcd3de" # Pastel Pink
-  description: "Improvements or additions to README, setup docs, or guide outlines."
-
-- name: "authentication"
-  color: "ffc5c5" # Soft Red
-  description: "Signups, logins, JWT refreshes, or OAuth callbacks."
-
-- name: "deployment"
-  color: "d2d7d9" # Grey
-  description: "CI/CD pipelines, Docker container settings, or Render configs."
-
-- name: "help wanted"
-  color: "008672" # Teal
-  description: "Extra review needed or seeking community assistance."
+- name: "SSoC26"
+  color: "ff4d4d" # Bright Red
+  description: "Contributions under SSoC 2026 program."
 

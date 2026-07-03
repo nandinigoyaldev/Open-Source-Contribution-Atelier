@@ -5,8 +5,7 @@ from django.utils import timezone
 
 from apps.content.models import Exercise, Lesson
 from apps.organizations.models import Organization
-from django.contrib.auth.models import User
-from django.db.models import F 
+
 
 class XPMultiplierEvent(models.Model):
     name = models.CharField(max_length=255)
@@ -317,81 +316,3 @@ class StreakProfile(models.Model):
 
     def __str__(self):
         return f"{self.user.username} - {self.current_streak} day streak"
-
-class UserProgress(models.Model):
-    """
-    Tracks user progress through modules.
-    """
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='progress')
-    module = models.ForeignKey('content.Module', on_delete=models.CASCADE)
-    completed = models.BooleanField(default=False)
-    progress_data = models.JSONField(default=dict, help_text="Stores detailed progress data")
-    
-    # ✅ ADD THIS NEW FIELD FOR OPTIMISTIC LOCKING
-    version = models.IntegerField(default=0, help_text="Version counter for optimistic locking")
-    
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    
-    class Meta:
-        unique_together = [['user', 'module']]
-        ordering = ['user', 'module']
-        indexes = [
-            models.Index(fields=['user', 'module']),
-            models.Index(fields=['user', 'completed']),
-        ]
-    
-    def __str__(self):
-        return f"{self.user.username} - {self.module.name}"
-    
-    def increment_version(self):
-        """Atomically increment the version counter."""
-        self.version = F('version') + 1
-        self.save(update_fields=['version'])
-
-
-class Badge(models.Model):
-    """
-    Badge model for achievements.
-    """
-    CONDITION_TYPES = [
-        ('completion', 'Module Completion'),
-        ('score', 'Score Threshold'),
-        ('streak', 'Learning Streak'),
-        ('contribution', 'Contribution Count'),
-        ('quiz', 'Quiz Performance'),
-    ]
-    
-    name = models.CharField(max_length=100)
-    description = models.TextField(blank=True)
-    module = models.ForeignKey('content.Module', on_delete=models.CASCADE, null=True, blank=True)
-    condition_type = models.CharField(max_length=50, choices=CONDITION_TYPES, default='completion')
-    condition_value = models.IntegerField(default=1, help_text="Threshold value for condition")
-    icon = models.CharField(max_length=50, blank=True, help_text="FontAwesome or emoji icon")
-    color = models.CharField(max_length=20, blank=True, help_text="Hex color code")
-    is_active = models.BooleanField(default=True)
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-    
-    class Meta:
-        ordering = ['name']
-    
-    def __str__(self):
-        return self.name
-
-
-class UserBadge(models.Model):
-    """
-    Track which badges users have earned.
-    """
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name='badges')
-    badge = models.ForeignKey(Badge, on_delete=models.CASCADE, related_name='users')
-    awarded_at = models.DateTimeField(auto_now_add=True)
-    metadata = models.JSONField(default=dict, blank=True, help_text="Additional award context")
-    
-    class Meta:
-        unique_together = [['user', 'badge']]
-        ordering = ['-awarded_at']
-    
-    def __str__(self):
-        return f"{self.user.username} - {self.badge.name}"

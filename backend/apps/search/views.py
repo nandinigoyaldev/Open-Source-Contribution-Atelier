@@ -1,9 +1,28 @@
 from django.contrib.postgres.search import SearchQuery, SearchRank, TrigramSimilarity
 from rest_framework import generics
-from rest_framework.response import Response
+from rest_framework.permissions import AllowAny
 
-from .models import SearchDocument
-from .serializers import SearchDocumentSerializer
+from .models import SearchAnalytics, SearchDocument
+from .serializers import SearchAnalyticsSerializer, SearchDocumentSerializer
+
+
+class TrackSearchView(generics.CreateAPIView):
+    queryset = SearchAnalytics.objects.all()
+    serializer_class = SearchAnalyticsSerializer
+    permission_classes = [AllowAny]
+
+    def perform_create(self, serializer):
+        ip_address = self.get_client_ip()
+        serializer.save(
+            user=self.request.user if self.request.user.is_authenticated else None,
+            ip_address=ip_address,
+        )
+
+    def get_client_ip(self):
+        x_forwarded_for = self.request.META.get("HTTP_X_FORWARDED_FOR")
+        if x_forwarded_for:
+            return x_forwarded_for.split(",")[0].strip()
+        return self.request.META.get("REMOTE_ADDR")
 
 
 class UnifiedSearchView(generics.ListAPIView):
