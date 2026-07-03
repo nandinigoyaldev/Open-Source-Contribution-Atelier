@@ -20,12 +20,13 @@ import { Link, NavLink, useNavigate } from "react-router-dom";
 import { useTheme } from "../../hooks/useTheme";
 import { useAuth } from "../../features/auth/AuthContext";
 import { fetchLessonsApi } from "../../lib/lessons";
+import api from "../../api";
 import LogoutButtonWithConfirm from "./LogoutButtonWithConfirm";
 import { SyncStatusIndicator } from "../ui/SyncStatusIndicator";
 
 const navItems = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutGrid },
-  { to: "/lessons/intro", label: "Lessons", icon: BookOpen },
+  { to: "/lessons/what-is-open-source", label: "Lessons", icon: BookOpen },
   { to: "/challenges", label: "Challenges", icon: Trophy },
   { to: "/leaderboard", label: "Leaderboard", icon: TrendingUp },
   { to: "/community", label: "Community", icon: BriefcaseBusiness },
@@ -99,14 +100,20 @@ export function Navigation() {
             ch.summary.toLowerCase().includes(query),
         );
 
-        setSearchResults({
+        const results = {
           lessons: filteredLessons.map((l) => ({
             ...l,
             summary: l.description,
           })),
           challenges: filteredChallenges,
-        });
+        };
+        setSearchResults(results);
         setIsSearching(false);
+
+        const totalResults = results.lessons.length + results.challenges.length;
+        api
+          .post("/search/track/", { query, result_count: totalResults })
+          .catch(() => {});
       } else {
         setSearchResults(null);
       }

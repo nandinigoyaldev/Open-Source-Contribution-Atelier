@@ -316,3 +316,20 @@ class StreakProfile(models.Model):
 
     def __str__(self):
         return f"{self.user.username} - {self.current_streak} day streak"
+
+
+class LessonBookmark(models.Model):
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="bookmarks"
+    )
+    lesson = models.ForeignKey(
+        "content.Lesson", on_delete=models.CASCADE, related_name="bookmarks"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        unique_together = [("user", "lesson")]
+
+    def __str__(self):
+        return f"{self.user.username} - {self.lesson.slug}"

@@ -7,8 +7,9 @@ assignees: ''
 
 ---
 
-> Please checkmark if you are contributing under SSoC 2026:
+> Please checkmark if you are contributing under SSoC/ECSoC:
 - [ ] I am a SSoC26 contributor
+- [ ] I am an ECSoC26 contributor
 
 <!--
   IMPORTANT: Feature requests must propose a concrete improvement with clear acceptance criteria.

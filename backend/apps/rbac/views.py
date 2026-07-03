@@ -2,7 +2,16 @@ from django.contrib.auth.models import User
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from django.contrib.auth.models import User
+from .models import AuditLog, Permission, Role, UserRole
+from .serializers import (
+    AuditLogSerializer,
+    PermissionSerializer,
+    RoleSerializer,
+    UserRoleSerializer,
+)
+from .permissions import HasPermission, HasRole
+
+=======
 from .models import Permission, Role, UserRole, AuditLog
 from .serializers import (
     PermissionSerializer,
@@ -11,18 +20,7 @@ from .serializers import (
     AuditLogSerializer,
 )
 from .permissions import HasRole, HasPermission
-
-from .models import AuditLog, Permission, Role, UserRole
-from .permissions import HasPermission, HasRole
-from .serializers import (
-    AuditLogSerializer,
-    PermissionSerializer,
-    RoleSerializer,
-    UserRoleSerializer,
-)
-
-main
-
+>>>>>>> main
 
 class RoleListView(generics.ListAPIView):
     queryset = Role.objects.all()

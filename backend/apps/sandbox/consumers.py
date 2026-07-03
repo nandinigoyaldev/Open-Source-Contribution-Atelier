@@ -49,6 +49,34 @@ class SandboxConsumer(AsyncWebsocketConsumer):
 
                 await stream_python_execution(code, send_callback, user_id=user_id)
 
+            elif action == "execute_trace":
+                code = text_data_json.get("code")
+                from .services import run_code_trace
+                from .models import CodeExecutionTrace
+                from asgiref.sync import sync_to_async
+
+                user_id = "anonymous"
+                db_user = None
+                if self.scope.get("user") and getattr(self.scope["user"], "is_authenticated", False):
+                    user_id = str(self.scope["user"].id)
+                    db_user = self.scope["user"]
+
+                trace_events = await run_code_trace(code, user_id=user_id)
+
+                if trace_events and db_user:
+                    def save_trace():
+                        CodeExecutionTrace.objects.create(
+                            user=db_user,
+                            code=code,
+                            trace_events=trace_events
+                        )
+                    await sync_to_async(save_trace)()
+
+                await self.send(text_data=json.dumps({
+                    "action": "trace_result",
+                    "trace_events": trace_events
+                }))
+
             elif action == "debug_start":
                 code = text_data_json.get("code")
                 breakpoints = text_data_json.get("breakpoints", [])
@@ -169,6 +197,84 @@ class CollabConsumer(AsyncWebsocketConsumer):
                     "sender_channel_name": self.channel_name,
                 },
             )
+        elif text_data:
+            try:
+                data = json.loads(text_data)
+                action = data.get("action")
+                
+                from .models import CollabSession, CodeReviewThread, CodeReviewComment
+                from .serializers import CodeReviewThreadSerializer, CodeReviewCommentSerializer
+                from asgiref.sync import sync_to_async
+                
+                user = self.scope.get("user")
+                if not user or not user.is_authenticated:
+                    return # Only logged in users can comment
+
+                if action == "add_comment":
+                    thread_id = data.get("thread_id")
+                    line_number = data.get("line_number")
+                    content = data.get("content")
+                    
+                    if not content:
+                        return
+                    
+                    @sync_to_async
+                    def create_comment():
+                        session, _ = CollabSession.objects.get_or_create(id=self.room_id)
+                        if thread_id:
+                            thread = CodeReviewThread.objects.get(id=thread_id)
+                        else:
+                            thread = CodeReviewThread.objects.create(session=session, line_number=line_number)
+                        
+                        comment = CodeReviewComment.objects.create(thread=thread, user=user, content=content)
+                        return thread, comment
+                    
+                    thread, comment = await create_comment()
+                    
+                    @sync_to_async
+                    def serialize_thread():
+                        return CodeReviewThreadSerializer(thread).data
+                    
+                    thread_data = await serialize_thread()
+                    
+                    await self.channel_layer.group_send(
+                        self.room_group_name,
+                        {
+                            "type": "collab_text_message",
+                            "text_data": json.dumps({
+                                "action": "thread_updated",
+                                "thread": thread_data
+                            }),
+                            "sender_channel_name": self.channel_name,
+                        },
+                    )
+                
+                elif action == "resolve_thread":
+                    thread_id = data.get("thread_id")
+                    
+                    @sync_to_async
+                    def resolve_thread():
+                        thread = CodeReviewThread.objects.get(id=thread_id)
+                        thread.is_resolved = True
+                        thread.save()
+                        return CodeReviewThreadSerializer(thread).data
+                    
+                    thread_data = await resolve_thread()
+                    
+                    await self.channel_layer.group_send(
+                        self.room_group_name,
+                        {
+                            "type": "collab_text_message",
+                            "text_data": json.dumps({
+                                "action": "thread_updated",
+                                "thread": thread_data
+                            }),
+                            "sender_channel_name": self.channel_name,
+                        },
+                    )
+
+            except Exception as e:
+                print("Error in CollabConsumer receive:", e)
 
     async def collab_message(self, event):
         bytes_data = event.get("bytes_data")
@@ -176,3 +282,7 @@ class CollabConsumer(AsyncWebsocketConsumer):
 
         if self.channel_name != sender_channel_name:
             await self.send(bytes_data=bytes_data)
+
+    async def collab_text_message(self, event):
+        text_data = event.get("text_data")
+        await self.send(text_data=text_data)

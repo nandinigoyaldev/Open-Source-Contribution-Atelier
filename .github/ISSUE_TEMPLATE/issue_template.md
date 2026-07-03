@@ -23,8 +23,9 @@
 <!-- Screenshots, logs, links to related issues/PRs, etc. -->
 
 ---
-> Please checkmark if you are contributing under SSoC 2026:
+> Please checkmark if you are contributing under SSoC/ECSoC:
 - [ ] I am a SSoC26 contributor
+- [ ] I am an ECSoC26 contributor
 ### Program Tags (Admin Projects)
 - [ ] `ECSOC`  <!-- Elite Coders Summer of Code -->
 - [ ] `SSOC`   <!-- Summer of Code (other program) -->
