@@ -164,3 +164,76 @@ export async function fetchApi(endpoint: string, options: RequestOptions = {}) {
     throw error;
   }
 }
+
+export interface CodeSnapshot {
+  id: number;
+  user: number;
+  code: string;
+  timestamp: string;
+  label: string;
+  is_auto: boolean;
+}
+
+export async function fetchSandboxSnapshots(): Promise<CodeSnapshot[]> {
+  return fetchApi("/sandbox/snapshots/", { method: "GET" });
+}
+
+export async function saveSandboxSnapshot(
+  code: string,
+  label: string = "",
+  is_auto: boolean = true
+): Promise<CodeSnapshot> {
+  return fetchApi("/sandbox/snapshots/", {
+    method: "POST",
+    body: JSON.stringify({ code, label, is_auto }),
+  });
+}
+
+export interface ProjectFile {
+  id: string;
+  project: string;
+  path: string;
+  content: string;
+  language: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Project {
+  id: string;
+  user: number;
+  name: string;
+  files: ProjectFile[];
+  created_at: string;
+  updated_at: string;
+}
+
+export async function fetchProjects(): Promise<Project[]> {
+  return fetchApi("/sandbox/projects/", { method: "GET" });
+}
+
+export async function createProject(name: string): Promise<Project> {
+  return fetchApi("/sandbox/projects/", {
+    method: "POST",
+    body: JSON.stringify({ name }),
+  });
+}
+
+export async function createProjectFile(project: string, path: string, content: string = "", language: string = "javascript"): Promise<ProjectFile> {
+  return fetchApi("/sandbox/files/", {
+    method: "POST",
+    body: JSON.stringify({ project, path, content, language }),
+  });
+}
+
+export async function updateProjectFile(fileId: string, updates: Partial<ProjectFile>): Promise<ProjectFile> {
+  return fetchApi(`/sandbox/files/${fileId}/`, {
+    method: "PATCH",
+    body: JSON.stringify(updates),
+  });
+}
+
+export async function deleteProjectFile(fileId: string): Promise<void> {
+  return fetchApi(`/sandbox/files/${fileId}/`, { method: "DELETE" });
+}
+

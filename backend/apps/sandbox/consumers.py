@@ -49,6 +49,34 @@ class SandboxConsumer(AsyncWebsocketConsumer):
 
                 await stream_python_execution(code, send_callback, user_id=user_id)
 
+            elif action == "execute_trace":
+                code = text_data_json.get("code")
+                from .services import run_code_trace
+                from .models import CodeExecutionTrace
+                from asgiref.sync import sync_to_async
+
+                user_id = "anonymous"
+                db_user = None
+                if self.scope.get("user") and getattr(self.scope["user"], "is_authenticated", False):
+                    user_id = str(self.scope["user"].id)
+                    db_user = self.scope["user"]
+
+                trace_events = await run_code_trace(code, user_id=user_id)
+
+                if trace_events and db_user:
+                    def save_trace():
+                        CodeExecutionTrace.objects.create(
+                            user=db_user,
+                            code=code,
+                            trace_events=trace_events
+                        )
+                    await sync_to_async(save_trace)()
+
+                await self.send(text_data=json.dumps({
+                    "action": "trace_result",
+                    "trace_events": trace_events
+                }))
+
             elif action == "debug_start":
                 code = text_data_json.get("code")
                 breakpoints = text_data_json.get("breakpoints", [])

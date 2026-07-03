@@ -208,3 +208,48 @@ async def start_debug_session(code: str, breakpoints: list):
     )
 
     return process, path
+
+
+async def run_code_trace(code: str, user_id: str = "anonymous", timeout: int = 10):
+    """
+    Runs the tracer script on the provided code and returns the parsed JSON trace array.
+    """
+    fd, path = tempfile.mkstemp(suffix=".py")
+    with os.fdopen(fd, "w") as f:
+        f.write(code)
+
+    trace_script = os.path.join(os.path.dirname(__file__), "trace_script.py")
+
+    process = await asyncio.create_subprocess_exec(
+        sys.executable,
+        trace_script,
+        path,
+        stdout=asyncio.subprocess.PIPE,
+        stderr=asyncio.subprocess.PIPE,
+    )
+
+    try:
+        stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=timeout)
+        if process.returncode == 0:
+            try:
+                return json.loads(stdout.decode("utf-8"))
+            except json.JSONDecodeError:
+                return []
+        else:
+            # Handle compilation errors emitted by the tracer
+            try:
+                return json.loads(stdout.decode("utf-8"))
+            except:
+                return []
+    except asyncio.TimeoutError:
+        try:
+            process.kill()
+        except ProcessLookupError:
+            pass
+        return []
+    finally:
+        if os.path.exists(path):
+            try:
+                os.remove(path)
+            except Exception:
+                pass

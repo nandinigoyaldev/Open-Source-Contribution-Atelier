@@ -95,3 +95,100 @@ class CollabSessionLog(models.Model):
         return (
             f"{username} {self.action} session {self.session_id} at {self.created_at}"
         )
+
+
+class CodeSnapshot(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="code_snapshots",
+        help_text="The user who created this snapshot.",
+    )
+    code = models.TextField(help_text="The snapshot code content.")
+    timestamp = models.DateTimeField(
+        auto_now_add=True, help_text="When the snapshot was created."
+    )
+    label = models.CharField(
+        max_length=255, blank=True, help_text="Optional label/bookmark name."
+    )
+    is_auto = models.BooleanField(
+        default=True, help_text="Whether this was an auto-save."
+    )
+
+    class Meta:
+        ordering = ["-timestamp"]
+
+    def __str__(self):
+        return f"Snapshot by {self.user} at {self.timestamp}"
+
+class Project(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="sandbox_projects",
+        help_text="The user who owns this project.",
+    )
+    name = models.CharField(max_length=255, help_text="The name of the project.")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-updated_at"]
+
+    def __str__(self):
+        return f"Project {self.name} by {self.user}"
+
+
+class ProjectFile(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    project = models.ForeignKey(
+        Project,
+        on_delete=models.CASCADE,
+        related_name="files",
+        help_text="The project this file belongs to.",
+    )
+    path = models.CharField(
+        max_length=1024,
+        help_text="The full file path within the project (e.g., src/index.js).",
+    )
+    content = models.TextField(blank=True, help_text="The code content of the file.")
+    language = models.CharField(
+        max_length=50, default="javascript", help_text="The language of the file."
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["path"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["project", "path"], name="unique_project_file_path"
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.path} ({self.project.name})"
+
+
+class CodeExecutionTrace(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="execution_traces",
+        help_text="The user who ran this code.",
+        null=True,
+        blank=True
+    )
+    code = models.TextField(help_text="The code that was traced.")
+    trace_events = models.JSONField(help_text="Array of trace event snapshots.")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        username = self.user.get_username() if self.user else "Anonymous"
+        return f"Trace by {username} at {self.created_at}"
+
