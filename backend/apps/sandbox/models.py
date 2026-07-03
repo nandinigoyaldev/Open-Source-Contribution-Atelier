@@ -121,6 +121,7 @@ class CodeSnapshot(models.Model):
     def __str__(self):
         return f"Snapshot by {self.user} at {self.timestamp}"
 
+
 class Project(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(
@@ -191,6 +192,7 @@ class CodeExecutionTrace(models.Model):
     def __str__(self):
         username = self.user.get_username() if self.user else "Anonymous"
         return f"Trace by {username} at {self.created_at}"
+
 
 
 class CodeReviewThread(models.Model):
