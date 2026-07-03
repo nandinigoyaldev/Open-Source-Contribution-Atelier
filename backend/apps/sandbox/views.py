@@ -88,3 +88,37 @@ class CodeReviewThreadViewSet(viewsets.ModelViewSet):
         if session_id is not None:
             queryset = queryset.filter(session_id=session_id)
         return queryset
+
+
+from .models import SnippetCollection, CodeSnippet
+from .serializers import SnippetCollectionSerializer, CodeSnippetSerializer
+
+class SnippetCollectionViewSet(viewsets.ModelViewSet):
+    serializer_class = SnippetCollectionSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return SnippetCollection.objects.filter(user=self.request.user)
+
+
+class CodeSnippetViewSet(viewsets.ModelViewSet):
+    serializer_class = CodeSnippetSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        queryset = CodeSnippet.objects.filter(user=self.request.user)
+        
+        # Filtering
+        collection_id = self.request.query_params.get('collection', None)
+        if collection_id is not None:
+            queryset = queryset.filter(collection_id=collection_id)
+            
+        is_favorite = self.request.query_params.get('is_favorite', None)
+        if is_favorite is not None:
+            queryset = queryset.filter(is_favorite=is_favorite.lower() == 'true')
+            
+        search = self.request.query_params.get('search', None)
+        if search:
+            queryset = queryset.filter(title__icontains=search)
+            
+        return queryset

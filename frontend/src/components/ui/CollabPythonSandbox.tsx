@@ -4,12 +4,13 @@ import * as Y from "yjs";
 import { WebsocketProvider } from "y-websocket";
 import { MonacoBinding } from "y-monaco";
 import randomColor from "randomcolor";
-import { Play, RotateCcw, CheckCircle2, XCircle, Share2, MessageSquare } from "lucide-react";
+import { Play, RotateCcw, CheckCircle2, XCircle, Share2, MessageSquare, Library } from "lucide-react";
 import { usePythonSandbox } from "../../hooks/usePythonSandbox";
 import { PythonExercise } from "../../lib/lessons";
 import { useAuth } from "../../features/auth/AuthContext";
 import { useCodeReviews } from "../../hooks/useCodeReviews";
 import { CodeReviewPanel } from "./CodeReviewPanel";
+import { SnippetLibraryModal } from "./SnippetLibraryModal";
 
 interface CollabPythonSandboxProps {
   exercise: PythonExercise;
@@ -31,6 +32,7 @@ export function CollabPythonSandbox({
   const { runPythonCode, isExecuting, isReady } = usePythonSandbox();
   const { user } = useAuth();
   
+  const [isLibraryOpen, setIsLibraryOpen] = useState(false);
   const { threads, addComment, resolveThread } = useCodeReviews(roomId);
   const [activeLine, setActiveLine] = useState<number | null>(null);
 
@@ -180,6 +182,14 @@ export function CollabPythonSandbox({
     alert("Collab Session link copied to clipboard!");
   };
 
+  const handleInsertSnippet = (code: string) => {
+    if (ydocRef.current) {
+      const type = ydocRef.current.getText("monaco");
+      // Append to end of document
+      type.insert(type.length, "\n" + code + "\n");
+    }
+  };
+
   return (
     <div className="flex flex-col gap-4 w-full border-4 border-black dark:border-[#2e2924] rounded-xl overflow-hidden bg-surface dark:bg-[#151411]">
       <div className="flex flex-wrap items-center justify-between p-4 border-b-4 border-black dark:border-[#2e2924] bg-white dark:bg-[#1f1c18] gap-4">
@@ -201,6 +211,12 @@ export function CollabPythonSandbox({
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => setIsLibraryOpen(true)}
+            className="flex items-center gap-2 px-3 py-1.5 text-sm font-bold border-2 border-black dark:border-[#2e2924] rounded-lg hover:bg-gray-100 dark:hover:bg-[#2e2924] transition-colors"
+          >
+            <Library className="w-4 h-4" /> Snippets
+          </button>
           <button
             onClick={copyShareLink}
             className="flex items-center gap-2 px-3 py-1.5 text-sm font-bold border-2 border-black dark:border-[#2e2924] rounded-lg hover:bg-black hover:text-white dark:hover:bg-[#f0ebe2] dark:hover:text-black transition-colors"
@@ -298,6 +314,12 @@ export function CollabPythonSandbox({
           </div>
         )}
       </div>
+
+      <SnippetLibraryModal 
+        isOpen={isLibraryOpen} 
+        onClose={() => setIsLibraryOpen(false)} 
+        onInsertCode={handleInsertSnippet} 
+      />
     </div>
   );
 }

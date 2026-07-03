@@ -1,5 +1,9 @@
 from rest_framework import serializers
-from .models import CodeSnapshot, Project, ProjectFile
+from .models import (
+    CodeSnapshot, Project, ProjectFile, 
+    CodeReviewThread, CodeReviewComment,
+    SnippetCollection, CodeSnippet
+)
 
 class CodeSnapshotSerializer(serializers.ModelSerializer):
     is_auto = serializers.BooleanField(default=True, required=False)
@@ -51,8 +55,6 @@ class UserBasicSerializer(serializers.ModelSerializer):
         model = User
         fields = ['id', 'username']
 
-from .models import CodeReviewThread, CodeReviewComment
-
 class CodeReviewCommentSerializer(serializers.ModelSerializer):
     user = UserBasicSerializer(read_only=True)
     
@@ -69,3 +71,28 @@ class CodeReviewThreadSerializer(serializers.ModelSerializer):
         fields = ['id', 'session', 'line_number', 'is_resolved', 'comments', 'created_at', 'updated_at']
         read_only_fields = ['id', 'created_at', 'updated_at']
 
+
+class SnippetCollectionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SnippetCollection
+        fields = ['id', 'user', 'name', 'description', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'user', 'created_at', 'updated_at']
+
+    def create(self, validated_data):
+        validated_data['user'] = self.context['request'].user
+        return super().create(validated_data)
+
+
+class CodeSnippetSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CodeSnippet
+        fields = [
+            'id', 'user', 'collection', 'title', 'description', 
+            'code', 'language', 'is_favorite', 'tags', 
+            'created_at', 'updated_at'
+        ]
+        read_only_fields = ['id', 'user', 'created_at', 'updated_at']
+
+    def create(self, validated_data):
+        validated_data['user'] = self.context['request'].user
+        return super().create(validated_data)

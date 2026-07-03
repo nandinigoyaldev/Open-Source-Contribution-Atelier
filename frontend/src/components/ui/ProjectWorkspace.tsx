@@ -5,12 +5,15 @@ import {
 } from '../../lib/api';
 import { ProjectExplorer } from './ProjectExplorer';
 import { CodeEditor } from './CodeEditor';
+import { SnippetLibraryModal } from './SnippetLibraryModal';
+import { Library } from 'lucide-react';
 
 export function ProjectWorkspace() {
   const [project, setProject] = useState<Project | null>(null);
   const [files, setFiles] = useState<ProjectFile[]>([]);
   const [activeFileId, setActiveFileId] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const [isLibraryOpen, setIsLibraryOpen] = useState(false);
 
   // Load project on mount
   useEffect(() => {
@@ -88,6 +91,20 @@ export function ProjectWorkspace() {
     });
   }, [activeFileId]);
 
+  const handleInsertSnippet = useCallback((code: string) => {
+    if (!activeFileId) return;
+    setFiles(prev => prev.map(f => {
+      if (f.id === activeFileId) {
+        const newContent = f.content + (f.content.endsWith('\n') ? '' : '\n') + code;
+        updateProjectFile(activeFileId, { content: newContent }).catch(err => {
+          console.error("Failed to save snippet insertion", err);
+        });
+        return { ...f, content: newContent };
+      }
+      return f;
+    }));
+  }, [activeFileId]);
+
   if (loading) {
     return <div className="h-full flex items-center justify-center text-gray-500">Loading Workspace...</div>;
   }
@@ -105,8 +122,14 @@ export function ProjectWorkspace() {
       <div className="flex-1 flex flex-col h-full bg-[#1e1e1e]">
         {activeFile ? (
           <>
-            <div className="flex items-center px-4 py-2 border-b border-gray-800 bg-[#252525]">
+            <div className="flex items-center justify-between px-4 py-2 border-b border-gray-800 bg-[#252525]">
               <span className="text-sm text-gray-300 font-mono">{activeFile.path}</span>
+              <button 
+                onClick={() => setIsLibraryOpen(true)}
+                className="flex items-center gap-2 px-2 py-1 text-xs font-bold text-gray-300 border border-gray-600 rounded hover:bg-gray-700 transition-colors"
+              >
+                <Library className="w-3 h-3" /> Snippets
+              </button>
             </div>
             <div className="flex-1 overflow-auto bg-[#151411]">
               <CodeEditor 
@@ -123,6 +146,12 @@ export function ProjectWorkspace() {
           </div>
         )}
       </div>
+
+      <SnippetLibraryModal 
+        isOpen={isLibraryOpen} 
+        onClose={() => setIsLibraryOpen(false)} 
+        onInsertCode={handleInsertSnippet} 
+      />
     </div>
   );
 }

@@ -259,3 +259,69 @@ export interface CodeReviewThread {
 export async function fetchCodeReviewThreads(sessionId: string): Promise<CodeReviewThread[]> {
   return fetchApi(`/sandbox/review-threads/?session=${sessionId}`, { method: "GET" });
 }
+
+// ---------------------- SNIPPET LIBRARY ----------------------
+
+export interface SnippetCollection {
+  id: string;
+  user: number;
+  name: string;
+  description: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CodeSnippet {
+  id: string;
+  user: number;
+  collection: string | null;
+  title: string;
+  description: string;
+  code: string;
+  language: string;
+  is_favorite: boolean;
+  tags: string[];
+  created_at: string;
+  updated_at: string;
+}
+
+export async function fetchSnippetCollections(): Promise<SnippetCollection[]> {
+  return fetchApi("/sandbox/snippet-collections/", { method: "GET" });
+}
+
+export async function createSnippetCollection(data: Partial<SnippetCollection>): Promise<SnippetCollection> {
+  return fetchApi("/sandbox/snippet-collections/", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteSnippetCollection(id: string): Promise<void> {
+  return fetchApi(`/sandbox/snippet-collections/${id}/`, { method: "DELETE" });
+}
+
+export async function fetchSnippets(filters?: { collection?: string; search?: string; is_favorite?: boolean }): Promise<CodeSnippet[]> {
+  let url = "/sandbox/snippets/?";
+  if (filters?.collection) url += `collection=${filters.collection}&`;
+  if (filters?.search) url += `search=${filters.search}&`;
+  if (filters?.is_favorite !== undefined) url += `is_favorite=${filters.is_favorite}&`;
+  return fetchApi(url, { method: "GET" });
+}
+
+export async function createSnippet(data: Partial<CodeSnippet>): Promise<CodeSnippet> {
+  return fetchApi("/sandbox/snippets/", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function updateSnippet(id: string, updates: Partial<CodeSnippet>): Promise<CodeSnippet> {
+  return fetchApi(`/sandbox/snippets/${id}/`, {
+    method: "PATCH",
+    body: JSON.stringify(updates),
+  });
+}
+
+export async function deleteSnippet(id: string): Promise<void> {
+  return fetchApi(`/sandbox/snippets/${id}/`, { method: "DELETE" });
+}
