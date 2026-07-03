@@ -266,3 +266,33 @@ class CodeSnippet(models.Model):
     def __str__(self):
         return self.title
 
+class TerminalSession(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="terminal_sessions", null=True, blank=True)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="terminal_sessions")
+    name = models.CharField(max_length=255, default="Terminal")
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["created_at"]
+
+    def __str__(self):
+        return f"Terminal {self.name} for {self.user}"
+
+class TerminalCommand(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    session = models.ForeignKey(TerminalSession, on_delete=models.CASCADE, related_name="commands")
+    command = models.TextField(blank=True)
+    output = models.TextField(blank=True, null=True)
+    is_error = models.BooleanField(default=False)
+    execution_time = models.FloatField(default=0.0, help_text="Time taken in milliseconds")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["created_at"]
+
+    def __str__(self):
+        cmd_preview = (self.command[:47] + "...") if len(self.command) > 50 else self.command
+        return f"Command in {self.session.id}: {cmd_preview}"

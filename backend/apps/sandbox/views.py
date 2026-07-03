@@ -124,3 +124,36 @@ class CodeSnippetViewSet(viewsets.ModelViewSet):
             
         return queryset
 
+from .models import TerminalSession, TerminalCommand
+from .serializers import TerminalSessionSerializer, TerminalCommandSerializer
+
+class TerminalSessionViewSet(viewsets.ModelViewSet):
+    serializer_class = TerminalSessionSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return TerminalSession.objects.filter(user=self.request.user)
+
+class TerminalCommandViewSet(viewsets.ModelViewSet):
+    serializer_class = TerminalCommandSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return TerminalCommand.objects.filter(session__user=self.request.user)
+
+    def perform_create(self, serializer):
+        command = serializer.validated_data.get('command', '')
+        # Mocking execution for now
+        output = f"Executed: {command}\n"
+        
+        import time
+        start = time.time()
+        
+        # Simple mock logic
+        if command.startswith('echo '):
+            output = command[5:] + "\n"
+        elif command.strip() == 'clear':
+            output = ""
+            
+        execution_time = (time.time() - start) * 1000
+        serializer.save(output=output, execution_time=execution_time)

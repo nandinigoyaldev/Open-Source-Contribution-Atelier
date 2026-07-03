@@ -96,3 +96,22 @@ class CodeSnippetSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         validated_data['user'] = self.context['request'].user
         return super().create(validated_data)
+from .models import TerminalSession, TerminalCommand
+
+class TerminalCommandSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TerminalCommand
+        fields = ['id', 'session', 'command', 'output', 'is_error', 'execution_time', 'created_at']
+        read_only_fields = ['id', 'created_at']
+
+class TerminalSessionSerializer(serializers.ModelSerializer):
+    commands = TerminalCommandSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = TerminalSession
+        fields = ['id', 'project', 'user', 'name', 'is_active', 'commands', 'created_at', 'updated_at']
+        read_only_fields = ['id', 'user', 'created_at', 'updated_at']
+
+    def create(self, validated_data):
+        validated_data['user'] = self.context['request'].user
+        return super().create(validated_data)

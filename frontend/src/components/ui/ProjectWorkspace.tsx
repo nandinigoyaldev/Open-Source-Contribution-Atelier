@@ -6,6 +6,7 @@ import {
 import { ProjectExplorer } from './ProjectExplorer';
 import { CodeEditor } from './CodeEditor';
 import { SnippetLibraryModal } from './SnippetLibraryModal';
+import { TerminalWorkspace } from './Terminal';
 import { Library } from 'lucide-react';
 
 export function ProjectWorkspace() {
@@ -141,10 +142,13 @@ export function ProjectWorkspace() {
             </div>
           </>
         ) : (
-          <div className="h-full flex items-center justify-center text-gray-500">
+          <div className="flex-1 flex items-center justify-center text-gray-500">
             Select a file to edit
           </div>
         )}
+        <div className="h-1/3 min-h-[250px] max-h-[50%] flex flex-col border-t border-gray-800">
+          <TerminalWorkspace projectId={project?.id} />
+        </div>
       </div>
 
       <SnippetLibraryModal 
