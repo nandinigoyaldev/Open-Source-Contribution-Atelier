@@ -95,3 +95,28 @@ class CollabSessionLog(models.Model):
         return (
             f"{username} {self.action} session {self.session_id} at {self.created_at}"
         )
+
+
+class CodeSnapshot(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="code_snapshots",
+        help_text="The user who created this snapshot.",
+    )
+    code = models.TextField(help_text="The snapshot code content.")
+    timestamp = models.DateTimeField(
+        auto_now_add=True, help_text="When the snapshot was created."
+    )
+    label = models.CharField(
+        max_length=255, blank=True, help_text="Optional label/bookmark name."
+    )
+    is_auto = models.BooleanField(
+        default=True, help_text="Whether this was an auto-save."
+    )
+
+    class Meta:
+        ordering = ["-timestamp"]
+
+    def __str__(self):
+        return f"Snapshot by {self.user} at {self.timestamp}"

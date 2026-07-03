@@ -164,3 +164,27 @@ export async function fetchApi(endpoint: string, options: RequestOptions = {}) {
     throw error;
   }
 }
+
+export interface CodeSnapshot {
+  id: number;
+  user: number;
+  code: string;
+  timestamp: string;
+  label: string;
+  is_auto: boolean;
+}
+
+export async function fetchSandboxSnapshots(): Promise<CodeSnapshot[]> {
+  return fetchApi("/sandbox/snapshots/", { method: "GET" });
+}
+
+export async function saveSandboxSnapshot(
+  code: string,
+  label: string = "",
+  is_auto: boolean = true
+): Promise<CodeSnapshot> {
+  return fetchApi("/sandbox/snapshots/", {
+    method: "POST",
+    body: JSON.stringify({ code, label, is_auto }),
+  });
+}
