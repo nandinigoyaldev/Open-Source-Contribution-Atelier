@@ -18,6 +18,7 @@ from .models import (
     Certificate,
     ExerciseAttempt,
     HelpRequest,
+    LessonBookmark,
     LessonProgress,
     QuizAttempt,
 )
@@ -859,3 +860,34 @@ class PeerReviewView(APIView):
                         submission.save(update_fields=["status"])
                 return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+class LessonBookmarkView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, slug=None):
+        bookmarks = LessonBookmark.objects.filter(user=request.user).select_related("lesson")
+        data = [
+            {
+                "id": b.id,
+                "lesson": b.lesson.id,
+                "lesson_slug": b.lesson.slug,
+                "lesson_title": b.lesson.title,
+                "lesson_difficulty": b.lesson.difficulty,
+                "lesson_category": getattr(b.lesson, "category", ""),
+                "lesson_estimated_minutes": b.lesson.estimated_minutes,
+                "lesson_summary": getattr(b.lesson, "summary", ""),
+                "created_at": b.created_at.isoformat(),
+            }
+            for b in bookmarks
+        ]
+        return Response(data)
+
+    def post(self, request, slug=None):
+        lesson = get_object_or_404(Lesson, slug=slug)
+        bookmark, created = LessonBookmark.objects.get_or_create(user=request.user, lesson=lesson)
+        return Response({"status": "added"}, status=status.HTTP_201_CREATED if created else status.HTTP_200_OK)
+
+    def delete(self, request, slug=None):
+        bookmark = get_object_or_404(LessonBookmark, user=request.user, lesson__slug=slug)
+        bookmark.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)

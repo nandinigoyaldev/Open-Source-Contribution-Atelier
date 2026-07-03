@@ -236,3 +236,4 @@ export async function updateProjectFile(fileId: string, updates: Partial<Project
 export async function deleteProjectFile(fileId: string): Promise<void> {
   return fetchApi(`/sandbox/files/${fileId}/`, { method: "DELETE" });
 }
+

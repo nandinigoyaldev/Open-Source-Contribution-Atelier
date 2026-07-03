@@ -64,6 +64,7 @@ class ProjectFileViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         return ProjectFile.objects.filter(project__user=self.request.user)
 
+
 from .models import CodeExecutionTrace
 from .serializers import CodeExecutionTraceSerializer
 
@@ -73,3 +74,4 @@ class CodeExecutionTraceViewSet(viewsets.ReadOnlyModelViewSet):
 
     def get_queryset(self):
         return CodeExecutionTrace.objects.filter(user=self.request.user)
+
