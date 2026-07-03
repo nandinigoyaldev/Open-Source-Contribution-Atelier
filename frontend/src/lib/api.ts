@@ -164,3 +164,165 @@ export async function fetchApi(endpoint: string, options: RequestOptions = {}) {
     throw error;
   }
 }
+
+export interface CodeSnapshot {
+  id: number;
+  user: number;
+  code: string;
+  timestamp: string;
+  label: string;
+  is_auto: boolean;
+}
+
+export async function fetchSandboxSnapshots(): Promise<CodeSnapshot[]> {
+  return fetchApi("/sandbox/snapshots/", { method: "GET" });
+}
+
+export async function saveSandboxSnapshot(
+  code: string,
+  label: string = "",
+  is_auto: boolean = true
+): Promise<CodeSnapshot> {
+  return fetchApi("/sandbox/snapshots/", {
+    method: "POST",
+    body: JSON.stringify({ code, label, is_auto }),
+  });
+}
+
+export interface ProjectFile {
+  id: string;
+  project: string;
+  path: string;
+  content: string;
+  language: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface Project {
+  id: string;
+  user: number;
+  name: string;
+  files: ProjectFile[];
+  created_at: string;
+  updated_at: string;
+}
+
+export async function fetchProjects(): Promise<Project[]> {
+  return fetchApi("/sandbox/projects/", { method: "GET" });
+}
+
+export async function createProject(name: string): Promise<Project> {
+  return fetchApi("/sandbox/projects/", {
+    method: "POST",
+    body: JSON.stringify({ name }),
+  });
+}
+
+export async function createProjectFile(project: string, path: string, content: string = "", language: string = "javascript"): Promise<ProjectFile> {
+  return fetchApi("/sandbox/files/", {
+    method: "POST",
+    body: JSON.stringify({ project, path, content, language }),
+  });
+}
+
+export async function updateProjectFile(fileId: string, updates: Partial<ProjectFile>): Promise<ProjectFile> {
+  return fetchApi(`/sandbox/files/${fileId}/`, {
+    method: "PATCH",
+    body: JSON.stringify(updates),
+  });
+}
+
+export async function deleteProjectFile(fileId: string): Promise<void> {
+  return fetchApi(`/sandbox/files/${fileId}/`, { method: "DELETE" });
+}
+
+export interface CodeReviewComment {
+  id: string;
+  thread: string;
+  user: { id: number; username: string };
+  content: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CodeReviewThread {
+  id: string;
+  session: string;
+  line_number: number;
+  is_resolved: boolean;
+  comments: CodeReviewComment[];
+  created_at: string;
+  updated_at: string;
+}
+
+export async function fetchCodeReviewThreads(sessionId: string): Promise<CodeReviewThread[]> {
+  return fetchApi(`/sandbox/review-threads/?session=${sessionId}`, { method: "GET" });
+}
+
+// ---------------------- SNIPPET LIBRARY ----------------------
+
+export interface SnippetCollection {
+  id: string;
+  user: number;
+  name: string;
+  description: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CodeSnippet {
+  id: string;
+  user: number;
+  collection: string | null;
+  title: string;
+  description: string;
+  code: string;
+  language: string;
+  is_favorite: boolean;
+  tags: string[];
+  created_at: string;
+  updated_at: string;
+}
+
+export async function fetchSnippetCollections(): Promise<SnippetCollection[]> {
+  return fetchApi("/sandbox/snippet-collections/", { method: "GET" });
+}
+
+export async function createSnippetCollection(data: Partial<SnippetCollection>): Promise<SnippetCollection> {
+  return fetchApi("/sandbox/snippet-collections/", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function deleteSnippetCollection(id: string): Promise<void> {
+  return fetchApi(`/sandbox/snippet-collections/${id}/`, { method: "DELETE" });
+}
+
+export async function fetchSnippets(filters?: { collection?: string; search?: string; is_favorite?: boolean }): Promise<CodeSnippet[]> {
+  let url = "/sandbox/snippets/?";
+  if (filters?.collection) url += `collection=${filters.collection}&`;
+  if (filters?.search) url += `search=${filters.search}&`;
+  if (filters?.is_favorite !== undefined) url += `is_favorite=${filters.is_favorite}&`;
+  return fetchApi(url, { method: "GET" });
+}
+
+export async function createSnippet(data: Partial<CodeSnippet>): Promise<CodeSnippet> {
+  return fetchApi("/sandbox/snippets/", {
+    method: "POST",
+    body: JSON.stringify(data),
+  });
+}
+
+export async function updateSnippet(id: string, updates: Partial<CodeSnippet>): Promise<CodeSnippet> {
+  return fetchApi(`/sandbox/snippets/${id}/`, {
+    method: "PATCH",
+    body: JSON.stringify(updates),
+  });
+}
+
+export async function deleteSnippet(id: string): Promise<void> {
+  return fetchApi(`/sandbox/snippets/${id}/`, { method: "DELETE" });
+}
+
