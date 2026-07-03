@@ -20,7 +20,6 @@ export function CoverUploadDropzone({
 
   useEffect(() => {
     if (currentCoverUrl && !previewUrl) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setPreviewUrl(currentCoverUrl);
     }
   }, [currentCoverUrl, previewUrl]);

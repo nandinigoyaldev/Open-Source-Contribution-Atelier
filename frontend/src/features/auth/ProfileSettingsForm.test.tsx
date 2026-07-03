@@ -48,11 +48,6 @@ vi.mock("../../hooks/useWebPush", () => ({
   }),
 }));
 
-function submitForm() {
-  const form = document.querySelector("form")!;
-  fireEvent.submit(form);
-}
-
 describe("ProfileSettingsForm Edge Cases", () => {
   beforeEach(() => {
     vi.clearAllMocks();

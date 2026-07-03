@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from django.contrib.auth.models import User
 from django.db import transaction
 from django.db.models import Count, Min, Sum
@@ -5,6 +7,7 @@ from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import OpenApiResponse, extend_schema, extend_schema_view
 from rest_framework import permissions, status
 from rest_framework.generics import ListAPIView
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import BasePermission
 from rest_framework.response import Response
 from rest_framework.throttling import AnonRateThrottle
@@ -16,11 +19,13 @@ from apps.content.serializers import LessonSerializer
 from .models import (
     Badge,
     Certificate,
+    CodeSubmission,
     ExerciseAttempt,
     HelpRequest,
     LessonBookmark,
     LessonProgress,
     QuizAttempt,
+    UserBadge,
 )
 from .serializers import (
     BadgeSerializer,
@@ -345,7 +350,9 @@ class BulkProgressUpdateView(APIView):
 
                 from django_q.tasks import async_task
 
-                async_task("apps.progress.tasks.evaluate_user_badges_task", request.user.id)
+                async_task(
+                    "apps.progress.tasks.evaluate_user_badges_task", request.user.id
+                )
 
         except ValueError as ve:
             return Response(
@@ -385,9 +392,128 @@ class BulkProgressUpdateView(APIView):
         )
 
 
+class CommunityFeedPagination(PageNumberPagination):
+    page_size = 20
+    page_size_query_param = "page_size"
+    max_page_size = 50
+
+
 @extend_schema(
     responses=OpenApiResponse(
-        description="Community stats summary JSON: active_contributors, merged_prs, response_sla, open_requests"
+        description="Paginated community activity feed combining help requests, code submissions, badges, and lesson completions."
+    )
+)
+class CommunityFeedView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        org = request.user.organization
+        user_ids = (
+            User.objects.filter(
+                profile__organization=org,
+                is_active=True,
+            )
+            if org
+            else User.objects.filter(is_active=True)
+        ).values_list("id", flat=True)
+
+        help_requests = (
+            HelpRequest.objects.filter(
+                user_id__in=user_ids,
+            )
+            .select_related("user", "lesson")
+            .order_by("-created_at")[:200]
+        )
+
+        code_submissions = (
+            CodeSubmission.objects.filter(
+                user_id__in=user_ids,
+            )
+            .select_related("user", "exercise")
+            .order_by("-created_at")[:200]
+        )
+
+        badges = (
+            UserBadge.objects.filter(
+                user_id__in=user_ids,
+            )
+            .select_related("user", "badge")
+            .order_by("-earned_at")[:200]
+        )
+
+        lesson_progress = (
+            LessonProgress.objects.filter(
+                user_id__in=user_ids,
+                completed=True,
+            )
+            .select_related("user", "lesson")
+            .order_by("-updated_at")[:200]
+        )
+
+        entries = []
+
+        for hr in help_requests:
+            entries.append(
+                {
+                    "id": f"hr_{hr.id}",
+                    "type": "help_request",
+                    "user_id": hr.user_id,
+                    "username": hr.user.username,
+                    "title": f"asked for help on {hr.lesson.title}",
+                    "description": hr.message[:200],
+                    "created_at": hr.created_at.isoformat(),
+                }
+            )
+
+        for cs in code_submissions:
+            entries.append(
+                {
+                    "id": f"cs_{cs.id}",
+                    "type": "code_submission",
+                    "user_id": cs.user_id,
+                    "username": cs.user.username,
+                    "title": f"submitted code — {cs.title}",
+                    "description": cs.description[:200] if cs.description else "",
+                    "created_at": cs.created_at.isoformat(),
+                }
+            )
+
+        for ub in badges:
+            entries.append(
+                {
+                    "id": f"bd_{ub.id}",
+                    "type": "badge_earned",
+                    "user_id": ub.user_id,
+                    "username": ub.user.username,
+                    "title": f"earned badge — {ub.badge.name}",
+                    "description": ub.badge.description,
+                    "created_at": ub.earned_at.isoformat(),
+                }
+            )
+
+        for lp in lesson_progress:
+            entries.append(
+                {
+                    "id": f"lp_{lp.id}",
+                    "type": "lesson_completed",
+                    "user_id": lp.user_id,
+                    "username": lp.user.username,
+                    "title": f"completed lesson — {lp.lesson.title}",
+                    "description": f"Scored {lp.score} points",
+                    "created_at": lp.updated_at.isoformat(),
+                }
+            )
+
+        entries.sort(key=lambda e: e["created_at"], reverse=True)
+
+        paginator = CommunityFeedPagination()
+        page = paginator.paginate_queryset(entries, request)
+        return paginator.get_paginated_response(page)
+
+
+@extend_schema(
+    responses=OpenApiResponse(
+        description="Community stats: active_contributors, merged_prs, response_sla, open_requests"
     )
 )
 class CommunityStatsView(APIView):

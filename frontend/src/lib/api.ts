@@ -326,3 +326,4 @@ export async function updateSnippet(id: string, updates: Partial<CodeSnippet>): 
 export async function deleteSnippet(id: string): Promise<void> {
   return fetchApi(`/sandbox/snippets/${id}/`, { method: "DELETE" });
 }
+

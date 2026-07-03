@@ -176,7 +176,6 @@ export function DashboardPage() {
 
   useEffect(() => {
     if (isLoading) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setShowSkeleton(true);
       return;
     }
@@ -268,7 +267,6 @@ export function DashboardPage() {
     if (user && !user.is_staff) {
       const isBoarded = localStorage.getItem("atelier_onboarded");
       if (!isBoarded) {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
         setShowOnboarding(true);
       }
     }

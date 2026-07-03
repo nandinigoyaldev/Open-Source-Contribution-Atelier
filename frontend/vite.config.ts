@@ -40,12 +40,13 @@ export default defineConfig({
     dedupe: ["react", "react-dom", "react-i18next"],
   },
   test: {
-    workspace: [
+    projects: [
       {
         extends: true,
         test: {
           environment: "jsdom",
           setupFiles: "./src/test/setup.ts",
+          exclude: ["**/*.stories.{ts,tsx}", "**/*.stories.{js,jsx}"],
         },
       },
       {
@@ -61,5 +62,8 @@ export default defineConfig({
         },
       },
     ],
+    optimizeDeps: {
+      include: ["workbox-precaching", "workbox-routing", "workbox-strategies", "workbox-expiration"],
+    },
   },
 });

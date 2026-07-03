@@ -48,7 +48,6 @@ export function NotesWidget() {
     if (encryptedNotes.length > 0) {
       decryptAll();
     } else {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setDecryptedNotes([]);
     }
   }, [encryptedNotes]);

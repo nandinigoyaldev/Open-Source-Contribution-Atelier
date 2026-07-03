@@ -12,6 +12,7 @@ from django.shortcuts import redirect
 from django.utils import timezone
 from django.utils.text import slugify
 from django_filters.rest_framework import DjangoFilterBackend
+from django_q.tasks import async_task
 from drf_spectacular.utils import OpenApiResponse, extend_schema, extend_schema_view
 from rest_framework import filters, generics, permissions, status
 from rest_framework.pagination import LimitOffsetPagination
@@ -42,7 +43,6 @@ from .tasks import (
     send_otp_email_task,
     send_password_reset_email_task,
 )
-from django_q.tasks import async_task
 from .throttles import (
     LoginThrottle,
     MagicLinkRequestThrottle,

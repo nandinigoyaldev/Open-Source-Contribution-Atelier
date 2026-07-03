@@ -11,16 +11,6 @@ from .serializers import (
 )
 from .permissions import HasPermission, HasRole
 
-=======
-from .models import Permission, Role, UserRole, AuditLog
-from .serializers import (
-    PermissionSerializer,
-    RoleSerializer,
-    UserRoleSerializer,
-    AuditLogSerializer,
-)
-from .permissions import HasRole, HasPermission
->>>>>>> main
 
 class RoleListView(generics.ListAPIView):
     queryset = Role.objects.all()

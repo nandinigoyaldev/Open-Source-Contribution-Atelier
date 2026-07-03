@@ -1,9 +1,9 @@
 import logging
 from datetime import timedelta
 
-from django_q.tasks import async_task
 from django.contrib.auth import get_user_model
 from django.utils import timezone
+from django_q.tasks import async_task
 
 from apps.progress.models import Badge, ExerciseAttempt, LessonProgress, UserBadge
 

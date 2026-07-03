@@ -3,15 +3,14 @@ from datetime import timedelta
 
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
+from django.db import transaction
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django.utils import timezone
-from django.db import transaction
 
 from .models import ExerciseAttempt, LessonProgress
 
 logger = logging.getLogger(__name__)
-
 
 
 def update_user_streak(user):
@@ -51,7 +50,6 @@ def update_user_streak(user):
                 "updated_at",
             ]
         )
-
 
 
 @receiver(post_save, sender=LessonProgress)
@@ -107,7 +105,9 @@ def on_lesson_completed(sender, instance, created, **kwargs):
         from django_q.tasks import async_task
 
         transaction.on_commit(
-            lambda: async_task("apps.progress.tasks.evaluate_achievements_task", instance.user.id)
+            lambda: async_task(
+                "apps.progress.tasks.evaluate_achievements_task", instance.user.id
+            )
         )
     except Exception as exc:
         logger.error("Failed to enqueue achievement evaluation: %s", exc)
@@ -126,7 +126,9 @@ def on_exercise_attempt(sender, instance, created, **kwargs):
             from django_q.tasks import async_task
 
             transaction.on_commit(
-                lambda: async_task("apps.progress.tasks.evaluate_achievements_task", instance.user.id)
+                lambda: async_task(
+                    "apps.progress.tasks.evaluate_achievements_task", instance.user.id
+                )
             )
         except Exception as exc:
             logger.error("Failed to evaluate achievements: %s", exc)

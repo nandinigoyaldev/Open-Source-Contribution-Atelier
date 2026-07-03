@@ -37,7 +37,6 @@ export function LandingPage() {
       "auth_error",
     );
     if (authError) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setError(authError);
       window.history.replaceState({}, "", window.location.pathname);
     }

@@ -11,6 +11,7 @@ import { Trophy, Award } from "lucide-react";
 import { useAuth } from "../features/auth/AuthContext";
 import { ResponsiveTable } from "../components/ui/ResponsiveTable";
 import { ChatContainer } from "../components/chat/ChatContainer";
+import { CommunityFeed } from "../components/community/CommunityFeed";
 
 export function CommunityPage() {
   const { user } = useAuth();
@@ -338,6 +339,8 @@ export function CommunityPage() {
           </div>
         </div>
       </div>
+
+      <CommunityFeed />
     </div>
   );
 }

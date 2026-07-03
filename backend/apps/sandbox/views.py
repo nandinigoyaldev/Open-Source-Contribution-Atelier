@@ -124,3 +124,4 @@ class CodeSnippetViewSet(viewsets.ModelViewSet):
             queryset = queryset.filter(title__icontains=search)
             
         return queryset
+

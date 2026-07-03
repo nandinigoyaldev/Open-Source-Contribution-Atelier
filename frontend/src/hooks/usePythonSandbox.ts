@@ -19,7 +19,6 @@ export function usePythonSandbox() {
     );
 
     // We assume it's ready pretty fast, but we could add a "READY" message if needed.
-    /* eslint-disable-next-line react-hooks/set-state-in-effect */
     setIsReady(true);
     return () => {
       if (workerRef.current) {
