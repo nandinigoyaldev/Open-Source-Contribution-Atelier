@@ -56,7 +56,7 @@ def bad_syntax()
         events = run_trace(code)
         self.assertEqual(len(events), 1)
         self.assertEqual(events[0]["event"], "error")
-        self.assertIn("expected", events[0]["error"])
+        self.assertIn("syntax", events[0]["error"].lower())
 
     def test_runtime_error(self):
         code = """
