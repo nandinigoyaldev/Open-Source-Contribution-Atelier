@@ -25,6 +25,7 @@
     "@xyflow/react": "^12.11.1",
     "axios": "^1.18.1",
     "clsx": "^2.1.1",
+    "cmdk": "^1.1.1",
     "dagre": "^0.8.5",
     "easymde": "^2.21.0",
     "framer-motion": "^12.42.2",
