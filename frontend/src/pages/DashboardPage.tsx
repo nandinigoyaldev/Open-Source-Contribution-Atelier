@@ -92,7 +92,7 @@ export function DashboardPage() {
 
   const { user } = useAuth();
   const { progress, isLessonCompleted } = useUserProgress();
-  const { bookmarks, isLoading: isLoadingBookmarks } = useBookmarks();
+  const { bookmarks, isLoading: isLoadingBookmarks, toggleBookmark } = useBookmarks();
 
   const [tourKey, setTourKey] = useState(0);
   const [showScrollTop, setShowScrollTop] = useState(false);
@@ -1017,10 +1017,24 @@ export function DashboardPage() {
                   <h3 className="font-black text-lg leading-tight dark:text-[#f0ebe2] pr-4">
                     {bookmark.lesson_title}
                   </h3>
-                  <Bookmark
-                    className="fill-primary text-primary shrink-0"
-                    size={20}
-                  />
+                  <button
+                    type="button"
+                    aria-label="Remove bookmark"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      toggleBookmark.mutate({
+                        slug: bookmark.lesson_slug,
+                        isBookmarked: true,
+                      });
+                    }}
+                    className="shrink-0"
+                  >
+                    <Bookmark
+                      className="fill-primary text-primary hover:opacity-60 transition-opacity"
+                      size={20}
+                    />
+                  </button>
                 </div>
                 <div className="flex justify-between items-center mt-auto pt-4">
                   <span className="font-black text-[10px] bg-black text-white px-2 py-0.5 rounded-full uppercase dark:bg-[#2e2924]">
