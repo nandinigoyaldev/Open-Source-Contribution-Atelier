@@ -105,8 +105,8 @@ jobs:
             const commentText = (comment.body || '').toLowerCase();
 
             if (isSsoc || isEcsoc) {
-              const mentionsSsoc = /\bssoc26?\b/.test(commentText);
-              const mentionsEcsoc = /\becsoc26?\b/.test(commentText);
+              const mentionsSsoc = /\b(ssoc|ssoc26|ssoc-26)\b/i.test(commentText);
+              const mentionsEcsoc = /\b(ecsoc|ecsoc26|ecsoc-26)\b/i.test(commentText);
 
               if (isSsoc && !mentionsSsoc) {
                 await octokit.rest.issues.createComment({
