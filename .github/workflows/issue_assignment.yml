@@ -1,0 +1,35 @@
+name: Issue Assignment Automation
+on:
+  issues:
+    types: [opened]
+  issue_comment:
+    types: [created]
+
+jobs:
+  assign-author:
+    if: github.event_name == 'issues' && github.event.action == 'opened'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Assign issue to author
+        uses: actions/assign@v2
+        with:
+          assignee: "${{ github.event.issue.user.login }}"
+
+  assign-first-commenter:
+    if: github.event_name == 'issue_comment' && github.event.action == 'created'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check existing assignees
+        id: check
+        run: |
+          ASSIGNEES=$(jq -r '.issue.assignees | length' <<< "$GITHUB_EVENT_PATH")
+          if [[ "$ASSIGNEES" -eq 0 ]]; then
+            echo "no_assignee=true" >> $GITHUB_OUTPUT
+          else
+            echo "no_assignee=false" >> $GITHUB_OUTPUT
+          fi
+      - name: Assign to first commenter (if no assignee yet)
+        if: steps.check.outputs.no_assignee == 'true'
+        uses: actions/assign@v2
+        with:
+          assignee: "${{ github.event.comment.user.login }}"
