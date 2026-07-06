@@ -1339,11 +1339,6 @@ export function DashboardPage() {
                 className="rounded-lg bg-white border-4 border-black px-6 py-3 font-black text-sm shadow-card-sm hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-card-sm cursor-pointer"
               >
                 Return to Dashboard
-              <button
-                onClick={() => setShowCertificate(false)}
-                className="rounded-lg bg-white border-4 border-black px-6 py-3 font-black text-sm shadow-card-sm hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-card-sm cursor-pointer"
-              >
-                Return to Dashboard
               </button>
             </div>
           </div>

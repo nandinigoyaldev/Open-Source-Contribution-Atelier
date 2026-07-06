@@ -10,13 +10,12 @@ import { transform } from "sucrase";
 import { instrumentJS } from "../lib/jsTracer";
 import { TraceEvent } from "../hooks/useTimelineEngine";
 
-self.addEventListener("message", async (event) => {
-  const { id, code, action } = event.data;
-
-  let output = "";
-  let error = null;
-  const traceEvents: TraceEvent[] = [];
-  let stepCounter = 0;
+interface WorkerMessage {
+  id: string;
+  code: string;
+  action?: 'execute_code' | 'execute_trace';
+  timeout?: number;
+}
 
 interface WorkerResponse {
   id: string;
@@ -29,6 +28,28 @@ interface WorkerResponse {
   message?: string;
 }
 
+self.addEventListener("message", async (event) => {
+  const { id, code, action } = event.data;
+
+  let output = "";
+  let error = null;
+  const traceEvents: TraceEvent[] = [];
+  let stepCounter = 0;
+
+  const intercept = () => {
+    return (...args: unknown[]) => {
+      const msg = args
+        .map((a) => {
+          if (a instanceof Error) {
+            return a.toString();
+          }
+          return typeof a === "object" ? JSON.stringify(a, null, 2) : String(a);
+        })
+        .join(" ");
+      output += `${msg}\n`;
+    };
+  };
+
   const customConsole = {
     log: intercept(),
     info: intercept(),
@@ -40,16 +61,16 @@ interface WorkerResponse {
     },
   };
 
-// ============================================================
-// Console Interceptor
-// ============================================================
+  try {
+    // 1. Transpile TS to JS using sucrase
+    const compiled = transform(code, { transforms: ["typescript"] }).code;
 
     if (action === "execute_trace") {
       // 2a. Instrument for tracing
       const instrumented = instrumentJS(compiled);
       
       const __trace = (line: number, locals: Record<string, unknown>) => {
-        // Only record the variable values, filtering out functions for cleaner display
+        // Variable values filter (no functions)
         const cleanLocals: Record<string, unknown> = {};
         for (const [key, val] of Object.entries(locals)) {
           if (typeof val !== "function" && val !== undefined) {
@@ -62,7 +83,7 @@ interface WorkerResponse {
           line,
           event: "line",
           locals: cleanLocals,
-          stdout: output, // capture stdout up to this point
+          stdout: output,
         });
       };
 
@@ -81,8 +102,6 @@ interface WorkerResponse {
       );
 
       await executionFn(customConsole, __trace);
-      
-      // Send back trace results instead of just string
       self.postMessage({ id, trace_events: traceEvents, error });
     } else {
       // 2b. Normal execution
@@ -105,7 +124,6 @@ interface WorkerResponse {
   } catch (err: unknown) {
     error = err instanceof Error ? err.toString() : String(err);
     if (action === "execute_trace") {
-      // Append the error to the last trace event if exists, or create one
       if (traceEvents.length > 0) {
         traceEvents[traceEvents.length - 1].error = error;
       } else {
@@ -125,10 +143,6 @@ interface WorkerResponse {
   }
 });
 
-// ============================================================
-// Error Handlers
-// ============================================================
-
 self.addEventListener('error', (error: ErrorEvent) => {
   self.postMessage({
     type: 'error',
@@ -142,9 +156,5 @@ self.addEventListener('unhandledrejection', (event: PromiseRejectionEvent) => {
     error: event.reason?.message || 'Unhandled promise rejection',
   } as WorkerResponse);
 });
-
-// ============================================================
-// Export for TypeScript
-// ============================================================
 
 export type { WorkerMessage, WorkerResponse };
