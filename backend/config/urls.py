@@ -88,13 +88,14 @@ from django.conf.urls.static import static
 if settings.DEBUG:
     from apps.feature_flags.debug_view import feature_flags_debug_view
 
-    path("api/organizations/", include("apps.organizations.urls")),
-    path("api/feature-flags/", include("apps.feature_flags.urls")),
-    path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
-    path(
-        "api/docs/",
-        SpectacularSwaggerView.as_view(url_name="schema"),
-        name="swagger-ui",
-    ),
-    path("graphql/", csrf_exempt(GraphQLView.as_view(graphiql=True))),
-]
+    urlpatterns += [
+        path("api/organizations/", include("apps.organizations.urls")),
+        path("api/feature-flags/", include("apps.feature_flags.urls")),
+        path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
+        path(
+            "api/docs/",
+            SpectacularSwaggerView.as_view(url_name="schema"),
+            name="swagger-ui",
+        ),
+        path("graphql/", csrf_exempt(GraphQLView.as_view(graphiql=True))),
+    ]

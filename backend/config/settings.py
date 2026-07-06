@@ -325,6 +325,9 @@ else:
         }
     }
 
+# Cache timeout for Search API (in seconds) - Default: 1 hour
+SEARCH_CACHE_TIMEOUT = 60 * 60
+
 # ──────────────────────────────────────────
 # Django-Q Configuration
 # ──────────────────────────────────────────
