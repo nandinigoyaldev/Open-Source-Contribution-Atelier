@@ -325,10 +325,7 @@ class PeerReview(models.Model):
 
 
 class StreakProfile(models.Model):
-    """
-    Tracks daily coding streaks for a user.
-    Updated via signals whenever a user completes an activity (Lesson, Exercise, etc.).
-    """
+    """Tracks daily coding streaks for a user."""
 
     user = models.OneToOneField(
         User, on_delete=models.CASCADE, related_name="streak_profile"
@@ -347,6 +344,73 @@ class StreakProfile(models.Model):
 
     def __str__(self):
         return f"{self.user.username} - {self.current_streak} day streak"
+
+
+class DailyActivity(models.Model):
+    """Deterministic ledger of meaningful user activity on a local date."""
+
+    class DoesNotExist(ObjectDoesNotExist):
+        pass
+
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="daily_activities")
+    date = models.DateField()
+    activity_type = models.CharField(max_length=64, null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["user", "date"], name="unique_user_daily_activity")
+        ]
+        indexes = [
+            models.Index(fields=["user", "date"], name="idx_daily_activity_user_date"),
+            models.Index(fields=["-date"], name="idx_daily_activity_date_desc"),
+        ]
+
+    def __str__(self):
+        return f"DailyActivity(user={self.user_id}, date={self.date}, type={self.activity_type})"
+
+    @classmethod
+    def log_and_update_streak(
+        cls, *, user: User, date, activity_type: str | None = None
+    ):
+        """Create a DailyActivity row for (user, date) if missing, then update streak.
+
+        Returns (created: bool, streak_profile: StreakProfile).
+        """
+        from django.db import transaction
+
+        # Ensure deterministic behavior under concurrency.
+        with transaction.atomic():
+            obj, created = cls.objects.get_or_create(
+                user=user,
+                date=date,
+                defaults={"activity_type": activity_type},
+            )
+
+            streak_profile, _ = StreakProfile.objects.get_or_create(user=user)
+
+            if created:
+                yesterday = date - timezone.timedelta(days=1)
+                yesterday_exists = cls.objects.filter(user=user, date=yesterday).exists()
+
+                if yesterday_exists:
+                    streak_profile.current_streak = streak_profile.current_streak + 1
+                else:
+                    streak_profile.current_streak = 1
+
+                streak_profile.last_activity_date = date
+                streak_profile.longest_streak = max(
+                    streak_profile.longest_streak, streak_profile.current_streak
+                )
+                streak_profile.save(update_fields=[
+                    "current_streak",
+                    "longest_streak",
+                    "last_activity_date",
+                    "updated_at",
+                ])
+
+            return created, streak_profile
+
 
 
 class LessonBookmark(models.Model):
