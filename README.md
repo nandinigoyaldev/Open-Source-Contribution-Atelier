@@ -1,10 +1,3 @@
-<div align="center">
-[![CI](https://github.com/nandinigoyaldev/Open-Source-Contribution-Atelier/actions/workflows/ci.yml/badge.svg)](https://github.com/nandinigoyaldev/Open-Source-Contribution-Atelier/actions/workflows/ci.yml)
-[![Dependabot](https://img.shields.io/badge/Dependabot-enabled-brightgreen?logo=dependabot)](https://github.com/nandinigoyaldev/Open-Source-Contribution-Atelier/network/updates)
-[![Release](https://img.shields.io/github/v/release/nandinigoyaldev/Open-Source-Contribution-Atelier?include_prereleases&label=release)](https://github.com/nandinigoyaldev/Open-Source-Contribution-Atelier/releases)
-[![Coverage](https://img.shields.io/coveralls/github/nandinigoyaldev/Open-Source-Contribution-Atelier?logo=coveralls)](https://coveralls.io/github/nandinigoyaldev/Open-Source-Contribution-Atelier)
-[![License](https://img.shields.io/github/license/nandinigoyaldev/Open-Source-Contribution-Atelier?style=for-the-badge)](https://github.com/nandinigoyaldev/Open-Source-Contribution-Atelier/blob/main/LICENSE)
-</div>
 
 <br />
 
