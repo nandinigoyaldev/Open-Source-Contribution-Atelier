@@ -1,5 +1,6 @@
 import requests
 from typing import Dict,Any,Optional
+from urllib.parse import urlparse
 from .auth import get_github_token
 
 class GithubService:
@@ -22,9 +23,27 @@ class GithubService:
             'Authorization': f'Bearer {self.token}',
             'Accept': 'application/vnd.github.v3+json',
         }
+
+    def _validate_endpoint(self, endpoint: str) -> None:
+        """Validate endpoint stays within github.com domain to prevent SSRF"""
+        # Remove leading slash and construct full URL
+        clean_endpoint = endpoint.lstrip('/')
+        full_url = f"{self.base_url}/{clean_endpoint}"
+        
+        # Parse and validate hostname
+        parsed = urlparse(full_url)
+        allowed_host = urlparse(self.base_url).netloc
+        
+        if parsed.netloc != allowed_host:
+            raise ValueError(
+                f"SSRF Protection: Endpoint must target {allowed_host}, got {parsed.netloc}"
+            )
     
     def make_request(self, method: str, endpoint: str, **kwargs) -> Dict[str, Any]:
         """Make a GitHub API request"""
+        # SECURITY: Validate endpoint before making request
+        self._validate_endpoint(endpoint)
+        
         url = f"{self.base_url}/{endpoint.lstrip('/')}"
         headers = self._get_headers()
         headers.update(kwargs.pop('headers', {}))
