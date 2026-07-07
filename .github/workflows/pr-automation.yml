@@ -1,0 +1,64 @@
+name: PR Automation
+
+on:
+  pull_request_target:
+    types: [opened, synchronize, reopened, edited]
+
+permissions:
+  issues: write
+  pull-requests: write
+  contents: read
+
+jobs:
+  pr-label-copy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Copy labels from referenced issue(s) and assign PR creator
+        id: pr_sync
+        uses: actions/github-script@v8
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const pr = context.payload.pull_request;
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+
+            // Fetch current PR details to avoid duplicates
+            const {data: currentPr} = await github.rest.pulls.get({owner, repo, pull_number: pr.number});
+            const currentLabels = new Set(currentPr.labels.map(l => l.name));
+            const currentAssignees = new Set(currentPr.assignees.map(a => a.login));
+
+            const issueNums = [...(pr.body || '').matchAll(/#(\d+)/g)].map(m => parseInt(m[1],10));
+            console.log(`Found referenced issue numbers: ${issueNums.join(', ')}`);
+
+            const allLabels = new Set();
+            for (const num of issueNums) {
+              try {
+                const {data: issue} = await github.rest.issues.get({owner, repo, issue_number: num});
+                issue.labels.forEach(l => allLabels.add(l.name));
+              } catch (e) { console.warn(`Could not fetch issue #${num}: ${e}`); }
+            }
+
+            const newLabels = Array.from(allLabels).filter(l => !currentLabels.has(l));
+            if (newLabels.length > 0) {
+              await github.rest.issues.addLabels({owner, repo, issue_number: pr.number, labels: newLabels});
+              console.log(`Added labels ${newLabels.join(', ')} to PR #${pr.number}`);
+            }
+
+            const creator = pr.user.login;
+            let assignedCreator = false;
+            if (creator !== owner && !currentAssignees.has(creator)) {
+              await github.rest.issues.addAssignees({owner, repo, issue_number: pr.number, assignees: [creator]});
+              console.log(`Assigned PR creator @${creator} to PR #${pr.number}`);
+              assignedCreator = true;
+            }
+
+            let commentBody = '';
+            if (newLabels.length > 0) commentBody += `🔖 Copied labels from referenced issue(s): ${newLabels.join(', ')}.\n`;
+            if (assignedCreator) commentBody += `👤 Assigned @${creator} as the PR owner.`;
+            if (commentBody) {
+              await github.rest.issues.createComment({owner, repo, issue_number: pr.number, body: commentBody});
+            }

@@ -1,0 +1,48 @@
+name: Welcome Issue Automation
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  welcome-issue:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Post welcome comment on new issue
+        uses: actions/github-script@v8
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const issue = context.payload.issue;
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            if (issue.user.login === owner) {
+              console.log('Owner opened issue; skipping welcome comment.');
+              return;
+            }
+            const commentBody = [
+              `## 👋 Welcome, @${issue.user.login}!`,
+              ``,
+              `Thanks for opening this issue on **Open Source Contribution Atelier**! We're glad to have you here. 🎉`,
+              ``,
+              `### 📌 Before you proceed, please read our pinned guides:`,
+              `| Guide | What it covers |`,
+              `|---|---|`,
+              `| [📋 How to Get Assigned](https://github.com/${owner}/${repo}/issues?q=is%3Aissue+is%3Aclosed+label%3Apinned+%22Guide%3A+How+to+get+SSoC%22) | You **must** comment with the keyword \`ssoc26\` or \`ecsoc26\` to be assigned |`,
+              `| [⚡ CI Checks on PRs](https://github.com/${owner}/${repo}/issues?q=is%3Aissue+is%3Aclosed+label%3Apinned+%22CI+Checks%22) | Your PR will be auto-tested against Vercel & Hugging Face builds |`,
+              `| [⏰ 3-Day Stale Rule](https://github.com/${owner}/${repo}/issues?q=is%3Aissue+is%3Aclosed+label%3Apinned+%223-Day%22) | Submit a PR or update within 3 days or lose the assignment |`,
+              ``,
+              `### 📚 Helpful Resources:`,
+              `- [Contribution Guide](https://github.com/${owner}/${repo}/blob/main/CONTRIBUTING.md)`,
+              `- [Code of Conduct](https://github.com/${owner}/${repo}/blob/main/.github/CODE_OF_CONDUCT.md)`,
+              ``,
+              `> **Tip:** Run \`npm run build\` in \`frontend/\` before submitting your PR to catch errors early! 🚀`,
+            ].join('\n');
+            await github.rest.issues.createComment({owner, repo, issue_number: issue.number, body: commentBody});

@@ -1,0 +1,71 @@
+name: Issue Comment Automation
+
+on:
+  issue_comment:
+    types: [created]
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  first-commenter-assignment:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Assign first commenter (if none already)
+        id: assigner
+        uses: actions/github-script@v8
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const comment = context.payload.comment;
+            const issue = context.payload.issue;
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+
+            const existingAssignees = issue.assignees.map(a => a.login);
+            const author = issue.user.login;
+            const commenter = comment.user.login;
+
+            if (commenter === author) { console.log('Commenter is the author – no reassignment.'); return; }
+
+            const hasNonAuthorAssignee = existingAssignees.some(a => a !== author);
+            if (hasNonAuthorAssignee) { console.log('Issue already has a non‑author assignee – nothing to do.'); return; }
+
+            // Extract issue labels to check what program it belongs to
+            const labels = issue.labels.map(l => l.name.toLowerCase());
+            const isSsoc = labels.includes('ssoc26');
+            const isEcsoc = labels.includes('ecsoc26');
+            
+            const commentText = (comment.body || '').toLowerCase();
+
+            if (isSsoc || isEcsoc) {
+              const mentionsSsoc = /\b(ssoc|ssoc26|ssoc-26)\b/i.test(commentText);
+              const mentionsEcsoc = /\b(ecsoc|ecsoc26|ecsoc-26)\b/i.test(commentText);
+
+              if (isSsoc && !mentionsSsoc) {
+                await github.rest.issues.createComment({
+                  owner,
+                  repo,
+                  issue_number: issue.number,
+                  body: `⚠️ @${commenter}, this issue is reserved for **SSoC 2026** contributors. To be assigned, please post a comment mentioning \`ssoc26\`.`
+                });
+                return;
+              }
+              if (isEcsoc && !mentionsEcsoc) {
+                await github.rest.issues.createComment({
+                  owner,
+                  repo,
+                  issue_number: issue.number,
+                  body: `⚠️ @${commenter}, this issue is reserved for **ECSoC 2026** contributors. To be assigned, please post a comment mentioning \`ecsoc26\`.`
+                });
+                return;
+              }
+            }
+
+            // If it passes check or has no specific labels, assign it
+            await github.rest.issues.addAssignees({owner, repo, issue_number: issue.number, assignees: [commenter]});
+            await github.rest.issues.createComment({owner, repo, issue_number: issue.number, body: `🛠️ @${commenter} has been **assigned** to this issue as the first responder.`});

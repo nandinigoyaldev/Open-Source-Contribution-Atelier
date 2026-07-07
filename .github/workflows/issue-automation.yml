@@ -1,0 +1,60 @@
+name: Issue Automation
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  issue-opened:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Add labels & assign author
+        id: automate
+        uses: actions/github-script@v8
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const issue = context.payload.issue;
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+
+            async function ensureLabel(name, color='c2e0c6', description='') {
+              try {
+                await github.rest.issues.getLabel({owner, repo, name});
+              } catch (e) {
+                await github.rest.issues.createLabel({owner, repo, name, color, description: description || 'Auto‑created by automation'});
+              }
+            }
+
+            const title = (issue.title || '').toLowerCase();
+            const body = (issue.body || '').toLowerCase();
+
+            const difficultyMap = [
+              {keyword:['easy','low','simple'], label:'easy', color:'84b6eb'},
+              {keyword:['medium','moderate','intermediate'], label:'medium', color:'f0b37e'},
+              {keyword:['hard','difficult','complex','high'], label:'hard', color:'f77f7f'}
+            ];
+
+            for (const entry of difficultyMap) {
+              if (entry.keyword.some(k => title.includes(k) || body.includes(k))) {
+                await ensureLabel(entry.label, entry.color, `Difficulty ${entry.label}`);
+                await github.rest.issues.addLabels({owner, repo, issue_number: issue.number, labels: [entry.label]});
+                break;
+              }
+            }
+
+            if (/\bssoc26?\b/i.test(body) || /\bssoc26?\b/i.test(title)) {
+              const ssocLabel = 'ssoc26';
+              await ensureLabel(ssocLabel, 'c5def5', 'SSOC/ECSOC participation');
+              await github.rest.issues.addLabels({owner, repo, issue_number: issue.number, labels: [ssocLabel]});
+            }
+
+            // Always assign the author of the issue as the assignee
+            await github.rest.issues.addAssignees({owner, repo, issue_number: issue.number, assignees: [issue.user.login]});
