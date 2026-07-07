@@ -25,9 +25,24 @@ def load_dotenv(dotenv_path: Path) -> None:
 
 load_dotenv(BASE_DIR / ".env")
 
-SECRET_KEY = os.getenv(
-    "SECRET_KEY", "django-insecure-dev-key-not-for-production-use-32bytes!!"
-)
+# SECURITY: Require SECRET_KEY in production. Only use insecure fallback in development.
+SECRET_KEY = os.getenv("SECRET_KEY")
+if not SECRET_KEY:
+    import warnings
+    if DEBUG:
+        # Only warn in debug mode - use an obviously fake key that won't work in production
+        warnings.warn(
+            "SECRET_KEY not set! Using insecure fallback for development only. "
+            "Set SECRET_KEY environment variable in production.",
+            RuntimeWarning
+        )
+        SECRET_KEY = "django-insecure-dev-only-not-for-production-32bytes!!"
+    else:
+        raise ValueError(
+            "SECRET_KEY environment variable must be set in production! "
+            "Generated key compromised or not configured."
+        )
+
 DEBUG = os.getenv("DEBUG", "False") == "True"
 ALLOWED_HOSTS = [
     host.strip()
