@@ -82,6 +82,7 @@ INSTALLED_APPS = [
     "apps.organizations",
     "apps.webhooks",
     "apps.notes",
+    "apps.cache.apps.CacheConfig",
     "apps.recommendations",
     "apps.rbac",
     "apps.uploads",
