@@ -2,6 +2,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.contrib.postgres.search import SearchVector
 
 from .models import SearchDocument
+from .utils import bump_search_cache_version
 
 
 def index_model_for_search(app_label, model_name, object_id, title, body_text):
@@ -27,6 +28,8 @@ def index_model_for_search(app_label, model_name, object_id, title, body_text):
         + SearchVector("body_text", weight="B")
     )
 
+    bump_search_cache_version()
+
 
 def remove_model_from_search(app_label, model_name, object_id):
     """
@@ -37,5 +40,6 @@ def remove_model_from_search(app_label, model_name, object_id):
         SearchDocument.objects.filter(
             content_type=content_type, object_id=object_id
         ).delete()
+        bump_search_cache_version()
     except ContentType.DoesNotExist:
         pass

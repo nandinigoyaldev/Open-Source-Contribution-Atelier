@@ -172,3 +172,49 @@ class SearchEngineEdgeCaseTests(TestCase):
         self.assertEqual(response.status_code, 200)
         # Even with HTML tags, Postgres FTS strips symbols, so "React" might match
         self.assertIsInstance(response.data, list)
+
+
+class SearchCachingTests(TestCase):
+    def setUp(self):
+        from apps.search.tests import _is_postgres
+        import unittest
+
+        if not _is_postgres():
+            raise unittest.SkipTest("PostgreSQL-only test")
+
+        from django.core.cache import cache
+
+        self.factory = RequestFactory()
+        self.view = UnifiedSearchView.as_view()
+        cache.clear()
+
+    def test_search_results_are_cached(self):
+        from django.core.cache import cache
+
+        request = self.factory.get("/api/search/", {"q": "React"})
+
+        # First call caches it
+        response1 = self.view(request)
+        self.assertEqual(response1.status_code, 200)
+
+        version = cache.get("search_api_version", 1)
+        cache_key = f"search_api:v{version}:q:React"
+
+        # Verify it is in cache
+        cached_data = cache.get(cache_key)
+        self.assertIsNotNone(cached_data)
+
+    def test_cache_version_bump(self):
+        from django.core.cache import cache
+        from apps.search.utils import bump_search_cache_version
+
+        request = self.factory.get("/api/search/", {"q": "React"})
+        self.view(request)
+
+        version1 = cache.get("search_api_version", 1)
+
+        # Simulating a model save
+        bump_search_cache_version()
+
+        version2 = cache.get("search_api_version", 1)
+        self.assertEqual(version2, version1 + 1)

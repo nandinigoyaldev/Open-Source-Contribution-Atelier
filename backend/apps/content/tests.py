@@ -163,3 +163,94 @@ def test_cascade_user_deletion_hard_deletes_comments():
     # it would update and hit IntegrityError due to missing user.
     # We must ensure it's deleted.
     assert Comment.all_objects.count() == 0
+
+
+from apps.content.utils import calculate_reading_time, strip_markdown
+
+
+def test_strip_markdown():
+    # Headers and basics
+    assert strip_markdown("# Header 1\n## Header 2\nBody text").split() == [
+        "Header",
+        "1",
+        "Header",
+        "2",
+        "Body",
+        "text",
+    ]
+
+    # Links and images
+    assert strip_markdown(
+        "Check out [Google](https://google.com) and ![alt](img.jpg)"
+    ).split() == ["Check", "out", "Google", "and", "alt"]
+
+    # Code blocks and inline code
+    assert strip_markdown(
+        "Here is `inline code` and:\n```python\nprint('hello')\n```"
+    ).split() == ["Here", "is", "inline", "code", "and:", "print('hello')"]
+
+
+@pytest.mark.django_db
+def test_reading_time_calculation():
+    # Empty content
+    lesson_empty = Lesson.objects.create(
+        title="Empty", slug="empty", content="", difficulty="beginner"
+    )
+    assert lesson_empty.reading_time == 1
+
+    # None content check (safeguard)
+    assert calculate_reading_time(None) == 1
+
+    # Short content (< 200 words)
+    lesson_short = Lesson.objects.create(
+        title="Short", slug="short", content="Word " * 100, difficulty="beginner"
+    )
+    assert lesson_short.reading_time == 1
+
+    # Exactly 200 words
+    lesson_200 = Lesson.objects.create(
+        title="200 Words", slug="w-200", content="Word " * 200, difficulty="beginner"
+    )
+    assert lesson_200.reading_time == 1
+
+    # 201 words
+    lesson_201 = Lesson.objects.create(
+        title="201 Words", slug="w-201", content="Word " * 201, difficulty="beginner"
+    )
+    assert lesson_201.reading_time == 2
+
+    # Long content (e.g. 500 words)
+    lesson_long = Lesson.objects.create(
+        title="Long", slug="long", content="Word " * 500, difficulty="beginner"
+    )
+    assert lesson_long.reading_time == 3  # ceil(500/200) = 3
+
+
+@pytest.mark.django_db
+def test_lesson_api_includes_reading_time():
+    lesson = Lesson.objects.create(
+        title="API Test Lesson",
+        slug="api-test",
+        content="Word " * 250,  # 250 words -> 2 mins
+        difficulty="beginner",
+        estimated_minutes=10,
+    )
+    client = APIClient()
+
+    # Verify GET lesson detail contains readingTime (due to CamelCaseModelSerializer)
+    response = client.get(f"/api/content/lessons/{lesson.id}/")
+    assert response.status_code == 200
+    assert "readingTime" in response.data
+    assert response.data["readingTime"] == 2
+
+    # Verify GET lesson list contains readingTime
+    response_list = client.get("/api/content/lessons/")
+    assert response_list.status_code == 200
+    assert len(response_list.data) > 0
+    # Find our lesson in list response
+    found = False
+    for l in response_list.data:
+        if l["slug"] == "api-test":
+            assert l["readingTime"] == 2
+            found = True
+    assert found

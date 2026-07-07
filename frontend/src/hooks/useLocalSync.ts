@@ -1,3 +1,4 @@
+ feat/localsync-hook
 // frontend/src/hooks/useLocalSync.ts
 import { useState, useEffect, useCallback } from 'react';
 
@@ -20,6 +21,23 @@ export function useLocalSync<T>(key: string, initialData: T) {
   const sync = useCallback(async () => {
     setIsSyncing(true);
     setError(null);
+
+import { useState, useEffect, useCallback } from "react";
+import type { ProgressEntry } from "./useUserProgress";
+
+const STORAGE_KEY = "atelier_pending_sync";
+
+export interface PendingProgress {
+  lesson_slug: string;
+  score?: number;
+  completed?: boolean;
+}
+
+export function useLocalSync() {
+  const [pending, setPending] = useState<PendingProgress[]>([]);
+
+  const loadPending = useCallback(() => {
+main
     try {
       // POST to server
       const res = await fetch(`/api/progress/${key}`, {

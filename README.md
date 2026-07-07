@@ -1,36 +1,87 @@
-<div align="center">
-  <img src="https://img.shields.io/badge/status-active-brightgreen?style=for-the-badge" alt="Status" />
-  <img src="https://img.shields.io/github/license/goyaljiiiiii/Open-Source-Contribution-Atelier?style=for-the-badge" alt="License" />
-  <img src="https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB" alt="React" />
-  <img src="https://img.shields.io/badge/Django-092E20?style=for-the-badge&logo=django&logoColor=white" alt="Django" />
-  <img src="https://img.shields.io/badge/Vercel-000000?style=for-the-badge&logo=vercel&logoColor=white" alt="Vercel" />
-</div>
 
 <br />
 
 <div align="center">
-  <h1>🚀 Open Source Contribution Atelier</h1>
-  <p><i>A complete Open Source Learning Platform designed to help beginners confidently transition from zero to real open-source contributions.</i></p>
+
+<!-- Hero Banner -->
+<img src="https://capsule-render.vercel.app/api?type=waving&color=0:FF6B6B,50:4ECDC4,100:45B7D1&height=220&section=header&text=Open%20Source%20Contribution%20Atelier&fontSize=36&fontColor=ffffff&animation=fadeIn&fontAlignY=35&desc=From%20Zero%20to%20Open%20Source%20Hero%20🚀&descAlignY=55&descSize=18" width="100%" />
+
+<p><i>A complete Open Source Learning Platform designed to help beginners confidently transition from zero to real open-source contributions.</i></p>
+
+<!-- Badges -->
+[![Live Demo](https://img.shields.io/badge/🌐_Live_Demo-Vercel-000000?style=for-the-badge&logo=vercel&logoColor=white)](https://open-source-contribution-atelier.vercel.app)
+[![Backend API](https://img.shields.io/badge/🤗_API-Hugging_Face-FFD21E?style=for-the-badge&logo=huggingface&logoColor=black)](https://nandinigoyaldev-atelier-backend.hf.space)
+[![SSoC 2026](https://img.shields.io/badge/SSoC_2026-Participating-4ECDC4?style=for-the-badge&logo=opensourceinitiative&logoColor=white)](#)
+
+[![GitHub Stars](https://img.shields.io/github/stars/nandinigoyaldev/Open-Source-Contribution-Atelier?style=flat-square&logo=github&label=Stars&color=FFD700)](https://github.com/nandinigoyaldev/Open-Source-Contribution-Atelier)
+[![GitHub Forks](https://img.shields.io/github/forks/nandinigoyaldev/Open-Source-Contribution-Atelier?style=flat-square&logo=github&label=Forks&color=45B7D1)](https://github.com/nandinigoyaldev/Open-Source-Contribution-Atelier/fork)
+[![GitHub Issues](https://img.shields.io/github/issues/nandinigoyaldev/Open-Source-Contribution-Atelier?style=flat-square&logo=github&label=Issues&color=FF6B6B)](https://github.com/nandinigoyaldev/Open-Source-Contribution-Atelier/issues)
+[![GitHub PRs](https://img.shields.io/github/issues-pr/nandinigoyaldev/Open-Source-Contribution-Atelier?style=flat-square&logo=github&label=PRs&color=4ECDC4)](https://github.com/nandinigoyaldev/Open-Source-Contribution-Atelier/pulls)
+[![License](https://img.shields.io/github/license/nandinigoyaldev/Open-Source-Contribution-Atelier?style=flat-square&color=purple)](LICENSE)
+
+[![CI Checks](https://img.shields.io/github/actions/workflow/status/nandinigoyaldev/Open-Source-Contribution-Atelier/ci.yml?style=flat-square&logo=githubactions&logoColor=white&label=CI%20Checks)](https://github.com/nandinigoyaldev/Open-Source-Contribution-Atelier/actions)
+[![React](https://img.shields.io/badge/React_19-61DAFB?style=flat-square&logo=react&logoColor=black)](#)
+[![Django](https://img.shields.io/badge/Django_5.0-092E20?style=flat-square&logo=django&logoColor=white)](#)
+[![TypeScript](https://img.shields.io/badge/TypeScript-3178C6?style=flat-square&logo=typescript&logoColor=white)](#)
+[![Tailwind](https://img.shields.io/badge/Tailwind_CSS-06B6D4?style=flat-square&logo=tailwindcss&logoColor=white)](#)
+[![Docker](https://img.shields.io/badge/Docker-2496ED?style=flat-square&logo=docker&logoColor=white)](#)
+
 </div>
 
 ---
 
 ## ✨ Features
 
-- **Gamified Curriculum**: 8 core modules going from mindset basics to advanced conflict resolution.
-- **Interactive Quizzes**: Multiple-choice testing dashboards.
-- **Badges Cabinet**: Earn milestone rewards mapping directly to module progress.
-- **Printable Certificates**: Generates a gorgeous A4 neobrutalist certificate with verification hashes.
-- **Hall of Fame**: Cohort stats, active streak calendars, and GitHub contributor APIs recognition boards.
-- **Markdown-Driven Content**: Lessons are parsed dynamically. Adding content requires no code changes. See the [Content Guide](CONTENT_GUIDE.md).
+| Feature | Description |
+|---|---|
+| 🎮 **Gamified Curriculum** | 8 core modules going from mindset basics to advanced conflict resolution |
+| 📝 **Interactive Quizzes** | Multiple-choice testing dashboards with instant feedback |
+| 🏅 **Badges Cabinet** | Earn milestone rewards mapping directly to module progress |
+| 📜 **Printable Certificates** | Gorgeous A4 neobrutalist certificate with verification hashes |
+| 🏆 **Hall of Fame** | Cohort stats, active streak calendars, and GitHub contributor recognition |
+| 📖 **Markdown-Driven Content** | Lessons are parsed dynamically — adding content requires zero code changes |
+| 💬 **Real-Time Community Chat** | End-to-end encrypted WebSocket chat with typing indicators |
+| 👥 **Peer Review System** | Submit code for review and earn XP by reviewing others |
+| 🔍 **Interactive Sandbox** | Git terminal emulator with autocomplete and command replay |
 
 ---
 
 ## 🛠️ Technical Stack
 
-- **Frontend**: React 19, TypeScript, Vite, Tailwind CSS (Neobrutalist Theme), React Router 7, TanStack React Query
-- **Backend**: Django REST Framework, Simple JWT
-- **Deployment**: Configured as a monorepo for seamless **Vercel** deployment (Serverless Backend + Static Frontend).
+<table>
+<tr>
+<td align="center" width="50%">
+
+### ⚡ Frontend
+React 19 · TypeScript · Vite · Tailwind CSS<br/>
+React Router 7 · TanStack React Query · Redux Toolkit
+
+</td>
+<td align="center" width="50%">
+
+### 🔧 Backend
+Django 5.0 · Django REST Framework · Simple JWT<br/>
+Django Channels · Celery · Redis · PostgreSQL
+
+</td>
+</tr>
+<tr>
+<td align="center">
+
+### ☁️ Deployment
+Vercel (Frontend) · Hugging Face (Backend API)<br/>
+Neon (PostgreSQL) · Upstash (Redis)
+
+</td>
+<td align="center">
+
+### 🧪 Testing & CI
+Vitest · Playwright · Pytest<br/>
+GitHub Actions CI · ESLint · Prettier · Black
+
+</td>
+</tr>
+</table>
 
 ---
 
@@ -141,8 +192,45 @@ This project is fully configured to be deployed on **Vercel** as a monorepo.
 
 ## 🧑‍💻 Contributing
 
-We welcome contributions of all levels suitable for **SSOC 2026** and long-term participation! Please review our guides:
-- **[CONTRIBUTING.md](.github/CONTRIBUTING.md)**: Forking, branching guidelines, commit conventions, and review cycles.
-- **[SUPPORT.md](.github/SUPPORT.md)**: How to get help, community channels, and asking questions.
-- **[CODE_OF_CONDUCT.md](.github/CODE_OF_CONDUCT.md)**: Community participation guidelines.
-- **[SECURITY.md](.github/SECURITY.md)**: Responsible vulnerability disclosure rules.
+We welcome contributions of all levels suitable for **SSoC 2026** and long-term participation!
+
+> [!IMPORTANT]
+> **Before requesting an issue**, please read the pinned guide issues on the [Issues tab](https://github.com/nandinigoyaldev/Open-Source-Contribution-Atelier/issues) to understand the keyword assignment rules, CI checks, and the 3-day stale policy.
+
+### Quick Links
+| Resource | Description |
+|---|---|
+| 📋 [CONTRIBUTING.md](.github/CONTRIBUTING.md) | Forking, branching guidelines, commit conventions, and review cycles |
+| 💬 [CODE_OF_CONDUCT.md](.github/CODE_OF_CONDUCT.md) | Community participation guidelines |
+| 🔒 [SECURITY.md](.github/SECURITY.md) | Responsible vulnerability disclosure policy |
+| 📖 [Content Guide](docs/CONTENT_GUIDE.md) | How to add lessons, modules, and quizzes (zero code changes!) |
+
+---
+
+## 🤝 Contributors
+
+Thanks to all the amazing people who have contributed to this project! 💜
+
+<a href="https://github.com/nandinigoyaldev/Open-Source-Contribution-Atelier/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=nandinigoyaldev/Open-Source-Contribution-Atelier&max=100&columns=12" />
+</a>
+
+<br/>
+
+> Want to see your avatar here? Check the [Contributing Guide](.github/CONTRIBUTING.md) and pick an issue to get started!
+
+---
+
+<div align="center">
+
+### 💖 Support the Project
+
+If you find this project helpful, please consider giving it a ⭐ star on GitHub!
+
+[![Star this repo](https://img.shields.io/badge/⭐_Star_this_Repo-FFD700?style=for-the-badge&logo=github&logoColor=black)](https://github.com/nandinigoyaldev/Open-Source-Contribution-Atelier)
+[![Fork this repo](https://img.shields.io/badge/🍴_Fork_this_Repo-45B7D1?style=for-the-badge&logo=github&logoColor=white)](https://github.com/nandinigoyaldev/Open-Source-Contribution-Atelier/fork)
+[![Sponsor](https://img.shields.io/badge/💖_Sponsor-EA4AAA?style=for-the-badge&logo=githubsponsors&logoColor=white)](https://github.com/sponsors/nandinigoyaldev)
+
+<img src="https://capsule-render.vercel.app/api?type=waving&color=0:FF6B6B,50:4ECDC4,100:45B7D1&height=100&section=footer" width="100%" />
+
+</div>

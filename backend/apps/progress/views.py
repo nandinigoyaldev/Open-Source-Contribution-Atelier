@@ -1,25 +1,35 @@
+from datetime import datetime
+
 from django.contrib.auth.models import User
 from django.db import transaction
 from django.db.models import Count, Min, Sum
+from apps.progress.constants import XP_PER_LEVEL
+from apps.progress.models import XPEvent
+from apps.progress.constants import XP_PER_LEVEL
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import OpenApiResponse, extend_schema, extend_schema_view
 from rest_framework import permissions, status
 from rest_framework.generics import ListAPIView
+from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import BasePermission
 from rest_framework.response import Response
 from rest_framework.throttling import AnonRateThrottle
 from rest_framework.views import APIView
-
+from django.http import HttpResponse
+from django.core.cache import cache
 from apps.content.models import Lesson
 from apps.content.serializers import LessonSerializer
 
 from .models import (
     Badge,
     Certificate,
+    CodeSubmission,
     ExerciseAttempt,
     HelpRequest,
+    LessonBookmark,
     LessonProgress,
     QuizAttempt,
+    UserBadge,
 )
 from .serializers import (
     BadgeSerializer,
@@ -58,9 +68,14 @@ class MyProgressView(APIView):
 
     def post(self, request):
         lesson_slug = request.data.get("lesson_slug")
-        from apps.progress.models import XPMultiplierEvent
+        from apps.progress.models import XPMultiplierEvent, LessonProgressSync
+
+        idempotency_key = request.data.get("idempotency_key")
+
+        client_timestamp_ms = request.data.get("client_timestamp")
 
         multiplier = XPMultiplierEvent.get_active_multiplier()
+
         base_score = request.data.get("score", 100)
         completed = request.data.get("completed", True)
 
@@ -69,52 +84,122 @@ class MyProgressView(APIView):
                 slug=lesson_slug, organization=request.user.organization
             )
         except Lesson.DoesNotExist:
-            lesson = Lesson.objects.create(
-                slug=lesson_slug,
-                title=lesson_slug.replace("-", " ").title(),
-                summary="Dynamic learning module",
-                content="Dynamic content loaded from local file storage.",
-                difficulty="beginner",
+            return Response(
+                {"error": "Lesson not found"},
+                status=status.HTTP_404_NOT_FOUND,
             )
 
         client_timestamp_ms = request.data.get("client_timestamp")
 
-        try:
-            progress = LessonProgress.objects.get(user=request.user, lesson=lesson)
-            created = False
-
-            skip_update = False
-            if client_timestamp_ms:
-                import datetime
-
-                client_dt = datetime.datetime.fromtimestamp(
-                    client_timestamp_ms / 1000.0, tz=datetime.timezone.utc
+        with transaction.atomic():
+            # Idempotency: if this (user, lesson, key) was already processed,
+            # return existing progress state without re-applying multiplier.
+            if idempotency_key:
+                sync_row = (
+                    LessonProgressSync.objects.select_related("lesson")
+                    .filter(
+                        user=request.user,
+                        lesson=lesson,
+                        idempotency_key=idempotency_key,
+                    )
+                    .first()
                 )
-                if progress.updated_at > client_dt:
-                    skip_update = True
+                if sync_row is not None:
+                    progress, _ = LessonProgress.objects.get_or_create(
+                        user=request.user,
+                        lesson=lesson,
+                        defaults={
+                            "organization": request.user.organization,
+                            "completed": sync_row.completed,
+                            "base_score": sync_row.base_score,
+                            "multiplier_applied": sync_row.multiplier_applied,
+                            "score": sync_row.score,
+                        },
+                    )
+                    serializer = LessonProgressSerializer(progress)
+                    async_task = __import__(
+                        "django_q.tasks", fromlist=["async_task"]
+                    ).async_task
+                    async_task(
+                        "apps.progress.tasks.evaluate_user_badges_task",
+                        request.user.id,
+                    )
+                    return Response(
+                        serializer.data,
+                        status=status.HTTP_200_OK,
+                    )
 
-            if not skip_update and (
-                progress.base_score != base_score or progress.completed != completed
-            ):
-                progress.completed = completed
-                progress.base_score = base_score
-                progress.multiplier_applied = multiplier
-                progress.score = int(base_score * multiplier)
-                progress.organization = request.user.organization
-                progress.save()
-        except LessonProgress.DoesNotExist:
-            progress = LessonProgress.objects.create(
-                user=request.user,
-                lesson=lesson,
-                completed=completed,
-                base_score=base_score,
-                multiplier_applied=multiplier,
-                score=int(base_score * multiplier),
-                organization=request.user.organization,
-            )
-            created = True
+            try:
+                progress = LessonProgress.objects.get(user=request.user, lesson=lesson)
+                created = False
 
-        from django_q.tasks import async_task
+                skip_update = False
+                if client_timestamp_ms:
+                    import datetime
+
+                    client_dt = datetime.datetime.fromtimestamp(
+                        client_timestamp_ms / 1000.0, tz=datetime.timezone.utc
+                    )
+                    if progress.updated_at > client_dt:
+                        skip_update = True
+
+                if not skip_update and (
+                    progress.base_score != base_score or progress.completed != completed
+                ):
+                    old_score = progress.score
+                    progress.completed = completed
+                    progress.base_score = base_score
+                    progress.multiplier_applied = multiplier
+                    progress.score = int(base_score * multiplier)
+                    progress.organization = request.user.organization
+                    progress.save()
+
+                    # XP side-effect only when we actually applied.
+                    xp_delta = progress.score - old_score
+                    if xp_delta != 0:
+                        XPEvent.objects.create(
+                            user=request.user,
+                            source_type="lesson",
+                            source_id=lesson.id,
+                            base_points=base_score,
+                            multiplier=multiplier,
+                            xp_delta=xp_delta,
+                        )
+
+            except LessonProgress.DoesNotExist:
+                created = True
+                progress = LessonProgress.objects.create(
+                    user=request.user,
+                    lesson=lesson,
+                    completed=completed,
+                    base_score=base_score,
+                    multiplier_applied=multiplier,
+                    score=int(base_score * multiplier),
+                    organization=request.user.organization,
+                )
+                # Record XP event for new progress
+                XPEvent.objects.create(
+                    user=request.user,
+                    source_type="lesson",
+                    source_id=lesson.id,
+                    base_points=base_score,
+                    multiplier=multiplier,
+                    xp_delta=progress.score,
+                )
+
+            # Write idempotency ledger AFTER progress state is committed.
+            if idempotency_key:
+                LessonProgressSync.objects.create(
+                    user=request.user,
+                    lesson=lesson,
+                    idempotency_key=idempotency_key,
+                    completed=progress.completed,
+                    base_score=progress.base_score,
+                    multiplier_applied=progress.multiplier_applied,
+                    score=progress.score,
+                    client_timestamp_ms=client_timestamp_ms,
+                    server_updated_at=timezone.now(),
+                )
 
         async_task("apps.progress.tasks.evaluate_user_badges_task", request.user.id)
 
@@ -181,6 +266,15 @@ class BulkSyncProgressView(APIView):
                         progress.multiplier_applied = multiplier
                         progress.score = int(base_score * multiplier)
                         progress.save()
+                        # Record XP event for bulk sync update
+                        XPEvent.objects.create(
+                            user=request.user,
+                            source_type="lesson",
+                            source_id=lesson.id,
+                            base_points=base_score,
+                            multiplier=multiplier,
+                            xp_delta=progress.score,
+                        )
                 except LessonProgress.DoesNotExist:
                     progress = LessonProgress.objects.create(
                         user=request.user,
@@ -236,122 +330,31 @@ class BulkProgressUpdateView(APIView):
 
         validated_data = serializer.validated_data["lessons"]
 
-        # Check for duplicate entries within the same request
-        seen_slugs = set()
-        duplicates = set()
-        for item in validated_data:
-            slug = item["lesson_slug"]
-            if slug in seen_slugs:
-                duplicates.add(slug)
-            seen_slugs.add(slug)
+        from apps.progress.services.progress_batch_service import (
+            process_bulk_progress_updates,
+            DuplicateEntryException,
+            InvalidLessonException,
+        )
 
-        if duplicates:
+        try:
+            success_ids = process_bulk_progress_updates(request.user, validated_data)
+        except DuplicateEntryException as e:
             return Response(
                 {
                     "success": False,
                     "transaction_outcome": "failed",
-                    "validation_failures": {"duplicate_entries": list(duplicates)},
+                    "validation_failures": {"duplicate_entries": e.duplicates},
                     "updated_count": 0,
                     "updated_ids": [],
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
-
-        success_ids = []
-        missing_slugs = []
-        try:
-            with transaction.atomic():
-                lesson_slugs = list(seen_slugs)
-                existing_lessons = {
-                    lesson.slug: lesson
-                    for lesson in Lesson.objects.filter(slug__in=lesson_slugs)
-                }
-
-                # Validation: Invalid lesson IDs
-                missing_slugs = [
-                    slug for slug in lesson_slugs if slug not in existing_lessons
-                ]
-
-                if missing_slugs:
-                    # rollback transaction if anything fails validation
-                    raise ValueError(f"Invalid lesson IDs: {missing_slugs}")
-
-                existing_progress = {
-                    progress.lesson_id: progress
-                    for progress in LessonProgress.objects.filter(
-                        user=request.user, lesson__slug__in=lesson_slugs
-                    )
-                }
-
-                progress_to_create = []
-                progress_to_update = []
-
-                from apps.progress.models import XPMultiplierEvent
-
-                multiplier = XPMultiplierEvent.get_active_multiplier()
-
-                for item in validated_data:
-                    lesson = existing_lessons[item["lesson_slug"]]
-                    completed = item.get("completed", True)
-                    base_score = item.get("score", 100)
-
-                    if lesson.id in existing_progress:
-                        prog = existing_progress[lesson.id]
-
-                        client_timestamp_ms = item.get("client_timestamp")
-                        skip_update = False
-                        if client_timestamp_ms:
-                            import datetime
-
-                            client_dt = datetime.datetime.fromtimestamp(
-                                client_timestamp_ms / 1000.0, tz=datetime.timezone.utc
-                            )
-                            if prog.updated_at > client_dt:
-                                skip_update = True
-
-                        if not skip_update and (
-                            prog.base_score != base_score or prog.completed != completed
-                        ):
-                            prog.completed = completed
-                            prog.base_score = base_score
-                            prog.multiplier_applied = multiplier
-                            prog.score = int(base_score * multiplier)
-                            progress_to_update.append(prog)
-                    else:
-                        progress_to_create.append(
-                            LessonProgress(
-                                user=request.user,
-                                lesson=lesson,
-                                completed=completed,
-                                base_score=base_score,
-                                multiplier_applied=multiplier,
-                                score=int(base_score * multiplier),
-                            )
-                        )
-
-                if progress_to_create:
-                    created_progresses = LessonProgress.objects.bulk_create(
-                        progress_to_create
-                    )
-                    success_ids.extend([p.id for p in created_progresses])
-
-                if progress_to_update:
-                    LessonProgress.objects.bulk_update(
-                        progress_to_update,
-                        ["completed", "score", "base_score", "multiplier_applied"],
-                    )
-                    success_ids.extend([p.id for p in progress_to_update])
-
-                from django_q.tasks import async_task
-
-                async_task("apps.progress.tasks.evaluate_user_badges_task", request.user.id)
-
-        except ValueError as ve:
+        except InvalidLessonException as e:
             return Response(
                 {
                     "success": False,
                     "transaction_outcome": "rolled_back",
-                    "validation_failures": {"invalid_lessons": missing_slugs},
+                    "validation_failures": {"invalid_lessons": e.missing_slugs},
                     "updated_count": 0,
                     "updated_ids": [],
                 },
@@ -384,9 +387,128 @@ class BulkProgressUpdateView(APIView):
         )
 
 
+class CommunityFeedPagination(PageNumberPagination):
+    page_size = 20
+    page_size_query_param = "page_size"
+    max_page_size = 50
+
+
 @extend_schema(
     responses=OpenApiResponse(
-        description="Community stats summary JSON: active_contributors, merged_prs, response_sla, open_requests"
+        description="Paginated community activity feed combining help requests, code submissions, badges, and lesson completions."
+    )
+)
+class CommunityFeedView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        org = request.user.organization
+        user_ids = (
+            User.objects.filter(
+                profile__organization=org,
+                is_active=True,
+            )
+            if org
+            else User.objects.filter(is_active=True)
+        ).values_list("id", flat=True)
+
+        help_requests = (
+            HelpRequest.objects.filter(
+                user_id__in=user_ids,
+            )
+            .select_related("user", "lesson")
+            .order_by("-created_at")[:200]
+        )
+
+        code_submissions = (
+            CodeSubmission.objects.filter(
+                user_id__in=user_ids,
+            )
+            .select_related("user", "exercise")
+            .order_by("-created_at")[:200]
+        )
+
+        badges = (
+            UserBadge.objects.filter(
+                user_id__in=user_ids,
+            )
+            .select_related("user", "badge")
+            .order_by("-earned_at")[:200]
+        )
+
+        lesson_progress = (
+            LessonProgress.objects.filter(
+                user_id__in=user_ids,
+                completed=True,
+            )
+            .select_related("user", "lesson")
+            .order_by("-updated_at")[:200]
+        )
+
+        entries = []
+
+        for hr in help_requests:
+            entries.append(
+                {
+                    "id": f"hr_{hr.id}",
+                    "type": "help_request",
+                    "user_id": hr.user_id,
+                    "username": hr.user.username,
+                    "title": f"asked for help on {hr.lesson.title}",
+                    "description": hr.message[:200],
+                    "created_at": hr.created_at.isoformat(),
+                }
+            )
+
+        for cs in code_submissions:
+            entries.append(
+                {
+                    "id": f"cs_{cs.id}",
+                    "type": "code_submission",
+                    "user_id": cs.user_id,
+                    "username": cs.user.username,
+                    "title": f"submitted code — {cs.title}",
+                    "description": cs.description[:200] if cs.description else "",
+                    "created_at": cs.created_at.isoformat(),
+                }
+            )
+
+        for ub in badges:
+            entries.append(
+                {
+                    "id": f"bd_{ub.id}",
+                    "type": "badge_earned",
+                    "user_id": ub.user_id,
+                    "username": ub.user.username,
+                    "title": f"earned badge — {ub.badge.name}",
+                    "description": ub.badge.description,
+                    "created_at": ub.earned_at.isoformat(),
+                }
+            )
+
+        for lp in lesson_progress:
+            entries.append(
+                {
+                    "id": f"lp_{lp.id}",
+                    "type": "lesson_completed",
+                    "user_id": lp.user_id,
+                    "username": lp.user.username,
+                    "title": f"completed lesson — {lp.lesson.title}",
+                    "description": f"Scored {lp.score} points",
+                    "created_at": lp.updated_at.isoformat(),
+                }
+            )
+
+        entries.sort(key=lambda e: e["created_at"], reverse=True)
+
+        paginator = CommunityFeedPagination()
+        page = paginator.paginate_queryset(entries, request)
+        return paginator.get_paginated_response(page)
+
+
+@extend_schema(
+    responses=OpenApiResponse(
+        description="Community stats: active_contributors, merged_prs, response_sla, open_requests"
     )
 )
 class CommunityStatsView(APIView):
@@ -763,6 +885,7 @@ class RecommendationsView(APIView):
         recommended_lessons = (
             Lesson.objects.filter(category=top_category)
             .exclude(id__in=completed_lesson_ids)
+            .prefetch_related("exercises", "prerequisites")
             .order_by("order")
         )
 
@@ -778,9 +901,11 @@ class CodeSubmissionView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        submissions = CodeSubmission.objects.filter(
-            status=CodeSubmission.Status.PENDING_REVIEW
-        ).exclude(user=request.user)
+        submissions = (
+            CodeSubmission.objects.filter(status=CodeSubmission.Status.PENDING_REVIEW)
+            .exclude(user=request.user)
+            .select_related("user")
+        )
         serializer = CodeSubmissionSerializer(submissions, many=True)
         return Response(serializer.data)
 
@@ -801,6 +926,25 @@ class CodeSubmissionView(APIView):
                 )
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class UserProgressPDFExportView(APIView):
+    """
+    Generates and returns a PDF report of the authenticated user's
+    progress, achievements, certificates, and coding activity.
+    """
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        from apps.progress.services.pdf_report_service import PDFReportGenerator
+
+        generator = PDFReportGenerator(request.user)
+        pdf_bytes = generator.generate()
+
+        response = HttpResponse(pdf_bytes, content_type="application/pdf")
+        response["Content-Disposition"] = 'attachment; filename="progress_report.pdf"'
+        return response
 
 
 class PeerReviewView(APIView):
@@ -859,3 +1003,71 @@ class PeerReviewView(APIView):
                         submission.save(update_fields=["status"])
                 return Response(serializer.data, status=status.HTTP_201_CREATED)
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+
+
+class LessonBookmarkView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, slug=None):
+        bookmarks = LessonBookmark.objects.filter(user=request.user).select_related(
+            "lesson"
+        )
+        data = [
+            {
+                "id": b.id,
+                "lesson": b.lesson.id,
+                "lesson_slug": b.lesson.slug,
+                "lesson_title": b.lesson.title,
+                "lesson_difficulty": b.lesson.difficulty,
+                "lesson_category": getattr(b.lesson, "category", ""),
+                "lesson_estimated_minutes": b.lesson.estimated_minutes,
+                "lesson_summary": getattr(b.lesson, "summary", ""),
+                "created_at": b.created_at.isoformat(),
+            }
+            for b in bookmarks
+        ]
+        return Response(data)
+
+    def post(self, request, slug=None):
+        lesson = get_object_or_404(Lesson, slug=slug)
+        bookmark, created = LessonBookmark.objects.get_or_create(
+            user=request.user, lesson=lesson
+        )
+        return Response(
+            {"status": "added"},
+            status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
+        )
+
+    def delete(self, request, slug=None):
+        bookmark = get_object_or_404(
+            LessonBookmark, user=request.user, lesson__slug=slug
+        )
+        bookmark.delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+class ReadingProgressView(APIView):
+    """
+    Saves and retrieves the user's reading position in a lesson using the Redis cache.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        lesson_slug = request.query_params.get("lesson")
+        if not lesson_slug:
+            return Response({"error": "Lesson slug required"}, status=status.HTTP_400_BAD_REQUEST)
+        
+        cache_key = f"reading_progress_{request.user.id}_{lesson_slug}"
+        progress = cache.get(cache_key, 0)
+        return Response({"progress": progress})
+
+    def post(self, request):
+        lesson_slug = request.data.get("lesson")
+        progress = request.data.get("progress")
+        
+        if not lesson_slug or progress is None:
+            return Response({"error": "Lesson slug and progress required"}, status=status.HTTP_400_BAD_REQUEST)
+            
+        cache_key = f"reading_progress_{request.user.id}_{lesson_slug}"
+        # Store for 30 days
+        cache.set(cache_key, progress, timeout=60 * 60 * 24 * 30)
+        return Response({"status": "success", "progress": progress})

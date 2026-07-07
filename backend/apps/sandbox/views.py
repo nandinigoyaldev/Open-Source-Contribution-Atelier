@@ -1,7 +1,10 @@
-from rest_framework import permissions, serializers, status
+from rest_framework import permissions, serializers, status, viewsets
+from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from .models import CodeSnapshot
+from .serializers import CodeSnapshotSerializer
 from .services import verify_git_command
 
 
@@ -28,3 +31,174 @@ class SandboxVerifyView(APIView):
             },
             status=status.HTTP_200_OK,
         )
+
+
+class CodeSnapshotViewSet(viewsets.ModelViewSet):
+    serializer_class = CodeSnapshotSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return CodeSnapshot.objects.filter(user=self.request.user)
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+
+from .models import Project, ProjectFile
+from .serializers import ProjectFileSerializer, ProjectSerializer
+
+
+class ProjectViewSet(viewsets.ModelViewSet):
+    serializer_class = ProjectSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return Project.objects.filter(user=self.request.user)
+
+    def perform_create(self, serializer):
+        serializer.save(user=self.request.user)
+
+    @action(detail=True, methods=["post"])
+    def replace(self, request, pk=None):
+        project = self.get_object()
+        query = request.data.get("query")
+        replacement = request.data.get("replacement")
+        is_regex = request.data.get("is_regex", False)
+        match_case = request.data.get("match_case", False)
+
+        if not query:
+            return Response({"error": "Query is required"}, status=400)
+
+        import re
+
+        flags = 0 if match_case else re.IGNORECASE
+        try:
+            pattern = re.compile(query if is_regex else re.escape(query), flags)
+        except re.error:
+            return Response({"error": "Invalid regular expression"}, status=400)
+
+        files = ProjectFile.objects.filter(project=project)
+        previous_state = {}
+        updated_files = []
+
+        from django.db import transaction
+
+        from .models import BulkReplaceOperation
+
+        with transaction.atomic():
+            for f in files:
+                if pattern.search(f.content):
+                    previous_state[str(f.id)] = f.content
+                    f.content = pattern.sub(replacement, f.content)
+                    updated_files.append(f)
+
+            if previous_state:
+                BulkReplaceOperation.objects.create(
+                    project=project, user=request.user, previous_state=previous_state
+                )
+                ProjectFile.objects.bulk_update(updated_files, ["content"])
+
+        return Response({"modified_count": len(updated_files)})
+
+    @action(detail=True, methods=["post"])
+    def undo_replace(self, request, pk=None):
+        project = self.get_object()
+        from .models import BulkReplaceOperation
+
+        operation = (
+            BulkReplaceOperation.objects.filter(project=project, user=request.user)
+            .order_by("-created_at")
+            .first()
+        )
+
+        if not operation:
+            return Response({"error": "No recent operation to undo"}, status=400)
+
+        from django.db import transaction
+
+        with transaction.atomic():
+            files_to_update = []
+            for file_id, content in operation.previous_state.items():
+                f = ProjectFile.objects.filter(id=file_id).first()
+                if f:
+                    f.content = content
+                    files_to_update.append(f)
+
+            if files_to_update:
+                ProjectFile.objects.bulk_update(files_to_update, ["content"])
+            operation.delete()
+
+        return Response({"restored_count": len(files_to_update)})
+
+
+class ProjectFileViewSet(viewsets.ModelViewSet):
+    serializer_class = ProjectFileSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return ProjectFile.objects.filter(project__user=self.request.user)
+
+
+from .models import CodeExecutionTrace
+from .serializers import CodeExecutionTraceSerializer
+
+
+class CodeExecutionTraceViewSet(viewsets.ReadOnlyModelViewSet):
+    serializer_class = CodeExecutionTraceSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return CodeExecutionTrace.objects.filter(user=self.request.user)
+
+
+from .models import CodeReviewThread
+from .serializers import CodeReviewThreadSerializer
+
+
+class CodeReviewThreadViewSet(viewsets.ModelViewSet):
+    serializer_class = CodeReviewThreadSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        queryset = CodeReviewThread.objects.prefetch_related(
+            "comments", "comments__user"
+        ).all()
+        session_id = self.request.query_params.get("session", None)
+        if session_id is not None:
+            queryset = queryset.filter(session_id=session_id)
+        return queryset
+
+
+from .models import CodeSnippet, SnippetCollection
+from .serializers import CodeSnippetSerializer, SnippetCollectionSerializer
+
+
+class SnippetCollectionViewSet(viewsets.ModelViewSet):
+    serializer_class = SnippetCollectionSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return SnippetCollection.objects.filter(user=self.request.user)
+
+
+class CodeSnippetViewSet(viewsets.ModelViewSet):
+    serializer_class = CodeSnippetSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        queryset = CodeSnippet.objects.filter(user=self.request.user)
+
+        # Filtering
+        collection_id = self.request.query_params.get("collection", None)
+        if collection_id is not None:
+            queryset = queryset.filter(collection_id=collection_id)
+
+        is_favorite = self.request.query_params.get("is_favorite", None)
+        if is_favorite is not None:
+            queryset = queryset.filter(is_favorite=is_favorite.lower() == "true")
+
+        search = self.request.query_params.get("search", None)
+        if search:
+            queryset = queryset.filter(title__icontains=search)
+
+        return queryset

@@ -1,3 +1,4 @@
+// @refresh reset
 /// <reference types="react" />
 /** @jsxRuntime classic */
 // @ts-ignore: suppress missing React type declarations in some environments

@@ -1,21 +1,61 @@
 import React, { useState, useEffect } from "react";
+import { OptimizedImage } from "./ui/OptimizedImage";
 import SkeletonCard from "./ui/skeletons/SkeletonCard";
 
+const API_BASE =
+  import.meta.env.VITE_API_BASE_URL?.trim() || `${window.location.origin}/api`;
+
+type Organization = {
+  slug: string;
+  name: string;
+  logo_url?: string | null;
+  logoUrl?: string | null;
+};
+
+const DEFAULT_ORGANIZATIONS: Organization[] = [
+  { slug: "facebook", name: "React" },
+  { slug: "vercel", name: "Next.js" },
+  { slug: "django", name: "Django" },
+  { slug: "kubernetes", name: "Kubernetes" },
+  { slug: "microsoft", name: "VS Code" },
+  { slug: "nodejs", name: "Node.js" },
+];
+
+const normalizeImageUrl = (url: string, baseUrl: string) => {
+  if (!url) return url;
+
+  try {
+    return new URL(url, baseUrl).toString();
+  } catch {
+    return url;
+  }
+};
+
 const OrganizationsGrid: React.FC = () => {
-  const [organizations, setOrganizations] = useState<
-    Array<{ slug: string; name: string; logo_url: string | null }>
-  >([]);
+  const [organizations, setOrganizations] = useState<Organization[]>(
+    DEFAULT_ORGANIZATIONS,
+  );
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // API Call to our new backend endpoint
-    fetch("http://127.0.0.1:8000/api/content/organizations/")
-      .then((res) => res.json())
+    fetch(`${API_BASE}/content/organizations/`)
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+      })
       .then((data) => {
-        setOrganizations(data);
+        setOrganizations(
+          Array.isArray(data) && data.length > 0
+            ? data
+            : DEFAULT_ORGANIZATIONS,
+        );
         setLoading(false);
       })
-      .catch((err) => console.error("Error fetching organizations:", err));
+      .catch((err) => {
+        console.error("Error fetching organizations:", err);
+        setOrganizations(DEFAULT_ORGANIZATIONS);
+        setLoading(false);
+      });
   }, []);
 
   if (loading) {
@@ -55,10 +95,17 @@ const OrganizationsGrid: React.FC = () => {
             rel="noopener noreferrer"
             className="border-2 border-black rounded-lg p-2.5 flex items-center gap-2 hover:-translate-y-0.5 transition-all bg-white"
           >
-            <img
-              src={org.logo_url || `https://github.com/${org.slug}.png?size=80`}
+            <OptimizedImage
+              src={normalizeImageUrl(
+                org.logo_url ||
+                  org.logoUrl ||
+                  `https://github.com/${org.slug}.png?size=80`,
+                API_BASE,
+              )}
               alt={`${org.name} avatar`}
-              loading="lazy"
+              width={32}
+              height={32}
+              loading="eager"
               className="w-8 h-8 rounded-lg object-cover border border-black/20"
             />
             <div className="truncate min-w-0">

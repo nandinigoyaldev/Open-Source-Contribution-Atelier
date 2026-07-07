@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useCallback, useEffect } from "react";
+import { useState, useMemo, useRef, useCallback, useEffect, useDeferredValue } from "react";
 import { SectionCard } from "../components/ui/SectionCard";
 import { useInfiniteQuery, useQueryClient } from "@tanstack/react-query";
 import { fetchApi } from "../lib/api";
@@ -100,11 +100,13 @@ export function LeaderboardPage() {
     );
   }, [leaderboardData]);
 
+  const deferredSearch = useDeferredValue(search);
+
   const filteredLeaderboard = useMemo(() => {
     return [...leaderboard].filter((item) =>
-      item.username.toLowerCase().includes(search.toLowerCase()),
+      item.username.toLowerCase().includes(deferredSearch.toLowerCase()),
     );
-  }, [leaderboard, search]);
+  }, [leaderboard, deferredSearch]);
 
   const observerRef = useRef<IntersectionObserver | null>(null);
   const lastElementRef = useCallback(
@@ -152,8 +154,8 @@ export function LeaderboardPage() {
     };
   }, [queryClient]);
 
-  const top3 = filteredLeaderboard.slice(0, 3);
-  const restOfLeaderboard = filteredLeaderboard.slice(3);
+  const top3 = useMemo(() => filteredLeaderboard.slice(0, 3), [filteredLeaderboard]);
+  const restOfLeaderboard = useMemo(() => filteredLeaderboard.slice(3), [filteredLeaderboard]);
 
   const timeframes: { id: Timeframe; label: string }[] = [
     { id: "all", label: "All Time" },

@@ -1,0 +1,32 @@
+name: UI/UX Issue
+description: Report a user interface or user experience problem
+title: "[UI/UX]: "
+labels: ["ui/ux"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: UI problem description
+      description: A clear description of the UI/UX problem.
+    validations:
+      required: true
+  - type: textarea
+    id: improvement
+    attributes:
+      label: Suggested improvement
+      description: How you think this should be improved.
+    validations:
+      required: true
+  - type: textarea
+    id: screenshots
+    attributes:
+      label: Screenshots
+      description: Add screenshots showing the current state and any mockups.
+    validations:
+      required: true
+  - type: checkboxes
+    id: program
+    attributes:
+      label: Contributor Program
+      options:
+        - label: I am contributing under SSoC 2026 / ECSoC 2026

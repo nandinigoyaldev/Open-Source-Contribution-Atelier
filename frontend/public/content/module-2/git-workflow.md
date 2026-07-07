@@ -1,12 +1,12 @@
-# Staging & Reviewing Status
+# 📥 Staging Files & Checking Repository Status
 
-The daily cycle of a developer consists of checking file modifications, selecting what changes are ready for a commit, and logging them.
+### From time to time, it is crucial to check your repository for file modifications, selecting what changes are ready for a commit, and logging them.
 
 ---
 
-### The Status Check
+## 🚦 Git Status (Checking Repository State)
 
-Before doing anything, always inspect the state of your working directory:
+You must regularly inspect the state of your working directory by running:
 
 ```bash
 git status
@@ -18,7 +18,9 @@ This lists:
 - Which files are staged and ready to commit.
 - Untracked files that Git isn't tracking yet.
 
-### The Standard Workflow
+---
+
+## 🛠️ The Standard Workflow
 
 1. Make code changes in your text editor.
 2. Check changes: `git status`

@@ -1,0 +1,25 @@
+name: Enhancement
+description: Suggest an improvement to existing functionality
+title: "[ENHANCEMENT]: "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: improvement
+    attributes:
+      label: What should be improved
+      description: Describe what aspect needs improvement.
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: Why improvement is needed
+      description: Explain why this improvement is necessary.
+    validations:
+      required: true
+  - type: checkboxes
+    id: program
+    attributes:
+      label: Contributor Program
+      options:
+        - label: I am contributing under SSoC 2026 / ECSoC 2026

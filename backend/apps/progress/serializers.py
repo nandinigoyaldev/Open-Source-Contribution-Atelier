@@ -76,6 +76,11 @@ class LessonProgressCreateSerializer(serializers.Serializer):
     client_timestamp = serializers.IntegerField(
         required=False, help_text="Client timestamp for conflict resolution"
     )
+    idempotency_key = serializers.CharField(
+        max_length=255,
+        required=False,
+        help_text="Client-generated idempotency key per completion attempt",
+    )
 
 
 class BulkLessonProgressSerializer(serializers.Serializer):
@@ -83,6 +88,11 @@ class BulkLessonProgressSerializer(serializers.Serializer):
     score = serializers.IntegerField(default=100)
     completed = serializers.BooleanField(default=True)
     client_timestamp = serializers.IntegerField(required=False)
+    idempotency_key = serializers.CharField(
+        max_length=255,
+        required=False,
+        help_text="Client-generated idempotency key per completion attempt",
+    )
 
 
 class BulkSyncSerializer(serializers.Serializer):
@@ -120,6 +130,7 @@ class QuizAttemptSerializer(serializers.ModelSerializer):
             "correct_answer",
             "is_correct",
             "time_taken_seconds",
+            "client_timestamp",
             "created_at",
         ]
         read_only_fields = ["id", "user", "created_at"]

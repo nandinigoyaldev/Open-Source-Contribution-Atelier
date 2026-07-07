@@ -35,6 +35,7 @@ class LessonSerializer(CamelCaseModelSerializer):
     prerequisites = serializers.SlugRelatedField(
         many=True, read_only=True, slug_field="slug"
     )
+    reading_time = serializers.ReadOnlyField()
 
     class Meta:
         model = Lesson
@@ -46,6 +47,7 @@ class LessonSearchSerializer(CamelCaseModelSerializer):
     prerequisites = serializers.SlugRelatedField(
         many=True, read_only=True, slug_field="slug"
     )
+    reading_time = serializers.ReadOnlyField()
 
     class Meta:
         model = Lesson

@@ -1,7 +1,6 @@
 import os
 from datetime import timedelta
 from pathlib import Path
-from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView, SpectacularRedocView
 
 import dj_database_url
 
@@ -17,10 +16,22 @@ def load_dotenv(dotenv_path: Path) -> None:
         if not line or line.startswith("#") or "=" not in line:
             continue
         key, value = line.split("=", 1)
-        os.environ.setdefault(key.strip(), value.strip())
+        val_stripped = value.strip()
+        if (val_stripped.startswith('"') and val_stripped.endswith('"')) or (val_stripped.startswith("'") and val_stripped.endswith("'")):
+            val_stripped = val_stripped[1:-1].strip()
+        if val_stripped:
+            os.environ.setdefault(key.strip(), val_stripped)
 
 
 load_dotenv(BASE_DIR / ".env")
+
+print("DEBUG - DATABASE_URL present:", "DATABASE_URL" in os.environ)
+if "DATABASE_URL" in os.environ:
+    print("DEBUG - DATABASE_URL length:", len(os.environ["DATABASE_URL"]))
+    print("DEBUG - DATABASE_URL prefix:", os.environ["DATABASE_URL"][:15])
+print("DEBUG - REDIS_URL present:", "REDIS_URL" in os.environ)
+if "REDIS_URL" in os.environ:
+    print("DEBUG - REDIS_URL prefix:", os.environ["REDIS_URL"][:15])
 
 SECRET_KEY = os.getenv(
     "SECRET_KEY", "django-insecure-dev-key-not-for-production-use-32bytes!!"
@@ -32,14 +43,14 @@ ALLOWED_HOSTS = [
     if host.strip()
 ]
 ALLOWED_HOSTS.append(".vercel.app")
+ALLOWED_HOSTS.append(".hf.space")
 CORS_ALLOWED_ORIGINS = [
     origin.strip()
     for origin in os.getenv("CORS_ALLOWED_ORIGINS", "").split(",")
     if origin.strip()
 ]
 CORS_ALLOW_CREDENTIALS = True
-if DEBUG:
-    CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_ALL_ORIGINS = True
 
 INSTALLED_APPS = [
     "daphne",
@@ -49,9 +60,8 @@ INSTALLED_APPS = [
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
-    'django_filters',
-    'django_prometheus',
-    'celery_prometheus_exporter',
+    "django_filters",
+    "celery_prometheus_exporter",
     "drf_spectacular",
     "corsheaders",
     "rest_framework",
@@ -76,6 +86,7 @@ INSTALLED_APPS = [
     "apps.uploads",
     "graphene_django",
     "apps.feature_flags",
+    "apps.issues",
     "django_q",
 ]
 
@@ -83,6 +94,7 @@ MIDDLEWARE = [
     "django_prometheus.middleware.PrometheusBeforeMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.middleware.gzip.GZipMiddleware",
     "django_prometheus.middleware.PrometheusBeforeMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
@@ -126,11 +138,13 @@ DATABASES = {
     ),
     "replica": dj_database_url.config(
         env="REPLICA_DATABASE_URL",
-        default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}",  # Falls back to local sqlite in dev
+        default=os.getenv("DATABASE_URL") or f"sqlite:///{BASE_DIR / 'db.sqlite3'}",  # Falls back to primary in production if replica env is unset
         conn_max_age=600,
         conn_health_checks=True,
     ),
 }
+
+DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 DATABASE_ROUTERS = ["config.db_router.PrimaryReplicaRouter"]
 
@@ -148,9 +162,22 @@ USE_I18N = True
 USE_TZ = True
 
 STATIC_URL = "/static/"
+STATIC_ROOT = BASE_DIR / "staticfiles"
+STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+#Github App Configuration
+GITHUB_APP={
+    'APP_ID': os.getenv('GITHUB_APP_ID'),
+    'PRIVATE_KEY_PATH': os.getenv('GITHUB_PRIVATE_KEY_PATH'),
+    'CLIENT_ID': os.getenv('GITHUB_CLIENT_ID'),
+    'CLIENT_SECRET': os.getenv('GITHUB_CLIENT_SECRET'),
+    'WEBHOOK_SECRET': os.getenv('GITHUB_WEBHOOK_SECRET'),
+}
+GITHUB_INSTALLATION_ID=os.getenv('GITHUB_INSTALLATION_ID')
 
 # ── Email Configuration ────────────────────────────────────────────────────────
 # Default: console backend (prints emails to stdout) — safe for dev/CI.
@@ -206,7 +233,7 @@ REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": (
         "rest_framework.permissions.IsAuthenticatedOrReadOnly",
     ),
-    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    "DEFAULT_SCHEMA_CLASS": "config.openapi.ThrottleAutoSchema",
     "EXCEPTION_HANDLER": "apps.accounts.exceptions.throttle_exception_handler",
 }
 
@@ -228,10 +255,24 @@ SITE_ID = 1
 
 SOCIALACCOUNT_PROVIDERS = {
     "github": {
+        "APP": {
+            "client_id": os.getenv("GITHUB_OAUTH_CLIENT_ID"),
+            "secret": os.getenv("GITHUB_OAUTH_CLIENT_SECRET"),
+        },
         "SCOPE": [
             "user",
             "repo",
             "read:user",
+        ],
+    },
+    "google": {
+        "APP": {
+            "client_id": os.getenv("GOOGLE_CLIENT_ID"),
+            "secret": os.getenv("GOOGLE_CLIENT_SECRET", ""),
+        },
+        "SCOPE": [
+            "profile",
+            "email",
         ],
     }
 }
@@ -255,6 +296,10 @@ INSTALLED_APPS += [
     "apps.search.apps.SearchConfig",
 ]
 
+CSRF_TRUSTED_ORIGINS = [
+    'http://localhost:8000',
+    'http://localhost:5173',
+]
 
 # ──────────────────────────────────────────
 # Redis Availability and Configuration (Dynamic Fallbacks)
@@ -266,7 +311,7 @@ def is_redis_available(url):
     try:
         if not url:
             return False
-        clean_url = url.replace("redis://", "")
+        clean_url = url.replace("rediss://", "").replace("redis://", "")
         host_port = clean_url.split("/")[0]
         if "@" in host_port:
             host_port = host_port.split("@")[1]
@@ -290,7 +335,6 @@ def is_redis_available(url):
 # Candidates check: use REDIS_URL if set, or default to standard local redis host for check
 ENV_REDIS_URL = os.getenv("REDIS_URL", "")
 CHECK_REDIS_URL = ENV_REDIS_URL or "redis://127.0.0.1:6379"
-
 
 if is_redis_available(CHECK_REDIS_URL):
     REDIS_URL = CHECK_REDIS_URL
@@ -322,6 +366,9 @@ else:
             "LOCATION": "atelier-unique-cache",
         }
     }
+
+# Cache timeout for Search API (in seconds) - Default: 1 hour
+SEARCH_CACHE_TIMEOUT = 60 * 60
 
 # ──────────────────────────────────────────
 # Django-Q Configuration
@@ -392,3 +439,18 @@ LOGGING = {
 }
 
 GRAPHENE = {"SCHEMA": "config.schema.schema"}
+
+# ──────────────────────────────────────────
+# Curriculum JSON Path
+# ──────────────────────────────────────────
+# Path to the curriculum.json file used for module definitions and learning paths.
+# Default resolves to frontend/public/content/curriculum.json relative to project root.
+# Override with CURRICULUM_JSON_PATH env var for Docker/production deployments.
+CURRICULUM_JSON_PATH = os.getenv(
+    "CURRICULUM_JSON_PATH",
+    str(
+        (
+            BASE_DIR / ".." / "frontend" / "public" / "content" / "curriculum.json"
+        ).resolve()
+    ),
+)

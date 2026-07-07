@@ -7,7 +7,6 @@ export function useTextToSpeech(text: string) {
 
   useEffect(() => {
     if ("speechSynthesis" in window) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setIsSupported(true);
     }
   }, []);
@@ -61,8 +60,23 @@ export function useTextToSpeech(text: string) {
 
     const utterance = new SpeechSynthesisUtterance(cleanText);
 
-    // Optional: Choose a reasonable voice if needed, here we use default
-    // utterance.rate = 1.0;
+    // Find a natural-sounding English voice (especially Siri, Alex, or Enhanced voices on Mac)
+    const voices = window.speechSynthesis.getVoices();
+    const premiumEnglishVoice = voices.find(
+      (v) =>
+        (v.name.includes("Siri") || 
+         v.name.includes("Alex") || 
+         v.name.includes("Enhanced") || 
+         v.name.includes("Natural") || 
+         v.name.includes("Google") || 
+         v.name.includes("Microsoft")) &&
+        v.lang.startsWith("en"),
+    );
+    const standardEnglishVoice = voices.find((v) => v.lang.startsWith("en"));
+    
+    utterance.voice = premiumEnglishVoice || standardEnglishVoice || null;
+    utterance.rate = 0.88; // Slower, calmer pace for improved comprehension
+    utterance.pitch = 0.95; // Slightly lower pitch for a warmer, less robotic/shrill tone
 
     utterance.onend = () => {
       setIsPlaying(false);

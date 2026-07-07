@@ -53,7 +53,9 @@ def send_web_push_notification(user_id, title, message, url=None):
             else:
                 logger.warning("Web push failed for subscription %s: %s", sub.id, ex)
         except Exception as exc:
-            logger.warning("Unexpected error sending web push to user %s: %s", user_id, exc)
+            logger.warning(
+                "Unexpected error sending web push to user %s: %s", user_id, exc
+            )
 
 
 def send_bulk_email(payload):

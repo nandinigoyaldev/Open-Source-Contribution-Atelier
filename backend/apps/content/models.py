@@ -38,6 +38,12 @@ class Lesson(models.Model):
         "self", symmetrical=False, related_name="dependents", blank=True
     )
 
+    @property
+    def reading_time(self) -> int:
+        from .utils import calculate_reading_time
+
+        return calculate_reading_time(self.content)
+
     class Meta:
         ordering = ["order", "id"]
 

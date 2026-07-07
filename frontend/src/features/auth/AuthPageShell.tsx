@@ -56,11 +56,11 @@ export function AuthPageShell({
           };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 sm:p-8 font-display bg-surface text-text overflow-hidden dark:bg-[#0f0e0c] dark:text-[#f0ebe2]">
+    <div className="min-h-screen flex items-center justify-center p-4 sm:p-8 font-display bg-surface text-text overflow-hidden dark:bg-[#0a0a0f] dark:text-[#eef2f6]">
       {/* Theme Toggle Buttons */}
       <div className="absolute top-4 right-4 sm:top-8 sm:right-8 flex gap-3 z-50">
         <button
-          className="rounded-lg bg-surface-low p-3 text-muted hover:text-text border-2 border-black dark:border-[#2e2924] shadow-card-sm hover:-translate-y-0.5 active:translate-y-0 transition-all dark:bg-[#151411] dark:text-[#c4bbae] dark:hover:text-[#f0ebe2]"
+          className="rounded-lg bg-surface-low p-3 text-muted hover:text-text border-2 border-black dark:border-[#3a3a45] shadow-card-sm hover:-translate-y-0.5 active:translate-y-0 transition-all dark:bg-[#121218] dark:text-[#94a3b8] dark:hover:text-[#eef2f6]"
           onClick={toggleTheme}
           aria-label={
             theme === "light" ? "Switch to dark mode" : "Switch to light mode"
@@ -69,10 +69,10 @@ export function AuthPageShell({
           {theme === "light" ? <Moon size={20} /> : <Sun size={20} />}
         </button>
         <button
-          className={`rounded-lg p-3 border-2 border-black dark:border-[#2e2924] shadow-card-sm hover:-translate-y-0.5 active:translate-y-0 transition-all ${
+          className={`rounded-lg p-3 border-2 border-black dark:border-[#3a3a45] shadow-card-sm hover:-translate-y-0.5 active:translate-y-0 transition-all ${
             theme === "high-contrast"
               ? "bg-primary text-white"
-              : "bg-surface-low text-muted hover:text-text dark:bg-[#151411] dark:text-[#c4bbae] dark:hover:text-[#f0ebe2]"
+              : "bg-surface-low text-muted hover:text-text dark:bg-[#121218] dark:text-[#94a3b8] dark:hover:text-[#eef2f6]"
           }`}
           onClick={() =>
             setTheme(theme === "high-contrast" ? "light" : "high-contrast")
@@ -93,10 +93,10 @@ export function AuthPageShell({
             </span>
           </div>
 
-          <h1 className="text-5xl lg:text-[5.5rem] font-black tracking-tight text-black mb-8 leading-[1.05] drop-shadow-[5px_5px_0_rgba(0,0,0,1)] dark:text-[#f0ebe2]">
+          <h1 className="text-5xl lg:text-[5.5rem] font-black tracking-tight text-black mb-8 leading-[1.05] drop-shadow-[5px_5px_0_rgba(0,0,0,1)] dark:text-[#eef2f6]">
             {title}
           </h1>
-          <p className="text-xl text-black font-semibold leading-relaxed mb-12 border-l-4 border-black pl-5 bg-white p-5 shadow-card rounded-r-xl max-w-lg dark:text-[#c4bbae] dark:bg-[#151411] dark:border-[#2e2924]">
+          <p className="text-xl text-black font-semibold leading-relaxed mb-12 border-l-4 border-black pl-5 bg-white p-5 shadow-card rounded-r-xl max-w-lg dark:text-[#94a3b8] dark:bg-[#121218] dark:border-[#3a3a45]">
             {subtitle}
           </p>
 
@@ -126,9 +126,9 @@ export function AuthPageShell({
 
         {/* RIGHT SIDE: Form */}
         <div className="flex-1 w-full max-w-md order-1 lg:order-2 self-center">
-          <div className="w-full rounded-[2rem] border-4 border-black bg-white p-8 sm:p-10 shadow-card-lg relative rotate-[2deg] hover:rotate-0 transition-transform duration-300 dark:bg-[#151411] dark:border-[#2e2924]">
+          <div className="w-full rounded-[2rem] border-4 border-black bg-white p-8 sm:p-10 shadow-card-lg relative rotate-[2deg] hover:rotate-0 transition-transform duration-300 dark:bg-[#121218] dark:border-[#3a3a45]">
             {/* Quirky tape or clip on top */}
-            <div className="absolute -top-5 left-1/2 -translate-x-1/2 w-32 h-10 bg-primary border-4 border-black rotate-[-4deg] shadow-card-sm z-20 dark:border-[#2e2924]"></div>
+            <div className="absolute -top-5 left-1/2 -translate-x-1/2 w-32 h-10 bg-primary border-4 border-black rotate-[-4deg] shadow-card-sm z-20 dark:border-[#3a3a45]"></div>
             {children}
           </div>
         </div>

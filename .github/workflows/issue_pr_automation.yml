@@ -1,0 +1,294 @@
+name: Issue & PR Automation
+
+on:
+  issues:
+    types: [opened]
+  issue_comment:
+    types: [created]
+  pull_request_target:
+    types: [opened, synchronize, reopened, edited]
+  schedule:
+    - cron: '0 0 * * *'   # run daily at midnight UTC
+
+permissions:
+  issues: write
+  pull-requests: write
+  contents: read
+
+jobs:
+  issue-opened:
+    if: github.event_name == 'issues' && github.event.action == 'opened'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Add labels & assign author
+        id: automate
+        uses: actions/github-script@v8
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const issue = context.payload.issue;
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+
+            async function ensureLabel(name, color='c2e0c6', description='') {
+              try {
+                await github.rest.issues.getLabel({owner, repo, name});
+              } catch (e) {
+                await github.rest.issues.createLabel({owner, repo, name, color, description: description || 'Auto‑created by automation'});
+              }
+            }
+
+            const title = (issue.title || '').toLowerCase();
+            const body = (issue.body || '').toLowerCase();
+
+            const difficultyMap = [
+              {keyword:['easy','low','simple'], label:'easy', color:'84b6eb'},
+              {keyword:['medium','moderate','intermediate'], label:'medium', color:'f0b37e'},
+              {keyword:['hard','difficult','complex','high'], label:'hard', color:'f77f7f'}
+            ];
+
+            for (const entry of difficultyMap) {
+              if (entry.keyword.some(k => title.includes(k) || body.includes(k))) {
+                await ensureLabel(entry.label, entry.color, `Difficulty ${entry.label}`);
+                await github.rest.issues.addLabels({owner, repo, issue_number: issue.number, labels: [entry.label]});
+                break;
+              }
+            }
+
+            if (/\bssoc26?\b/i.test(body) || /\bssoc26?\b/i.test(title)) {
+              const ssocLabel = 'ssoc26';
+              await ensureLabel(ssocLabel, 'c5def5', 'SSOC/ECSOC participation');
+              await github.rest.issues.addLabels({owner, repo, issue_number: issue.number, labels: [ssocLabel]});
+            }
+
+            // Always assign the author of the issue as the assignee
+            await github.rest.issues.addAssignees({owner, repo, issue_number: issue.number, assignees: [issue.user.login]});
+
+
+  first-commenter-assignment:
+    if: github.event_name == 'issue_comment' && github.event.action == 'created'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Assign first commenter (if none already)
+        id: assigner
+        uses: actions/github-script@v8
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const comment = context.payload.comment;
+            const issue = context.payload.issue;
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+
+            const existingAssignees = issue.assignees.map(a => a.login);
+            const author = issue.user.login;
+            const commenter = comment.user.login;
+
+            if (commenter === author) { console.log('Commenter is the author – no reassignment.'); return; }
+
+            const hasNonAuthorAssignee = existingAssignees.some(a => a !== author);
+            if (hasNonAuthorAssignee) { console.log('Issue already has a non‑author assignee – nothing to do.'); return; }
+
+            // Extract issue labels to check what program it belongs to
+            const labels = issue.labels.map(l => l.name.toLowerCase());
+            const isSsoc = labels.includes('ssoc26');
+            const isEcsoc = labels.includes('ecsoc26');
+            
+            const commentText = (comment.body || '').toLowerCase();
+
+            if (isSsoc || isEcsoc) {
+              const mentionsSsoc = /\b(ssoc|ssoc26|ssoc-26)\b/i.test(commentText);
+              const mentionsEcsoc = /\b(ecsoc|ecsoc26|ecsoc-26)\b/i.test(commentText);
+
+              if (isSsoc && !mentionsSsoc) {
+                await github.rest.issues.createComment({
+                  owner,
+                  repo,
+                  issue_number: issue.number,
+                  body: `⚠️ @${commenter}, this issue is reserved for **SSoC 2026** contributors. To be assigned, please post a comment mentioning \`ssoc26\`.`
+                });
+                return;
+              }
+              if (isEcsoc && !mentionsEcsoc) {
+                await github.rest.issues.createComment({
+                  owner,
+                  repo,
+                  issue_number: issue.number,
+                  body: `⚠️ @${commenter}, this issue is reserved for **ECSoC 2026** contributors. To be assigned, please post a comment mentioning \`ecsoc26\`.`
+                });
+                return;
+              }
+            }
+
+            // If it passes check or has no specific labels, assign it
+            await github.rest.issues.addAssignees({owner, repo, issue_number: issue.number, assignees: [commenter]});
+            await github.rest.issues.createComment({owner, repo, issue_number: issue.number, body: `🛠️ @${commenter} has been **assigned** to this issue as the first responder.`});
+
+
+  pr-label-copy:
+    if: github.event_name == 'pull_request_target' && (github.event.action == 'opened' || github.event.action == 'synchronize' || github.event.action == 'reopened' || github.event.action == 'edited')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Copy labels from referenced issue(s) and assign PR creator
+        id: pr_sync
+        uses: actions/github-script@v8
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const pr = context.payload.pull_request;
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+
+            // Fetch current PR details to avoid duplicates
+            const {data: currentPr} = await github.rest.pulls.get({owner, repo, pull_number: pr.number});
+            const currentLabels = new Set(currentPr.labels.map(l => l.name));
+            const currentAssignees = new Set(currentPr.assignees.map(a => a.login));
+
+            const issueNums = [...(pr.body || '').matchAll(/#(\d+)/g)].map(m => parseInt(m[1],10));
+            console.log(`Found referenced issue numbers: ${issueNums.join(', ')}`);
+
+            const allLabels = new Set();
+            for (const num of issueNums) {
+              try {
+                const {data: issue} = await github.rest.issues.get({owner, repo, issue_number: num});
+                issue.labels.forEach(l => allLabels.add(l.name));
+              } catch (e) { console.warn(`Could not fetch issue #${num}: ${e}`); }
+            }
+
+            const newLabels = Array.from(allLabels).filter(l => !currentLabels.has(l));
+            if (newLabels.length > 0) {
+              await github.rest.issues.addLabels({owner, repo, issue_number: pr.number, labels: newLabels});
+              console.log(`Added labels ${newLabels.join(', ')} to PR #${pr.number}`);
+            }
+
+            const creator = pr.user.login;
+            let assignedCreator = false;
+            if (creator !== owner && !currentAssignees.has(creator)) {
+              await github.rest.issues.addAssignees({owner, repo, issue_number: pr.number, assignees: [creator]});
+              console.log(`Assigned PR creator @${creator} to PR #${pr.number}`);
+              assignedCreator = true;
+            }
+
+            let commentBody = '';
+            if (newLabels.length > 0) commentBody += `🔖 Copied labels from referenced issue(s): ${newLabels.join(', ')}.\n`;
+            if (assignedCreator) commentBody += `👤 Assigned @${creator} as the PR owner.`;
+            if (commentBody) {
+              await github.rest.issues.createComment({owner, repo, issue_number: pr.number, body: commentBody});
+            }
+
+  stale-assignee-check:
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Find stale assignees and comment
+        uses: actions/github-script@v8
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const threeDays = 3 * 24 * 60 * 60 * 1000;
+
+            const issues = await octokit.paginate(github.rest.issues.listForRepo, {owner, repo, state: 'open', per_page: 100});
+
+            for (const issue of issues) {
+              if (issue.assignees.length === 0) continue;
+              if (issue.labels.some(l => l.name === 'awaiting-response')) continue;
+
+              const events = await octokit.paginate(github.rest.issues.listEvents, {owner, repo, issue_number: issue.number, per_page: 100});
+              const assignEvent = events.filter(e => e.event === 'assigned').sort((a,b) => new Date(b.created_at) - new Date(a.created_at))[0];
+              if (!assignEvent) continue;
+              const assignedAt = new Date(assignEvent.created_at);
+              const now = new Date();
+              if (now - assignedAt < threeDays) continue;
+
+              // check for PRs referencing this issue
+              const searchQuery = `repo:${owner}/${repo} is:pr ${issue.number}`;
+              const prs = await octokit.request('GET /search/issues', {q: searchQuery, per_page: 5});
+              if (prs.data.total_count > 0) continue;
+
+              const commentBody = `⚠️ It has been **3 days** since this issue was assigned to @${issue.assignees[0].login} without an associated pull request. Please respond within **48 hours** (e.g., submit a PR or comment) or the assignee will be removed.`;
+              await github.rest.issues.createComment({owner, repo, issue_number: issue.number, body: commentBody});
+              await github.rest.issues.addLabels({owner, repo, issue_number: issue.number, labels: ['awaiting-response']});
+            }
+
+  unassign-if-no-response:
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Unassign stale issues after no response
+        uses: actions/github-script@v8
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const fortyEightHours = 48 * 60 * 60 * 1000;
+
+            const issues = await octokit.paginate(github.rest.issues.listForRepo, {owner, repo, state: 'open', labels: 'awaiting-response', per_page: 100});
+
+            for (const issue of issues) {
+              const comments = await octokit.paginate(github.rest.issues.listComments, {owner, repo, issue_number: issue.number, per_page: 100});
+              const botComment = comments.reverse().find(c => c.user.type === 'Bot' && c.body.includes('It has been **3 days**'));
+              if (!botComment) continue;
+              const commentTime = new Date(botComment.created_at);
+              const now = new Date();
+              if (now - commentTime < fortyEightHours) continue;
+
+              const assigneeLogin = issue.assignees[0]?.login;
+              if (!assigneeLogin) {
+                await github.rest.issues.removeLabel({owner, repo, issue_number: issue.number, name: 'awaiting-response'});
+                continue;
+              }
+
+              // 1. Check if the assignee has commented on the issue since the bot's comment
+              const recentAssigneeComment = comments.find(c => c.user.login === assigneeLogin && new Date(c.created_at) > commentTime);
+              if (recentAssigneeComment) {
+                await github.rest.issues.removeLabel({owner, repo, issue_number: issue.number, name: 'awaiting-response'});
+                continue;
+              }
+
+              // 2. Check if there are any PRs referencing this issue authored by the assignee
+              const searchQuery = `repo:${owner}/${repo} is:pr ${issue.number}`;
+              const prsRes = await octokit.request('GET /search/issues', {q: searchQuery, per_page: 10});
+              const prs = prsRes.data.items || [];
+              const hasAssigneePr = prs.some(pr => pr.user.login === assigneeLogin);
+              if (hasAssigneePr) {
+                await github.rest.issues.removeLabel({owner, repo, issue_number: issue.number, name: 'awaiting-response'});
+                continue;
+              }
+
+              // 3. Check if the assignee has commented on any referencing PRs since the bot's comment
+              let respondedOnPr = false;
+              for (const pr of prs) {
+                const prComments = await octokit.paginate(github.rest.issues.listComments, {owner, repo, issue_number: pr.number, per_page: 100});
+                const recentPrComment = prComments.find(c => c.user.login === assigneeLogin && new Date(c.created_at) > commentTime);
+                if (recentPrComment) {
+                  respondedOnPr = true;
+                  break;
+                }
+              }
+              if (respondedOnPr) {
+                await github.rest.issues.removeLabel({owner, repo, issue_number: issue.number, name: 'awaiting-response'});
+                continue;
+              }
+
+              await github.rest.issues.removeAssignees({owner, repo, issue_number: issue.number, assignees: [assigneeLogin]});
+              await github.rest.issues.createComment({owner, repo, issue_number: issue.number, body: `⏰ No response from @${assigneeLogin} within 48 hours. The assignee has been removed.`});
+              await github.rest.issues.removeLabel({owner, repo, issue_number: issue.number, name: 'awaiting-response'});
+            }

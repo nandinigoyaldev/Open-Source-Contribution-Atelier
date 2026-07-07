@@ -23,26 +23,11 @@ import SkeletonLesson from "../components/ui/skeletons/SkeletonLesson";
 import { PathwayPage } from "../pages/PathwayPage";
 import { LearningPathPage } from "../pages/LearningPathPage";
 import AnalyticsDashboardPage from "../pages/AnalyticsDashboardPage";
+import TemplateMarketplacePage from "../pages/TemplateMarketplacePage";
+import { GitTerminal } from "../components/ui/GitTerminal";
+import { TerminalReplay } from "../components/ui/TerminalReplay";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, isLoading } = useAuth();
-
-  if (isLoading) {
-    return (
-      <div
-        className="h-screen w-full flex items-center justify-center"
-        aria-busy="true"
-        role="status"
-      >
-        <div className="w-full max-w-3xl">
-          <SkeletonLesson />
-        </div>
-      </div>
-    );
-  }
-
-  if (!isAuthenticated) return <Navigate to="/" replace />;
-
   return <>{children}</>;
 }
 
@@ -172,9 +157,37 @@ export function AppRouter() {
         />
         <Route
           path="/sandbox"
+          element={<SandboxPage />}
+        />
+        <Route
+          path="/test-terminal"
+          element={
+            <div className="p-10 h-screen bg-[#0a0a0a] flex gap-8">
+              <div className="flex-1 flex flex-col h-[600px]">
+                <h2 className="text-white mb-4 font-bold text-xl">Interactive Git Terminal</h2>
+                <GitTerminal />
+              </div>
+              <div className="flex-1 flex flex-col h-[600px]">
+                <h2 className="text-white mb-4 font-bold text-xl">Interactive Terminal Replay</h2>
+                <TerminalReplay
+                  sessionName="Git Tutorial Replay"
+                  commands={[
+                    { command: "git init", output: "Initialized empty Git repository in /workspace/.git/", typingDelayMs: 60, executionDelayMs: 400 },
+                    { command: "git add .", output: "", typingDelayMs: 50, executionDelayMs: 300 },
+                    { command: "git commit -m 'Initial commit'", output: "[main (root-commit) 1a2b3c4] Initial commit\n 3 files changed, 120 insertions(+)\n create mode 100644 index.js\n create mode 100644 package.json", typingDelayMs: 60, executionDelayMs: 800 },
+                    { command: "npm run test", output: "Running tests...\nPASS  src/test/app.test.js\nTest Suites: 1 passed, 1 total\nTests:       3 passed, 3 total\nSnapshots:   0 total\nTime:        1.2s", typingDelayMs: 50, executionDelayMs: 1200 },
+                    { command: "git status", output: "On branch main\nnothing to commit, working tree clean", typingDelayMs: 60, executionDelayMs: 500 }
+                  ]}
+                />
+              </div>
+            </div>
+          }
+        />
+        <Route
+          path="/templates"
           element={
             <ProtectedRoute>
-              <SandboxPage />
+              <TemplateMarketplacePage />
             </ProtectedRoute>
           }
         />

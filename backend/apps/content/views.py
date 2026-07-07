@@ -44,8 +44,20 @@ def get_active_lessons():
 
 
 # --- Existing Views ---
-class LessonViewSet(viewsets.ReadOnlyModelViewSet):
+class LessonViewSet(viewsets.ModelViewSet):
+    queryset = Lesson.objects.all()
     serializer_class = LessonSerializer
+
+    def get_permissions(self):
+        from apps.rbac.permissions import HasPermission
+
+        if self.action in ["create"]:
+            return [permissions.IsAuthenticated(), HasPermission("create_content")]
+        elif self.action in ["update", "partial_update"]:
+            return [permissions.IsAuthenticated(), HasPermission("edit_content")]
+        elif self.action in ["destroy"]:
+            return [permissions.IsAuthenticated(), HasPermission("delete_content")]
+        return [permissions.AllowAny()]
 
     def list(self, request, *args, **kwargs):
         lessons = get_active_lessons()
@@ -86,6 +98,8 @@ class SearchView(views.APIView):
             objects = model_class.objects.filter(
                 id__in=object_ids, organization=request.user.organization
             )
+            if model_class == Lesson:
+                objects = objects.prefetch_related("exercises", "prerequisites")
             # Sort them in the exact order returned by FTS
             ordered_objects = sorted(objects, key=lambda x: object_ids.index(x.id))
             return ordered_objects
@@ -186,8 +200,9 @@ class RoadmapView(views.APIView):
                     "summary": lesson.summary,
                     "difficulty": lesson.difficulty,
                     "estimatedMinutes": lesson.estimated_minutes,
+                    "readingTime": lesson.reading_time,
                     "order": lesson.order,
-                    "exerciseCount": lesson.exercises.count(),
+                    "exerciseCount": len(lesson.exercises.all()),
                     "prerequisites": [p.slug for p in lesson.prerequisites.all()],
                     "completed": completed,
                     "score": score,

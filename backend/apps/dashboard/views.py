@@ -6,6 +6,11 @@ from django.db import models, transaction
 from django.db.models import Count, F, IntegerField, OuterRef, Q, Subquery, Sum, Value
 from django.db.models.functions import Coalesce, TruncDate
 from django.utils import timezone
+from rest_framework import permissions, serializers, status
+from rest_framework.generics import ListAPIView
+from rest_framework.pagination import PageNumberPagination
+from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from apps.challenges.models import ChallengeCompletion
 from apps.content.models import Lesson
@@ -15,14 +20,9 @@ from apps.progress.models import (
     ExerciseAttempt,
     LessonProgress,
     QuizAttempt,
+    XPEvent,
 )
 from apps.rbac.permissions import HasRole
-
-from rest_framework import serializers, permissions, status
-from rest_framework.views import APIView
-from rest_framework.generics import ListAPIView
-from rest_framework.pagination import PageNumberPagination
-from rest_framework.response import Response
 
 
 class LeaderboardPagination(PageNumberPagination):
@@ -127,7 +127,7 @@ class LeaderboardView(ListAPIView):
                     Subquery(issues_solved, output_field=IntegerField()), Value(0)
                 ),
                 lesson_xp=Coalesce(
-                    Subquery(lesson_xp, output_field=IntegerField()), Value(0)
+                    Subquery(lesson_progress, output_field=IntegerField()), Value(0)
                 ),
                 issues_xp=Coalesce(
                     Subquery(issues_xp, output_field=IntegerField()), Value(0)
@@ -146,10 +146,14 @@ class LeaderboardView(ListAPIView):
 class AdminDashboardView(APIView):
     """
     API view for Admin Dashboard stats.
-    Only users with is_staff=True can access this.
+    Only users with 'Admin' role can access this.
     """
 
-    permission_classes = [permissions.IsAuthenticated, permissions.IsAdminUser]
+    def get_permissions(self):
+        from apps.rbac.permissions import HasAnyRole
+        from rest_framework import permissions
+
+        return [permissions.IsAuthenticated(), HasAnyRole(["Admin"])]
 
     def get(self, request):
         cache_key = "dashboard_admin_stats_v2"
@@ -158,7 +162,7 @@ class AdminDashboardView(APIView):
         if data is None:
             # 1. Calculate system-wide stats
             total_issues = Issue.objects.count()
-            solved_issues = Issue.objects.select_related('assigned_to', 'created_by').filter(**issue_filter)
+            solved_issues = Issue.objects.filter(status=Issue.Status.SOLVED).count()
             open_issues = Issue.objects.filter(status=Issue.Status.OPEN).count()
             in_progress_issues = Issue.objects.filter(
                 status=Issue.Status.IN_PROGRESS
@@ -240,8 +244,8 @@ class PublicLandingStatsView(APIView):
             total_users = User.objects.filter(is_staff=False).count()
             total_lessons_solved = LessonProgress.objects.filter(completed=True).count()
             total_xp = (
-                LessonProgress.objects.filter(completed=True).aggregate(
-                    total=Sum("score")
+                XPEvent.objects.filter(source_type="lesson").aggregate(
+                    total=Sum("xp_delta")
                 )["total"]
                 or 0
             )
@@ -276,8 +280,8 @@ class ContributorDashboardView(APIView):
             ).count()
 
             lesson_xp = (
-                LessonProgress.objects.filter(user=user, completed=True).aggregate(
-                    total=Sum("score")
+                XPEvent.objects.filter(user=user, source_type="lesson").aggregate(
+                    total=Sum("xp_delta")
                 )["total"]
                 or 0
             )
@@ -292,7 +296,6 @@ class ContributorDashboardView(APIView):
                 or 0
             )
             total_xp = lesson_xp + issues_xp + challenge_bonus_xp
-
 
             # --- NEW CLEAN STREAK LOGIC ---
             from apps.progress.models import StreakProfile
@@ -309,7 +312,9 @@ class ContributorDashboardView(APIView):
             )
             for dt in attempts:
                 activity_days.add(timezone.localdate(dt))
-            progress_entries = LessonProgress.objects.select_related('user', 'lesson').filter(user=user)
+            progress_entries = LessonProgress.objects.filter(user=user).values_list(
+                "updated_at", flat=True
+            )
             for dt in progress_entries:
                 activity_days.add(timezone.localdate(dt))
 
@@ -357,9 +362,9 @@ class ContributorDashboardView(APIView):
 
             # Determine Rank based on user XP vs others
             lesson_xp_sub = (
-                LessonProgress.objects.filter(user=OuterRef("pk"), completed=True)
+                XPEvent.objects.filter(user=OuterRef("pk"), source_type="lesson")
                 .values("user")
-                .annotate(total=Sum("score"))
+                .annotate(total=Sum("xp_delta"))
                 .values("total")
             )
             issues_xp_sub = (
@@ -478,7 +483,11 @@ class ContributorDashboardView(APIView):
             return recent_prs
 
         elif field == "progress_tracker":
-            completed_lessons = LessonProgress.objects.select_related('user', 'lesson').filter(user=user, completed=True).count()
+            completed_lessons = (
+                LessonProgress.objects.select_related("user", "lesson")
+                .filter(user=user, completed=True)
+                .count()
+            )
             total_lessons = Lesson.objects.count()
             completion_percentage = (
                 int((completed_lessons / total_lessons) * 100)
@@ -579,7 +588,11 @@ class BuyStreakFreezeView(APIView):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-            unused_freezes = StreakFreeze.objects.select_related('user').filter(user=user, used_on_date__isnull=True).count()
+            unused_freezes = (
+                StreakFreeze.objects.select_related("user")
+                .filter(user=user, used_on_date__isnull=True)
+                .count()
+            )
             if unused_freezes >= 3:
                 return Response(
                     {
@@ -611,26 +624,23 @@ from django.db import models
 from apps.rbac.models import UserRole
 
 
-class IsModeratorOrAdmin(permissions.BasePermission):
-    def has_permission(self, request, view):
-        if not request.user or not request.user.is_authenticated:
-            return False
-        if request.user.is_superuser or request.user.is_staff:
-            return True
-        return UserRole.objects.filter(
-            user=request.user, role__name__in=["Moderator", "Administrator"]
-        ).exists()
-
-
 class ModeratorAnalyticsView(APIView):
-    permission_classes = [permissions.IsAuthenticated, IsModeratorOrAdmin]
+    def get_permissions(self):
+        from apps.rbac.permissions import HasAnyRole
+        from rest_framework import permissions
+
+        return [permissions.IsAuthenticated(), HasAnyRole(["Admin", "Moderator"])]
 
     def get(self, request):
         thirty_days_ago = timezone.now() - timedelta(days=30)
 
         # 1. Registrations
         registrations = (
+feat/localsync-hook
             User.objects.select_related('profile')
+
+            User.objects.select_related("profile")
+ main
             .filter(date_joined__gte=thirty_days_ago)
             .annotate(date=TruncDate("date_joined"))
             .values("date")

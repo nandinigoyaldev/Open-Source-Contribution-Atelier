@@ -3,7 +3,7 @@ import React from "react";
 
 export const pluginRegistry: Record<
   string,
-  React.ComponentType<Record<string, unknown>>
+  React.ComponentType<any>
 > = {
   "interactive-quiz": InteractiveQuiz,
 };

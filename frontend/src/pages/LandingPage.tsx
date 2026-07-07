@@ -16,10 +16,12 @@ function getErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback;
 }
 
+import SkeletonContributorDashboard from "../components/ui/skeletons/SkeletonContributorDashboard";
+
 export function LandingPage() {
   const { t } = useTranslation();
   // Safely obtain login function; if AuthContext is not provided, default to a no-op.
-  let login = () => {};
+  let login: (tokens: { access: string; refresh: string }) => void = () => {};
   try {
     const auth = useAuth();
     login = auth.login;
@@ -37,7 +39,6 @@ export function LandingPage() {
       "auth_error",
     );
     if (authError) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setError(authError);
       window.history.replaceState({}, "", window.location.pathname);
     }

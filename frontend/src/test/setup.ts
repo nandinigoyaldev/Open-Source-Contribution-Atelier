@@ -23,7 +23,15 @@ import { server } from "../mocks/server";
 import { beforeAll, afterEach, afterAll } from "vitest";
 
 // Establish API mocking before all tests.
-beforeAll(() => server.listen({ onUnhandledRequest: "error" }));
+// Wrap in try-catch because the Storybook addon-vitest environment
+// may already have MSW configured, and calling listen() again would throw.
+beforeAll(() => {
+  try {
+    server.listen({ onUnhandledRequest: "error" });
+  } catch {
+    // MSW is already listening — likely already configured by the test environment
+  }
+});
 
 // Reset any request handlers that we may add during the tests,
 // so they don't affect other tests.

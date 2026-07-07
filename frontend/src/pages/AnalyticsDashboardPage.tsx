@@ -206,8 +206,8 @@ export default function AnalyticsDashboardPage() {
                     outerRadius={120}
                     paddingAngle={5}
                     dataKey="value"
-                    label={({ name, percent }) =>
-                      `${name} ${(percent * 100).toFixed(0)}%`
+                    label={({ name, percent }: any) =>
+                      `${name} ${((percent || 0) * 100).toFixed(0)}%`
                     }
                     labelLine={false}
                   >
@@ -255,8 +255,8 @@ export default function AnalyticsDashboardPage() {
                     outerRadius={120}
                     dataKey="count"
                     nameKey="status"
-                    label={({ status, percent }) =>
-                      `${status} ${(percent * 100).toFixed(0)}%`
+                    label={({ status, percent }: any) =>
+                      `${status} ${((percent || 0) * 100).toFixed(0)}%`
                     }
                   >
                     {data.challenge_stats.map((entry, index) => (
