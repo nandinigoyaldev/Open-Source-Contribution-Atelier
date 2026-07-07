@@ -31,6 +31,7 @@ import { CollabPythonSandbox } from "../components/ui/CollabPythonSandbox";
 import { JSSandbox } from "../components/ui/JSSandbox";
 import { InteractiveDebugger } from "../components/ui/InteractiveDebugger";
 import { TextToSpeechControls } from "../components/ui/TextToSpeechControls";
+import { ReadingProgressTracker } from "../components/ui/ReadingProgressTracker";
 
 import {
   createInitialRepo,
@@ -520,6 +521,7 @@ export function LessonPage() {
             style={{ width: `${scrollProgress}%` }}
           />
         </div>
+        <ReadingProgressTracker lessonSlug={lesson.slug} containerSelector=".prose" />
 
         <div
           ref={mainContentRef}

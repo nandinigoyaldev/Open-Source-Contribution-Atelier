@@ -1,7 +1,7 @@
 import { QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter } from "react-router-dom";
 import { Toaster } from "react-hot-toast";
-import { SpeedInsights } from "@vercel/speed-insights/react";
+
 import { AppRouter } from "./router";
 import { queryClient } from "../lib/queryClient";
 import { ThemeProvider } from '../context/ThemeContext';
@@ -38,7 +38,7 @@ export function App() {
               <ScrollToTop />
               <CommandPalette />
               <ReportIssueButton />
-              <SpeedInsights />
+
             </div>
           </NotificationProvider>
         </ThemeProvider>

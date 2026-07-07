@@ -16,6 +16,7 @@ from rest_framework.response import Response
 from rest_framework.throttling import AnonRateThrottle
 from rest_framework.views import APIView
 from django.http import HttpResponse
+from django.core.cache import cache
 from apps.content.models import Lesson
 from apps.content.serializers import LessonSerializer
 
@@ -1043,3 +1044,30 @@ class LessonBookmarkView(APIView):
         )
         bookmark.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+class ReadingProgressView(APIView):
+    """
+    Saves and retrieves the user's reading position in a lesson using the Redis cache.
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        lesson_slug = request.query_params.get("lesson")
+        if not lesson_slug:
+            return Response({"error": "Lesson slug required"}, status=status.HTTP_400_BAD_REQUEST)
+        
+        cache_key = f"reading_progress_{request.user.id}_{lesson_slug}"
+        progress = cache.get(cache_key, 0)
+        return Response({"progress": progress})
+
+    def post(self, request):
+        lesson_slug = request.data.get("lesson")
+        progress = request.data.get("progress")
+        
+        if not lesson_slug or progress is None:
+            return Response({"error": "Lesson slug and progress required"}, status=status.HTTP_400_BAD_REQUEST)
+            
+        cache_key = f"reading_progress_{request.user.id}_{lesson_slug}"
+        # Store for 30 days
+        cache.set(cache_key, progress, timeout=60 * 60 * 24 * 30)
+        return Response({"status": "success", "progress": progress})

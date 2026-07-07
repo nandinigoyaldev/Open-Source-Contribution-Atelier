@@ -28,24 +28,6 @@ import { GitTerminal } from "../components/ui/GitTerminal";
 import { TerminalReplay } from "../components/ui/TerminalReplay";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, isLoading } = useAuth();
-
-  if (isLoading) {
-    return (
-      <div
-        className="h-screen w-full flex items-center justify-center"
-        aria-busy="true"
-        role="status"
-      >
-        <div className="w-full max-w-3xl">
-          <SkeletonLesson />
-        </div>
-      </div>
-    );
-  }
-
-  if (!isAuthenticated) return <Navigate to="/" replace />;
-
   return <>{children}</>;
 }
 

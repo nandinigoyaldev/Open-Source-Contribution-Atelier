@@ -18,6 +18,7 @@ from .views import (
     QuizAttemptView,
     RecommendationsView,
     UserProgressPDFExportView,
+    ReadingProgressView,
 )
 
 urlpatterns = [
@@ -60,4 +61,5 @@ urlpatterns = [
         PeerReviewView.as_view(),
         name="peer-reviews",
     ),
+    path("reading-position/", ReadingProgressView.as_view(), name="reading-position"),
 ]
