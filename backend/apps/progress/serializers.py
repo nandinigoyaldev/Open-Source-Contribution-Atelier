@@ -69,7 +69,12 @@ class HelpRequestSerializer(serializers.ModelSerializer):
 
 class LessonProgressCreateSerializer(serializers.Serializer):
     lesson_slug = serializers.SlugField(help_text="Slug of the lesson")
-    score = serializers.IntegerField(default=100, help_text="Numeric score")
+    score = serializers.IntegerField(
+        default=100, 
+        min_value=0,
+        max_value=100,  # SECURITY: Prevents XP farming via inflated score values
+        help_text="Numeric score (0-100)"
+    )
     completed = serializers.BooleanField(
         default=True, help_text="Whether the lesson is completed"
     )
@@ -85,7 +90,11 @@ class LessonProgressCreateSerializer(serializers.Serializer):
 
 class BulkLessonProgressSerializer(serializers.Serializer):
     lesson_slug = serializers.SlugField()
-    score = serializers.IntegerField(default=100)
+    score = serializers.IntegerField(
+        default=100,
+        min_value=0,
+        max_value=100,  # SECURITY: Prevents XP farming via inflated score values
+    )
     completed = serializers.BooleanField(default=True)
     client_timestamp = serializers.IntegerField(required=False)
     idempotency_key = serializers.CharField(
