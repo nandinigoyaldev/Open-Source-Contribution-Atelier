@@ -1,6 +1,7 @@
 import os
 from datetime import timedelta
 from pathlib import Path
+from config.auth import JWT_CONFIG, TOKEN_BLACKLIST_ENABLED
 
 import dj_database_url
 
@@ -168,6 +169,9 @@ STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# Update JWT settings
+SIMPLE_JWT = JWT_CONFIG
 
 #Github App Configuration
 GITHUB_APP={
