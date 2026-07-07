@@ -206,7 +206,7 @@ export function Navigation() {
         </div>
       </aside>
 
-      <header className="fixed inset-x-0 top-0 z-30 border-b border-outline bg-surface/95 backdrop-blur-xl lg:left-[280px] dark:border-[#2e2924] dark:bg-[#0f0e0c]/95">
+      <header className="fixed inset-x-0 top-0 z-30 border-b border-outline bg-white lg:left-[280px] dark:border-[#2e2924] dark:bg-[#0f0e0c]">
         <div className="flex items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
             <div className="flex min-w-0 items-center gap-3 relative grow max-w-md">
             <div className="flex items-center gap-2 rounded-lg bg-surface-low px-3 py-2 text-muted w-full border-2 border-black dark:border-[#2e2924] shadow-card-sm focus-within:bg-white transition-all dark:bg-[#151411] dark:text-[#c4bbae] dark:focus-within:bg-[#0f0e0c]">

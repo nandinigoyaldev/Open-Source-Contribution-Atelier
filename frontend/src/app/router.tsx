@@ -24,6 +24,7 @@ import { PathwayPage } from "../pages/PathwayPage";
 import { LearningPathPage } from "../pages/LearningPathPage";
 import AnalyticsDashboardPage from "../pages/AnalyticsDashboardPage";
 import TemplateMarketplacePage from "../pages/TemplateMarketplacePage";
+import { GitTerminal } from "../components/ui/GitTerminal";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuth();
@@ -173,10 +174,14 @@ export function AppRouter() {
         />
         <Route
           path="/sandbox"
+          element={<SandboxPage />}
+        />
+        <Route
+          path="/test-terminal"
           element={
-            <ProtectedRoute>
-              <SandboxPage />
-            </ProtectedRoute>
+            <div className="p-10 h-screen bg-black">
+              <GitTerminal />
+            </div>
           }
         />
         <Route
