@@ -25,14 +25,6 @@ def load_dotenv(dotenv_path: Path) -> None:
 
 load_dotenv(BASE_DIR / ".env")
 
-print("DEBUG - DATABASE_URL present:", "DATABASE_URL" in os.environ)
-if "DATABASE_URL" in os.environ:
-    print("DEBUG - DATABASE_URL length:", len(os.environ["DATABASE_URL"]))
-    print("DEBUG - DATABASE_URL prefix:", os.environ["DATABASE_URL"][:15])
-print("DEBUG - REDIS_URL present:", "REDIS_URL" in os.environ)
-if "REDIS_URL" in os.environ:
-    print("DEBUG - REDIS_URL prefix:", os.environ["REDIS_URL"][:15])
-
 SECRET_KEY = os.getenv(
     "SECRET_KEY", "django-insecure-dev-key-not-for-production-use-32bytes!!"
 )
