@@ -342,7 +342,7 @@ export function Navigation() {
                   👤{" "}
                   <span className="max-w-[80px] truncate">{user.username}</span>
                   {user.is_staff && (
-                    <span className="font-black text-[9px] bg-primary text-white px-1.5 py-0.5 rounded border border-black dark:border-none">
+                    <span className="font-black text-[9px] bg-[#ff665c] text-white px-1.5 py-0.5 rounded border border-black dark:border-none">
                       ADMIN
                     </span>
                   )}
