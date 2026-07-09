@@ -17,7 +17,6 @@ from rest_framework.throttling import AnonRateThrottle
 from rest_framework.views import APIView
 from django.http import HttpResponse
 from django.core.cache import cache
-from apps.content.models import Lesson
 from apps.content.serializers import LessonSerializer
 
 from .models import (
@@ -67,152 +66,28 @@ class MyProgressView(APIView):
         return Response(serializer.data)
 
     def post(self, request):
-        from apps.progress.models import LessonProgressSync, XPMultiplierEvent
-        from django_q.tasks import async_task
+        from apps.progress.services.progress_tracking_service import ProgressTrackingService
+        from django.core.exceptions import ObjectDoesNotExist
 
         lesson_slug = request.data.get("lesson_slug")
         idempotency_key = request.data.get("idempotency_key")
         client_timestamp_ms = request.data.get("client_timestamp")
-
-        multiplier = XPMultiplierEvent.get_active_multiplier()
         base_score = request.data.get("score", 100)
         completed = request.data.get("completed", True)
 
         try:
-            lesson = Lesson.objects.get(
-                slug=lesson_slug,
-                organization=request.user.organization,
+            progress, created, idempotency_hit = ProgressTrackingService.record_lesson_progress(
+                user=request.user,
+                lesson_slug=lesson_slug,
+                base_score=base_score,
+                completed=completed,
+                idempotency_key=idempotency_key,
+                client_timestamp_ms=client_timestamp_ms
             )
-        except Lesson.DoesNotExist:
+        except ObjectDoesNotExist:
             return Response(
                 {"error": "Lesson not found"},
                 status=status.HTTP_404_NOT_FOUND,
-            )
-
-        with transaction.atomic():
-            # Lock the progress row for the full read-modify-write cycle.
-            # Concurrent requests for the same user/lesson are serialized here.
-            progress, created = (
-                LessonProgress.objects.select_for_update().get_or_create(
-                    user=request.user,
-                    lesson=lesson,
-                    defaults={
-                        "organization": request.user.organization,
-                        "completed": completed,
-                        "base_score": base_score,
-                        "multiplier_applied": multiplier,
-                        "score": int(base_score * multiplier),
-                    },
-                )
-            )
-
-            # Check idempotency only after the progress row is locked. This
-            # prevents two concurrent requests with the same key from both
-            # applying score and XP side effects.
-            if idempotency_key:
-                sync_row = (
-                    LessonProgressSync.objects.filter(
-                        user=request.user,
-                        lesson=lesson,
-                        idempotency_key=idempotency_key,
-                    )
-                    .first()
-                )
-
-                if sync_row is not None:
-                    serializer = LessonProgressSerializer(progress)
-
-                    transaction.on_commit(
-                        lambda: async_task(
-                            "apps.progress.tasks.evaluate_user_badges_task",
-                            request.user.id,
-                        )
-                    )
-
-                    return Response(
-                        serializer.data,
-                        status=status.HTTP_200_OK,
-                    )
-
-            if created:
-                # Record XP only once for a newly created progress row.
-                if progress.score != 0:
-                    XPEvent.objects.create(
-                        user=request.user,
-                        source_type="lesson",
-                        source_id=lesson.id,
-                        base_points=base_score,
-                        multiplier=multiplier,
-                        xp_delta=progress.score,
-                    )
-            else:
-                skip_update = False
-
-                if client_timestamp_ms:
-                    client_dt = datetime.fromtimestamp(
-                        client_timestamp_ms / 1000.0,
-                        tz=dt_timezone.utc,
-                    )
-
-                    if progress.updated_at > client_dt:
-                        skip_update = True
-
-                if not skip_update and (
-                    progress.base_score != base_score
-                    or progress.completed != completed
-                ):
-                    old_score = progress.score
-
-                    progress.completed = completed
-                    progress.base_score = base_score
-                    progress.multiplier_applied = multiplier
-                    progress.score = int(base_score * multiplier)
-                    progress.organization = request.user.organization
-                    progress.save(
-                        update_fields=[
-                            "completed",
-                            "base_score",
-                            "multiplier_applied",
-                            "score",
-                            "organization",
-                            "updated_at",
-                        ]
-                    )
-
-                    # XP is the actual score delta, not the full replacement score.
-                    xp_delta = progress.score - old_score
-
-                    if xp_delta != 0:
-                        XPEvent.objects.create(
-                            user=request.user,
-                            source_type="lesson",
-                            source_id=lesson.id,
-                            base_points=base_score,
-                            multiplier=multiplier,
-                            xp_delta=xp_delta,
-                        )
-
-            # Store the idempotency ledger in the same transaction as the
-            # progress and XP updates so the state is committed atomically.
-            if idempotency_key:
-                LessonProgressSync.objects.create(
-                    user=request.user,
-                    lesson=lesson,
-                    idempotency_key=idempotency_key,
-                    completed=progress.completed,
-                    base_score=progress.base_score,
-                    multiplier_applied=progress.multiplier_applied,
-                    score=progress.score,
-                    client_timestamp_ms=client_timestamp_ms,
-                    server_updated_at=timezone.now(),
-                )
-
-            # Queue badge evaluation only after the database commit succeeds.
-            transaction.on_commit(
-                lambda: async_task(
-                    "apps.progress.tasks.evaluate_user_badges_task",
-                    request.user.id,
-                )
             )
 
         serializer = LessonProgressSerializer(progress)
@@ -230,104 +105,15 @@ class BulkSyncProgressView(APIView):
         serializer = BulkSyncSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        synced = []
-
-        from apps.progress.models import XPMultiplierEvent
-        from django_q.tasks import async_task
-
-        multiplier = XPMultiplierEvent.get_active_multiplier()
-
-        with transaction.atomic():
-            for item in serializer.validated_data["lessons"]:
-                lesson_slug = item["lesson_slug"]
-                base_score = item.get("score", 100)
-                completed = item.get("completed", True)
-                client_timestamp_ms = item.get("client_timestamp")
-
-                try:
-                    lesson = Lesson.objects.get(slug=lesson_slug)
-                except Lesson.DoesNotExist:
-                    lesson = Lesson.objects.create(
-                        slug=lesson_slug,
-                        title=lesson_slug.replace("-", " ").title(),
-                        summary="Dynamic learning module",
-                        content="Dynamic content loaded from local file storage.",
-                        difficulty="beginner",
-                    )
-
-                # Serialize concurrent writes to the same user/lesson progress
-                # row before reading or mutating its state.
-                progress, created = (
-                    LessonProgress.objects.select_for_update().get_or_create(
-                        user=request.user,
-                        lesson=lesson,
-                        defaults={
-                            "completed": completed,
-                            "base_score": base_score,
-                            "multiplier_applied": multiplier,
-                            "score": int(base_score * multiplier),
-                            "organization": request.user.organization,
-                        },
-                    )
-                )
-
-                if not created:
-                    skip_update = False
-
-                    if client_timestamp_ms:
-                        client_dt = datetime.fromtimestamp(
-                            client_timestamp_ms / 1000.0,
-                            tz=dt_timezone.utc,
-                        )
-
-                        if progress.updated_at > client_dt:
-                            skip_update = True
-
-                    if not skip_update and (
-                        progress.base_score != base_score
-                        or progress.completed != completed
-                    ):
-                        old_score = progress.score
-
-                        progress.completed = completed
-                        progress.base_score = base_score
-                        progress.multiplier_applied = multiplier
-                        progress.score = int(base_score * multiplier)
-                        progress.organization = request.user.organization
-                        progress.save(
-                            update_fields=[
-                                "completed",
-                                "base_score",
-                                "multiplier_applied",
-                                "score",
-                                "organization",
-                                "updated_at",
-                            ]
-                        )
-
-                        xp_delta = progress.score - old_score
-
-                        if xp_delta != 0:
-                            XPEvent.objects.create(
-                                user=request.user,
-                                source_type="lesson",
-                                source_id=lesson.id,
-                                base_points=base_score,
-                                multiplier=multiplier,
-                                xp_delta=xp_delta,
-                            )
-
-                synced.append(progress.id)
-
-            transaction.on_commit(
-                lambda: async_task(
-                    "apps.progress.tasks.evaluate_user_badges_task",
-                    request.user.id,
-                )
-            )
+        from apps.progress.services.progress_tracking_service import ProgressTrackingService
+        
+        synced_ids = ProgressTrackingService.bulk_sync_progress(
+            user=request.user, 
+            lessons_data=serializer.validated_data["lessons"]
+        )
 
         return Response(
-            {"synced_count": len(synced), "progress_ids": synced},
+            {"synced_count": len(synced_ids), "progress_ids": synced_ids},
             status=status.HTTP_200_OK,
         )
 
