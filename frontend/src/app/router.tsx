@@ -17,6 +17,7 @@ import { ServerErrorPage } from "../pages/ServerErrorPage";
 import { ModerationDashboard } from "../pages/ModerationDashboard";
 import { SandboxPage } from "../pages/SandboxPage";
 import { ContributorSandboxPage } from "../pages/ContributorSandboxPage";
+import { PRReviewGamePage } from "../pages/PRReviewGamePage";
 import { ProfileSettingsPage } from "../pages/ProfileSettingsPage";
 import { LeaderboardPage } from "../pages/LeaderboardPage";
 import { VerifyCertificatePage } from "../pages/VerifyCertificatePage";
@@ -183,6 +184,10 @@ export function AppRouter() {
         <Route
           path="/sandbox"
           element={<SandboxPage />}
+        />
+        <Route
+          path="/sandbox/pr-reviewer"
+          element={<PRReviewGamePage />}
         />
         <Route
           path="/a11y-sandbox"
