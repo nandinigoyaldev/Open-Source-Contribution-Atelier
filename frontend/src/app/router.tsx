@@ -1,4 +1,5 @@
 import React from "react";
+import { ErrorBoundary } from "../components/ui/ErrorBoundary";
 import { Route, Routes, Navigate } from "react-router-dom";
 import { AppLayout } from "../components/layout/AppLayout";
 import { PublicLayout } from "../components/layout/PublicLayout";
@@ -57,6 +58,7 @@ function PublicOnlyRoute({ children }: { children: React.ReactNode }) {
 
 export function AppRouter() {
   return (
+    <ErrorBoundary>
     <Routes>
       {/* Public Routes with Animation Layout */}
       <Route element={<PublicLayout />}>
@@ -235,5 +237,6 @@ export function AppRouter() {
       <Route path="/500" element={<ServerErrorPage />} />
       <Route path="*" element={<NotFoundPage />} />
     </Routes>
+    </ErrorBoundary>
   );
 }
