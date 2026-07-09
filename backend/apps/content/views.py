@@ -372,7 +372,8 @@ class LessonFeedbackRetrieveUpdateDeleteView(generics.RetrieveUpdateDestroyAPIVi
 
     def get_queryset(self):
         return LessonFeedback.objects.filter(
-            is_deleted=False
+            user=self.request.user,
+            is_deleted=False,
         ).select_related("user", "lesson")
 
     def perform_destroy(self, instance):
@@ -402,12 +403,11 @@ class LessonFeedbackMetricsView(views.APIView):
 
         if total_count == 0:
             metrics = {
-                "lessonSlug": lesson_slug,
-                "averageRating": 0.0,
-                "totalCount": 0,
-                "ratingDistribution": {
-                    "1": 0, "2": 0, "3": 0, "4": 0, "5": 0
-                }
+                "lesson_slug": lesson_slug,
+                "average_rating": 0.0,
+                "total_count": 0,
+                "rating_distribution": {"1": 0,"2": 0,"3": 0,"4": 0,"5": 0,
+                },
             }
         else:
             # Calculate average rating
@@ -420,10 +420,10 @@ class LessonFeedbackMetricsView(views.APIView):
                 distribution[str(fb.rating)] += 1
 
             metrics = {
-                "lessonSlug": lesson_slug,
-                "averageRating": round(average_rating, 2),
-                "totalCount": total_count,
-                "ratingDistribution": distribution
+                "lesson_slug": lesson_slug,
+                "average_rating": round(average_rating, 2),
+                "total_count": total_count,
+                "rating_distribution": distribution,
             }
 
         serializer = LessonFeedbackMetricsSerializer(data=metrics)

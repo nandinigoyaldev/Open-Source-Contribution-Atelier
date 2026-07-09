@@ -69,22 +69,33 @@ export function LessonFeedbackWidget({
   // Submit feedback mutation
   const submitMutation = useMutation({
     mutationFn: async () => {
-      return fetchApi(`/content/lessons/${lessonSlug}/feedback/`, {
+      return fetchApi(
+      `/content/lessons/${lessonSlug}/feedback/`,
+        {
         method: "POST",
         body: JSON.stringify({
-          lesson: lessonSlug,
           rating,
           comment,
         }),
-      });
+        },
+      );
     },
+
     onSuccess: () => {
-      setHasSubmitted(true);
-      setShowSuccess(true);
-      queryClient.invalidateQueries({ queryKey: ["lessonFeedbackMetrics", lessonSlug] });
-      queryClient.invalidateQueries({ queryKey: ["userLessonFeedback", lessonSlug] });
-      onFeedbackSubmitted?.();
-      setTimeout(() => setShowSuccess(false), 3000);
+    setHasSubmitted(true);
+    setShowSuccess(true);
+
+    queryClient.invalidateQueries({
+      queryKey: ["lessonFeedbackMetrics", lessonSlug],
+    });
+
+    queryClient.invalidateQueries({
+      queryKey: ["userLessonFeedback", lessonSlug],
+    });
+
+    onFeedbackSubmitted?.();
+
+    setTimeout(() => setShowSuccess(false), 3000);
     },
   });
 

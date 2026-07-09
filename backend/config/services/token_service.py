@@ -1,6 +1,7 @@
 from rest_framework_simplejwt.tokens import RefreshToken
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
+from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
 import hashlib
 import json
 
@@ -27,8 +28,10 @@ class TokenService:
                 'access': str(token.access_token),
                 'refresh': str(token),
             }
-        except Exception as e:
-            return {'error': str(e)}
+        except InvalidToken as e:
+        return {'error': f'Invalid token: {str(e)}'}
+        except TokenError as e:
+        return {'error': f'Token error: {str(e)}'}
 
     @staticmethod
     def blacklist_token(refresh_token):

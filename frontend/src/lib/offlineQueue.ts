@@ -17,6 +17,91 @@ interface PendingSyncItem {
   timestamp: number;
 }
 
+export async function enqueueOfflineAction(
+  url: string,
+  method: string,
+  headers: Record<string, string>,
+  body: Record<string, any> | string,
+  type: string,
+  slugOrId: string
+) {
+  const id = `${type}-${slugOrId}`;
+  const API_BASE =
+    import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api";
+  const finalUrl = url.startsWith("http") ? url : `${API_BASE}${url}`;
+
+  const bodyStr = typeof body === "string" ? body : JSON.stringify(body);
+  const bodyObj = typeof body === "string" ? JSON.parse(body) : body;
+
+  const action: QueuedAction = {
+    id,
+    url: finalUrl,
+    method,
+    headers,
+    body: bodyStr,
+    timestamp: Date.now(),
+  };
+
+  // 1. Save to IndexedDB
+  try {
+    const db = await openDB();
+    const tx = db.transaction("sync-queue", "readwrite");
+    const store = tx.objectStore("sync-queue");
+    await new Promise<void>((resolve, reject) => {
+      const req = store.put(action);
+      req.onsuccess = () => resolve();
+      req.onerror = () => reject(req.error);
+    });
+  } catch (err) {
+    console.error("[OfflineQueue] Failed to save action to IndexedDB:", err);
+  }
+
+  // 2. Mirror to localStorage
+  try {
+    const pending = JSON.parse(
+      localStorage.getItem("atelier_pending_sync") || "[]"
+    );
+    const exists = pending.some((p: any) => p.id === id);
+    if (!exists) {
+      pending.push({
+        id,
+        lesson_slug: bodyObj.lesson_slug || slugOrId,
+        score: bodyObj.score ?? 100,
+        completed: bodyObj.completed ?? true,
+        timestamp: action.timestamp,
+      });
+      localStorage.setItem("atelier_pending_sync", JSON.stringify(pending));
+    }
+  } catch (err) {
+    console.error("[OfflineQueue] Failed to mirror to localStorage:", err);
+  }
+
+  // 3. Trigger Service Worker background sync
+  if ("serviceWorker" in navigator) {
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      if ("sync" in reg) {
+        interface ServiceWorkerRegistrationWithSync extends ServiceWorkerRegistration {
+          sync: { register: (tag: string) => Promise<void> };
+        }
+        await (reg as ServiceWorkerRegistrationWithSync).sync.register(
+          "sync-progress"
+        );
+      }
+      if (navigator.serviceWorker.controller) {
+        navigator.serviceWorker.controller.postMessage({
+          type: "TRIGGER_SYNC",
+        });
+      }
+    } catch (err) {
+      console.warn(
+        "[OfflineQueue] Service worker sync registration failed/unsupported:",
+        err
+      );
+    }
+  }
+}
+
 export async function queueProgressSync(data: {
   lesson_slug: string;
   score?: number;

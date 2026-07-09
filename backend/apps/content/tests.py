@@ -512,3 +512,43 @@ def test_feedback_list_api():
 
     assert response.status_code == 200
     assert len(response.data) == 1
+
+@pytest.mark.django_db
+def test_user_cannot_update_another_users_feedback():
+    User = get_user_model()
+
+    owner = User.objects.create(username="feedback_owner")
+    attacker = User.objects.create(username="other_user")
+
+    lesson = Lesson.objects.create(
+        title="Ownership Test",
+        slug="ownership-test",
+        content="Content",
+        difficulty="beginner",
+    )
+
+    feedback = LessonFeedback.objects.create(
+        user=owner,
+        lesson=lesson,
+        rating=4,
+        comment="Original comment",
+    )
+
+    client = APIClient()
+    client.force_authenticate(user=attacker)
+
+    response = client.patch(
+        f"/api/content/feedback/{feedback.id}/",
+        {
+            "rating": 1,
+            "comment": "Unauthorized update",
+        },
+        format="json",
+    )
+
+    assert response.status_code == 404
+
+    feedback.refresh_from_db()
+
+    assert feedback.rating == 4
+    assert feedback.comment == "Original comment"

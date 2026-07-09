@@ -74,11 +74,12 @@ class LessonFeedbackSerializer(CamelCaseModelSerializer):
     class Meta:
         model = LessonFeedback
         fields = ["id", "lesson", "rating", "comment", "created_at", "updated_at"]
-        read_only_fields = ["id", "created_at", "updated_at"]
-
+        read_only_fields = ["id","lesson","created_at","updated_at",]
 
 class LessonFeedbackCreateSerializer(serializers.ModelSerializer):
-    """Serializer for creating/updating lesson feedback."""
+    """Serializer for creating lesson feedback."""
+
+    lesson = serializers.PrimaryKeyRelatedField(read_only=True)
 
     class Meta:
         model = LessonFeedback
@@ -86,19 +87,31 @@ class LessonFeedbackCreateSerializer(serializers.ModelSerializer):
 
     def validate_rating(self, value):
         if not 1 <= value <= 5:
-            raise serializers.ValidationError("Rating must be between 1 and 5 stars.")
+            raise serializers.ValidationError(
+                "Rating must be between 1 and 5 stars."
+            )
         return value
 
     def validate(self, attrs):
         user = self.context["request"].user
-        lesson = attrs.get("lesson")
-        if LessonFeedback.objects.filter(user=user, lesson=lesson, is_deleted=False).exists():
+        lesson_slug = self.context.get("lesson_slug")
+
+        if not lesson_slug:
+            raise serializers.ValidationError(
+                {"lesson": "Lesson context is required."}
+            )
+
+        if LessonFeedback.objects.filter(
+            user=user,
+            lesson__slug=lesson_slug,
+            is_deleted=False,
+        ).exists():
             raise serializers.ValidationError(
                 "You have already submitted feedback for this lesson."
             )
+
         return attrs
-
-
+    
 class LessonFeedbackMetricsSerializer(serializers.Serializer):
     """Serializer for aggregated feedback metrics for a lesson."""
 
@@ -108,3 +121,6 @@ class LessonFeedbackMetricsSerializer(serializers.Serializer):
     rating_distribution = serializers.DictField(
         child=serializers.IntegerField()
     )
+
+    def to_representation(self, instance):
+        return camelize(super().to_representation(instance))

@@ -19,6 +19,7 @@ from .views import (
     RecommendationsView,
     UserProgressPDFExportView,
     ReadingProgressView,
+    QuizNonceView, # NEW: Imported the Nonce View
 )
 
 urlpatterns = [
@@ -37,6 +38,7 @@ urlpatterns = [
         ContributorTimelineView.as_view(),
         name="contributor-timeline-alias",
     ),
+    path("quiz-nonce/", QuizNonceView.as_view(), name="quiz-nonce"), # NEW: Routing for the Nonce API
     path("quiz-attempts/", QuizAttemptView.as_view(), name="quiz-attempts"),
     path(
         "mentor/help-requests/",

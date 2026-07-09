@@ -1,4 +1,5 @@
 import React from "react";
+import { ErrorBoundary } from "../components/ui/ErrorBoundary";
 import { Route, Routes, Navigate } from "react-router-dom";
 import { AppLayout } from "../components/layout/AppLayout";
 import { PublicLayout } from "../components/layout/PublicLayout";
@@ -15,6 +16,7 @@ import { NotFoundPage } from "../pages/NotFoundPage";
 import { ServerErrorPage } from "../pages/ServerErrorPage";
 import { ModerationDashboard } from "../pages/ModerationDashboard";
 import { SandboxPage } from "../pages/SandboxPage";
+import { ContributorSandboxPage } from "../pages/ContributorSandboxPage";
 import { ProfileSettingsPage } from "../pages/ProfileSettingsPage";
 import { LeaderboardPage } from "../pages/LeaderboardPage";
 import { VerifyCertificatePage } from "../pages/VerifyCertificatePage";
@@ -27,8 +29,29 @@ import AnalyticsDashboardPage from "../pages/AnalyticsDashboardPage";
 import TemplateMarketplacePage from "../pages/TemplateMarketplacePage";
 import { GitTerminal } from "../components/ui/GitTerminal";
 import { TerminalReplay } from "../components/ui/TerminalReplay";
+import { A11yLinterSandbox } from "../components/ui/A11yLinterSandbox";
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated, isLoading } = useAuth();
+
+  if (isLoading) {
+    return (
+      <div
+        className="h-screen w-full flex items-center justify-center"
+        aria-busy="true"
+        role="status"
+      >
+        <div className="w-full max-w-3xl">
+          <SkeletonLesson />
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return <Navigate to="/login" replace />;
+  }
+
   return <>{children}</>;
 }
 
@@ -56,6 +79,7 @@ function PublicOnlyRoute({ children }: { children: React.ReactNode }) {
 
 export function AppRouter() {
   return (
+    <ErrorBoundary>
     <Routes>
       {/* Public Routes with Animation Layout */}
       <Route element={<PublicLayout />}>
@@ -161,6 +185,27 @@ export function AppRouter() {
           element={<SandboxPage />}
         />
         <Route
+          path="/a11y-sandbox"
+          element={
+            <div className="p-6 max-w-7xl mx-auto space-y-6 flex flex-col h-[calc(100vh-64px)]">
+              <h1 className="text-3xl font-black text-text dark:text-[#f0ebe2]">
+                A11y Editor Sandbox
+              </h1>
+              <div className="flex-1 min-h-[500px]">
+                <A11yLinterSandbox />
+              </div>
+            </div>
+          }
+        />
+        <Route
+          path="/contributor-sandbox"
+          element={
+            <ProtectedRoute>
+              <ContributorSandboxPage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
           path="/test-terminal"
           element={
             <div className="p-10 h-screen bg-[#0a0a0a] flex gap-8">
@@ -226,5 +271,6 @@ export function AppRouter() {
       <Route path="/500" element={<ServerErrorPage />} />
       <Route path="*" element={<NotFoundPage />} />
     </Routes>
+    </ErrorBoundary>
   );
 }

@@ -25,10 +25,27 @@ const nextConfig = {
     removeConsole: process.env.NODE_ENV === 'production',
   },
 
-  // Experimental features
-  experimental: {
-    // Enable server actions
-    serverActions: true,
+  webpack: (config, { isServer, webpack }) => {
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        path: false,
+        crypto: false,
+        child_process: false,
+      };
+
+      // Strip node: prefix for modules in client bundle so resolve.fallback matches them
+      config.plugins.push(
+        new webpack.NormalModuleReplacementPlugin(
+          /^node:/,
+          (resource) => {
+            resource.request = resource.request.replace(/^node:/, "");
+          }
+        )
+      );
+    }
+    return config;
   },
 
   // Environment variables available to the client
@@ -90,4 +107,4 @@ const nextConfig = {
   },
 };
 
-module.exports = nextConfig;
+export default nextConfig;

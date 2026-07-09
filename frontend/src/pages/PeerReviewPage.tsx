@@ -3,6 +3,7 @@ import { fetchApi } from "../lib/api";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { CodeDiffViewer } from "../components/ui/CodeDiffViewer";
 import { ReportDialog } from "../components/moderation/ReportDialog";
+import { AudioRoom } from "../components/ui/AudioRoom";
 
 interface CodeSubmission {
   id: number;
@@ -18,6 +19,7 @@ interface CodeSubmission {
 export function PeerReviewPage() {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<"submit" | "review">("submit");
+  const [isAudioRoomActive, setIsAudioRoomActive] = useState(false);
 
   // Submit Tab State
   const [title, setTitle] = useState("");
@@ -98,6 +100,7 @@ export function PeerReviewPage() {
       setFeedback("");
       setRating(5);
       setSelectedSubmission(null);
+      setIsAudioRoomActive(false);
       fetchPendingSubmissions();
     } catch (error) {
       console.error("Failed to submit review", error);
@@ -244,7 +247,10 @@ export function PeerReviewPage() {
                   {pendingSubmissions.map((sub) => (
                     <div
                       key={sub.id}
-                      onClick={() => setSelectedSubmission(sub)}
+                      onClick={() => {
+                        setSelectedSubmission(sub);
+                        setIsAudioRoomActive(false);
+                      }}
                       className={`p-4 border-2 border-black rounded-lg cursor-pointer transition-all ${
                         selectedSubmission?.id === sub.id
                           ? "bg-primary text-black shadow-card-sm -translate-y-1"
@@ -268,14 +274,33 @@ export function PeerReviewPage() {
                   <h2 className="text-2xl font-bold">
                     Reviewing: {selectedSubmission.title}
                   </h2>
-                  <button
-                    onClick={() => setReportDialogOpen(true)}
-                    className="text-xs font-bold uppercase bg-red-100 text-red-800 border-2 border-red-500 px-3 py-1 rounded hover:-translate-y-0.5 transition-all shadow-card-sm"
-                    title="Report Inappropriate Content"
-                  >
-                    Report
-                  </button>
+                  <div className="flex gap-2">
+                    {!isAudioRoomActive && (
+                      <button
+                        onClick={() => setIsAudioRoomActive(true)}
+                        className="text-xs font-bold uppercase bg-blue-100 text-blue-800 border-2 border-blue-500 px-3 py-1 rounded hover:-translate-y-0.5 transition-all shadow-card-sm"
+                        title="Start Audio Review"
+                      >
+                        Audio Review
+                      </button>
+                    )}
+                    <button
+                      onClick={() => setReportDialogOpen(true)}
+                      className="text-xs font-bold uppercase bg-red-100 text-red-800 border-2 border-red-500 px-3 py-1 rounded hover:-translate-y-0.5 transition-all shadow-card-sm"
+                      title="Report Inappropriate Content"
+                    >
+                      Report
+                    </button>
+                  </div>
                 </div>
+
+                {isAudioRoomActive && (
+                  <AudioRoom
+                    roomId={`submission_${selectedSubmission.id}`}
+                    onEndCall={() => setIsAudioRoomActive(false)}
+                  />
+                )}
+
                 <div className="mb-6">
                   <CodeDiffViewer
                     originalCode={parsedOriginalCode}

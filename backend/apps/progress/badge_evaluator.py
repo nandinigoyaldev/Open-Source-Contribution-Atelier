@@ -19,12 +19,17 @@ BADGE_RULES = {
             "history-of-open-source",
             "benefits-of-contributing",
             "common-misconceptions",
+            "open-source-licenses",
         ],
     },
     "mod-2": {
         "name": "Git Cadet",
         "description": "Initialize repos, commit, and manage local branches.",
         "lessons": [
+            "history-of-open-source",
+            "benefits-of-contributing",
+            "common-misconceptions",
+            "open-source-licenses",
             "repositories-and-commits",
             "branches",
             "merging",

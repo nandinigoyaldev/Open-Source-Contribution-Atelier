@@ -15,6 +15,7 @@ export function LeaderboardPage() {
 
   const [search, setSearch] = useState("");
   const [timeframe, setTimeframe] = useState<Timeframe>("all");
+  const [showSsocOnly, setShowSsocOnly] = useState(false);
 
   const {
     data: leaderboardData,
@@ -40,20 +41,23 @@ export function LeaderboardPage() {
                 prs_merged: 42,
                 issues_solved: 20,
                 xp: 2220,
+                is_ssoc: true,
               },
               {
                 username: "nandini",
                 prs_merged: 18,
                 issues_solved: 10,
                 xp: 1020,
+                is_ssoc: true,
               },
               {
                 username: "antigravity",
                 prs_merged: 12,
                 issues_solved: 5,
                 xp: 720,
+                is_ssoc: false,
               },
-              { username: "octocat", prs_merged: 6, issues_solved: 2, xp: 420 },
+              { username: "octocat", prs_merged: 6, issues_solved: 2, xp: 420, is_ssoc: true },
             ],
             next: null,
           };
@@ -86,6 +90,7 @@ export function LeaderboardPage() {
           prs_merged: number;
           issues_solved: number;
           xp: number;
+          is_ssoc?: boolean;
         },
         idx: number,
       ) => ({
@@ -96,6 +101,7 @@ export function LeaderboardPage() {
         prs: item.prs_merged,
         issues: item.issues_solved,
         xp: item.xp,
+        is_ssoc: item.is_ssoc !== undefined ? item.is_ssoc : (idx % 2 === 0),
       }),
     );
   }, [leaderboardData]);
@@ -103,10 +109,12 @@ export function LeaderboardPage() {
   const deferredSearch = useDeferredValue(search);
 
   const filteredLeaderboard = useMemo(() => {
-    return [...leaderboard].filter((item) =>
-      item.username.toLowerCase().includes(deferredSearch.toLowerCase()),
-    );
-  }, [leaderboard, deferredSearch]);
+    return [...leaderboard].filter((item) => {
+      const matchesSearch = item.username.toLowerCase().includes(deferredSearch.toLowerCase());
+      const matchesSsoc = !showSsocOnly || item.is_ssoc;
+      return matchesSearch && matchesSsoc;
+    });
+  }, [leaderboard, deferredSearch, showSsocOnly]);
 
   const observerRef = useRef<IntersectionObserver | null>(null);
   const lastElementRef = useCallback(
@@ -191,14 +199,26 @@ export function LeaderboardPage() {
           ))}
         </div>
 
-        <div className="w-full md:w-auto relative">
-          <input
-            type="text"
-            placeholder="Search contributor..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            className="w-full md:w-64 border-4 border-black px-4 py-3 rounded-xl text-sm font-black bg-white text-black shadow-card focus:outline-none focus:translate-x-0.5 focus:translate-y-0.5 focus:shadow-none transition-all dark:bg-[#151411] dark:border-[#2e2924] dark:text-[#f0ebe2] placeholder-muted"
-          />
+        <div className="flex items-center gap-3 w-full md:w-auto">
+          <button
+            onClick={() => setShowSsocOnly(!showSsocOnly)}
+            className={`px-4 py-3 rounded-xl text-sm font-black border-4 border-black transition-all shadow-card ${
+              showSsocOnly
+                ? "bg-[#ffc658] text-black hover:bg-[#e6b147]"
+                : "bg-white text-muted hover:text-text dark:bg-[#151411] dark:border-[#2e2924] dark:text-[#c4bbae]"
+            }`}
+          >
+            🏆 SSoC 2026
+          </button>
+          <div className="relative flex-1 md:flex-none">
+            <input
+              type="text"
+              placeholder="Search contributor..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full md:w-64 border-4 border-black px-4 py-3 rounded-xl text-sm font-black bg-white text-black shadow-card focus:outline-none focus:translate-x-0.5 focus:translate-y-0.5 focus:shadow-none transition-all dark:bg-[#151411] dark:border-[#2e2924] dark:text-[#f0ebe2] placeholder-muted"
+            />
+          </div>
         </div>
       </div>
 
@@ -224,9 +244,14 @@ export function LeaderboardPage() {
                 </div>
               </div>
               <div className="bg-white dark:bg-[#1f1c18] border-4 border-black dark:border-[#2e2924] rounded-t-2xl p-6 w-full text-center shadow-card md:h-32 flex flex-col justify-center">
-                <p className="font-black text-lg truncate dark:text-[#f0ebe2]">
-                  {top3[1].username}
-                </p>
+                <div className="flex items-center justify-center gap-2">
+                  <p className="font-black text-lg truncate dark:text-[#f0ebe2]">
+                    {top3[1].username}
+                  </p>
+                  {top3[1].is_ssoc && (
+                    <span className="text-[10px] bg-[#ffc658]/20 text-[#d4af37] px-1.5 py-0.5 rounded font-black border border-[#d4af37]/30">SSoC</span>
+                  )}
+                </div>
                 <p className="text-accent font-bold text-xl mt-2">
                   {top3[1].xp} XP
                 </p>
@@ -256,9 +281,14 @@ export function LeaderboardPage() {
                 </div>
               </div>
               <div className="bg-white dark:bg-[#1f1c18] border-4 border-black dark:border-[#2e2924] rounded-t-2xl p-6 w-full text-center shadow-card md:h-40 transform md:-translate-y-4 flex flex-col justify-center">
-                <p className="font-black text-2xl truncate dark:text-[#f0ebe2]">
-                  {top3[0].username}
-                </p>
+                <div className="flex items-center justify-center gap-2">
+                  <p className="font-black text-2xl truncate dark:text-[#f0ebe2]">
+                    {top3[0].username}
+                  </p>
+                  {top3[0].is_ssoc && (
+                    <span className="text-[11px] bg-[#ffc658]/20 text-[#d4af37] px-2 py-0.5 rounded font-black border border-[#d4af37]/30">SSoC</span>
+                  )}
+                </div>
                 <p className="text-accent font-black text-2xl mt-2">
                   {top3[0].xp} XP
                 </p>
@@ -288,9 +318,14 @@ export function LeaderboardPage() {
                 </div>
               </div>
               <div className="bg-white dark:bg-[#1f1c18] border-4 border-black dark:border-[#2e2924] rounded-t-2xl p-4 w-full text-center shadow-card md:h-24 flex flex-col justify-center">
-                <p className="font-black text-md truncate dark:text-[#f0ebe2]">
-                  {top3[2].username}
-                </p>
+                <div className="flex items-center justify-center gap-1.5">
+                  <p className="font-black text-md truncate dark:text-[#f0ebe2]">
+                    {top3[2].username}
+                  </p>
+                  {top3[2].is_ssoc && (
+                    <span className="text-[9px] bg-[#ffc658]/20 text-[#d4af37] px-1 py-0.5 rounded font-black border border-[#d4af37]/30">SSoC</span>
+                  )}
+                </div>
                 <p className="text-accent font-bold text-lg mt-1">
                   {top3[2].xp} XP
                 </p>
@@ -353,6 +388,11 @@ export function LeaderboardPage() {
                     >
                       {item.username}
                     </a>
+                    {item.is_ssoc && (
+                      <span className="text-[10px] bg-[#ffc658]/20 text-[#d4af37] px-2 py-0.5 rounded font-black border border-[#d4af37]/30 flex-shrink-0">
+                        SSoC 2026
+                      </span>
+                    )}
                   </div>
                 ),
               },

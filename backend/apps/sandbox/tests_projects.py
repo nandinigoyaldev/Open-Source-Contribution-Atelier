@@ -127,3 +127,29 @@ class ProjectExportTests(APITestCase):
         self.client.force_authenticate(user=self.user)
         response = self.client.get(f"/api/sandbox/projects/{other_project.id}/export_zip/")
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_export_zip_sanitizes_paths(self):
+        # Legitimate file that should be included
+        ProjectFile.objects.create(project=self.project, path="..env", content="valid")
+        # Malicious traversal files
+        ProjectFile.objects.create(project=self.project, path="../evil.txt", content="evil")
+        ProjectFile.objects.create(project=self.project, path="..\\evil.txt", content="evil")
+        ProjectFile.objects.create(project=self.project, path="C:\\Windows\\win.ini", content="evil")
+
+        self.client.force_authenticate(user=self.user)
+        response = self.client.get(self.export_url)
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        import io
+        import zipfile
+        buffer = io.BytesIO(response.content)
+        with zipfile.ZipFile(buffer, "r") as zf:
+            names = zf.namelist()
+            # The valid file must be included
+            self.assertIn("..env", names)
+            # The malicious files must be excluded
+            self.assertNotIn("../evil.txt", names)
+            self.assertNotIn("..\\evil.txt", names)
+            self.assertNotIn("C:\\Windows\\win.ini", names)
+            self.assertNotIn("C:/Windows/win.ini", names)

@@ -20,11 +20,14 @@ class GitHubAnalyzer:
     GITHUB_API_URL = "https://api.github.com"
     
     def __init__(self, github_token: Optional[str] = None):
-        self.github_token = github_token or settings.GITHUB_TOKEN
+        self.github_token = github_token or getattr(settings, 'GITHUB_TOKEN', None)
         self.headers = {
-            "Authorization": f"token {self.github_token}",
             "Accept": "application/vnd.github.v3+json"
         }
+        if self.github_token:
+            self.headers["Authorization"] = f"token {self.github_token}"
+        else:
+            logger.warning("GITHUB_TOKEN is missing. Requests will be unauthenticated and subject to strict rate limits.")
     
     def analyze_user(self, username: str) -> Dict[str, Any]:
         """

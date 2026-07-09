@@ -49,10 +49,10 @@ describe("useEarnedBadges", () => {
     vi.clearAllMocks();
     
     vi.mocked(useAuth).mockReturnValue({
-      user: { id: 1, username: "testuser", is_staff: false } as unknown,
+      user: { id: 1, username: "testuser", is_staff: false },
       isLoading: false,
       checkUser: vi.fn(),
-    });
+    } as any);
     
     vi.mocked(fetchLessonsApi).mockResolvedValue(mockLessons as unknown as import("../lib/lessons").Lesson[]);
   });

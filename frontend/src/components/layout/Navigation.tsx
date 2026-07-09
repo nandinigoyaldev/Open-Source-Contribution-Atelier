@@ -4,6 +4,7 @@ import {
   BookOpen,
   BriefcaseBusiness,
   LayoutGrid,
+  Menu,
   MessageSquare,
   Search,
   Shield,
@@ -30,6 +31,7 @@ const navItems = [
   { to: "/lessons/what-is-open-source", label: "Lessons", icon: BookOpen },
   { to: "/challenges", label: "Challenges", icon: Trophy },
   { to: "/leaderboard", label: "Leaderboard", icon: TrendingUp },
+  { to: "/contributor-sandbox", label: "Playground", icon: TerminalSquare },
   { to: "/community", label: "Community", icon: BriefcaseBusiness },
   { to: "/chat", label: "Chat", icon: MessageSquare },
   { to: "/peer-review", label: "Peer Review", icon: Shield },
@@ -55,6 +57,7 @@ export function Navigation() {
     { slug: string; title: string; description: string }[]
   >([]);
   const [isStarting, setIsStarting] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const handleStartSandbox = () => {
     setIsStarting(true);
     setTimeout(() => {
@@ -209,6 +212,13 @@ export function Navigation() {
       <header className="fixed inset-x-0 top-0 z-30 border-b border-outline bg-white lg:left-[280px] dark:border-[#2e2924] dark:bg-[#0f0e0c]">
         <div className="flex items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
             <div className="flex min-w-0 items-center gap-3 relative grow max-w-md">
+              <button
+                className="lg:hidden p-2 -ml-2 text-muted hover:text-text dark:text-[#c4bbae] dark:hover:text-[#f0ebe2] rounded-lg hover:bg-surface-low dark:hover:bg-[#151411]"
+                onClick={() => setIsMobileMenuOpen(true)}
+                aria-label="Open menu"
+              >
+                <Menu size={20} />
+              </button>
             <div className="flex items-center gap-2 rounded-lg bg-surface-low px-3 py-2 text-muted w-full border-2 border-black dark:border-[#2e2924] shadow-card-sm focus-within:bg-white transition-all dark:bg-[#151411] dark:text-[#c4bbae] dark:focus-within:bg-[#0f0e0c]">
               <Search size={15} className="shrink-0" />
               <input
@@ -318,7 +328,7 @@ export function Navigation() {
               {theme === "light" ? <Moon size={16} /> : <Sun size={16} />}
             </button>
             <button
-              className={`rounded-lg p-2 border-2 border-black dark:border-[#2e2924] shadow-card-sm hover:-translate-y-0.5 active:translate-y-0 transition-all ${
+              className={`hidden sm:block rounded-lg p-2 border-2 border-black dark:border-[#2e2924] shadow-card-sm hover:-translate-y-0.5 active:translate-y-0 transition-all ${
                 theme === "high-contrast"
                   ? "bg-primary text-white"
                   : "bg-surface-low text-muted hover:text-text dark:bg-[#151411] dark:text-[#c4bbae] dark:hover:text-[#f0ebe2]"
@@ -368,6 +378,58 @@ export function Navigation() {
           </div>
         </div>
       </header>
+
+      {/* Mobile Navigation Menu */}
+      {isMobileMenuOpen && (
+        <div className="fixed inset-0 z-50 flex lg:hidden">
+          <div className="fixed inset-0 bg-black/50 backdrop-blur-sm" onClick={() => setIsMobileMenuOpen(false)} />
+          <aside className="relative flex w-full max-w-xs flex-col bg-[#fdfbf7] dark:bg-[#0f0e0c] h-full overflow-y-auto border-r border-outline dark:border-[#2e2924] shadow-2xl">
+            <div className="flex items-center justify-between px-6 py-5 border-b border-outline dark:border-[#2e2924]">
+              <Link to="/" className="font-display text-lg font-bold text-text dark:text-[#f0ebe2]" onClick={() => setIsMobileMenuOpen(false)}>
+                The Maintainer Atelier
+              </Link>
+              <button onClick={() => setIsMobileMenuOpen(false)} className="p-2 text-muted hover:text-text dark:text-[#c4bbae] dark:hover:text-[#f0ebe2]">
+                <X size={20} />
+              </button>
+            </div>
+            <nav className="flex-1 px-4 py-6 space-y-2">
+              {navItems.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className={({ isActive }) =>
+                      [
+                        "flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-all duration-200",
+                        isActive
+                          ? "bg-[linear-gradient(135deg,rgba(79,70,229,0.28),rgba(195,192,255,0.16))] text-text shadow-card dark:text-[#f0ebe2]"
+                          : "text-muted hover:bg-surface-low hover:text-text dark:text-[#c4bbae] dark:hover:bg-[#151411] dark:hover:text-[#f0ebe2]",
+                      ].join(" ")
+                    }
+                  >
+                    <Icon size={16} />
+                    {item.label}
+                  </NavLink>
+                );
+              })}
+            </nav>
+            <div className="p-4 border-t border-outline dark:border-[#2e2924]">
+              <button
+                onClick={() => {
+                  setIsMobileMenuOpen(false);
+                  handleStartSandbox();
+                }}
+                className="w-full flex items-center justify-center gap-2 rounded-lg bg-primary text-white border-4 border-black dark:border-[#2e2924] px-4 py-3 text-sm font-black shadow-card hover:-translate-y-0.5 active:translate-y-0 transition-all disabled:opacity-50"
+              >
+                <TerminalSquare size={15} />
+                Start sandbox
+              </button>
+            </div>
+          </aside>
+        </div>
+      )}
     </>
   );
 }
