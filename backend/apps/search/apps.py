@@ -9,6 +9,7 @@ class SearchConfig(AppConfig):
         try:
             from apps.events.registry import EventHandlerRegistry
             import apps.search.handlers
+
             EventHandlerRegistry.discover_handlers("apps.search.handlers")
         except ImportError:
             pass

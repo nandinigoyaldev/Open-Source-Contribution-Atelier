@@ -124,11 +124,7 @@ class LessonProgressSync(models.Model):
     base_score = models.PositiveIntegerField(default=0)
     multiplier_applied = models.FloatField(default=1.0)
     score = models.PositiveIntegerField(
-        default=0,
-        validators=[
-            MinValueValidator(0),
-            MaxValueValidator(1000) 
-        ]
+        default=0, validators=[MinValueValidator(0), MaxValueValidator(1000)]
     )
 
     client_timestamp_ms = models.BigIntegerField(null=True, blank=True)

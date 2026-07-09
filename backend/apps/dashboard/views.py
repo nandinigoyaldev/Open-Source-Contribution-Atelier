@@ -638,7 +638,7 @@ class ModeratorAnalyticsView(APIView):
 
         # 1. Registrations
         registrations = (
-            User.objects.select_related('profile')
+            User.objects.select_related("profile")
             .filter(date_joined__gte=thirty_days_ago)
             .annotate(date=TruncDate("date_joined"))
             .values("date")

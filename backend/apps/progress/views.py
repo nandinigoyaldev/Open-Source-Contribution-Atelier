@@ -1,4 +1,4 @@
-import uuid # NEW: Added for cryptographic nonce generation
+import uuid  # NEW: Added for cryptographic nonce generation
 from datetime import datetime, timezone as dt_timezone
 
 from django.contrib.auth.models import User
@@ -67,7 +67,9 @@ class MyProgressView(APIView):
         return Response(serializer.data)
 
     def post(self, request):
-        from apps.progress.services.progress_tracking_service import ProgressTrackingService
+        from apps.progress.services.progress_tracking_service import (
+            ProgressTrackingService,
+        )
         from django.core.exceptions import ObjectDoesNotExist
 
         lesson_slug = request.data.get("lesson_slug")
@@ -77,13 +79,15 @@ class MyProgressView(APIView):
         completed = request.data.get("completed", True)
 
         try:
-            progress, created, idempotency_hit = ProgressTrackingService.record_lesson_progress(
-                user=request.user,
-                lesson_slug=lesson_slug,
-                base_score=base_score,
-                completed=completed,
-                idempotency_key=idempotency_key,
-                client_timestamp_ms=client_timestamp_ms
+            progress, created, idempotency_hit = (
+                ProgressTrackingService.record_lesson_progress(
+                    user=request.user,
+                    lesson_slug=lesson_slug,
+                    base_score=base_score,
+                    completed=completed,
+                    idempotency_key=idempotency_key,
+                    client_timestamp_ms=client_timestamp_ms,
+                )
             )
         except ObjectDoesNotExist:
             return Response(
@@ -106,11 +110,12 @@ class BulkSyncProgressView(APIView):
         serializer = BulkSyncSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        from apps.progress.services.progress_tracking_service import ProgressTrackingService
-        
+        from apps.progress.services.progress_tracking_service import (
+            ProgressTrackingService,
+        )
+
         synced_ids = ProgressTrackingService.bulk_sync_progress(
-            user=request.user, 
-            lessons_data=serializer.validated_data["lessons"]
+            user=request.user, lessons_data=serializer.validated_data["lessons"]
         )
 
         return Response(
@@ -512,6 +517,7 @@ class ContributorTimelineView(APIView):
             }
         )
 
+
 # NEW: View to generate the one-time Nonce for Quizzes
 class QuizNonceView(APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -519,7 +525,9 @@ class QuizNonceView(APIView):
     def get(self, request):
         question_id = request.query_params.get("question_id")
         if not question_id:
-            return Response({"error": "question_id required"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"error": "question_id required"}, status=status.HTTP_400_BAD_REQUEST
+            )
 
         nonce = str(uuid.uuid4())
         # Store in Redis bounded to user AND specific question. TTL = 900s (15 minutes)
@@ -553,17 +561,17 @@ class QuizAttemptView(APIView):
 
         if not nonce or not question_id:
             return Response(
-                {"error": "Security Error: Nonce and question_id are required."}, 
-                status=status.HTTP_403_FORBIDDEN
+                {"error": "Security Error: Nonce and question_id are required."},
+                status=status.HTTP_403_FORBIDDEN,
             )
 
         cache_key = f"quiz_nonce_{request.user.id}_{question_id}_{nonce}"
-        
+
         # Check if the nonce exists in Redis
         if not cache.get(cache_key):
             return Response(
-                {"error": "Invalid or expired session. Replay attack blocked."}, 
-                status=status.HTTP_403_FORBIDDEN
+                {"error": "Invalid or expired session. Replay attack blocked."},
+                status=status.HTTP_403_FORBIDDEN,
             )
 
         # CRITICAL: Invalidate the nonce immediately to prevent double submission
@@ -880,14 +888,17 @@ class LessonBookmarkView(APIView):
         bookmark.delete()
         return Response(status=status.HTTP_204_NO_CONTENT)
 
+
 class ReadingProgressView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
         lesson_slug = request.query_params.get("lesson")
         if not lesson_slug:
-            return Response({"error": "Lesson slug required"}, status=status.HTTP_400_BAD_REQUEST)
-        
+            return Response(
+                {"error": "Lesson slug required"}, status=status.HTTP_400_BAD_REQUEST
+            )
+
         cache_key = f"reading_progress_{request.user.id}_{lesson_slug}"
         progress = cache.get(cache_key, 0)
         return Response({"progress": progress})
@@ -895,10 +906,13 @@ class ReadingProgressView(APIView):
     def post(self, request):
         lesson_slug = request.data.get("lesson")
         progress = request.data.get("progress")
-        
+
         if not lesson_slug or progress is None:
-            return Response({"error": "Lesson slug and progress required"}, status=status.HTTP_400_BAD_REQUEST)
-            
+            return Response(
+                {"error": "Lesson slug and progress required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
         cache_key = f"reading_progress_{request.user.id}_{lesson_slug}"
         cache.set(cache_key, progress, timeout=60 * 60 * 24 * 30)
         return Response({"status": "success", "progress": progress})

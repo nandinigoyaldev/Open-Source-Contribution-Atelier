@@ -159,6 +159,8 @@ INSTALLED_APPS = [
     "apps.moderation",
     "apps.events",
     "apps.portfolio",
+    "apps.feature_flags",
+    "apps.issues",
     "django_q",
 ]
 
@@ -250,13 +252,13 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # Update JWT settings
 SIMPLE_JWT = JWT_CONFIG
 
-#Github App Configuration
-GITHUB_APP={
-    'APP_ID': os.getenv('GITHUB_APP_ID'),
-    'PRIVATE_KEY_PATH': os.getenv('GITHUB_PRIVATE_KEY_PATH'),
-    'CLIENT_ID': os.getenv('GITHUB_CLIENT_ID'),
-    'CLIENT_SECRET': os.getenv('GITHUB_CLIENT_SECRET'),
-    'WEBHOOK_SECRET': os.getenv('GITHUB_WEBHOOK_SECRET'),
+# Github App Configuration
+GITHUB_APP = {
+    "APP_ID": os.getenv("GITHUB_APP_ID"),
+    "PRIVATE_KEY_PATH": os.getenv("GITHUB_PRIVATE_KEY_PATH"),
+    "CLIENT_ID": os.getenv("GITHUB_CLIENT_ID"),
+    "CLIENT_SECRET": os.getenv("GITHUB_CLIENT_SECRET"),
+    "WEBHOOK_SECRET": os.getenv("GITHUB_WEBHOOK_SECRET"),
 }
 GITHUB_INSTALLATION_ID = os.getenv("GITHUB_INSTALLATION_ID")
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")

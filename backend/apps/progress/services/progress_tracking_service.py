@@ -3,8 +3,14 @@ from django.db import transaction
 from django.utils import timezone
 from django_q.tasks import async_task
 
-from apps.progress.models import LessonProgress, LessonProgressSync, XPEvent, XPMultiplierEvent
+from apps.progress.models import (
+    LessonProgress,
+    LessonProgressSync,
+    XPEvent,
+    XPMultiplierEvent,
+)
 from apps.content.services.lesson_service import LessonService
+
 
 class ProgressTrackingService:
     """
@@ -19,19 +25,22 @@ class ProgressTrackingService:
         base_score: int = 100,
         completed: bool = True,
         idempotency_key: str = None,
-        client_timestamp_ms: int = None
+        client_timestamp_ms: int = None,
     ) -> tuple[LessonProgress, bool, bool]:
         """
         Records or updates a user's progress for a specific lesson.
         Returns a tuple: (LessonProgress instance, created boolean, idempotency_hit boolean).
         """
         multiplier = XPMultiplierEvent.get_active_multiplier()
-        organization = getattr(user, 'organization', None)
+        organization = getattr(user, "organization", None)
 
         lesson = LessonService.get_lesson_by_slug(lesson_slug, organization)
 
         with transaction.atomic():
-            progress, created = LessonProgress.objects.select_for_update().get_or_create(
+            (
+                progress,
+                created,
+            ) = LessonProgress.objects.select_for_update().get_or_create(
                 user=user,
                 lesson=lesson,
                 defaults={
@@ -52,7 +61,9 @@ class ProgressTrackingService:
 
                 if sync_row is not None:
                     transaction.on_commit(
-                        lambda: async_task("apps.progress.tasks.evaluate_user_badges_task", user.id)
+                        lambda: async_task(
+                            "apps.progress.tasks.evaluate_user_badges_task", user.id
+                        )
                     )
                     return progress, False, True
 
@@ -69,11 +80,15 @@ class ProgressTrackingService:
             else:
                 skip_update = False
                 if client_timestamp_ms:
-                    client_dt = datetime.fromtimestamp(client_timestamp_ms / 1000.0, tz=dt_timezone.utc)
+                    client_dt = datetime.fromtimestamp(
+                        client_timestamp_ms / 1000.0, tz=dt_timezone.utc
+                    )
                     if progress.updated_at > client_dt:
                         skip_update = True
 
-                if not skip_update and (progress.base_score != base_score or progress.completed != completed):
+                if not skip_update and (
+                    progress.base_score != base_score or progress.completed != completed
+                ):
                     old_score = progress.score
                     progress.completed = completed
                     progress.base_score = base_score
@@ -116,11 +131,12 @@ class ProgressTrackingService:
                 )
 
             transaction.on_commit(
-                lambda: async_task("apps.progress.tasks.evaluate_user_badges_task", user.id)
+                lambda: async_task(
+                    "apps.progress.tasks.evaluate_user_badges_task", user.id
+                )
             )
 
         return progress, created, False
-
 
     @staticmethod
     def bulk_sync_progress(user, lessons_data: list) -> list[int]:
@@ -128,7 +144,7 @@ class ProgressTrackingService:
         Synchronizes multiple lessons' progress for a user.
         """
         multiplier = XPMultiplierEvent.get_active_multiplier()
-        organization = getattr(user, 'organization', None)
+        organization = getattr(user, "organization", None)
         synced_ids = []
 
         with transaction.atomic():
@@ -140,7 +156,10 @@ class ProgressTrackingService:
 
                 lesson = LessonService.get_or_create_dynamic_lesson(lesson_slug)
 
-                progress, created = LessonProgress.objects.select_for_update().get_or_create(
+                (
+                    progress,
+                    created,
+                ) = LessonProgress.objects.select_for_update().get_or_create(
                     user=user,
                     lesson=lesson,
                     defaults={
@@ -155,11 +174,16 @@ class ProgressTrackingService:
                 if not created:
                     skip_update = False
                     if client_timestamp_ms:
-                        client_dt = datetime.fromtimestamp(client_timestamp_ms / 1000.0, tz=dt_timezone.utc)
+                        client_dt = datetime.fromtimestamp(
+                            client_timestamp_ms / 1000.0, tz=dt_timezone.utc
+                        )
                         if progress.updated_at > client_dt:
                             skip_update = True
 
-                    if not skip_update and (progress.base_score != base_score or progress.completed != completed):
+                    if not skip_update and (
+                        progress.base_score != base_score
+                        or progress.completed != completed
+                    ):
                         old_score = progress.score
                         progress.completed = completed
                         progress.base_score = base_score
@@ -191,7 +215,9 @@ class ProgressTrackingService:
                 synced_ids.append(progress.id)
 
             transaction.on_commit(
-                lambda: async_task("apps.progress.tasks.evaluate_user_badges_task", user.id)
+                lambda: async_task(
+                    "apps.progress.tasks.evaluate_user_badges_task", user.id
+                )
             )
 
         return synced_ids

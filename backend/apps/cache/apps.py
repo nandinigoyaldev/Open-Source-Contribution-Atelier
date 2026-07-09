@@ -8,4 +8,3 @@ class CacheConfig(AppConfig):
     def ready(self):
         # Import signals to register them
         from .services import cache_manager
-        

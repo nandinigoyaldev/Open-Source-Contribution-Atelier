@@ -38,4 +38,3 @@ def test_cors_headers_rejected_origin():
 
     assert response.status_code == 200
     assert "Access-Control-Allow-Origin" not in response
-

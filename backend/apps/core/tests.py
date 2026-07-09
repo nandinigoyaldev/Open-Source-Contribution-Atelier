@@ -9,18 +9,21 @@ from unittest.mock import patch
 
 User = get_user_model()
 
+
 class SoftDeleteFrameworkTests(TestCase):
     def setUp(self):
         patcher = patch("apps.events.services.event_bus.EventBus.emit")
         self.mock_emit = patcher.start()
         self.addCleanup(patcher.stop)
-        
-        self.user = User.objects.create_user(username="testuser", password="testpassword")
+
+        self.user = User.objects.create_user(
+            username="testuser", password="testpassword"
+        )
         self.issue = Issue.objects.create(
             title="Test Issue",
             description="Test Description",
             created_by=self.user,
-            status="OPEN"
+            status="OPEN",
         )
 
     def test_soft_delete(self):
@@ -60,11 +63,12 @@ class SoftDeleteFrameworkTests(TestCase):
         Issue.deleted_objects.filter(pk=self.issue.pk).update(deleted_at=old_date)
 
         from apps.core.tasks import purge_expired_soft_deleted_records
+
         purge_expired_soft_deleted_records(retention_days=30)
 
         # The issue should be permanently deleted
         self.assertEqual(Issue.all_objects.count(), 0)
-        
+
         # Verify PurgeLog was created
         log = PurgeLog.objects.filter(model_name="Issue").first()
         self.assertIsNotNone(log)
@@ -79,6 +83,7 @@ class SoftDeleteFrameworkTests(TestCase):
         Issue.deleted_objects.filter(pk=self.issue.pk).update(deleted_at=recent_date)
 
         from apps.core.tasks import purge_expired_soft_deleted_records
+
         purge_expired_soft_deleted_records(retention_days=30)
 
         # Issue should NOT be deleted

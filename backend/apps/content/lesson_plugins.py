@@ -1,6 +1,7 @@
 from typing import Dict, Any
 from .plugins import LessonPlugin, registry
 
+
 class PythonSandboxPlugin(LessonPlugin):
     identifier = "python_sandbox"
     version = "1.0"
@@ -12,6 +13,7 @@ class PythonSandboxPlugin(LessonPlugin):
         code = data.get("code", "")
         return bool(code.strip())
 
+
 class QuizPlugin(LessonPlugin):
     identifier = "quiz"
     version = "1.2"
@@ -22,6 +24,7 @@ class QuizPlugin(LessonPlugin):
     def evaluate_progress(cls, user, data: Dict[str, Any]) -> float:
         # Custom quiz scoring logic here
         return 100.0 if data.get("is_correct") else 0.0
+
 
 # Self-register plugins
 registry.register(PythonSandboxPlugin)

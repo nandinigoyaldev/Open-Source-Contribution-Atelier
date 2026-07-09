@@ -10,33 +10,31 @@ class SoftDeleteQuerySet(models.QuerySet):
     QuerySet that handles soft deletion.
     Calling .delete() updates `deleted_at` instead of removing from DB.
     """
+
     def delete(self, hard=False, deleted_by=None, deletion_reason=""):
         if hard:
             return super().delete()
         return super().update(
             deleted_at=timezone.now(),
             deleted_by=deleted_by,
-            deletion_reason=deletion_reason
+            deletion_reason=deletion_reason,
         )
 
     def hard_delete(self):
         return super().delete()
 
     def restore(self):
-        return super().update(
-            deleted_at=None,
-            deleted_by=None,
-            deletion_reason=""
-        )
+        return super().update(deleted_at=None, deleted_by=None, deletion_reason="")
 
 
 class SoftDeleteManager(models.Manager):
     """
     Manager that filters out soft-deleted records by default.
     """
+
     def __init__(self, *args, **kwargs):
-        self.with_deleted = kwargs.pop('with_deleted', False)
-        self.only_deleted = kwargs.pop('only_deleted', False)
+        self.with_deleted = kwargs.pop("with_deleted", False)
+        self.only_deleted = kwargs.pop("only_deleted", False)
         super().__init__(*args, **kwargs)
 
     def get_queryset(self):
@@ -52,6 +50,7 @@ class SoftDeleteModel(models.Model):
     """
     Abstract base class for models that should support soft deletion.
     """
+
     deleted_at = models.DateTimeField(null=True, blank=True, db_index=True)
     deleted_by = models.ForeignKey(
         User,
@@ -59,7 +58,7 @@ class SoftDeleteModel(models.Model):
         null=True,
         blank=True,
         related_name="+",
-        help_text="User who soft-deleted this record."
+        help_text="User who soft-deleted this record.",
     )
     deletion_reason = models.TextField(blank=True, help_text="Reason for deletion")
 
@@ -70,7 +69,15 @@ class SoftDeleteModel(models.Model):
     class Meta:
         abstract = True
 
-    def delete(self, using=None, keep_parents=False, hard=False, deleted_by=None, deletion_reason="", cascade=True):
+    def delete(
+        self,
+        using=None,
+        keep_parents=False,
+        hard=False,
+        deleted_by=None,
+        deletion_reason="",
+        cascade=True,
+    ):
         """
         Soft deletes the record. If `hard=True`, deletes permanently.
         If `cascade=True`, propagates soft delete to related `SoftDeleteModel` instances.
@@ -81,7 +88,9 @@ class SoftDeleteModel(models.Model):
         self.deleted_at = timezone.now()
         self.deleted_by = deleted_by
         self.deletion_reason = deletion_reason
-        self.save(using=using, update_fields=["deleted_at", "deleted_by", "deletion_reason"])
+        self.save(
+            using=using, update_fields=["deleted_at", "deleted_by", "deletion_reason"]
+        )
 
         if cascade:
             self._cascade_soft_delete(using, deleted_by, deletion_reason)
@@ -107,11 +116,21 @@ class SoftDeleteModel(models.Model):
                 continue
             accessor = getattr(self, rel.get_accessor_name(), None)
             if accessor:
-                if hasattr(accessor, 'all'):
+                if hasattr(accessor, "all"):
                     for obj in accessor.all():
-                        obj.delete(hard=False, deleted_by=deleted_by, deletion_reason=deletion_reason, cascade=True)
+                        obj.delete(
+                            hard=False,
+                            deleted_by=deleted_by,
+                            deletion_reason=deletion_reason,
+                            cascade=True,
+                        )
                 else:
-                    accessor.delete(hard=False, deleted_by=deleted_by, deletion_reason=deletion_reason, cascade=True)
+                    accessor.delete(
+                        hard=False,
+                        deleted_by=deleted_by,
+                        deletion_reason=deletion_reason,
+                        cascade=True,
+                    )
 
     def _cascade_restore(self):
         """Helper to restore related soft-deleted models."""
@@ -124,7 +143,7 @@ class SoftDeleteModel(models.Model):
             # Instead, we construct a query on the related model's all_objects manager.
             related_model = rel.related_model
             field_name = rel.field.name
-            
+
             # Find related objects that were deleted at or after this object's deletion time (approx)
             # Actually, standard cascade restore is simpler if we just restore all linked.
             related_qs = related_model.deleted_objects.filter(**{field_name: self.pk})
@@ -136,6 +155,7 @@ class PurgeLog(models.Model):
     """
     Audit log for automated GDPR scheduled purge processes.
     """
+
     model_name = models.CharField(max_length=255)
     records_deleted = models.PositiveIntegerField()
     execution_time = models.DateTimeField(auto_now_add=True)

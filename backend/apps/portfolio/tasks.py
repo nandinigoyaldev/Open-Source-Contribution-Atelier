@@ -2,9 +2,17 @@ import logging
 from celery import shared_task
 from django.db.models import Sum
 from .models import GeneratedPortfolio
-from apps.progress.models import UserBadge, LessonProgress, CodeSubmission, Certificate, StreakProfile, XPEvent
+from apps.progress.models import (
+    UserBadge,
+    LessonProgress,
+    CodeSubmission,
+    Certificate,
+    StreakProfile,
+    XPEvent,
+)
 
 logger = logging.getLogger(__name__)
+
 
 @shared_task
 def generate_portfolio_task(portfolio_id: str):
@@ -30,15 +38,24 @@ def generate_portfolio_task(portfolio_id: str):
         }
 
         if sections.get("badges", True):
-            context_data["badges"] = UserBadge.objects.filter(user=user).select_related("badge")
-            
+            context_data["badges"] = UserBadge.objects.filter(user=user).select_related(
+                "badge"
+            )
+
         if sections.get("certificates", True):
-            context_data["certificates"] = Certificate.objects.filter(user=user, is_active=True)
-            
+            context_data["certificates"] = Certificate.objects.filter(
+                user=user, is_active=True
+            )
+
         if sections.get("stats", True):
             # Calculate total XP
-            total_xp = XPEvent.objects.filter(user=user).aggregate(total=Sum("xp_delta"))["total"] or 0
-            
+            total_xp = (
+                XPEvent.objects.filter(user=user).aggregate(total=Sum("xp_delta"))[
+                    "total"
+                ]
+                or 0
+            )
+
             # Get Streak
             try:
                 streak = StreakProfile.objects.get(user=user)
@@ -47,8 +64,10 @@ def generate_portfolio_task(portfolio_id: str):
             except StreakProfile.DoesNotExist:
                 current_streak = 0
                 longest_streak = 0
-                
-            completed_lessons = LessonProgress.objects.filter(user=user, completed=True).count()
+
+            completed_lessons = LessonProgress.objects.filter(
+                user=user, completed=True
+            ).count()
             submissions = CodeSubmission.objects.filter(user=user).count()
 
             context_data["stats"] = {
@@ -72,12 +91,13 @@ def generate_portfolio_task(portfolio_id: str):
         # Save file to model
         filename = f"portfolio_{user.username}_{portfolio.id}.{ext}"
         portfolio.file.save(filename, file_content)
-        
+
         portfolio.status = GeneratedPortfolio.Status.COMPLETED
         portfolio.save(update_fields=["status", "file"])
-        
+
         # Send a real-time notification to the user
         from apps.notifications.services import NotificationService
+
         NotificationService.send_in_app_notification(
             user_id=user.id,
             notification_type="SYSTEM",
@@ -85,7 +105,7 @@ def generate_portfolio_task(portfolio_id: str):
             message=f"Your developer portfolio has been successfully generated.",
             link=f"/portfolio",
         )
-        
+
     except Exception as e:
         logger.exception(f"Error generating portfolio {portfolio_id}: {e}")
         portfolio.status = GeneratedPortfolio.Status.FAILED

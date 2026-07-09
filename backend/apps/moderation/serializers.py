@@ -2,22 +2,42 @@ from rest_framework import serializers
 from apps.moderation.models import ContentReport
 from django.contrib.contenttypes.models import ContentType
 
+
 class ContentReportSerializer(serializers.ModelSerializer):
-    reporter_username = serializers.CharField(source="reporter.username", read_only=True)
+    reporter_username = serializers.CharField(
+        source="reporter.username", read_only=True
+    )
     content_type_str = serializers.SerializerMethodField()
     content_summary = serializers.SerializerMethodField()
-    
+
     content_type_app = serializers.CharField(write_only=True)
     content_type_model = serializers.CharField(write_only=True)
 
     class Meta:
         model = ContentReport
         fields = [
-            "id", "reporter", "reporter_username", "content_type", "object_id", 
-            "content_type_str", "content_summary", "content_type_app", "content_type_model",
-            "category", "description", "status", "action_taken", "created_at"
+            "id",
+            "reporter",
+            "reporter_username",
+            "content_type",
+            "object_id",
+            "content_type_str",
+            "content_summary",
+            "content_type_app",
+            "content_type_model",
+            "category",
+            "description",
+            "status",
+            "action_taken",
+            "created_at",
         ]
-        read_only_fields = ["reporter", "status", "action_taken", "created_at", "content_type"]
+        read_only_fields = [
+            "reporter",
+            "status",
+            "action_taken",
+            "created_at",
+            "content_type",
+        ]
 
     def create(self, validated_data):
         app = validated_data.pop("content_type_app")
@@ -29,7 +49,6 @@ class ContentReportSerializer(serializers.ModelSerializer):
         validated_data["content_type"] = ct
         return super().create(validated_data)
 
-
     def get_content_type_str(self, obj):
         return f"{obj.content_type.app_label}.{obj.content_type.model}"
 
@@ -37,6 +56,7 @@ class ContentReportSerializer(serializers.ModelSerializer):
         if obj.content_object:
             return str(obj.content_object)
         return "Unknown Content"
+
 
 class ModerationActionSerializer(serializers.Serializer):
     status = serializers.ChoiceField(choices=ContentReport.Status.choices)

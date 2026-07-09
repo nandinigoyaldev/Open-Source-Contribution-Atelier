@@ -99,7 +99,9 @@ class TestWebRTCSignalingConsumer:
         await comm1.receive_json_from()  # Consume peer_joined message
 
         # User 1 sends an offer
-        await comm1.send_json_to({"action": "offer", "data": {"sdp": "dummy_offer_sdp"}})
+        await comm1.send_json_to(
+            {"action": "offer", "data": {"sdp": "dummy_offer_sdp"}}
+        )
 
         # User 2 should receive the offer
         response = await comm2.receive_json_from()
@@ -108,8 +110,10 @@ class TestWebRTCSignalingConsumer:
         assert response["data"] == {"sdp": "dummy_offer_sdp"}
 
         # User 2 sends an answer
-        await comm2.send_json_to({"action": "answer", "data": {"sdp": "dummy_answer_sdp"}})
-        
+        await comm2.send_json_to(
+            {"action": "answer", "data": {"sdp": "dummy_answer_sdp"}}
+        )
+
         # User 1 receives the answer
         response2 = await comm1.receive_json_from()
         assert response2["type"] == "webrtc_signal"

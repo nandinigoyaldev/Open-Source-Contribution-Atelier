@@ -8,24 +8,31 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('dashboard', '0003_merge_0002_issue_bonus_points_0002_streakfreeze'),
+        ("dashboard", "0003_merge_0002_issue_bonus_points_0002_streakfreeze"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='issue',
-            name='deleted_at',
+            model_name="issue",
+            name="deleted_at",
             field=models.DateTimeField(blank=True, db_index=True, null=True),
         ),
         migrations.AddField(
-            model_name='issue',
-            name='deleted_by',
-            field=models.ForeignKey(blank=True, help_text='User who soft-deleted this record.', null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='+', to=settings.AUTH_USER_MODEL),
+            model_name="issue",
+            name="deleted_by",
+            field=models.ForeignKey(
+                blank=True,
+                help_text="User who soft-deleted this record.",
+                null=True,
+                on_delete=django.db.models.deletion.SET_NULL,
+                related_name="+",
+                to=settings.AUTH_USER_MODEL,
+            ),
         ),
         migrations.AddField(
-            model_name='issue',
-            name='deletion_reason',
-            field=models.TextField(blank=True, help_text='Reason for deletion'),
+            model_name="issue",
+            name="deletion_reason",
+            field=models.TextField(blank=True, help_text="Reason for deletion"),
         ),
     ]

@@ -28,30 +28,41 @@ User.add_to_class(
     property(lambda u: u.profile.organization if hasattr(u, "profile") else None),
 )
 
+
 @receiver(post_save, sender=User)
 def publish_user_indexed_event(sender, instance, **kwargs):
     if getattr(instance, "is_deleted", False):
-        EventBus.emit("SearchDeindexRequested", {
+        EventBus.emit(
+            "SearchDeindexRequested",
+            {
+                "app_label": sender._meta.app_label,
+                "model_name": sender._meta.model_name,
+                "object_id": instance.pk,
+            },
+        )
+        return
+
+    EventBus.emit(
+        "SearchIndexRequested",
+        {
             "app_label": sender._meta.app_label,
             "model_name": sender._meta.model_name,
             "object_id": instance.pk,
-        })
-        return
+            "title": instance.username,
+            "description": instance.email,
+            "tags": "",
+            "body_text": instance.email,
+        },
+    )
 
-    EventBus.emit("SearchIndexRequested", {
-        "app_label": sender._meta.app_label,
-        "model_name": sender._meta.model_name,
-        "object_id": instance.pk,
-        "title": instance.username,
-        "description": instance.email,
-        "tags": "",
-        "body_text": instance.email,
-    })
 
 @receiver(post_delete, sender=User)
 def publish_user_deindexed_event(sender, instance, **kwargs):
-    EventBus.emit("SearchDeindexRequested", {
-        "app_label": sender._meta.app_label,
-        "model_name": sender._meta.model_name,
-        "object_id": instance.pk,
-    })
+    EventBus.emit(
+        "SearchDeindexRequested",
+        {
+            "app_label": sender._meta.app_label,
+            "model_name": sender._meta.model_name,
+            "object_id": instance.pk,
+        },
+    )

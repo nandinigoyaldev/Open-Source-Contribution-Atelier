@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useAuth } from "../hooks/useAuth";
 import api from "../lib/api";
-import { Button } from "../components/ui/Button";
+
 
 interface Template {
   id: number;
@@ -20,7 +20,6 @@ interface Portfolio {
 
 export default function PortfolioPage() {
   const { user } = useAuth();
-  const [templates, setTemplates] = useState<Template[]>([]);
   const [portfolios, setPortfolios] = useState<Portfolio[]>([]);
   const [loading, setLoading] = useState(true);
   const [generating, setGenerating] = useState(false);

@@ -7,18 +7,28 @@ class Migration(migrations.Migration):
 
     initial = True
 
-    dependencies = [
-    ]
+    dependencies = []
 
     operations = [
         migrations.CreateModel(
-            name='PurgeLog',
+            name="PurgeLog",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('model_name', models.CharField(max_length=255)),
-                ('records_deleted', models.PositiveIntegerField()),
-                ('execution_time', models.DateTimeField(auto_now_add=True)),
-                ('duration_seconds', models.FloatField(help_text='Time taken to execute the purge')),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("model_name", models.CharField(max_length=255)),
+                ("records_deleted", models.PositiveIntegerField()),
+                ("execution_time", models.DateTimeField(auto_now_add=True)),
+                (
+                    "duration_seconds",
+                    models.FloatField(help_text="Time taken to execute the purge"),
+                ),
             ],
         ),
     ]

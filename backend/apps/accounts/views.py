@@ -105,8 +105,6 @@ class SignupView(generics.CreateAPIView):
     throttle_classes = [SignupThrottle]
 
 
-
-
 @extend_schema(
     summary="Login user",
     description="Authenticate user and return JWT token",
@@ -132,6 +130,7 @@ def login(request):
 )
 def get_profile(request):
     pass
+
 
 class MeView(APIView):
     permission_classes = [IsAuthenticated]  # check jwt authentication

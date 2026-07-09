@@ -15,7 +15,6 @@ from .models import SearchAnalytics, SearchDocument
 from .serializers import SearchAnalyticsSerializer, SearchDocumentSerializer
 from .utils import get_search_cache_version
 
-
 # ---------------------------------------------------------------------------
 # Pagination
 # ---------------------------------------------------------------------------
@@ -90,16 +89,12 @@ class UnifiedSearchView(generics.ListAPIView):
     def list(self, request, *args, **kwargs):
         q = request.query_params.get("q", "").strip()
         if not q:
-            return Response(
-                {"count": 0, "next": None, "previous": None, "results": []}
-            )
+            return Response({"count": 0, "next": None, "previous": None, "results": []})
 
         content_type_filter = request.query_params.get("type", "").strip().lower()
 
         version = get_search_cache_version()
-        cache_key = (
-            f"search_api:v{version}:q:{q}:type:{content_type_filter}"
-        )
+        cache_key = f"search_api:v{version}:q:{q}:type:{content_type_filter}"
 
         # Only cache un-paginated metadata; actual pages are not cached to
         # keep memory usage bounded.

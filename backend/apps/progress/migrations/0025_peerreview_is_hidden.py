@@ -6,13 +6,13 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('progress', '0024_plagiarismreport_xpevent_and_more'),
+        ("progress", "0024_plagiarismreport_xpevent_and_more"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='peerreview',
-            name='is_hidden',
+            model_name="peerreview",
+            name="is_hidden",
             field=models.BooleanField(default=False),
         ),
     ]

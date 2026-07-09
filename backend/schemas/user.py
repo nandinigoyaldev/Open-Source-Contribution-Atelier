@@ -44,9 +44,11 @@ class UserResponseSchema(BaseModel):
 
     class Config:
         from_attributes = True
-        
+
+
 class UserProfileSchema(BaseModel):
     """Schema for user profile details"""
+
     id: int
     username: str
     email: EmailStr

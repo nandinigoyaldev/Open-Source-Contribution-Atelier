@@ -480,7 +480,9 @@ def test_feedback_user_own_feedback():
         difficulty="beginner",
     )
 
-    LessonFeedback.objects.create(user=user, lesson=lesson, rating=5, comment="Loved it!")
+    LessonFeedback.objects.create(
+        user=user, lesson=lesson, rating=5, comment="Loved it!"
+    )
 
     client = APIClient()
     client.force_authenticate(user=user)
@@ -512,6 +514,7 @@ def test_feedback_list_api():
 
     assert response.status_code == 200
     assert len(response.data) == 1
+
 
 @pytest.mark.django_db
 def test_user_cannot_update_another_users_feedback():

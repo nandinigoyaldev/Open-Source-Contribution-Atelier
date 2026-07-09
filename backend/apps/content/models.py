@@ -227,12 +227,9 @@ class LessonFeedback(models.Model):
             MinValueValidator(1),
             MaxValueValidator(5),
         ],
-        help_text="Star rating from 1 to 5"
+        help_text="Star rating from 1 to 5",
     )
-    comment = models.TextField(
-        blank=True,
-        help_text="Optional written feedback"
-    )
+    comment = models.TextField(blank=True, help_text="Optional written feedback")
     is_deleted = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -259,31 +256,25 @@ class LessonFeedback(models.Model):
     def __str__(self):
         status = "[DELETED] " if self.is_deleted else ""
         return f"{status}Feedback by {self.user.username} for {self.lesson.title}: {self.rating} stars"
+
+
 class Profile(models.Model):
-    user = models.OneToOneField(
-        User, on_delete=models.CASCADE, related_name="profile"
-    )
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="profile")
     bio = models.TextField(
-        max_length=160, 
-        blank=True, 
-        default="", 
-        help_text="A short biography or description."
+        max_length=160,
+        blank=True,
+        default="",
+        help_text="A short biography or description.",
     )
     # Individual fields for requested social platforms
     github_link = models.URLField(
-        blank=True, 
-        default="", 
-        help_text="GitHub profile URL"
+        blank=True, default="", help_text="GitHub profile URL"
     )
     linkedin_link = models.URLField(
-        blank=True, 
-        default="", 
-        help_text="LinkedIn profile URL"
+        blank=True, default="", help_text="LinkedIn profile URL"
     )
     portfolio_link = models.URLField(
-        blank=True, 
-        default="", 
-        help_text="Personal portfolio URL"
+        blank=True, default="", help_text="Personal portfolio URL"
     )
 
     def __str__(self):

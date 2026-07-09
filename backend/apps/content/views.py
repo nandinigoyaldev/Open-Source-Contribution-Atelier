@@ -346,8 +346,7 @@ class LessonFeedbackListCreateView(generics.ListCreateAPIView):
     def get_queryset(self):
         lesson_slug = self.kwargs.get("lesson_slug")
         return LessonFeedback.objects.filter(
-            lesson__slug=lesson_slug,
-            is_deleted=False
+            lesson__slug=lesson_slug, is_deleted=False
         ).select_related("user", "lesson")
 
     def get_serializer_context(self):
@@ -390,14 +389,10 @@ class LessonFeedbackMetricsView(views.APIView):
             lesson = Lesson.objects.get(slug=lesson_slug)
         except Lesson.DoesNotExist:
             return response.Response(
-                {"error": "Lesson not found"},
-                status=status.HTTP_404_NOT_FOUND
+                {"error": "Lesson not found"}, status=status.HTTP_404_NOT_FOUND
             )
 
-        feedbacks = LessonFeedback.objects.filter(
-            lesson=lesson,
-            is_deleted=False
-        )
+        feedbacks = LessonFeedback.objects.filter(lesson=lesson, is_deleted=False)
 
         total_count = feedbacks.count()
 
@@ -406,7 +401,12 @@ class LessonFeedbackMetricsView(views.APIView):
                 "lesson_slug": lesson_slug,
                 "average_rating": 0.0,
                 "total_count": 0,
-                "rating_distribution": {"1": 0,"2": 0,"3": 0,"4": 0,"5": 0,
+                "rating_distribution": {
+                    "1": 0,
+                    "2": 0,
+                    "3": 0,
+                    "4": 0,
+                    "5": 0,
                 },
             }
         else:
@@ -441,20 +441,17 @@ class UserLessonFeedbackView(views.APIView):
             lesson = Lesson.objects.get(slug=lesson_slug)
         except Lesson.DoesNotExist:
             return response.Response(
-                {"error": "Lesson not found"},
-                status=status.HTTP_404_NOT_FOUND
+                {"error": "Lesson not found"}, status=status.HTTP_404_NOT_FOUND
             )
 
         try:
             feedback = LessonFeedback.objects.get(
-                user=request.user,
-                lesson=lesson,
-                is_deleted=False
+                user=request.user, lesson=lesson, is_deleted=False
             )
             serializer = LessonFeedbackSerializer(feedback)
             return response.Response(serializer.data)
         except LessonFeedback.DoesNotExist:
             return response.Response(
                 {"error": "No feedback found for this lesson"},
-                status=status.HTTP_404_NOT_FOUND
+                status=status.HTTP_404_NOT_FOUND,
             )

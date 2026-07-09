@@ -1,6 +1,7 @@
 from typing import Optional
 from apps.content.models import Lesson
 
+
 class LessonService:
     """
     Domain service for Lesson operations.

@@ -6,9 +6,8 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('progress', '0018_plagiarismreport_streakprofile_and_more'),
-        ('progress', '0025_peerreview_is_hidden'),
+        ("progress", "0018_plagiarismreport_streakprofile_and_more"),
+        ("progress", "0025_peerreview_is_hidden"),
     ]
 
-    operations = [
-    ]
+    operations = []

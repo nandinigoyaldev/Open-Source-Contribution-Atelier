@@ -91,7 +91,7 @@ class CacheManager:
         if result:
             logger.debug(f"Cache set: {key} (TTL: {ttl}s)")
             return True
-        
+
         logger.warning(f"Cache set failed: {key}")
         return False
 
@@ -124,14 +124,16 @@ class CacheManager:
         # Note: This is a simplified implementation using standard django cache backend features
         # In production, use Redis SCAN for better performance if using a Redis backend
         count = 0
-        if hasattr(cache, 'keys'):
+        if hasattr(cache, "keys"):
             keys = cache.keys(f"*{pattern}*")  # type: ignore
             for key in keys:
                 if cache.delete(key):
                     count += 1
         else:
-            logger.warning("Cache backend does not support keys() pattern extraction natively.")
-            
+            logger.warning(
+                "Cache backend does not support keys() pattern extraction natively."
+            )
+
         logger.info(f"Cleared {count} keys matching pattern: {pattern}")
         return count
 
@@ -366,16 +368,18 @@ def enable_cache_signals():
 def _is_migration_in_progress():
     """Check if Django is running migrations"""
     import sys
+
     # Check if we're in a manage.py command (migration)
-    if 'manage.py' in sys.argv and 'migrate' in sys.argv:
+    if "manage.py" in sys.argv and "migrate" in sys.argv:
         return True
     try:
         from django.db import connection
+
         with connection.cursor() as cursor:
             # Check if contenttypes table has the name column properly
             cursor.execute("PRAGMA table_info(django_content_type)")
             columns = {row[1] for row in cursor.fetchall()}
-            return 'name' not in columns
+            return "name" not in columns
     except Exception:
         return True
 
@@ -389,11 +393,14 @@ def invalidate_cache_on_save(sender, instance, created, **kwargs):
         return
 
     # Skip during migrations or when system apps are involved
-    if (
-        _is_migration_in_progress()
-        or sender._meta.app_label
-        in ["migrations", "contenttypes", "sessions", "admin", "sites", "auth"]
-    ):
+    if _is_migration_in_progress() or sender._meta.app_label in [
+        "migrations",
+        "contenttypes",
+        "sessions",
+        "admin",
+        "sites",
+        "auth",
+    ]:
         return
 
     try:
@@ -405,6 +412,7 @@ def invalidate_cache_on_save(sender, instance, created, **kwargs):
             instance,
             e,
         )
+
 
 @receiver(post_delete)
 def invalidate_cache_on_delete(sender, instance, **kwargs):

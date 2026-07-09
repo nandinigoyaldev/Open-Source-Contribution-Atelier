@@ -40,20 +40,27 @@ def update_lesson_embedding(sender, instance, **kwargs):
 
 @receiver(post_save, sender=Lesson)
 def publish_lesson_indexed_event(sender, instance, **kwargs):
-    EventBus.emit("SearchIndexRequested", {
-        "app_label": sender._meta.app_label,
-        "model_name": sender._meta.model_name,
-        "object_id": instance.pk,
-        "title": instance.title,
-        "description": instance.summary,
-        "tags": instance.category,
-        "body_text": instance.content,
-    })
+    EventBus.emit(
+        "SearchIndexRequested",
+        {
+            "app_label": sender._meta.app_label,
+            "model_name": sender._meta.model_name,
+            "object_id": instance.pk,
+            "title": instance.title,
+            "description": instance.summary,
+            "tags": instance.category,
+            "body_text": instance.content,
+        },
+    )
+
 
 @receiver(post_delete, sender=Lesson)
 def publish_lesson_deindexed_event(sender, instance, **kwargs):
-    EventBus.emit("SearchDeindexRequested", {
-        "app_label": sender._meta.app_label,
-        "model_name": sender._meta.model_name,
-        "object_id": instance.pk,
-    })
+    EventBus.emit(
+        "SearchDeindexRequested",
+        {
+            "app_label": sender._meta.app_label,
+            "model_name": sender._meta.model_name,
+            "object_id": instance.pk,
+        },
+    )

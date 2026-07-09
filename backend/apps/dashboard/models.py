@@ -4,6 +4,7 @@ from django.db import models
 
 from apps.core.models import SoftDeleteModel
 
+
 class Issue(SoftDeleteModel):
 
     class Status(models.TextChoices):

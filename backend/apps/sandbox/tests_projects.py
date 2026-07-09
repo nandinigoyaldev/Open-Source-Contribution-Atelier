@@ -106,6 +106,7 @@ class ProjectExportTests(APITestCase):
         # Verify ZIP contents
         import io
         import zipfile
+
         buffer = io.BytesIO(response.content)
         with zipfile.ZipFile(buffer, "r") as zf:
             names = zf.namelist()
@@ -125,16 +126,24 @@ class ProjectExportTests(APITestCase):
         other_project = Project.objects.create(user=other_user, name="Other Project")
 
         self.client.force_authenticate(user=self.user)
-        response = self.client.get(f"/api/sandbox/projects/{other_project.id}/export_zip/")
+        response = self.client.get(
+            f"/api/sandbox/projects/{other_project.id}/export_zip/"
+        )
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
 
     def test_export_zip_sanitizes_paths(self):
         # Legitimate file that should be included
         ProjectFile.objects.create(project=self.project, path="..env", content="valid")
         # Malicious traversal files
-        ProjectFile.objects.create(project=self.project, path="../evil.txt", content="evil")
-        ProjectFile.objects.create(project=self.project, path="..\\evil.txt", content="evil")
-        ProjectFile.objects.create(project=self.project, path="C:\\Windows\\win.ini", content="evil")
+        ProjectFile.objects.create(
+            project=self.project, path="../evil.txt", content="evil"
+        )
+        ProjectFile.objects.create(
+            project=self.project, path="..\\evil.txt", content="evil"
+        )
+        ProjectFile.objects.create(
+            project=self.project, path="C:\\Windows\\win.ini", content="evil"
+        )
 
         self.client.force_authenticate(user=self.user)
         response = self.client.get(self.export_url)
@@ -143,6 +152,7 @@ class ProjectExportTests(APITestCase):
 
         import io
         import zipfile
+
         buffer = io.BytesIO(response.content)
         with zipfile.ZipFile(buffer, "r") as zf:
             names = zf.namelist()

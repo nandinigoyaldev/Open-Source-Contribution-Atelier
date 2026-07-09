@@ -74,7 +74,13 @@ class LessonFeedbackSerializer(CamelCaseModelSerializer):
     class Meta:
         model = LessonFeedback
         fields = ["id", "lesson", "rating", "comment", "created_at", "updated_at"]
-        read_only_fields = ["id","lesson","created_at","updated_at",]
+        read_only_fields = [
+            "id",
+            "lesson",
+            "created_at",
+            "updated_at",
+        ]
+
 
 class LessonFeedbackCreateSerializer(serializers.ModelSerializer):
     """Serializer for creating lesson feedback."""
@@ -87,9 +93,7 @@ class LessonFeedbackCreateSerializer(serializers.ModelSerializer):
 
     def validate_rating(self, value):
         if not 1 <= value <= 5:
-            raise serializers.ValidationError(
-                "Rating must be between 1 and 5 stars."
-            )
+            raise serializers.ValidationError("Rating must be between 1 and 5 stars.")
         return value
 
     def validate(self, attrs):
@@ -97,9 +101,7 @@ class LessonFeedbackCreateSerializer(serializers.ModelSerializer):
         lesson_slug = self.context.get("lesson_slug")
 
         if not lesson_slug:
-            raise serializers.ValidationError(
-                {"lesson": "Lesson context is required."}
-            )
+            raise serializers.ValidationError({"lesson": "Lesson context is required."})
 
         if LessonFeedback.objects.filter(
             user=user,
@@ -111,16 +113,15 @@ class LessonFeedbackCreateSerializer(serializers.ModelSerializer):
             )
 
         return attrs
-    
+
+
 class LessonFeedbackMetricsSerializer(serializers.Serializer):
     """Serializer for aggregated feedback metrics for a lesson."""
 
     lesson_slug = serializers.CharField()
     average_rating = serializers.FloatField()
     total_count = serializers.IntegerField()
-    rating_distribution = serializers.DictField(
-        child=serializers.IntegerField()
-    )
+    rating_distribution = serializers.DictField(child=serializers.IntegerField())
 
     def to_representation(self, instance):
         return camelize(super().to_representation(instance))
