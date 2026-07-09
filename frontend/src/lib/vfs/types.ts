@@ -26,3 +26,10 @@ export class VfsError extends Error {
     this.name = "VfsError";
   }
 }
+
+export interface TerminalLine {
+  id: number;
+  text: string;
+  kind: "output" | "error" | "success" | "command" | "info";
+  prompt?: string;
+}

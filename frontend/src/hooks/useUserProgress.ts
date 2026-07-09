@@ -6,7 +6,7 @@ import { useLocalSync } from "./useLocalSync";
 export interface ProgressEntry {
   id: number;
   lesson: number;
-  lesson_slug: string; 
+  lesson_slug: string;
   completed: boolean;
   score: number;
   updated_at: string;
@@ -22,7 +22,7 @@ type SyncPayload = {
 
 export function useUserProgress() {
   const queryClient = useQueryClient();
-  useLocalSync("atelier_pending_sync", []);
+  useLocalSync();
 
   // NEW: Refs to handle debouncing and UI rollback state safely without triggering re-renders
   const pendingSyncQueue = useRef<Map<string, SyncPayload>>(new Map());
@@ -63,44 +63,60 @@ export function useUserProgress() {
 
   // 3. Exposed Sync Function (Optimistic + Debounced)
   const syncProgress = useCallback(
-    async (vars: { lesson_slug: string; score?: number; completed?: boolean }) => {
+    async (vars: {
+      lesson_slug: string;
+      score?: number;
+      completed?: boolean;
+    }) => {
       // Cancel outgoing refetches so they don't overwrite our optimistic UI
       await queryClient.cancelQueries({ queryKey: ["userProgress"] });
 
       // Take a snapshot of the pristine state ONLY if this is the start of a new bulk batch
       if (pendingSyncQueue.current.size === 0) {
-        snapshotRef.current = queryClient.getQueryData<ProgressEntry[]>(["userProgress"]) || [];
+        snapshotRef.current =
+          queryClient.getQueryData<ProgressEntry[]>(["userProgress"]) || [];
       }
 
       // --- OPTIMISTIC UI UPDATE ---
       // Update the React state instantly so the user sees no lag
-      queryClient.setQueryData<ProgressEntry[]>(["userProgress"], (old = []) => {
-        const existingIdx = old.findIndex((p) => p.lesson_slug === vars.lesson_slug);
-        const now = new Date().toISOString();
+      queryClient.setQueryData<ProgressEntry[]>(
+        ["userProgress"],
+        (old = []) => {
+          const existingIdx = old.findIndex(
+            (p) => p.lesson_slug === vars.lesson_slug,
+          );
+          const now = new Date().toISOString();
 
-        if (existingIdx >= 0) {
-          const updated = [...old];
-          updated[existingIdx] = {
-            ...updated[existingIdx],
-            score: vars.score !== undefined ? vars.score : updated[existingIdx].score,
-            completed: vars.completed !== undefined ? vars.completed : updated[existingIdx].completed,
-            updated_at: now,
-          };
-          return updated;
-        } else {
-          return [
-            ...old,
-            {
-              id: Date.now(), // Fake ID for optimistic UI
-              lesson: 0,
-              lesson_slug: vars.lesson_slug,
-              score: vars.score || 0,
-              completed: vars.completed || false,
+          if (existingIdx >= 0) {
+            const updated = [...old];
+            updated[existingIdx] = {
+              ...updated[existingIdx],
+              score:
+                vars.score !== undefined
+                  ? vars.score
+                  : updated[existingIdx].score,
+              completed:
+                vars.completed !== undefined
+                  ? vars.completed
+                  : updated[existingIdx].completed,
               updated_at: now,
-            },
-          ];
-        }
-      });
+            };
+            return updated;
+          } else {
+            return [
+              ...old,
+              {
+                id: Date.now(), // Fake ID for optimistic UI
+                lesson: 0,
+                lesson_slug: vars.lesson_slug,
+                score: vars.score || 0,
+                completed: vars.completed || false,
+                updated_at: now,
+              },
+            ];
+          }
+        },
+      );
 
       // --- DEBOUNCE & BATCH LOGIC ---
       // Add or update the lesson in our pending queue
@@ -118,7 +134,7 @@ export function useUserProgress() {
         const queue = Array.from(pendingSyncQueue.current.values());
         if (queue.length > 0) {
           const previousState = snapshotRef.current;
-          
+
           bulkSyncMutation.mutate(queue, {
             onError: (err) => {
               console.error("Bulk sync failed, rolling back UI...", err);
@@ -128,30 +144,33 @@ export function useUserProgress() {
               }
             },
           });
-          
+
           pendingSyncQueue.current.clear();
         }
       }, 3000); // 3-second debounce window
     },
-    [queryClient, bulkSyncMutation]
+    [queryClient, bulkSyncMutation],
   );
 
   // 4. Convenience helpers
-  const isLessonCompleted = useCallback((slug: string) => {
-    const isCompletedInBackend = progress.some(
-      (p) => p.lesson_slug === slug && p.completed,
-    );
-    if (isCompletedInBackend) return true;
+  const isLessonCompleted = useCallback(
+    (slug: string) => {
+      const isCompletedInBackend = progress.some(
+        (p) => p.lesson_slug === slug && p.completed,
+      );
+      if (isCompletedInBackend) return true;
 
-    try {
-      const pending = JSON.parse(
-        localStorage.getItem("atelier_pending_sync") || "[]",
-      ) as { lesson_slug: string; score: number; completed: boolean }[];
-      return pending.some((p) => p.lesson_slug === slug && p.completed);
-    } catch {
-      return false;
-    }
-  }, [progress]);
+      try {
+        const pending = JSON.parse(
+          localStorage.getItem("atelier_pending_sync") || "[]",
+        ) as { lesson_slug: string; score: number; completed: boolean }[];
+        return pending.some((p) => p.lesson_slug === slug && p.completed);
+      } catch {
+        return false;
+      }
+    },
+    [progress],
+  );
 
   const totalXP = useMemo(() => {
     const backendXP = progress.reduce((acc, p) => acc + p.score, 0);
