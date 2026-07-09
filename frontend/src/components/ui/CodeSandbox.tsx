@@ -4,6 +4,7 @@ import Editor from "@monaco-editor/react";
 import { useWebSocket } from "../../hooks/useWebSocket";
 import { CodeTimeline } from "./CodeTimeline";
 import { fetchSandboxSnapshots, saveSandboxSnapshot, CodeSnapshot } from "../../lib/api";
+import { useTheme } from "../../context/ThemeContext";
 import toast from "react-hot-toast";
 
 export function CodeSandbox() {
@@ -13,6 +14,8 @@ export function CodeSandbox() {
   const isRemoteUpdate = useRef(false);
   const token = localStorage.getItem("accessToken");
 
+  const { playAudioCue } = useTheme();
+
   const [snapshots, setSnapshots] = useState<CodeSnapshot[]>([]);
   const [isTimelineOpen, setIsTimelineOpen] = useState(false);
   const [selectedSnapshotId, setSelectedSnapshotId] = useState<number | null>(null);
@@ -20,10 +23,9 @@ export function CodeSandbox() {
   useEffect(() => {
     fetchSandboxSnapshots().then(setSnapshots).catch(console.error);
   }, []);
+
   useEffect(() => {
     const handleMessage = (event: MessageEvent) => {
-      // Only accept messages from our own sandbox iframe, never from
-      // other frames/windows, to avoid mixing in unrelated postMessage traffic.
       if (!iframeRef.current || event.source !== iframeRef.current.contentWindow) {
         return;
       }
@@ -32,12 +34,17 @@ export function CodeSandbox() {
       if (data?.type === "log" || data?.type === "error") {
         const prefix = data.type === "error" ? "⚠ " : "";
         setOutput((prev) => [...prev, `${prefix}${data.message ?? ""}`]);
+        
+        // Trigger responsive audio feedbacks instantly based on logging streams
+        if (data.type === "error") {
+          playAudioCue("error");
+        }
       }
     };
 
     window.addEventListener("message", handleMessage);
     return () => window.removeEventListener("message", handleMessage);
-  }, []);
+  }, [playAudioCue]);
 
   const wsUrl = import.meta.env.VITE_API_URL
     ? import.meta.env.VITE_API_URL.replace("http", "ws") + "ws/sandbox/"
@@ -72,6 +79,8 @@ export function CodeSandbox() {
 
   const runCode = async () => {
     setOutput([]);
+    let buildSucceeded = true;
+
     if (iframeRef.current) {
       const srcDoc = `
         <!DOCTYPE html>
@@ -97,6 +106,7 @@ export function CodeSandbox() {
 
               try {
                 eval(${JSON.stringify(code)});
+                window.parent.postMessage({ type: 'execution-success' }, '*');
               } catch (e) {
                 console.error(e.toString());
               }
@@ -104,6 +114,18 @@ export function CodeSandbox() {
           </body>
         </html>
       `;
+      
+      // Temporary interception to capture inline script compilation states smoothly
+      const executionCheck = (e: MessageEvent) => {
+        if (e.data?.type === 'execution-success') {
+          playAudioCue("success");
+          window.removeEventListener('message', executionCheck);
+        } else if (e.data?.type === 'error') {
+          window.removeEventListener('message', executionCheck);
+        }
+      };
+      window.addEventListener('message', executionCheck);
+      
       iframeRef.current.srcdoc = srcDoc;
     }
 
