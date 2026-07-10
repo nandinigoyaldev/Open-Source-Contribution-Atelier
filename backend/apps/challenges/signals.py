@@ -6,7 +6,7 @@ from apps.challenges.models import Challenge
 
 @receiver(post_save, sender=Challenge)
 def publish_challenge_indexed_event(sender, instance, **kwargs):
-    EventBus.publish(
+    EventBus.emit(
         "SearchIndexRequested",
         {
             "app_label": sender._meta.app_label,
@@ -22,7 +22,7 @@ def publish_challenge_indexed_event(sender, instance, **kwargs):
 
 @receiver(post_delete, sender=Challenge)
 def publish_challenge_deindexed_event(sender, instance, **kwargs):
-    EventBus.publish(
+    EventBus.emit(
         "SearchDeindexRequested",
         {
             "app_label": sender._meta.app_label,

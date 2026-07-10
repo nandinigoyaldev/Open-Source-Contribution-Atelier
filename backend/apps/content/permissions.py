@@ -1,6 +1,6 @@
 from rest_framework.permissions import BasePermission
-from apps.progress.models import LessonProgress
 from .models import Lesson
+from apps.progress.models import LessonProgress
 
 class IsLessonUnlocked(BasePermission):
     """

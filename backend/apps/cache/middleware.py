@@ -5,9 +5,46 @@ Middleware for cache control headers.
 from django.utils.deprecation import MiddlewareMixin
 from django.utils.cache import patch_cache_control, get_max_age
 from django.http import JsonResponse
+from django.core.cache import cache
 import logging
 
 logger = logging.getLogger(__name__)
+
+
+class RateLimiter:
+    """
+    A simple Redis/Cache-backed Rate Limiter.
+    Limits to 100 requests per minute per key.
+    """
+    def __init__(self, limit=100, window=60):
+        self.limit = limit
+        self.window = window
+
+    def is_allowed(self, key):
+        cache_key = f"ratelimit_{key}"
+        try:
+            current = cache.get(cache_key, 0)
+            if current >= self.limit:
+                return False
+            if current == 0:
+                cache.set(cache_key, 1, self.window)
+            else:
+                try:
+                    cache.incr(cache_key)
+                except ValueError:
+                    cache.set(cache_key, 1, self.window)
+            return True
+        except Exception:
+            # Fail open if cache is unreachable
+            return True
+
+    def get_remaining(self, key):
+        cache_key = f"ratelimit_{key}"
+        try:
+            current = cache.get(cache_key, 0)
+            return max(0, self.limit - current)
+        except Exception:
+            return self.limit
 
 
 class CacheControlMiddleware(MiddlewareMixin):
@@ -33,6 +70,8 @@ class CacheControlMiddleware(MiddlewareMixin):
             patch_cache_control(response, public=True, max_age=120)
 
         return response
+
+
 class RateLimitMiddleware(MiddlewareMixin):
     """Rate limiting middleware with Redis."""
 

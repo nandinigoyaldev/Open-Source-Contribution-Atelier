@@ -19,6 +19,7 @@ from rest_framework.views import APIView
 from django.http import HttpResponse
 from django.core.cache import cache
 from apps.content.serializers import LessonSerializer
+from apps.content.models import Lesson
 
 from .models import (
     Badge,

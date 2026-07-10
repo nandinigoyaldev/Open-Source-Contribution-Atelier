@@ -22,8 +22,8 @@ class SoftDeleteFrameworkTests(TestCase):
         self.issue = Issue.objects.create(
             title="Test Issue",
             description="Test Description",
-            created_by=self.user,
-            status="OPEN",
+            assigned_to=self.user,
+            status="open",
         )
 
     def test_soft_delete(self):

@@ -6,7 +6,7 @@ from apps.dashboard.models import Issue
 
 @receiver(post_save, sender=Issue)
 def publish_issue_indexed_event(sender, instance, **kwargs):
-    EventBus.publish(
+    EventBus.emit(
         "SearchIndexRequested",
         {
             "app_label": sender._meta.app_label,
@@ -22,7 +22,7 @@ def publish_issue_indexed_event(sender, instance, **kwargs):
 
 @receiver(post_delete, sender=Issue)
 def publish_issue_deindexed_event(sender, instance, **kwargs):
-    EventBus.publish(
+    EventBus.emit(
         "SearchDeindexRequested",
         {
             "app_label": sender._meta.app_label,

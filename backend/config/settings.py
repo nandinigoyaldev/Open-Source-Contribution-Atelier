@@ -104,6 +104,12 @@ ALLOWED_HOSTS = [
     if host.strip()
 ]
 
+# Support HuggingFace Spaces domains automatically
+for hf_domain in [".spaces.internal.huggingface.tech", ".hf.space"]:
+    if hf_domain not in ALLOWED_HOSTS:
+        ALLOWED_HOSTS.append(hf_domain)
+
+
 if not DEBUG and not TESTING and not ALLOWED_HOSTS:
     from django.core.exceptions import ImproperlyConfigured
 
@@ -193,7 +199,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
-    "apps.core.middleware.RateLimitMiddleware",
+    "apps.cache.middleware.RateLimitMiddleware",
     "apps.sandbox.middleware.SandboxExecutionLogMiddleware",
     "allauth.account.middleware.AccountMiddleware",
     "django_prometheus.middleware.PrometheusAfterMiddleware",
@@ -451,7 +457,15 @@ if is_redis_available(CHECK_REDIS_URL):
         "default": {
             "BACKEND": "channels_redis.core.RedisChannelLayer",
             "CONFIG": {
-                "hosts": [REDIS_URL],
+                "hosts": [
+                    {
+                        "address": REDIS_URL,
+                        "socket_keepalive": True,
+                        "health_check_interval": 10,
+                        "retry_on_timeout": True,
+                        "socket_timeout": 30,
+                    }
+                ],
                 "capacity": 1500,
                 "expiry": 10,
             },

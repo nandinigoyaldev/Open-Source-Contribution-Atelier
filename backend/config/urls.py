@@ -75,7 +75,7 @@ if settings.DEBUG:
 
     urlpatterns += [
         path("api/organizations/", include("apps.organizations.urls")),
-        path("api/feature-flags/debug/", feature_flags_debug_view, name="feature-flags-debug"),
+        path("api/feature-flags/", feature_flags_debug_view, name="feature-flags-debug"),
         path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
         path(
             "api/docs/",
