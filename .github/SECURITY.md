@@ -1,36 +1,66 @@
 # Security Policy
 
-## Supported Scope
+## Supported Versions
 
-This repository is intended for public collaboration. Please report vulnerabilities responsibly and avoid opening public issues for undisclosed security flaws.
+| Version | Supported          |
+|---------|--------------------|
+| Latest  | ✅ Yes             |
+| Older   | ❌ No              |
 
-## Reporting
+We only support the latest deployed version of **Open Source Contribution Atelier**. Please ensure you are testing against the current `main` branch before reporting a vulnerability.
 
-- Email the maintainers or use a private disclosure channel
-- Include reproduction steps, impact, and affected paths
-- Do not include real secrets or personal data
+## Reporting a Vulnerability
 
-## Secure Development Notes
+We take the security of this project seriously. If you discover a security vulnerability, please follow the steps below:
 
-- JWT configuration supports production hardening through environment variables
-- Exercise verification is pattern-based and intentionally avoids arbitrary command execution
-- GitHub OAuth is optional and should be configured only with approved credentials
+### ⚠️ Do NOT open a public issue
 
-# Security & Rate Limiting
+Security vulnerabilities should **never** be reported via public GitHub issues, discussions, or pull requests.
 
-This project uses Django Rest Framework's built-in throttling to protect authentication endpoints from brute-force and spam attacks.
+### How to Report
 
-## How it works
-We use custom `_ProxyAwareThrottle` classes that correctly identify client IP addresses even when the application is running behind reverse proxies (like Nginx or AWS ALB).
+1. **Email us directly** at: **nandinigoyaldev@gmail.com**
+2. Include the following in your report:
+   - A detailed description of the vulnerability
+   - Steps to reproduce the issue
+   - The potential impact and severity
+   - Any suggested fixes (optional but appreciated)
 
-## Configuration
-Rates are defined in `settings.py` under `REST_FRAMEWORK['DEFAULT_THROTTLE_RATES']`.
+### What to Expect
 
-| Endpoint | Throttle Class | Limit |
-| :--- | :--- | :--- |
-| Login | `LoginThrottle` | 5/minute |
-| Signup | `SignupThrottle` | 10/hour |
-| Password Reset | `PasswordResetThrottle` | 3/hour |
+| Step | Timeline |
+|---|---|
+| Acknowledgment of your report | Within **48 hours** |
+| Initial assessment and triage | Within **5 business days** |
+| Fix deployed (if confirmed) | Within **14 business days** |
 
-## Setting up behind Proxies
-If you are deploying this in production behind a load balancer, ensure `TRUSTED_PROXY_COUNT` is set in your environment variables to match the number of proxy hops to ensure IP-based throttling works correctly.
+We will keep you informed of the progress and credit you in the fix (unless you prefer to remain anonymous).
+
+### Scope
+
+The following are **in scope** for security reports:
+
+- Authentication and authorization bypasses (JWT, OAuth)
+- Cross-site scripting (XSS) in the frontend
+- SQL injection or ORM exploitation in the backend
+- Server-side request forgery (SSRF)
+- Sensitive data exposure (API keys, tokens, PII)
+- Privilege escalation
+
+The following are **out of scope**:
+
+- Denial of service (DoS) attacks
+- Social engineering
+- Issues in third-party dependencies (report these upstream)
+- Vulnerabilities requiring physical access to the server
+
+## Security Best Practices for Contributors
+
+- Never commit secrets, API keys, or tokens to the repository
+- Use environment variables (`.env`) for all sensitive configuration
+- All `.env` files are listed in `.gitignore` — keep it that way
+- Review the [CONTRIBUTING.md](.github/CONTRIBUTING.md) guidelines before submitting code
+
+---
+
+Thank you for helping keep **Open Source Contribution Atelier** safe for everyone! 🛡️

@@ -1,0 +1,105 @@
+version: '3.8'
+
+services:
+  reverse-proxy:
+    image: traefik:v2.10
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+    ports:
+      - "8000:80"
+      - "8080:8080" # Traefik Dashboard
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: atelier
+      POSTGRES_USER: atelier_user
+      POSTGRES_PASSWORD: atelier_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+
+  backend:
+    build:
+      context: ./backend
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py runserver 0.0.0.0:8000"
+    volumes:
+      - ./backend:/app
+    environment:
+      - DATABASE_URL=postgres://atelier_user:atelier_password@db:5432/atelier
+      - REDIS_URL=redis://redis:6379/0
+      - DEBUG=True
+    depends_on:
+      - db
+      - redis
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.backend.rule=PathPrefix(`/api`) || PathPrefix(`/admin`) || PathPrefix(`/static`)"
+      - "traefik.http.services.backend.loadbalancer.server.port=8000"
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/api/')\" || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    deploy:
+      replicas: 1
+      update_config:
+        order: start-first
+        failure_action: rollback
+        delay: 10s
+
+  worker:
+    build:
+      context: ./backend
+    command: python manage.py qcluster
+    volumes:
+      - ./backend:/app
+    environment:
+      - DATABASE_URL=postgres://atelier_user:atelier_password@db:5432/atelier
+      - REDIS_URL=redis://redis:6379/0
+      - DEBUG=True
+    depends_on:
+      - db
+      - redis
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    environment:
+      - VITE_API_URL=http://localhost:8000
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.frontend.rule=PathPrefix(`/`)"
+      - "traefik.http.services.frontend.loadbalancer.server.port=80"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:80/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    deploy:
+      replicas: 1
+      update_config:
+        order: start-first
+        failure_action: rollback
+        delay: 10s
+    depends_on:
+      - backend
+
+volumes:
+  postgres_data:

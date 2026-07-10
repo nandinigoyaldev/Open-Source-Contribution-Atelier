@@ -1,51 +1,38 @@
-.PHONY: help install start lint format test test-backend test-frontend test-e2e migrate makemigrations clean
+ifeq ($(OS),Windows_NT)
+    PYTHON := python
+    BIN_DIR := Scripts
+else
+    PYTHON := python3
+    BIN_DIR := bin
+endif
 
-help:
-	@echo "Available commands:"
-	@echo "  make install         - Install frontend and backend dependencies"
-	@echo "  make start           - Start the full stack using Docker (Postgres, Redis, Django, Vite)"
-	@echo "  make lint            - Run linters on frontend (ESLint) and backend (Black check)"
-	@echo "  make format          - Format code for frontend (Prettier) and backend (Black)"
-	@echo "  make test            - Run all backend and frontend unit tests"
-	@echo "  make test-backend    - Run backend unit tests (pytest)"
-	@echo "  make test-frontend   - Run frontend unit tests (Vitest)"
-	@echo "  make test-e2e        - Run frontend E2E tests (Playwright)"
-	@echo "  make migrate         - Apply backend database migrations"
-	@echo "  make makemigrations  - Generate backend database migrations"
-	@echo "  make clean           - Remove caches, pycache, and build artifacts"
+VENV_BIN := backend/.venv/$(BIN_DIR)
+
+.PHONY: install start format test verify
 
 install:
-	npm --prefix frontend install
-	cd backend && pip install -r requirements.txt
+	@echo "Installing backend dependencies..."
+	$(PYTHON) -m venv backend/.venv
+	$(VENV_BIN)/pip install -r backend/requirements.txt
+	@echo "Installing frontend dependencies..."
+	cd frontend && npm install
 
 start:
+	@echo "Starting development stack..."
 	docker compose up --build
 
-lint:
-	npm --prefix frontend run lint
-	cd backend && python -m black --check . && python -m isort --check-only .
-
 format:
-	npm --prefix frontend run format
-	cd backend && python -m black . && python -m isort .
+	@echo "Formatting backend code..."
+	$(VENV_BIN)/black backend/ || black backend/
+	$(VENV_BIN)/isort backend/ || isort backend/
+	@echo "Formatting frontend code..."
+	cd frontend && npm run format
 
-test: test-backend test-frontend
+test:
+	@echo "Running backend tests..."
+	$(VENV_BIN)/pytest backend/ || pytest backend/
+	@echo "Running frontend tests..."
+	cd frontend && npm run test
 
-test-backend:
-	cd backend && pytest
-
-test-frontend:
-	npm --prefix frontend run test
-
-test-e2e:
-	npm --prefix frontend run test:e2e
-
-migrate:
-	cd backend && python manage.py migrate
-
-makemigrations:
-	cd backend && python manage.py makemigrations
-
-clean:
-	npm --prefix frontend exec -- rimraf node_modules dist || true
-	cd backend && python -c "import pathlib, shutil; [shutil.rmtree(p, ignore_errors=True) for p in pathlib.Path('.').rglob('__pycache__')]; [shutil.rmtree(p, ignore_errors=True) for p in pathlib.Path('.').rglob('.pytest_cache')]"
+verify:
+	./verify.sh

@@ -1,4 +1,4 @@
-import { render, screen, cleanup } from "@testing-library/react";
+import { render, screen, cleanup, fireEvent } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { DashboardPage } from "../pages/DashboardPage";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -143,5 +143,30 @@ describe("DashboardPage Dual-Role Views", () => {
     // Assert lesson queue
     expect(screen.getByText("Resume Learning Queue")).toBeInTheDocument();
     expect(screen.getByText("Introduction to Atelier")).toBeInTheDocument();
+  });
+
+  it("opens the Progress Report modal with current stats when Export Progress as PDF is clicked", async () => {
+    mockUseAuth.mockReturnValue({
+      user: {
+        id: 2,
+        username: "bob_coder",
+        email: "bob@atelier.com",
+        is_staff: false,
+      },
+    });
+
+    renderWithQueryClient(<DashboardPage />);
+
+    await screen.findByText(/LEVEL/);
+
+    const exportButton = await screen.findByText("Export Progress as PDF");
+    fireEvent.click(exportButton);
+
+    expect(await screen.findByText("Progress Report")).toBeInTheDocument();
+    expect(screen.getByText("bob_coder")).toBeInTheDocument();
+    expect(screen.getByText("Export as PDF")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByText("Return to Dashboard"));
+    expect(screen.queryByText("Progress Report")).not.toBeInTheDocument();
   });
 });

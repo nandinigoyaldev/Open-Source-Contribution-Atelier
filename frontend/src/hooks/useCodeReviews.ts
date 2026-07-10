@@ -28,7 +28,7 @@ export function useCodeReviews(roomId: string) {
       ? new URL(import.meta.env.VITE_API_URL).host
       : "localhost:8000";
     const wsUrl = `${protocol}//${backendHost}/ws/collab/${roomId}/`;
-    
+
     const socket = new WebSocket(wsUrl);
     setWs(socket);
 
@@ -38,7 +38,9 @@ export function useCodeReviews(roomId: string) {
           const payload = JSON.parse(event.data);
           if (payload.action === "thread_updated" && payload.thread) {
             setThreads((prev) => {
-              const existingIndex = prev.findIndex((t) => t.id === payload.thread.id);
+              const existingIndex = prev.findIndex(
+                (t) => t.id === payload.thread.id,
+              );
               if (existingIndex >= 0) {
                 const next = [...prev];
                 next[existingIndex] = payload.thread;
@@ -48,7 +50,7 @@ export function useCodeReviews(roomId: string) {
               }
             });
           }
-        } catch (e) {
+        } catch {
           // Ignore parse errors or non-review messages
         }
       }
@@ -70,11 +72,11 @@ export function useCodeReviews(roomId: string) {
             line_number: lineNumber,
             content,
             thread_id: threadId,
-          })
+          }),
         );
       }
     },
-    [ws]
+    [ws],
   );
 
   const resolveThread = useCallback(
@@ -84,11 +86,11 @@ export function useCodeReviews(roomId: string) {
           JSON.stringify({
             action: "resolve_thread",
             thread_id: threadId,
-          })
+          }),
         );
       }
     },
-    [ws]
+    [ws],
   );
 
   return {

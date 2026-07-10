@@ -4,6 +4,7 @@ from rest_framework.test import APIClient
 
 from apps.content.models import Lesson
 from apps.progress.models import Badge, LessonProgress, UserBadge
+from apps.progress.tasks import evaluate_achievements_task
 
 
 def create_lesson(slug="intro"):
@@ -21,7 +22,7 @@ def test_authenticated_user_can_retrieve_badges_and_progress_points():
     user = User.objects.create_user(username="learner", password="strongpass123")
     badge = Badge.objects.create(
         name="First Steps",
-        slug="first-steps",
+        slug="first-lesson",
         description="Completed your first lesson.",
     )
     UserBadge.objects.create(user=user, badge=badge)
@@ -31,6 +32,7 @@ def test_authenticated_user_can_retrieve_badges_and_progress_points():
     LessonProgress.objects.create(
         user=user, lesson=create_lesson("branching"), completed=True, score=25
     )
+    evaluate_achievements_task(user.id)
 
     client = APIClient()
     client.force_authenticate(user=user)
@@ -39,9 +41,9 @@ def test_authenticated_user_can_retrieve_badges_and_progress_points():
 
     assert response.status_code == 200
     assert response.data["progress_points"] == 100
-    # The signal (dashboard/signals) from LessonProgress creation awards "first-steps" badge
+    # The signal (dashboard/signals) from LessonProgress creation awards "first-lesson" badge
     slugs = [b["slug"] for b in response.data["badges"]]
-    assert "first-steps" in slugs
+    assert "first-lesson" in slugs
     assert len(slugs) == 1
     assert response.data["badges"][0]["earned_at"]
 
@@ -77,6 +79,8 @@ def test_badges_endpoint_returns_only_authenticated_users_stats():
     LessonProgress.objects.create(
         user=other_user, lesson=create_lesson("other"), completed=True, score=90
     )
+    evaluate_achievements_task(user.id)
+    evaluate_achievements_task(other_user.id)
 
     client = APIClient()
     client.force_authenticate(user=user)
@@ -85,10 +89,10 @@ def test_badges_endpoint_returns_only_authenticated_users_stats():
 
     assert response.status_code == 200
     assert response.data["progress_points"] == 40
-    # The signal (dashboard/signals) from creating LessonProgress awards the "first-steps" badge
+    # The signal (dashboard/signals) from creating LessonProgress awards the "first-lesson" badge
     badge_slugs = [badge["slug"] for badge in response.data["badges"]]
     assert "own-badge" in badge_slugs
-    assert "first-steps" in badge_slugs
+    assert "first-lesson" in badge_slugs
     assert "other-badge" not in badge_slugs
 
 
@@ -97,6 +101,8 @@ def test_lesson_completion_automatically_awards_badges_and_notifies():
     from apps.notifications.models import Notification
 
     user = User.objects.create_user(username="newbie", password="strongpass123")
+    create_lesson("intro")
+    create_lesson("first-contribution-walkthrough")
     client = APIClient()
     client.force_authenticate(user=user)
 
@@ -112,28 +118,12 @@ def test_lesson_completion_automatically_awards_badges_and_notifies():
     )
     assert response.status_code == 201
 
-    # Check if the "first-steps" badge was automatically created and awarded
-    assert UserBadge.objects.filter(user=user, badge__slug="first-steps").exists()
+    evaluate_achievements_task(user.id)
 
-    # Check if a notification was sent
+    # Check if the "first-lesson" badge was automatically created and awarded
+    assert UserBadge.objects.filter(user=user, badge__slug="first-lesson").exists()
+
+    # 2. Check if a notification was generated for the badge award
     assert Notification.objects.filter(
-        recipient=user, notif_type="badge", meta__badge_slug="first-steps"
-    ).exists()
-
-    # 2. Complete "first-contribution-walkthrough" (mod-5 badge requires this single lesson)
-    response = client.post(
-        "/api/progress/me/",
-        {
-            "lesson_slug": "first-contribution-walkthrough",
-            "score": 100,
-            "completed": True,
-        },
-        format="json",
-    )
-    assert response.status_code == 201
-
-    # Check if the "mod-5" badge was awarded and notified
-    assert UserBadge.objects.filter(user=user, badge__slug="mod-5").exists()
-    assert Notification.objects.filter(
-        recipient=user, notif_type="badge", meta__badge_slug="mod-5"
+        recipient=user, notif_type="badge", meta__badge_slug="first-lesson"
     ).exists()

@@ -1,5 +1,11 @@
+---
 blank_issues_enabled: false
 contact_links:
-  - name: Community Discussions
-    url: https://github.com/goyaljiiiiii/Open-Source-Contribution-Atelier/discussions
-    about: Ask questions, share ideas, or request mentorship outside issue tracking.
+  - name: Support Request
+    url: https://github.com/nandinigoyaldev/Open-Source-Contribution-Atelier/discussions
+    about: Use GitHub Discussions for general support questions.
+  - name: Report a security vulnerability
+    url: https://github.com/nandinigoyaldev/Open-Source-Contribution-Atelier/security
+    about: Please report security issues privately.
+
+# A configuration file that makes GitHub show a chooser when creating a new issue, allowing contributors to select the appropriate template (Bug, Feature, Documentation, Question).

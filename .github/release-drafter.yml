@@ -1,0 +1,88 @@
+# Release Drafter configuration
+#
+# Generates categorized changelog entries from merged pull requests
+# and resolves the next semantic version from PR labels.
+
+name-template: "v$RESOLVED_VERSION"
+tag-template: "v$RESOLVED_VERSION"
+
+categories:
+  # Changelog categories
+
+  - title: "🚀 Features"
+    when:
+      labels:
+        - "feature"
+        - "enhancement"
+
+  - title: "🐛 Bug Fixes"
+    when:
+      label: "bug"
+
+  - title: "📚 Documentation"
+    when:
+      label: "documentation"
+
+  - title: "🧪 Tests"
+    when:
+      label: "tests"
+
+  - title: "⚙️ CI/CD"
+    when:
+      label: "ci/cd"
+
+  - title: "🔧 Backend"
+    when:
+      label: "backend"
+
+  - title: "🎨 Frontend"
+    when:
+      label: "frontend"
+
+  - title: "🔌 Integrations"
+    when:
+      label: "integration"
+
+  - title: "📦 Other Changes"
+
+  # Semantic version resolution
+
+  - type: "version-resolver"
+    semver-increment: "major"
+    when:
+      label: "major"
+
+  - type: "version-resolver"
+    semver-increment: "minor"
+    when:
+      labels:
+        - "minor"
+        - "feature"
+        - "enhancement"
+
+  - type: "version-resolver"
+    semver-increment: "patch"
+    when:
+      labels:
+        - "patch"
+        - "bug"
+
+  # Default to a patch release when no explicit
+  # version label matches.
+  - type: "version-resolver"
+    semver-increment: "patch"
+
+change-template: "- $TITLE (#$NUMBER) @$AUTHOR"
+
+change-title-escapes: '\<*_&'
+
+template: |
+  ## What's Changed
+
+  $CHANGES
+
+  ## Contributors
+
+  $CONTRIBUTORS
+
+  **Full Changelog**: $PREVIOUS_TAG...$RESOLVED_VERSION

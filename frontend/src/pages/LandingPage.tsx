@@ -3,14 +3,34 @@ import { useGoogleLogin } from "@react-oauth/google";
 import { GitBranch, Moon, Sun } from "lucide-react";
 import { fetchApi } from "../lib/api";
 import { useAuth } from "../features/auth/AuthContext";
-import { useTheme } from "../hooks/useTheme";
+import { useTheme } from "../context/ThemeContext";
 import OrganizationsGrid from "../components/OrganizationsGrid";
 
-import { useTranslation } from "react-i18next";
+declare const require: any;
 
-const githubAuthUrl =
-  import.meta.env.VITE_GITHUB_OAUTH_URL ||
-  `${import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api"}/auth/github/`;
+// react-i18next may be optional in some environments. Import with a safe runtime fallback.
+let useTranslation: any;
+try {
+  useTranslation = require("react-i18next").useTranslation;
+} catch {
+  // Fallback: provide a minimal hook that returns identity translator
+  useTranslation = () => ({ t: (s: string) => s });
+}
+
+// Safely look up variables across Next.js compilation bundles and Vite browser environments
+const getEnvVar = (key: string): string => {
+  if (typeof process !== "undefined" && process.env && process.env[key]) {
+    return process.env[key] as string;
+  }
+  if (
+    typeof import.meta !== "undefined" &&
+    import.meta.env &&
+    import.meta.env[key]
+  ) {
+    return import.meta.env[key] as string;
+  }
+  return "";
+};
 
 function getErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback;
@@ -18,27 +38,39 @@ function getErrorMessage(error: unknown, fallback: string) {
 
 export function LandingPage() {
   const { t } = useTranslation();
+
   // Safely obtain login function; if AuthContext is not provided, default to a no-op.
-  let login = () => {};
+  let login: (tokens: { access: string; refresh: string }) => void = () => {};
   try {
     const auth = useAuth();
     login = auth.login;
   } catch {
     // No AuthProvider in the tree; proceed with fallback login.
   }
+
   const { theme, toggleTheme } = useTheme();
   const [authRole, setAuthRole] = useState<"student" | "admin">("student");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [githubUrl, setGithubUrl] = useState("");
 
   useEffect(() => {
-    const authError = new URLSearchParams(window.location.search).get(
-      "auth_error",
-    );
-    if (authError) {
-      setError(authError);
-      window.history.replaceState({}, "", window.location.pathname);
+    // Ensure window environment lookups only run safely on the browser client thread
+    if (typeof window !== "undefined") {
+      const authError = new URLSearchParams(window.location.search).get(
+        "auth_error",
+      );
+      if (authError) {
+        setError(authError);
+        window.history.replaceState({}, "", window.location.pathname);
+      }
+
+      // Construct OAuth URLs dynamically on the client hook initialization layer
+      const baseGithub =
+        getEnvVar("VITE_GITHUB_OAUTH_URL") ||
+        `${getEnvVar("VITE_API_BASE_URL") || "http://localhost:8000/api"}/auth/github/`;
+      setGithubUrl(baseGithub);
     }
   }, []);
 
@@ -49,17 +81,21 @@ export function LandingPage() {
       const tokens = await fetchApi("/auth/login/", {
         method: "POST",
         requireAuth: false,
-        body: JSON.stringify({ username: email, password }), // Using email field as username logic for backend ease
+        body: JSON.stringify({ username: email, password }),
       });
       login(tokens);
-      window.location.href = "/dashboard";
+      if (typeof window !== "undefined") {
+        window.location.href = "/dashboard";
+      }
     } catch (err: unknown) {
       setError(getErrorMessage(err, t("landing.error_login_failed")));
     }
   };
 
   const handleGithubSignIn = () => {
-    window.location.href = githubAuthUrl;
+    if (typeof window !== "undefined" && githubUrl) {
+      window.location.href = githubUrl;
+    }
   };
 
   const googleLoginHandler = useGoogleLogin({
@@ -71,7 +107,9 @@ export function LandingPage() {
           body: JSON.stringify({ access_token: tokenResponse.access_token }),
         });
         login(tokens);
-        window.location.href = "/dashboard";
+        if (typeof window !== "undefined") {
+          window.location.href = "/dashboard";
+        }
       } catch (err: unknown) {
         setError(getErrorMessage(err, t("landing.error_google_auth_backend")));
       }
@@ -129,7 +167,7 @@ export function LandingPage() {
 
           <h2 className="text-3xl font-black mb-6 text-center text-text dark:text-[#f0ebe2]">
             {authRole === "student"
-              ? t("landing.enter_sandbox")
+              ? "Start Your First Contribution"
               : t("landing.maintainer_login")}
           </h2>
 
@@ -235,3 +273,5 @@ export function LandingPage() {
     </div>
   );
 }
+
+export default LandingPage;
