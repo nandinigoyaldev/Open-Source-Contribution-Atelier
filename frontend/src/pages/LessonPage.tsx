@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { GitTerminal } from '../components/GitTerminal';
 import { useNavigate, useParams, Link } from "react-router-dom";
 import {
   ChevronLeft,
@@ -721,28 +722,33 @@ export function LessonPage() {
                       </span>
                     </div>
 
-                    <h3 className="text-lg font-black mb-4 text-text dark:text-[#f0ebe2]">
-                      {lesson.quizzes![currentQuizIndex].question}
-                    </h3>
+                  <h3>💻 Git Sandbox</h3>
+                  <p>Try Git commands in this interactive terminal:</p>
+                  <GitTerminal />
 
-                    <div className="space-y-3">
-                      {lesson.quizzes![currentQuizIndex].options.map(
-                        (option, idx) => {
-                          const isSelected = selectedOption === idx;
-                          const currentQuiz = lesson.quizzes![currentQuizIndex];
-                          const isCorrectOption = idx === currentQuiz.answer;
+                  <h3 className="text-lg font-black mb-4 text-text dark:text-[#f0ebe2]">
+                    {lesson.quizzes![currentQuizIndex].question}
+                  </h3>
 
-                          let bgColor = "";
-                          if (quizFeedback !== null) {
-                            if (isCorrectOption) {
-                              bgColor =
-                                "bg-green-600 border-green-800 text-white";
-                            } else if (
-                              isSelected &&
-                              quizFeedback === "incorrect"
-                            ) {
-                              bgColor = "bg-red-600 border-red-800 text-white";
-                            }
+                  <div className="space-y-3">
+                    {lesson.quizzes![currentQuizIndex].options.map(
+                      (option, idx) => {
+                        const isSelected = selectedOption === idx;
+                        const currentQuiz = lesson.quizzes![currentQuizIndex];
+                        const isCorrectOption = idx === currentQuiz.answer;
+
+                        // Determine background color based on quiz state
+                        let bgColor = "";
+                        if (quizFeedback !== null) {
+                          // After answer submitted: show green for correct, red for incorrect
+                          if (isCorrectOption) {
+                            bgColor =
+                              "bg-green-600 border-green-800 text-white";
+                          } else if (
+                            isSelected &&
+                            quizFeedback === "incorrect"
+                          ) {
+                            bgColor = "bg-red-600 border-red-800 text-white";
                           }
 
                           if (!bgColor) {

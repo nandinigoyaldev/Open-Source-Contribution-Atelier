@@ -41,6 +41,7 @@ def send_weekly_progress_summary():
             async_task("apps.notifications.tasks.send_bulk_email", payload)
 
 
+
 def evaluate_achievements_task(user_id):
     from django.contrib.auth import get_user_model
 

@@ -18,7 +18,13 @@
 
 ## 🛠️ Hands-On Task
 
-Visit this website to access a live Interactive JavaScript Debugger Simulator tool: [https://javascript-debugger-simulator.netlify.app/](https://javascript-debugger-simulator.netlify.app/)
+### Visit this website to access a live Interactive JavaScript Debugger Simulator tool:
+
+### [https://javascript-debugger-simulator.netlify.app/](https://javascript-debugger-simulator.netlify.app/)
+
+---
+
+### Steps
 
 1. **Set a Breakpoint**: Click the margin (the space directly left of the line numbers) on line 4 (`total += i`). You should see a red dot appear.
 

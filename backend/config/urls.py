@@ -64,6 +64,11 @@ urlpatterns = [
         SpectacularSwaggerView.as_view(url_name="schema"),  # Fixed here
         name="swagger-ui",
     ),
+    path(
+        "api/redoc/",
+        SpectacularRedocView.as_view(url_name="schema"),
+        name="redoc-ui",
+    ),
     path("api/graphql/", csrf_exempt(GraphQLView.as_view(graphiql=True))),
 ]
 
@@ -81,6 +86,11 @@ if settings.DEBUG:
             "api/docs/",
             SpectacularSwaggerView.as_view(url_name="schema"),  # Fixed here as well
             name="swagger-ui",
+        ),
+        path(
+            "api/redoc/",
+            SpectacularRedocView.as_view(url_name="schema"),
+            name="redoc-ui",
         ),
         path("graphql/", csrf_exempt(GraphQLView.as_view(graphiql=True))),
     ]

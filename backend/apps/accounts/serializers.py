@@ -60,6 +60,7 @@ class UserUpdateSerializer(serializers.ModelSerializer):
     twitter_url = serializers.URLField(required=False, allow_blank=True)
     linkedin_url = serializers.URLField(required=False, allow_blank=True)
     github_url = serializers.URLField(required=False, allow_blank=True)
+    receive_weekly_digest = serializers.BooleanField(required=False)
 
     class Meta:
         model = User
@@ -72,6 +73,7 @@ class UserUpdateSerializer(serializers.ModelSerializer):
             "twitter_url",
             "linkedin_url",
             "github_url",
+            "receive_weekly_digest",
         )
         extra_kwargs = {
             "email": {"required": False},
@@ -95,6 +97,7 @@ class UserUpdateSerializer(serializers.ModelSerializer):
         twitter_url = validated_data.pop("twitter_url", None)
         linkedin_url = validated_data.pop("linkedin_url", None)
         github_url = validated_data.pop("github_url", None)
+        receive_weekly_digest = validated_data.pop("receive_weekly_digest", None)
 
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
@@ -112,6 +115,7 @@ class UserUpdateSerializer(serializers.ModelSerializer):
             or twitter_url is not None
             or linkedin_url is not None
             or github_url is not None
+            or receive_weekly_digest is not None
         ):
             from apps.accounts.models import UserProfile
 
@@ -128,6 +132,8 @@ class UserUpdateSerializer(serializers.ModelSerializer):
                 profile.linkedin_url = linkedin_url
             if github_url is not None:
                 profile.github_url = github_url
+            if receive_weekly_digest is not None:
+                profile.receive_weekly_digest = receive_weekly_digest
             profile.save()
 
         return instance
@@ -140,6 +146,7 @@ class UserListSerializer(serializers.ModelSerializer):
     twitter_url = serializers.SerializerMethodField()
     linkedin_url = serializers.SerializerMethodField()
     github_url = serializers.SerializerMethodField()
+    receive_weekly_digest = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -154,6 +161,7 @@ class UserListSerializer(serializers.ModelSerializer):
             "twitter_url",
             "linkedin_url",
             "github_url",
+            "receive_weekly_digest",
         )
 
     def get_avatar_url(self, obj):
@@ -191,6 +199,11 @@ class UserListSerializer(serializers.ModelSerializer):
         if hasattr(obj, "profile") and obj.profile.github_url:
             return obj.profile.github_url
         return ""
+
+    def get_receive_weekly_digest(self, obj):
+        if hasattr(obj, "profile"):
+            return obj.profile.receive_weekly_digest
+        return True
 
 
 class EmailOrUsernameTokenObtainPairSerializer(TokenObtainPairSerializer):

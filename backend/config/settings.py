@@ -16,23 +16,7 @@ TESTING = "test" in sys.argv or "pytest" in sys.modules
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
-def load_dotenv(dotenv_path: Path) -> None:
-    if not dotenv_path.exists():
-        return
-
-    for raw_line in dotenv_path.read_text().splitlines():
-        line = raw_line.strip()
-        if not line or line.startswith("#") or "=" not in line:
-            continue
-        key, value = line.split("=", 1)
-        val_stripped = value.strip()
-        if (val_stripped.startswith('"') and val_stripped.endswith('"')) or (
-            val_stripped.startswith("'") and val_stripped.endswith("'")
-        ):
-            val_stripped = val_stripped[1:-1].strip()
-        if val_stripped:
-            os.environ.setdefault(key.strip(), val_stripped)
-
+from dotenv import load_dotenv
 
 load_dotenv(BASE_DIR / ".env")
 
@@ -103,12 +87,6 @@ ALLOWED_HOSTS = [
     for host in os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
     if host.strip()
 ]
-
-# Support HuggingFace Spaces domains automatically
-for hf_domain in [".spaces.internal.huggingface.tech", ".hf.space"]:
-    if hf_domain not in ALLOWED_HOSTS:
-        ALLOWED_HOSTS.append(hf_domain)
-
 
 if not DEBUG and not TESTING and not ALLOWED_HOSTS:
     from django.core.exceptions import ImproperlyConfigured
@@ -457,15 +435,7 @@ if is_redis_available(CHECK_REDIS_URL):
         "default": {
             "BACKEND": "channels_redis.core.RedisChannelLayer",
             "CONFIG": {
-                "hosts": [
-                    {
-                        "address": REDIS_URL,
-                        "socket_keepalive": True,
-                        "health_check_interval": 10,
-                        "retry_on_timeout": True,
-                        "socket_timeout": 30,
-                    }
-                ],
+                "hosts": [REDIS_URL],
                 "capacity": 1500,
                 "expiry": 10,
             },
@@ -580,3 +550,4 @@ CURRICULUM_JSON_PATH = os.getenv(
 
 CELERY_TASK_ALWAYS_EAGER = True
 CELERY_TASK_STORE_EAGER_RESULT = True
+

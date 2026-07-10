@@ -5,6 +5,11 @@ import subprocess
 import shutil
 from pathlib import Path
 
+# Fix terminal encoding issues on Windows
+if sys.platform == "win32":
+    import io
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+
 # ANSI Escape Sequences for beautiful terminal outputs
 BLUE = "\033[94m"
 GREEN = "\033[92m"
@@ -50,10 +55,19 @@ def check_node():
     except FileNotFoundError:
         return False, "Node.js is not installed or not in PATH."
 
+def get_venv_python():
+    venv_dir = Path("backend/.venv")
+    windows_path = venv_dir / "Scripts" / "python.exe"
+    unix_path = venv_dir / "bin" / "python"
+    if windows_path.exists():
+        return windows_path
+    if unix_path.exists():
+        return unix_path
+    return None
+
 def check_venv():
     # Check if .venv directory exists in backend/
-    venv_dir = Path("backend/.venv")
-    if venv_dir.exists() and (venv_dir / "bin" / "python").exists():
+    if get_venv_python() is not None:
         return True, "Virtual environment (.venv) exists in backend/"
     return False, "Virtual environment not found in backend/.venv"
 
@@ -71,9 +85,9 @@ def check_env_files():
 
 def check_backend_migrations():
     # If venv Python is available, check pending migrations
-    python_path = Path("backend/.venv/bin/python")
-    if not python_path.exists():
-        python_path = Path("python3") # fallback
+    python_path = get_venv_python()
+    if python_path is None:
+        python_path = Path("python" if sys.platform == "win32" else "python3") # fallback
     try:
         res = subprocess.run(
             [str(python_path), "backend/manage.py", "showmigrations", "--plan"],
@@ -97,15 +111,16 @@ def check_prepush_checklist():
     
     # 1. Frontend Formatting Check
     try:
-        subprocess.check_output(["npm", "--prefix", "frontend", "run", "format:check"], stderr=subprocess.STDOUT)
+        npm_exe = "npm.cmd" if sys.platform == "win32" else "npm"
+        subprocess.check_output([npm_exe, "--prefix", "frontend", "run", "format:check"], stderr=subprocess.STDOUT)
         print(f"   ✨ {GREEN}Frontend Prettier format check passed.{NC}")
     except subprocess.CalledProcessError:
         print(f"   ⚠️  {YELLOW}Frontend formatting needs correction. Run 'npm run format' in frontend/.{NC}")
         
     # 2. Backend Formatting Check
     try:
-        python_path = Path("backend/.venv/bin/python")
-        black_cmd = [str(python_path), "-m", "black", "--check", "backend/"] if python_path.exists() else ["black", "--check", "backend/"]
+        python_path = get_venv_python()
+        black_cmd = [str(python_path), "-m", "black", "--check", "backend/"] if python_path is not None else ["black", "--check", "backend/"]
         subprocess.check_output(black_cmd, stderr=subprocess.STDOUT)
         print(f"   ✨ {GREEN}Backend Black format check passed.{NC}")
     except (subprocess.CalledProcessError, FileNotFoundError):
