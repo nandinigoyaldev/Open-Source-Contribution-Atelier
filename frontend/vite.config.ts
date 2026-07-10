@@ -3,13 +3,19 @@ import react from "@vitejs/plugin-react";
 import { VitePWA } from "vite-plugin-pwa";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import process from "node:process";
 import { storybookTest } from "@storybook/addon-vitest/vitest-plugin";
 
-const dirname = typeof __dirname !== "undefined"
-  ? __dirname
-  : path.dirname(fileURLToPath(import.meta.url));
+const dirname =
+  typeof __dirname !== "undefined"
+    ? __dirname
+    : path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
+  worker: {
+    format: "es",
+  },
+  base: process.env.VITE_CDN_URL || "/",
   plugins: [
     react(),
     VitePWA({
@@ -46,6 +52,7 @@ export default defineConfig({
         test: {
           environment: "jsdom",
           setupFiles: "./src/test/setup.ts",
+          include: ["src/test/**/*.test.{ts,tsx}"],
           exclude: ["**/*.stories.{ts,tsx}", "**/*.stories.{js,jsx}"],
         },
       },
@@ -63,7 +70,12 @@ export default defineConfig({
       },
     ],
     optimizeDeps: {
-      include: ["workbox-precaching", "workbox-routing", "workbox-strategies", "workbox-expiration"],
+      include: [
+        "workbox-precaching",
+        "workbox-routing",
+        "workbox-strategies",
+        "workbox-expiration",
+      ],
     },
   },
-});
+} as any);

@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { GitTerminal } from "../components/GitTerminal";
 import { useNavigate, useParams, Link } from "react-router-dom";
 import {
   ChevronLeft,
@@ -17,7 +18,11 @@ import { useUserProgress } from "../hooks/useUserProgress";
 import { useBookmarks } from "../hooks/useBookmarks";
 import { fetchApi } from "../lib/api";
 import { Lesson, fetchLessonsApi, fetchLessonContent } from "../lib/lessons";
-import { RichTextEditor } from "../components/ui/RichTextEditor";
+const RichTextEditor = React.lazy(() =>
+  import("../components/ui/RichTextEditor").then((mod) => ({
+    default: mod.RichTextEditor,
+  })),
+);
 
 const MarkdownRenderer = React.lazy(() =>
   import("../components/ui/MarkdownRenderer").then((module) => ({
@@ -26,11 +31,22 @@ const MarkdownRenderer = React.lazy(() =>
 );
 import { GitGraph } from "../components/ui/GitGraph";
 import { NotePanel } from "../components/ui/NotePanel";
+import { LessonFeedbackWidget } from "../components/ui/LessonFeedbackWidget";
 import { PythonSandbox } from "../components/ui/PythonSandbox";
-import { CollabPythonSandbox } from "../components/ui/CollabPythonSandbox";
+const CollabPythonSandbox = React.lazy(() =>
+  import("../components/ui/CollabPythonSandbox").then((mod) => ({
+    default: mod.CollabPythonSandbox,
+  })),
+);
 import { JSSandbox } from "../components/ui/JSSandbox";
-import { InteractiveDebugger } from "../components/ui/InteractiveDebugger";
+const InteractiveDebugger = React.lazy(() =>
+  import("../components/ui/InteractiveDebugger").then((mod) => ({
+    default: mod.InteractiveDebugger,
+  })),
+);
 import { TextToSpeechControls } from "../components/ui/TextToSpeechControls";
+import { ReadingProgressTracker } from "../components/ui/ReadingProgressTracker";
+import { lessonPluginRegistry } from "../plugins/LessonPluginRegistry";
 
 import {
   createInitialRepo,
@@ -98,6 +114,8 @@ export function LessonPage() {
   const [quizFeedback, setQuizFeedback] = useState<
     "correct" | "incorrect" | null
   >(null);
+  // NEW: Cryptographic Nonce State
+  const [quizNonce, setQuizNonce] = useState<string | null>(null);
 
   // Help Request panel
   const [isHelpPanelOpen, setIsHelpPanelOpen] = useState(false);
@@ -139,28 +157,41 @@ export function LessonPage() {
       selected_answer: string;
       correct_answer: string;
       is_correct: boolean;
+      nonce: string; // NEW: Added nonce to payload
     }) => {
       return fetchApi("/progress/quiz-attempts/", {
         method: "POST",
         body: JSON.stringify(payload),
       });
     },
-    onError: (err) => {
+    onError: (err: any) => {
+      // NEW: Intercept 403 Forbidden errors triggered by Replay Attacks
+      if (err?.status === 403 || err?.message?.includes("403")) {
+        alert(
+          "Security Error: Replay attack detected or session expired. Please refresh.",
+        );
+      }
       console.error("Failed to submit quiz attempt:", err);
     },
   });
 
   // 1. Fetch modules catalog & lessons
-  // First, try to find the lesson from the backend API. If the slug doesn't exist
-  // there (e.g. curriculum.json and seed data are out of sync), fall back to
-  // constructing a basic Lesson object from curriculum.json data.
   useEffect(() => {
     setIsLoading(true);
 
-    Promise.all([
-      fetch("/content/curriculum.json").then((res) => res.json()),
-      fetchLessonsApi(),
-    ])
+    const curriculumPromise = fetch("/content/curriculum.json")
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+      })
+      .catch((err) => {
+        console.warn("[LessonPage] Failed to load curriculum.json:", err);
+        return null;
+      });
+
+    const lessonsPromise = fetchLessonsApi();
+
+    Promise.all([curriculumPromise, lessonsPromise])
       .then(([curriculumJson, lessonsData]) => {
         setLessonsList(lessonsData);
 
@@ -168,10 +199,8 @@ export function LessonPage() {
           setModules(curriculumJson.modules);
         }
 
-        // Try to find the lesson in the backend API data first
         let found = lessonsData.find((l) => l.slug === slug);
 
-        // If not found in API, look it up in curriculum.json and build a Lesson
         if (!found && curriculumJson?.modules) {
           for (const mod of curriculumJson.modules) {
             const curriculumLesson = mod.lessons.find(
@@ -210,7 +239,8 @@ export function LessonPage() {
 
         setLesson(found);
       })
-      .catch(() => {
+      .catch((err) => {
+        console.error("[LessonPage] Unexpected error loading lesson:", err);
         navigate("/dashboard", { replace: true });
       })
       .finally(() => {
@@ -228,10 +258,10 @@ export function LessonPage() {
     setTerminalOutput("");
     setRepoState(createInitialRepo());
 
-    // Reset Quiz state
     setCurrentQuizIndex(0);
     setSelectedOption(null);
     setQuizFeedback(null);
+    setQuizNonce(null);
 
     if (lesson.filePath) {
       fetchLessonContent(lesson.filePath).then((content) => {
@@ -241,6 +271,25 @@ export function LessonPage() {
       setMarkdownContent(`# ${lesson.title}\n\n${lesson.explanation}`);
     }
   }, [lesson]);
+
+  // NEW: Fetch Cryptographic Nonce for the current quiz question
+  useEffect(() => {
+    if (!lesson || !lesson.quizzes || lesson.quizzes.length === 0) return;
+
+    const fetchNonce = async () => {
+      try {
+        const question_id = `${lesson.slug}-q${currentQuizIndex}`;
+        const data: any = await fetchApi(
+          `/progress/quiz-nonce/?question_id=${question_id}`,
+        );
+        setQuizNonce(data.nonce);
+      } catch (err) {
+        console.error("Failed to fetch secure nonce", err);
+      }
+    };
+
+    fetchNonce();
+  }, [lesson, currentQuizIndex]);
 
   // 3. Scroll tracking for reading progress
   useEffect(() => {
@@ -267,7 +316,6 @@ export function LessonPage() {
     };
   }, [markdownContent]);
 
-  // Command submission handler
   const handleCommandSubmit = async (
     e: React.FormEvent | React.KeyboardEvent,
   ) => {
@@ -282,7 +330,7 @@ export function LessonPage() {
       setTerminalOutput(result.error);
       setFeedback("error");
       setShowHint(true);
-      return; // Stop processing further for invalid commands
+      return;
     } else {
       setTerminalOutput(result.output || "");
       setRepoState(result.newState);
@@ -313,23 +361,32 @@ export function LessonPage() {
       setShowHint(true);
     }
 
-    setInput(""); // Clear input after running
+    setInput("");
     setIsExecuting(false);
   };
 
-  // Quiz submission handler
   const handleQuizOptionCheck = () => {
     if (selectedOption === null || !lesson || !lesson.quizzes) return;
+
+    // NEW: Block submission if nonce hasn't loaded yet
+    if (!quizNonce) {
+      alert(
+        "Security Check: Quiz session is initializing, please wait a second and try again.",
+      );
+      return;
+    }
+
     const currentQuiz = lesson.quizzes[currentQuizIndex];
     const isCorrect = selectedOption === currentQuiz.answer;
 
-    // Send attempt to backend
+    // Send attempt to backend with the injected nonce
     quizAttemptMutation.mutate({
       question_id: `${lesson.slug}-q${currentQuizIndex}`,
       question_text: currentQuiz.question,
       selected_answer: currentQuiz.options[selectedOption] || "",
       correct_answer: currentQuiz.options[currentQuiz.answer] || "",
       is_correct: isCorrect,
+      nonce: quizNonce, // NEW: Appended
     });
 
     if (isCorrect) {
@@ -350,6 +407,7 @@ export function LessonPage() {
   const handleNextQuizQuestion = () => {
     setSelectedOption(null);
     setQuizFeedback(null);
+    setQuizNonce(null); // Clear old nonce so the useEffect can fetch a new one
     setCurrentQuizIndex((prev) => prev + 1);
   };
 
@@ -390,7 +448,6 @@ export function LessonPage() {
 
   return (
     <div className="min-h-screen pt-20 flex flex-col lg:flex-row relative">
-      {/* 1. Mobile Sidebar Toggle */}
       <div className="lg:hidden bg-white border-b-4 border-black dark:bg-[#151411] dark:border-[#2e2924] p-4 flex items-center justify-between z-[80]">
         <button
           onClick={() => setIsSidebarOpen((prev) => !prev)}
@@ -406,7 +463,6 @@ export function LessonPage() {
         </span>
       </div>
 
-      {/* Backdrop overlay — closes drawer on click-outside on mobile */}
       {isSidebarOpen && (
         <div
           className="fixed inset-0 z-[90] bg-black/40 lg:hidden"
@@ -415,7 +471,6 @@ export function LessonPage() {
         />
       )}
 
-      {/* 2. Side Course Directory Menu */}
       <aside
         id="course-sidebar"
         ref={sidebarRef}
@@ -498,15 +553,17 @@ export function LessonPage() {
         </div>
       </aside>
 
-      {/* 3. Main Reading Panel */}
       <div className="flex-1 flex flex-col max-h-[calc(100vh-80px)] overflow-hidden">
-        {/* Top scroll reading progress indicator */}
         <div className="h-2 w-full bg-surface-low border-b-2 border-black dark:bg-[#151411] dark:border-[#2e2924] relative flex-shrink-0">
           <div
             className="h-full bg-primary transition-all duration-150"
             style={{ width: `${scrollProgress}%` }}
           />
         </div>
+        <ReadingProgressTracker
+          lessonSlug={lesson.slug}
+          containerSelector=".prose"
+        />
 
         <div
           ref={mainContentRef}
@@ -561,7 +618,6 @@ export function LessonPage() {
 
             <TextToSpeechControls content={markdownContent} />
 
-            {/* Markdown rendering logic */}
             <article className="prose max-w-none">
               <React.Suspense
                 fallback={
@@ -571,7 +627,6 @@ export function LessonPage() {
                 <MarkdownRenderer content={markdownContent} />
               </React.Suspense>
             </article>
-            {/* Report Typo Button */}
             <div className="mt-4 flex justify-end">
               <button
                 onClick={() => alert("Thanks for reporting the typo")}
@@ -581,319 +636,346 @@ export function LessonPage() {
               </button>
             </div>
 
-            {/* Exercises & validation section */}
             <div className="pt-8 space-y-6">
-              {lesson.pythonExercise ? (
-                <div className="mt-8">
-                  {new URLSearchParams(window.location.search).get(
-                    "session",
-                  ) ? (
-                    <CollabPythonSandbox
-                      exercise={lesson.pythonExercise}
-                      roomId={
-                        new URLSearchParams(window.location.search).get(
-                          "session",
-                        )!
-                      }
-                      onSuccess={() => {
-                        syncProgress({
-                          lesson_slug: lesson.slug,
-                          score: lesson.points || 20,
-                          completed: true,
-                        });
-                      }}
-                    />
-                  ) : (
-                    <PythonSandbox
-                      exercise={lesson.pythonExercise}
-                      onSuccess={() => {
-                        syncProgress({
-                          lesson_slug: lesson.slug,
-                          score: lesson.points || 20,
-                          completed: true,
-                        });
-                      }}
-                    />
-                  )}
-                </div>
-              ) : lesson.jsExercise ? (
-                <div className="mt-8">
-                  <JSSandbox
-                    exercise={lesson.jsExercise}
-                    onSuccess={() => {
-                      syncProgress({
-                        lesson_slug: lesson.slug,
-                        score: lesson.points || 20,
-                        completed: true,
-                      });
-                    }}
-                  />
-                </div>
-              ) : lesson.debugExercise ? (
-                <div className="mt-8">
-                  <InteractiveDebugger
-                    exercise={lesson.debugExercise}
-                    onSuccess={() => {
-                      syncProgress({
-                        lesson_slug: lesson.slug,
-                        score: lesson.points || 30,
-                        completed: true,
-                      });
-                    }}
-                  />
-                </div>
-              ) : hasQuiz ? (
-                // QUIZ MODE RENDER
-                <div className="rounded-2xl border-4 border-black bg-white p-6 shadow-card dark:bg-[#1f1c18] dark:border-[#2e2924]">
-                  <div className="flex items-center justify-between mb-4">
-                    <span className="font-mono text-xs text-primary uppercase tracking-widest font-black">
-                      Knowledge Check: Question {currentQuizIndex + 1} of{" "}
-                      {lesson.quizzes!.length}
-                    </span>
-                    <span className="text-xs font-black text-accent bg-black text-white px-2 py-0.5 rounded-full dark:bg-[#2e2924]">
-                      {lesson.points || 15} XP
-                    </span>
-                  </div>
+              {(() => {
+                const plugin = lessonPluginRegistry.getPluginForLesson(lesson);
+                if (plugin) {
+                  const PluginComponent = plugin.component;
+                  return (
+                    <div className="mt-8">
+                      <PluginComponent
+                        lesson={lesson}
+                        onSuccess={(score) => {
+                          syncProgress({
+                            lesson_slug: lesson.slug,
+                            score: score || lesson.points || 20,
+                            completed: true,
+                          });
+                        }}
+                      />
+                    </div>
+                  );
+                }
 
-                  <h3 className="text-lg font-black mb-4 text-text dark:text-[#f0ebe2]">
-                    {lesson.quizzes![currentQuizIndex].question}
-                  </h3>
-
-                  <div className="space-y-3">
-                    {lesson.quizzes![currentQuizIndex].options.map(
-                      (option, idx) => {
-                        const isSelected = selectedOption === idx;
-                        const currentQuiz = lesson.quizzes![currentQuizIndex];
-                        const isCorrectOption = idx === currentQuiz.answer;
-
-                        // Determine background color based on quiz state
-                        let bgColor = "";
-                        if (quizFeedback !== null) {
-                          // After answer submitted: show green for correct, red for incorrect
-                          if (isCorrectOption) {
-                            bgColor =
-                              "bg-green-600 border-green-800 text-white";
-                          } else if (
-                            isSelected &&
-                            quizFeedback === "incorrect"
-                          ) {
-                            bgColor = "bg-red-600 border-red-800 text-white";
-                          }
+                return lesson.pythonExercise ? (
+                  <div className="mt-8">
+                    {new URLSearchParams(window.location.search).get(
+                      "session",
+                    ) ? (
+                      <CollabPythonSandbox
+                        exercise={lesson.pythonExercise}
+                        roomId={
+                          new URLSearchParams(window.location.search).get(
+                            "session",
+                          )!
                         }
-
-                        // Fallback to original styling when no feedback is present
-                        if (!bgColor) {
-                          bgColor = isSelected
-                            ? "bg-accent shadow-card-sm -translate-y-0.5"
-                            : "bg-surface hover:bg-surface-low dark:bg-[#151411]";
-                        }
-
-                        return (
-                          <button
-                            key={idx}
-                            onClick={() => {
-                              if (quizFeedback !== null) return; // Already submitted — lock selection
-                              setSelectedOption(idx);
-                            }}
-                            disabled={quizFeedback !== null}
-                            className={`w-full text-left p-4 rounded-lg border-4 border-black font-bold text-sm transition-all flex items-center justify-between ${bgColor}`}
-                          >
-                            <span>{option}</span>
-                            <div
-                              className={`w-4 h-4 rounded-full border-2 border-black flex items-center justify-center ${
-                                isSelected ? "bg-black" : ""
-                              }`}
-                            />
-                          </button>
-                        );
-                      },
+                        onSuccess={() => {
+                          syncProgress({
+                            lesson_slug: lesson.slug,
+                            score: lesson.points || 20,
+                            completed: true,
+                          });
+                        }}
+                      />
+                    ) : (
+                      <PythonSandbox
+                        exercise={lesson.pythonExercise}
+                        onSuccess={() => {
+                          syncProgress({
+                            lesson_slug: lesson.slug,
+                            score: lesson.points || 20,
+                            completed: true,
+                          });
+                        }}
+                      />
                     )}
                   </div>
-
-                  {quizFeedback === "correct" && (
-                    <div
-                      role="alert"
-                      aria-live="assertive"
-                      className="mt-4 p-4 bg-green-50 text-green-800 border-4 border-green-600 rounded-lg font-bold text-sm"
-                    >
-                      🎉 Correct!{" "}
-                      {lesson.quizzes![currentQuizIndex].explanation}
+                ) : lesson.jsExercise ? (
+                  <div className="mt-8">
+                    <JSSandbox
+                      exercise={lesson.jsExercise}
+                      onSuccess={() => {
+                        syncProgress({
+                          lesson_slug: lesson.slug,
+                          score: lesson.points || 20,
+                          completed: true,
+                        });
+                      }}
+                    />
+                  </div>
+                ) : lesson.debugExercise ? (
+                  <div className="mt-8">
+                    <InteractiveDebugger
+                      exercise={lesson.debugExercise}
+                      onSuccess={() => {
+                        syncProgress({
+                          lesson_slug: lesson.slug,
+                          score: lesson.points || 30,
+                          completed: true,
+                        });
+                      }}
+                    />
+                  </div>
+                ) : hasQuiz ? (
+                  <div className="rounded-2xl border-4 border-black bg-white p-6 shadow-card dark:bg-[#1f1c18] dark:border-[#2e2924]">
+                    <div className="flex items-center justify-between mb-4">
+                      <span className="font-mono text-xs text-primary uppercase tracking-widest font-black">
+                        Knowledge Check: Question {currentQuizIndex + 1} of{" "}
+                        {lesson.quizzes!.length}
+                      </span>
+                      <span className="text-xs font-black text-accent bg-black text-white px-2 py-0.5 rounded-full dark:bg-[#2e2924]">
+                        {lesson.points || 15} XP
+                      </span>
                     </div>
-                  )}
 
-                  {quizFeedback === "incorrect" && (
-                    <div
-                      role="alert"
-                      aria-live="assertive"
-                      className="mt-4 p-4 bg-red-50 text-red-800 border-4 border-red-600 rounded-lg font-bold text-sm"
-                    >
-                      ❌ Not quite. Try reviewing the lesson text or options
-                      again.
+                    <h3>💻 Git Sandbox</h3>
+                    <p>Try Git commands in this interactive terminal:</p>
+                    <GitTerminal />
+
+                    <h3 className="text-lg font-black mb-4 text-text dark:text-[#f0ebe2]">
+                      {lesson.quizzes![currentQuizIndex].question}
+                    </h3>
+
+                    <div className="space-y-3">
+                      {lesson.quizzes![currentQuizIndex].options.map(
+                        (option, idx) => {
+                          const isSelected = selectedOption === idx;
+                          const currentQuiz = lesson.quizzes![currentQuizIndex];
+                          const isCorrectOption = idx === currentQuiz.answer;
+
+                          // Determine background color based on quiz state
+                          let bgColor = "";
+                          if (quizFeedback !== null) {
+                            // After answer submitted: show green for correct, red for incorrect
+                            if (isCorrectOption) {
+                              bgColor =
+                                "bg-green-600 border-green-800 text-white";
+                            } else if (
+                              isSelected &&
+                              quizFeedback === "incorrect"
+                            ) {
+                              bgColor = "bg-red-600 border-red-800 text-white";
+                            }
+                          }
+
+                          if (!bgColor) {
+                            bgColor = isSelected
+                              ? "bg-accent shadow-card-sm -translate-y-0.5"
+                              : "bg-surface hover:bg-surface-low dark:bg-[#151411]";
+                          }
+
+                          return (
+                            <button
+                              key={idx}
+                              onClick={() => {
+                                if (quizFeedback !== null) return;
+                                setSelectedOption(idx);
+                              }}
+                              disabled={quizFeedback !== null}
+                              className={`w-full text-left p-4 rounded-lg border-4 border-black font-bold text-sm transition-all flex items-center justify-between ${bgColor}`}
+                            >
+                              <span>{option}</span>
+                              <div
+                                className={`w-4 h-4 rounded-full border-2 border-black flex items-center justify-center ${
+                                  isSelected ? "bg-black" : ""
+                                }`}
+                              />
+                            </button>
+                          );
+                        },
+                      )}
                     </div>
-                  )}
 
-                  <div className="mt-6 flex justify-end">
-                    {quizFeedback === "correct" ? (
-                      currentQuizIndex < lesson.quizzes!.length - 1 ? (
-                        <button
-                          onClick={handleNextQuizQuestion}
-                          className="px-5 py-2.5 bg-accent text-black font-black text-sm rounded-lg border-4 border-black shadow-card-sm hover:-translate-y-0.5 transition-all cursor-pointer"
-                        >
-                          Next Question
-                        </button>
+                    {quizFeedback === "correct" && (
+                      <div
+                        role="alert"
+                        aria-live="assertive"
+                        className="mt-4 p-4 bg-green-50 text-green-800 border-4 border-green-600 rounded-lg font-bold text-sm"
+                      >
+                        🎉 Correct!{" "}
+                        {lesson.quizzes![currentQuizIndex].explanation}
+                      </div>
+                    )}
+
+                    {quizFeedback === "incorrect" && (
+                      <div
+                        role="alert"
+                        aria-live="assertive"
+                        className="mt-4 p-4 bg-red-50 text-red-800 border-4 border-red-600 rounded-lg font-bold text-sm"
+                      >
+                        ❌ Not quite. Try reviewing the lesson text or options
+                        again.
+                      </div>
+                    )}
+
+                    <div className="mt-6 flex justify-end">
+                      {quizFeedback === "correct" ? (
+                        currentQuizIndex < lesson.quizzes!.length - 1 ? (
+                          <button
+                            onClick={handleNextQuizQuestion}
+                            className="px-5 py-2.5 bg-accent text-black font-black text-sm rounded-lg border-4 border-black shadow-card-sm hover:-translate-y-0.5 transition-all cursor-pointer"
+                          >
+                            Next Question
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => {
+                              syncProgress({
+                                lesson_slug: lesson.slug,
+                                score: lesson.points || 15,
+                                completed: true,
+                              });
+                            }}
+                            className="px-6 py-2 bg-black text-white font-bold rounded-lg border-2 border-black shadow-brutal transition-transform active:translate-y-0.5"
+                          >
+                            Finish Lesson
+                          </button>
+                        )
                       ) : (
                         <button
-                          onClick={() => {
-                            syncProgress({
-                              lesson_slug: lesson.slug,
-                              score: lesson.points || 15,
-                              completed: true,
-                            });
-                          }}
-                          className="px-6 py-2 bg-black text-white font-bold rounded-lg border-2 border-black shadow-brutal transition-transform active:translate-y-0.5"
+                          onClick={handleQuizOptionCheck}
+                          disabled={selectedOption === null}
+                          className="px-5 py-2.5 bg-primary text-black font-black text-sm rounded-lg border-4 border-black shadow-card-sm hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-card-sm disabled:opacity-50 transition-all cursor-pointer"
                         >
-                          Finish Lesson
+                          Submit Answer
                         </button>
-                      )
-                    ) : (
-                      <button
-                        onClick={handleQuizOptionCheck}
-                        disabled={selectedOption === null}
-                        className="px-5 py-2.5 bg-primary text-black font-black text-sm rounded-lg border-4 border-black shadow-card-sm hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-card-sm disabled:opacity-50 transition-all cursor-pointer"
+                      )}
+                    </div>
+                  </div>
+                ) : hasConflict ? (
+                  <div className="mt-8">
+                    {feedback === "correct" && (
+                      <div
+                        role="status"
+                        className="mt-6 text-green-700 font-bold bg-green-50 p-4 rounded-lg border-4 border-green-600 animate-bounce"
                       >
-                        Submit Answer
-                      </button>
+                        ✅ Correct! You successfully resolved the merge
+                        conflict.
+                      </div>
+                    )}
+                    {feedback === "error" && (
+                      <div
+                        role="alert"
+                        aria-live="assertive"
+                        className="mt-6 text-red-700 font-bold bg-red-50 p-4 rounded-lg border-4 border-red-600"
+                      >
+                        ❌ The resolved output doesn't quite match what was
+                        expected. Try reviewing your selections.
+                      </div>
                     )}
                   </div>
-                </div>
-              ) : hasConflict ? (
-                // CONFLICT SANDBOX MODE
-                <div className="mt-8">
-                  {feedback === "correct" && (
-                    <div
-                      role="status"
-                      className="mt-6 text-green-700 font-bold bg-green-50 p-4 rounded-lg border-4 border-green-600 animate-bounce"
-                    >
-                      ✅ Correct! You successfully resolved the merge conflict.
-                    </div>
-                  )}
-                  {feedback === "error" && (
-                    <div
-                      role="alert"
-                      className="mt-6 text-red-700 font-bold bg-red-50 p-4 rounded-lg border-4 border-red-600"
-                    >
-                      ❌ The resolved output doesn't quite match what was
-                      expected. Try reviewing your selections.
-                    </div>
-                  )}
-                </div>
-              ) : (
-                // TERMINAL INTERACTIVE COMMAND MODE
-                <div
-                  className={`rounded-2xl border-4 bg-surface-low p-6 shadow-card dark:bg-[#1f1c18] dark:border-[#2e2924]
+                ) : (
+                  <div
+                    className={`rounded-2xl border-4 bg-surface-low p-6 shadow-card dark:bg-[#1f1c18] dark:border-[#2e2924]
                     ${
                       feedback === "error"
                         ? "border-red-600 shake-error"
                         : "border-black"
                     }`}
-                >
-                  <h3 className="text-xl font-black mb-4 flex items-center gap-2 text-text dark:text-[#f0ebe2]">
-                    <span>💻</span> Sandbox terminal check
-                  </h3>
+                  >
+                    <h3 className="text-xl font-black mb-4 flex items-center gap-2 text-text dark:text-[#f0ebe2]">
+                      <span>💻</span> Sandbox terminal check
+                    </h3>
 
-                  <GitGraph state={repoState} />
+                    <GitGraph state={repoState} />
 
-                  <p className="text-xs text-muted mb-4 dark:text-[#c4bbae]">
-                    Solve the drill by executing the appropriate git command
-                    below:
-                  </p>
+                    <p className="text-xs text-muted mb-4 dark:text-[#c4bbae]">
+                      Solve the drill by executing the appropriate git command
+                      below:
+                    </p>
 
-                  <form onSubmit={handleCommandSubmit} className="space-y-4">
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono text-primary font-black">
-                        $
-                      </span>
-                      <input
-                        className="flex-1 min-w-0 rounded-lg border-4 border-black bg-surface-lowest px-4 py-2.5 text-text font-bold outline-none placeholder:text-muted/40 dark:bg-[#151411] dark:border-[#2e2924]"
-                        placeholder={
-                          lesson.hint || "Type your git command here"
-                        }
-                        value={input}
-                        onChange={(e) => setInput(e.target.value)}
-                        onKeyDown={(e) => {
-                          if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
-                            e.preventDefault();
-                            handleCommandSubmit(
-                              e as unknown as React.FormEvent,
-                            );
+                    <form onSubmit={handleCommandSubmit} className="space-y-4">
+                      <div className="flex items-center gap-2">
+                        <span className="font-mono text-primary font-black">
+                          $
+                        </span>
+                        <input
+                          className="flex-1 min-w-0 rounded-lg border-4 border-black bg-surface-lowest px-4 py-2.5 text-text font-bold outline-none placeholder:text-muted/40 dark:bg-[#151411] dark:border-[#2e2924]"
+                          placeholder={
+                            lesson.hint || "Type your git command here"
                           }
-                        }}
-                        disabled={feedback === "correct" || isExecuting}
-                        autoFocus
-                      />
+                          value={input}
+                          onChange={(e) => setInput(e.target.value)}
+                          onKeyDown={(e) => {
+                            if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+                              e.preventDefault();
+                              handleCommandSubmit(
+                                e as unknown as React.FormEvent,
+                              );
+                            }
+                          }}
+                          disabled={feedback === "correct" || isExecuting}
+                          autoFocus
+                        />
+                        <button
+                          type="submit"
+                          className="px-5 py-2.5 bg-primary text-black font-black text-sm rounded-lg border-4 border-black shadow-card-sm hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-card-sm disabled:opacity-50 transition-all cursor-pointer flex items-center justify-center gap-2 min-w-[72px]"
+                          disabled={
+                            feedback === "correct" ||
+                            !input.trim() ||
+                            isExecuting
+                          }
+                        >
+                          {isExecuting ? (
+                            <span
+                              className="flex items-center gap-1 inline-flex"
+                              aria-hidden="true"
+                            >
+                              <span className="w-1.5 h-1.5 bg-current rounded-full animate-bounce [animation-delay:-0.3s]" />
+                              <span className="w-1.5 h-1.5 bg-current rounded-full animate-bounce [animation-delay:-0.15s]" />
+                              <span className="w-1.5 h-1.5 bg-current rounded-full animate-bounce" />
+                            </span>
+                          ) : (
+                            "Run"
+                          )}
+                        </button>
+                      </div>
+
+                      {terminalOutput && (
+                        <pre className="p-4 bg-[#151411] text-[#f0ebe2] font-mono text-xs rounded-lg border-4 border-black whitespace-pre-wrap overflow-x-auto shadow-inner">
+                          {terminalOutput}
+                        </pre>
+                      )}
+
+                      {feedback === "correct" && (
+                        <div
+                          role="status"
+                          aria-live="assertive"
+                          className="text-green-700 font-bold bg-green-50 p-4 rounded-lg border-4 border-green-600 animate-bounce"
+                        >
+                          ✅ Correct! Progress synchronized to the Atelier
+                          server.
+                        </div>
+                      )}
+
+                      {feedback === "error" && (
+                        <div
+                          role="alert"
+                          aria-live="assertive"
+                          className="text-red-700 font-bold bg-red-50 p-4 rounded-lg border-4 border-red-600"
+                        >
+                          ❌ Not quite. Command output did not match sandbox
+                          expectations.
+                        </div>
+                      )}
+
                       <button
-                        type="submit"
-                        className="px-5 py-2.5 bg-primary text-black font-black text-sm rounded-lg border-4 border-black shadow-card-sm hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-card-sm disabled:opacity-50 transition-all cursor-pointer flex items-center justify-center gap-2 min-w-[72px]"
-                        disabled={
-                          feedback === "correct" || !input.trim() || isExecuting
-                        }
+                        type="button"
+                        onClick={() => setShowHint(!showHint)}
+                        className="text-xs underline text-muted font-black dark:text-[#c4bbae] block"
                       >
-                        {isExecuting ? (
-                          <span
-                            className="flex items-center gap-1 inline-flex"
-                            aria-hidden="true"
-                          >
-                            <span className="w-1.5 h-1.5 bg-current rounded-full animate-bounce [animation-delay:-0.3s]" />
-                            <span className="w-1.5 h-1.5 bg-current rounded-full animate-bounce [animation-delay:-0.15s]" />
-                            <span className="w-1.5 h-1.5 bg-current rounded-full animate-bounce" />
-                          </span>
-                        ) : (
-                          "Run"
-                        )}
+                        {showHint ? "Hide Hints" : "Need a hint?"}
                       </button>
-                    </div>
 
-                    {terminalOutput && (
-                      <pre className="p-4 bg-[#151411] text-[#f0ebe2] font-mono text-xs rounded-lg border-4 border-black whitespace-pre-wrap overflow-x-auto shadow-inner">
-                        {terminalOutput}
-                      </pre>
-                    )}
-
-                    {feedback === "correct" && (
-                      <div
-                        role="status"
-                        className="text-green-700 font-bold bg-green-50 p-4 rounded-lg border-4 border-green-600 animate-bounce"
-                      >
-                        ✅ Correct! Progress synchronized to the Atelier server.
-                      </div>
-                    )}
-
-                    {feedback === "error" && (
-                      <div
-                        role="alert"
-                        className="text-red-700 font-bold bg-red-50 p-4 rounded-lg border-4 border-red-600"
-                      >
-                        ❌ Not quite. Command output did not match sandbox
-                        expectations.
-                      </div>
-                    )}
-
-                    <button
-                      type="button"
-                      onClick={() => setShowHint(!showHint)}
-                      className="text-xs underline text-muted font-black dark:text-[#c4bbae] block"
-                    >
-                      {showHint ? "Hide Hints" : "Need a hint?"}
-                    </button>
-
-                    {showHint && (
-                      <div className="p-4 bg-white rounded-lg border-4 border-black italic text-xs font-bold dark:bg-[#151411] dark:border-[#2e2924] shadow-card-sm">
-                        💡 {lesson.hint}
-                      </div>
-                    )}
-                  </form>
-                </div>
-              )}
+                      {showHint && (
+                        <div className="p-4 bg-white rounded-lg border-4 border-black italic text-xs font-bold dark:bg-[#151411] dark:border-[#2e2924] shadow-card-sm">
+                          💡 {lesson.hint}
+                        </div>
+                      )}
+                    </form>
+                  </div>
+                );
+              })()}
             </div>
 
             {/* Course Navigation Footer */}
@@ -946,7 +1028,6 @@ export function LessonPage() {
           </div>
         </div>
 
-        {/* Mentor Help Trigger Row */}
         <div className="border-t-4 border-black p-4 bg-white dark:bg-[#151411] dark:border-[#2e2924] flex justify-end gap-4 flex-shrink-0">
           <button
             onClick={() => setIsNotePanelOpen(!isNotePanelOpen)}
@@ -966,7 +1047,6 @@ export function LessonPage() {
         </div>
       </div>
 
-      {/* Note Panel */}
       {isNotePanelOpen && lesson && (
         <NotePanel
           lessonSlug={lesson.slug}
@@ -974,7 +1054,6 @@ export function LessonPage() {
         />
       )}
 
-      {/* Help support request Panel */}
       {isHelpPanelOpen && (
         <div className="fixed inset-0 z-50 flex justify-end bg-black/40">
           <button
@@ -1023,6 +1102,7 @@ export function LessonPage() {
               {helpRequestMutation.isError && (
                 <div
                   role="alert"
+                  aria-live="assertive"
                   className="text-red-700 text-xs font-black bg-red-50 p-2 rounded-lg border-2 border-red-700"
                 >
                   Couldn&apos;t submit request. Re-run backend server checks.
@@ -1051,6 +1131,13 @@ export function LessonPage() {
           </aside>
         </div>
       )}
+
+      {/* Lesson Feedback Widget */}
+      {lesson && isCompleted && (
+        <LessonFeedbackWidget lessonSlug={lesson.slug} />
+      )}
     </div>
   );
 }
+
+export default LessonPage;

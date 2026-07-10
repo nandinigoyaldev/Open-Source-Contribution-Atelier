@@ -9,5 +9,4 @@ class Migration(migrations.Migration):
         ("progress", "0017_merge_20260630_1426"),
     ]
 
-    operations = [
-    ]
+    operations = []

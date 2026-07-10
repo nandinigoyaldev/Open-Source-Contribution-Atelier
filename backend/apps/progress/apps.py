@@ -19,6 +19,15 @@ class ProgressConfig(AppConfig):
                     "schedule_type": Schedule.WEEKLY,
                 },
             )
+            
+            Schedule.objects.get_or_create(
+                name="process-buffered-progress-updates",
+                defaults={
+                    "func": "apps.progress.tasks.process_buffered_progress_updates",
+                    "schedule_type": Schedule.MINUTES,
+                    "minutes": 1,
+                },
+            )
         except Exception:
             # Catch database programming/operational errors during migrations or tests
             pass

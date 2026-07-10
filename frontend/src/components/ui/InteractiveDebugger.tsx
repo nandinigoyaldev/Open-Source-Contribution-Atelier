@@ -6,9 +6,13 @@ import { DebugExercise } from "../../lib/lessons";
 
 interface InteractiveDebuggerProps {
   exercise: DebugExercise;
+  onSuccess?: () => void;
 }
 
-export function InteractiveDebugger({ exercise }: InteractiveDebuggerProps) {
+export function InteractiveDebugger({
+  exercise,
+  onSuccess,
+}: InteractiveDebuggerProps) {
   const monaco = useMonaco();
   const editorRef = useRef<{
     onMouseDown: (
@@ -39,16 +43,7 @@ export function InteractiveDebugger({ exercise }: InteractiveDebuggerProps) {
     removeBreakpoint,
   } = useDebugger();
 
-  const handleEditorDidMount = (
-    editor: {
-      onMouseDown: (
-        callback: (e: {
-          target: { type: number; position: { lineNumber: number } };
-        }) => void,
-      ) => void;
-    },
-    m: Monaco,
-  ) => {
+  const handleEditorDidMount = (editor: any, m: Monaco) => {
     editorRef.current = editor;
 
     // Handle clicking on the margin for breakpoints

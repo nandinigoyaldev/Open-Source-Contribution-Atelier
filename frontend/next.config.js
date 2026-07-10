@@ -1,6 +1,6 @@
 /**
  * Next.js configuration for SSR/SSG.
- * 
+ *
  * @file next.config.js
  * @location frontend/next.config.js
  */
@@ -15,20 +15,34 @@ const nextConfig = {
 
   // Image optimization
   images: {
-    domains: ['localhost', 'api.github.com', 'avatars.githubusercontent.com'],
-    formats: ['image/avif', 'image/webp'],
+    domains: ["localhost", "api.github.com", "avatars.githubusercontent.com"],
+    formats: ["image/avif", "image/webp"],
   },
 
   // Compiler options
   compiler: {
     // Remove console.log in production
-    removeConsole: process.env.NODE_ENV === 'production',
+    removeConsole: process.env.NODE_ENV === "production",
   },
 
-  // Experimental features
-  experimental: {
-    // Enable server actions
-    serverActions: true,
+  webpack: (config, { isServer, webpack }) => {
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        path: false,
+        crypto: false,
+        child_process: false,
+      };
+
+      // Strip node: prefix for modules in client bundle so resolve.fallback matches them
+      config.plugins.push(
+        new webpack.NormalModuleReplacementPlugin(/^node:/, (resource) => {
+          resource.request = resource.request.replace(/^node:/, "");
+        }),
+      );
+    }
+    return config;
   },
 
   // Environment variables available to the client
@@ -41,13 +55,13 @@ const nextConfig = {
   async redirects() {
     return [
       {
-        source: '/old-dashboard',
-        destination: '/dashboard',
+        source: "/old-dashboard",
+        destination: "/dashboard",
         permanent: true,
       },
       {
-        source: '/old-lesson/:path*',
-        destination: '/learn/:path*',
+        source: "/old-lesson/:path*",
+        destination: "/learn/:path*",
         permanent: true,
       },
     ];
@@ -57,32 +71,32 @@ const nextConfig = {
   async headers() {
     return [
       {
-        source: '/(.*)',
+        source: "/(.*)",
         headers: [
           {
-            key: 'X-Content-Type-Options',
-            value: 'nosniff',
+            key: "X-Content-Type-Options",
+            value: "nosniff",
           },
           {
-            key: 'X-Frame-Options',
-            value: 'DENY',
+            key: "X-Frame-Options",
+            value: "DENY",
           },
           {
-            key: 'X-XSS-Protection',
-            value: '1; mode=block',
+            key: "X-XSS-Protection",
+            value: "1; mode=block",
           },
           {
-            key: 'Referrer-Policy',
-            value: 'strict-origin-when-cross-origin',
+            key: "Referrer-Policy",
+            value: "strict-origin-when-cross-origin",
           },
         ],
       },
       {
-        source: '/_next/static/(.*)',
+        source: "/_next/static/(.*)",
         headers: [
           {
-            key: 'Cache-Control',
-            value: 'public, max-age=31536000, immutable',
+            key: "Cache-Control",
+            value: "public, max-age=31536000, immutable",
           },
         ],
       },
@@ -90,4 +104,4 @@ const nextConfig = {
   },
 };
 
-module.exports = nextConfig;
+export default nextConfig;

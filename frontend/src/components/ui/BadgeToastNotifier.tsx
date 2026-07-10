@@ -1,61 +1,28 @@
+import { useEffect, useRef } from "react";
 import { useAuth } from "../../features/auth/AuthContext";
 import { BadgeToastContainer } from "./BadgeToast";
-import { useBadgeToast } from "../../hooks/useBadgeToast";
-import { BADGES } from "../../constants/badges";
-import { useWebSocket } from "../../hooks/useWebSocket";
-
-function getNotificationsWsUrl(): string {
-  const apiBase =
-    import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api";
-  const host = apiBase.replace(/^https?:\/\//, "").replace(/\/api$/, "");
-  const scheme = apiBase.startsWith("https") ? "wss" : "ws";
-  return `${scheme}://${host}/ws/notifications/`;
-}
+import { useNotifications } from "../../features/notifications/NotificationContext";
+import { useTheme } from "../../context/ThemeContext";
 
 export function BadgeToastNotifier() {
   const { user } = useAuth();
-  const { toasts, addToast, addDynamicToast, dismissToast } =
-    useBadgeToast(BADGES);
+  const { toasts, dismissToast } = useNotifications();
+  const { playAudioCue } = useTheme();
 
-  // Re-use standard approach for getting tokens as in AuthContext.
-  let token: string | null = null;
-  try {
-    token = localStorage.getItem("accessToken");
-  } catch {
-    /* localStorage unavailable */
-  }
+  // Track the previous toasts length context to ensure audio only fires on new alerts
+  const previousLengthRef = useRef(toasts.length);
 
-  useWebSocket({
-    url: getNotificationsWsUrl(),
-    token: user && !user.is_staff ? token : null,
-    onMessage: (data: unknown) => {
-      const msg = data as Record<string, unknown>;
-      if (msg?.type === "notification") {
-        const notif = msg.notification as Record<string, unknown>;
-        const notifType = notif?.notif_type as string | undefined;
-
-        if (notifType === "badge") {
-          const meta = notif.meta as Record<string, unknown>;
-          const slug = meta?.badge_slug as string | undefined;
-          if (slug) {
-            addToast(slug);
-          }
-        } else if (notifType === "achievement") {
-          const meta = notif.meta as Record<string, unknown>;
-          if (meta) {
-            addDynamicToast({
-              id: meta.achievement_slug as string,
-              name: notif.title as string,
-              icon: (meta.icon as string) || "🏆",
-              desc: notif.message as string,
-            });
-          }
-        }
-      }
-    },
-  });
+  useEffect(() => {
+    if (toasts.length > previousLengthRef.current) {
+      // Trigger the bright arpeggiated melodic sound cue for new badge pops
+      playAudioCue("achievement");
+    }
+    previousLengthRef.current = toasts.length;
+  }, [toasts, playAudioCue]);
 
   if (!user || user.is_staff) return null;
 
-  return <BadgeToastContainer toasts={toasts} onDismiss={dismissToast} />;
+  return (
+    <BadgeToastContainer toasts={toasts as any} onDismiss={dismissToast} />
+  );
 }

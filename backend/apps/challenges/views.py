@@ -15,10 +15,22 @@ from .serializers import ChallengeSerializer
 from .throttles import SandboxAnonRateThrottle, SandboxUserRateThrottle
 
 
-class ChallengeViewSet(viewsets.ReadOnlyModelViewSet):
+class ChallengeViewSet(viewsets.ModelViewSet):
     """Existing view — untouched."""
 
     serializer_class = ChallengeSerializer
+
+    def get_permissions(self):
+        from apps.rbac.permissions import HasPermission
+        from rest_framework import permissions
+
+        if self.action in ["create"]:
+            return [permissions.IsAuthenticated(), HasPermission("create_content")]
+        elif self.action in ["update", "partial_update"]:
+            return [permissions.IsAuthenticated(), HasPermission("edit_content")]
+        elif self.action in ["destroy"]:
+            return [permissions.IsAuthenticated(), HasPermission("delete_content")]
+        return [permissions.AllowAny()]
 
     def get_queryset(self):
         return Challenge.objects.filter(organization=self.request.user.organization)
@@ -70,10 +82,15 @@ class BulkChallengeUploadView(APIView):
     """
     POST /api/challenges/bulk-upload/
     Accepts a JSON file upload to bulk create Challenge records.
-    Restricted to Staff/Admin users only.
+    Restricted to users with 'create_content' permission.
     """
 
-    permission_classes = [IsAuthenticated, IsAdminUser]
+    def get_permissions(self):
+        from apps.rbac.permissions import HasPermission
+        from rest_framework import permissions
+
+        return [permissions.IsAuthenticated(), HasPermission("create_content")]
+
     parser_classes = [MultiPartParser]
 
     def post(self, request, *args, **kwargs):

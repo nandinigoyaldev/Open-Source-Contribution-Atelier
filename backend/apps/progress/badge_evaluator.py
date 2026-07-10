@@ -19,12 +19,17 @@ BADGE_RULES = {
             "history-of-open-source",
             "benefits-of-contributing",
             "common-misconceptions",
+            "open-source-licenses",
         ],
     },
     "mod-2": {
         "name": "Git Cadet",
         "description": "Initialize repos, commit, and manage local branches.",
         "lessons": [
+            "history-of-open-source",
+            "benefits-of-contributing",
+            "common-misconceptions",
+            "open-source-licenses",
             "repositories-and-commits",
             "branches",
             "merging",
@@ -147,33 +152,47 @@ class BadgeEvaluator:
             user=user, status=PullRequest.Status.MERGED
         ).count()
 
-        # Calculate streak based on unique days of activity
-        activity_days = set()
-        attempts = ExerciseAttempt.objects.filter(user=user).values_list(
-            "created_at", flat=True
-        )
-        for dt in attempts:
-            activity_days.add(timezone.localdate(dt))
-        progress_entries = LessonProgress.objects.filter(user=user).values_list(
-            "updated_at", flat=True
-        )
-        for dt in progress_entries:
-            activity_days.add(timezone.localdate(dt))
+        # Calculate longest consecutive daily streak based on deterministic activity ledger
+        from apps.progress.models import DailyActivity
 
-        streak_days = len(activity_days)
+        dates = sorted(
+            list(
+                DailyActivity.objects.filter(user=user)
+                .values_list("date", flat=True)
+                .distinct()
+            )
+        )
+        longest_streak = 0
+        current_streak = 0
+        prev_date = None
+        for date in dates:
+            if prev_date is None:
+                current_streak = 1
+            elif (date - prev_date).days == 1:
+                current_streak += 1
+            elif (date - prev_date).days > 1:
+                longest_streak = max(longest_streak, current_streak)
+                current_streak = 1
+            prev_date = date
+        longest_streak = max(longest_streak, current_streak)
+        streak_days = longest_streak
 
         # Fetch user's already earned badge slugs
+
         earned_slugs = set(
             UserBadge.objects.filter(user=user).values_list("badge__slug", flat=True)
         )
 
         for badge_slug, rule in BADGE_RULES.items():
+
             if badge_slug in earned_slugs:
+
                 continue
 
             # Evaluate the rule
             meets_criteria = False
             if "min_lessons" in rule:
+
                 min_lessons = rule["min_lessons"]
                 if isinstance(min_lessons, int):
                     meets_criteria = len(completed_slugs) >= min_lessons

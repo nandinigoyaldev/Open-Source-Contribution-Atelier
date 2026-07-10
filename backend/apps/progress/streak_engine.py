@@ -122,6 +122,9 @@ class StreakEngine:
             if last is None:
                 # First ever activity
                 profile.current_streak = 1
+            elif activity_date < last:
+                # Out-of-order or past log — idempotent, return current state
+                return cls._build_result(profile, multiplier_unlocked=False)
             elif activity_date == last:
                 # Already logged today — idempotent, return current state
                 return cls._build_result(profile, multiplier_unlocked=False)
