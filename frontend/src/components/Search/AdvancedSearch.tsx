@@ -1,15 +1,15 @@
 /**
  * Advanced search component with relevance scoring and suggestions.
- * 
+ *
  * @file AdvancedSearch.tsx
  * @location frontend/src/components/Search/AdvancedSearch.tsx
  */
 
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { useAdvancedSearch } from '../../hooks/useAdvancedSearch';
-import { SearchResult } from './SearchResult';
-import { FilterSuggestions } from './FilterSuggestions';
-import { SearchHighlights } from './SearchHighlights';
+import React, { useState, useEffect, useCallback, useRef } from "react";
+import { useAdvancedSearch } from "../../hooks/useAdvancedSearch";
+import { SearchResult } from "./SearchResult";
+import { FilterSuggestions } from "./FilterSuggestions";
+import { SearchHighlights } from "./SearchHighlights";
 
 interface AdvancedSearchProps {
   initialQuery?: string;
@@ -17,14 +17,14 @@ interface AdvancedSearchProps {
 }
 
 export const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
-  initialQuery = '',
+  initialQuery = "",
   onResultClick,
 }) => {
   const [query, setQuery] = useState(initialQuery);
   const [filters, setFilters] = useState<Record<string, any>>({});
   const [showSuggestions, setShowSuggestions] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
-  
+
   const {
     results,
     loading,
@@ -65,10 +65,10 @@ export const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
   };
 
   const getRelevanceLabel = (score: number) => {
-    if (score >= 0.8) return '🎯 Very Relevant';
-    if (score >= 0.6) return '👍 Relevant';
-    if (score >= 0.4) return '📊 Somewhat Relevant';
-    return 'ℹ️ Less Relevant';
+    if (score >= 0.8) return "🎯 Very Relevant";
+    if (score >= 0.6) return "👍 Relevant";
+    if (score >= 0.4) return "📊 Somewhat Relevant";
+    return "ℹ️ Less Relevant";
   };
 
   return (
@@ -96,7 +96,7 @@ export const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
           {query && !loading && (
             <button
               type="button"
-              onClick={() => setQuery('')}
+              onClick={() => setQuery("")}
               className="pr-4 text-gray-400 hover:text-white"
             >
               ✕
@@ -163,8 +163,11 @@ export const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
                     <div className="flex-1 max-w-xs h-1.5 bg-dark-700 rounded-full overflow-hidden">
                       <div
                         className={`h-full rounded-full transition-all ${
-                          result.relevance_score >= 0.7 ? 'bg-green-500' :
-                          result.relevance_score >= 0.4 ? 'bg-yellow-500' : 'bg-gray-500'
+                          result.relevance_score >= 0.7
+                            ? "bg-green-500"
+                            : result.relevance_score >= 0.4
+                              ? "bg-yellow-500"
+                              : "bg-gray-500"
                         }`}
                         style={{ width: `${result.relevance_score * 100}%` }}
                       />
@@ -208,7 +211,9 @@ export const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
         <div className="text-center py-12 text-gray-400">
           <p className="text-2xl mb-2">🔍</p>
           <p>No results found for "{query}"</p>
-          <p className="text-sm mt-1">Try adjusting your search terms or filters</p>
+          <p className="text-sm mt-1">
+            Try adjusting your search terms or filters
+          </p>
         </div>
       )}
 
@@ -217,7 +222,9 @@ export const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
         <div className="text-center py-12 text-gray-400">
           <p className="text-2xl mb-2">🔍</p>
           <p>Search for lessons, modules, and more</p>
-          <p className="text-sm mt-1">Try natural language queries like "how to create a PR"</p>
+          <p className="text-sm mt-1">
+            Try natural language queries like "how to create a PR"
+          </p>
         </div>
       )}
 
@@ -225,7 +232,10 @@ export const AdvancedSearch: React.FC<AdvancedSearchProps> = ({
       {error && (
         <div className="text-center py-4 text-red-400 bg-red-500/10 rounded-xl border border-red-500/20">
           <p>Error: {error.message}</p>
-          <button onClick={() => search(query, filters)} className="mt-2 text-blue-400 hover:text-blue-300">
+          <button
+            onClick={() => search(query, filters)}
+            className="mt-2 text-blue-400 hover:text-blue-300"
+          >
             Retry
           </button>
         </div>

@@ -1,3 +1,4 @@
+// @refresh reset
 /**
  * NetworkStatusContext.tsx
  * Provides a boolean `isOnline` flag across the whole app via React context.

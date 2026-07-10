@@ -6,21 +6,28 @@ from apps.challenges.models import Challenge
 from apps.content.models import Lesson
 from apps.progress.models import ExerciseAttempt, LessonProgress, QuizAttempt
 
+from apps.cache.services.cache_manager import CacheManager
+
 from .models import Recommendation
 
 
 class RecommendationEngine:
     def __init__(self, user):
         self.user = user
+        self.cache_manager = CacheManager()
 
     def generate_recommendations(self):
-        # Clear old generated ones that are not dismissed maybe?
-        # For simplicity, we just generate new ones and rely on unique_together to avoid duplicates
-        # or we just get or create
+        # Throttle generation using cache
+        cache_key = self.cache_manager.get_cache_key("recs", self.user.id)
+        if self.cache_manager.get(cache_key):
+            return
 
         self._generate_remedial_recommendations()
         self._generate_advanced_recommendations()
         self._generate_streak_recommendations()
+
+        # Cache for 1 hour
+        self.cache_manager.set(cache_key, True, ttl=3600)
 
     def _generate_remedial_recommendations(self):
         # Find recently failed quizzes

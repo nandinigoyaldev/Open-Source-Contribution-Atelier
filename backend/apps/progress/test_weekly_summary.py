@@ -65,7 +65,7 @@ def test_send_weekly_progress_summary_active_user(
     mock_async_task.reset_mock()
     send_weekly_progress_summary()
 
-    # Verify the payload
+    # Verify the payload — async_task is called with (task_name, payload_dict)
     bulk_email_calls = [
         call
         for call in mock_async_task.call_args_list

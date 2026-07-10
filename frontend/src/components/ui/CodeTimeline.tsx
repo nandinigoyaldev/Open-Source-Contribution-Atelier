@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import { CodeSnapshot } from "../../lib/api";
 import { Clock, Bookmark, ChevronRight, Check } from "lucide-react";
 
@@ -25,7 +25,8 @@ export function CodeTimeline({
         </h3>
         <button
           onClick={onClose}
-          className="p-1 hover:bg-black/10 dark:hover:bg-white/10 rounded"
+          aria-label="Close timeline"
+          className="p-1 hover:bg-black/10 dark:hover:bg-white/10 rounded focus:outline-none focus:ring-2 focus:ring-primary"
         >
           <ChevronRight size={16} />
         </button>
@@ -39,8 +40,15 @@ export function CodeTimeline({
           snapshots.map((snap) => {
             const isSelected = selectedSnapshotId === snap.id;
             const date = new Date(snap.timestamp);
-            const dateString = date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
-            const timeString = date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+            const dateString = date.toLocaleDateString(undefined, {
+              month: "short",
+              day: "numeric",
+              year: "numeric",
+            });
+            const timeString = date.toLocaleTimeString(undefined, {
+              hour: "numeric",
+              minute: "2-digit",
+            });
 
             return (
               <div
@@ -54,11 +62,17 @@ export function CodeTimeline({
               >
                 <div className="flex justify-between items-start mb-1">
                   <div className="flex items-center gap-1.5 text-xs font-bold text-text dark:text-[#f0ebe2]">
-                    {snap.is_auto ? <Clock size={12} /> : <Bookmark size={12} className="text-amber-500" />}
-                    <span>{snap.label || (snap.is_auto ? "Auto-save" : "Bookmark")}</span>
+                    {snap.is_auto ? (
+                      <Clock size={12} />
+                    ) : (
+                      <Bookmark size={12} className="text-amber-500" />
+                    )}
+                    <span>
+                      {snap.label || (snap.is_auto ? "Auto-save" : "Bookmark")}
+                    </span>
                   </div>
                 </div>
-                <div className="text-[10px] text-muted dark:text-[#c4bbae]">
+                <div className="text-xs text-text/80 dark:text-[#e0dbd0] mt-1">
                   {dateString} at {timeString}
                 </div>
                 {isSelected && (
@@ -68,7 +82,8 @@ export function CodeTimeline({
                         e.stopPropagation();
                         onRestoreSnapshot(snap);
                       }}
-                      className="flex items-center gap-1 px-2 py-1 text-[10px] font-bold bg-primary text-white rounded hover:bg-primary-dark transition"
+                      aria-label="Restore snapshot"
+                      className="flex items-center gap-1 px-2 py-1 text-xs font-bold bg-primary text-white rounded hover:bg-primary-dark transition focus:outline-none focus:ring-2 focus:ring-primary focus:ring-offset-1 dark:focus:ring-offset-[#151411]"
                     >
                       <Check size={12} /> Restore
                     </button>

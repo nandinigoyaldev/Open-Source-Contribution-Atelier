@@ -121,6 +121,7 @@ class CodeSnapshot(models.Model):
     def __str__(self):
         return f"Snapshot by {self.user} at {self.timestamp}"
 
+
 class Project(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(
@@ -179,7 +180,7 @@ class CodeExecutionTrace(models.Model):
         related_name="execution_traces",
         help_text="The user who ran this code.",
         null=True,
-        blank=True
+        blank=True,
     )
     code = models.TextField(help_text="The code that was traced.")
     trace_events = models.JSONField(help_text="Array of trace event snapshots.")
@@ -201,7 +202,9 @@ class CodeReviewThread(models.Model):
         related_name="review_threads",
         help_text="The collaboration session this thread belongs to.",
     )
-    line_number = models.IntegerField(help_text="The line number where this comment thread was started.")
+    line_number = models.IntegerField(
+        help_text="The line number where this comment thread was started."
+    )
     is_resolved = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -219,7 +222,9 @@ class CodeReviewComment(models.Model):
         CodeReviewThread, on_delete=models.CASCADE, related_name="comments"
     )
     user = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, help_text="The author of this comment."
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        help_text="The author of this comment.",
     )
     content = models.TextField(help_text="The comment text.")
     created_at = models.DateTimeField(auto_now_add=True)
@@ -234,7 +239,11 @@ class CodeReviewComment(models.Model):
 
 class SnippetCollection(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="snippet_collections")
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="snippet_collections",
+    )
     name = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -249,8 +258,16 @@ class SnippetCollection(models.Model):
 
 class CodeSnippet(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="snippets")
-    collection = models.ForeignKey(SnippetCollection, on_delete=models.SET_NULL, null=True, blank=True, related_name="snippets")
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="snippets"
+    )
+    collection = models.ForeignKey(
+        SnippetCollection,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="snippets",
+    )
     title = models.CharField(max_length=255)
     description = models.TextField(blank=True, null=True)
     code = models.TextField()
@@ -266,3 +283,42 @@ class CodeSnippet(models.Model):
     def __str__(self):
         return self.title
 
+
+class TerminalSession(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    project = models.ForeignKey(
+        Project,
+        on_delete=models.CASCADE,
+        related_name="terminal_sessions",
+        null=True,
+        blank=True,
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="terminal_sessions",
+    )
+    name = models.CharField(max_length=255, default="Terminal")
+    is_active = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+
+class BulkReplaceOperation(models.Model):
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    project = models.ForeignKey(
+        Project, on_delete=models.CASCADE, related_name="bulk_operations"
+    )
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    previous_state = models.JSONField(
+        help_text="Mapping of file_id to their original code content"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return (
+            f"Bulk Replace in {self.project.name} by {self.user} at {self.created_at}"
+        )

@@ -36,7 +36,7 @@ export function ScrollToTop() {
     <button
       type="button"
       onClick={scrollToTop}
-      className="fixed bottom-8 right-8 p-3 rounded-full bg-accent text-black border-4 border-black shadow-card hover:shadow-none hover:translate-x-1 hover:translate-y-1 transition-all z-50 focus:outline-none focus:ring-4 focus:ring-primary dark:bg-[#2e2924] dark:text-[#f0ebe2] dark:border-black"
+      className="fixed bottom-24 right-6 p-3 rounded-full bg-accent text-black border-4 border-black shadow-card hover:shadow-none hover:translate-x-1 hover:translate-y-1 transition-all z-50 focus:outline-none focus:ring-4 focus:ring-primary dark:bg-[#2e2924] dark:text-[#f0ebe2] dark:border-black"
       aria-label="Scroll to top"
       data-testid="scroll-to-top"
     >

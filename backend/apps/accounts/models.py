@@ -1,3 +1,5 @@
+
+
 import uuid
 
 from django.conf import settings
@@ -131,9 +133,16 @@ class UserProfile(models.Model):
     """
 
     user = models.OneToOneField(
-        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="profile"
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="user_profile",  # Changed from "profile" to "user_profile"
     )
-    avatar = models.ImageField(upload_to="avatars/", null=True, blank=True)
+    avatar = models.ImageField(
+        upload_to="avatars/",
+        null=True,
+        blank=True,
+        max_length=255,
+    )
     cover_image = models.ImageField(upload_to="covers/", null=True, blank=True)
     last_password_change = models.DateTimeField(auto_now_add=True)
     timezone = models.CharField(
@@ -144,6 +153,11 @@ class UserProfile(models.Model):
     twitter_url = models.URLField(max_length=500, blank=True, default="")
     linkedin_url = models.URLField(max_length=500, blank=True, default="")
     github_url = models.URLField(max_length=500, blank=True, default="")
+    bio = models.TextField(max_length=500, blank=True, default="")
+    receive_weekly_digest = models.BooleanField(
+        default=True, 
+        help_text="Receive automated weekly progress digest emails"
+    )
 
     organization = models.ForeignKey(
         "organizations.Organization",

@@ -134,7 +134,7 @@ describe("ProfileSettingsForm Edge Cases", () => {
       });
 
       expect(
-        screen.getByText("Profile settings updated successfully!")
+        screen.getByText("Profile settings updated successfully!"),
       ).toBeInTheDocument();
     });
   });
