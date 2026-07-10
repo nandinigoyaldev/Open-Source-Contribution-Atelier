@@ -6,6 +6,8 @@ from django.utils import timezone
 from rest_framework import serializers
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+from rest_framework import serializers
+from .models import UserProfile
 
 
 def validate_strong_password(value):
@@ -237,6 +239,39 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
     def validate_new_password(self, value):
         return validate_strong_password(value)
 
+class AvatarUploadSerializer(serializers.Serializer):
+    avatar = serializers.ImageField(
+        max_length=255,
+        allow_empty_file=False,
+        use_url=True
+    )
+
+    def validate_avatar(self, value):
+        # Check file size (max 5MB)
+        if value.size > 5 * 1024 * 1024:
+            raise serializers.ValidationError("Image size must be under 5MB")
+        
+        # Check file extension
+        allowed_extensions = ['jpg', 'jpeg', 'png', 'gif', 'webp']
+        ext = value.name.split('.')[-1].lower()
+        if ext not in allowed_extensions:
+            raise serializers.ValidationError(
+                f"File type not supported. Use: {', '.join(allowed_extensions)}"
+            )
+        
+        return value
+
+class UserProfileSerializer(serializers.ModelSerializer):
+    avatar_url = serializers.SerializerMethodField()
+    
+    class Meta:
+        model = UserProfile
+        fields = ['avatar', 'avatar_url']
+    
+    def get_avatar_url(self, obj):
+        if obj.avatar:
+            return obj.avatar.url
+        return None
 
 # ─────────────────────────────────────────────────────────────────────────────
 # OTP (Email Verification) serializers

@@ -1,6 +1,7 @@
 from django.urls import path
 
 from .views import (
+    AvatarUploadView
     ExportDataView,
     GitHubOAuthCallbackView,
     GitHubOAuthStartView,
@@ -31,6 +32,7 @@ urlpatterns = [
     path("me/export/", ExportDataView.as_view(), name="me-export"),
     path("stats/", UserStatisticsView.as_view(), name="user-stats"),
     path("users/", UserListView.as_view(), name="user-list"),
+    path("profile/avatar/", AvatarUploadView.as_view(), name="avatar-upload")
     path("logout/", LogoutView.as_view(), name="logout"),
     # ── OAuth ──────────────────────────────────────────────────────────────────
     path("google/", GoogleLoginView.as_view(), name="google-login"),
