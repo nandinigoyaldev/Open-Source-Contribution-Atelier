@@ -1,124 +1,86 @@
-import React, { useState, useEffect } from "react";
-import { OptimizedImage } from "./ui/OptimizedImage";
-import SkeletonCard from "./ui/skeletons/SkeletonCard";
+import React from 'react';
 
-const API_BASE =
-  import.meta.env?.VITE_API_BASE_URL?.trim() ||
-  (typeof window !== "undefined"
-    ? `${window.location.origin}/api`
-    : "http://localhost:8000/api");
-
-type Organization = {
-  slug: string;
+interface Organization {
+  id: string;
   name: string;
-  logo_url?: string | null;
-  logoUrl?: string | null;
-};
-
-const DEFAULT_ORGANIZATIONS: Organization[] = [
-  { slug: "facebook", name: "React" },
-  { slug: "vercel", name: "Next.js" },
-  { slug: "django", name: "Django" },
-  { slug: "kubernetes", name: "Kubernetes" },
-  { slug: "microsoft", name: "VS Code" },
-  { slug: "nodejs", name: "Node.js" },
-];
-
-const normalizeImageUrl = (url: string, baseUrl: string) => {
-  if (!url) return url;
-
-  try {
-    return new URL(url, baseUrl).toString();
-  } catch {
-    return url;
-  }
-};
+  description: string;
+  logo?: string;
+  status: 'active' | 'coming_soon';
+}
 
 const OrganizationsGrid: React.FC = () => {
-  const [organizations, setOrganizations] = useState<Organization[]>(
-    DEFAULT_ORGANIZATIONS,
-  );
-  const [loading, setLoading] = useState(true);
+  // Placeholder organizations
+  const organizations: Organization[] = [
+    {
+      id: '1',
+      name: 'Open Source Initiative',
+      description: 'Leading open source organization',
+      status: 'coming_soon'
+    },
+    {
+      id: '2', 
+      name: 'GitHub Education',
+      description: 'GitHub student developer program',
+      status: 'coming_soon'
+    },
+    {
+      id: '3',
+      name: 'Google Open Source',
+      description: 'Google open source programs',
+      status: 'coming_soon'
+    }
+  ];
 
-  useEffect(() => {
-    fetch(`${API_BASE}/content/organizations/`)
-      .then((res) => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return res.json();
-      })
-      .then((data) => {
-        setOrganizations(
-          Array.isArray(data) && data.length > 0 ? data : DEFAULT_ORGANIZATIONS,
-        );
-        setLoading(false);
-      })
-      .catch((err) => {
-        console.error("Error fetching organizations:", err);
-        setOrganizations(DEFAULT_ORGANIZATIONS);
-        setLoading(false);
-      });
-  }, []);
-
-  if (loading) {
-    return (
-      <section aria-labelledby="orgs-heading" className="mb-6">
-        <h3
-          id="orgs-heading"
-          className="text-xs font-black uppercase tracking-wider text-muted mb-3 text-center"
-        >
-          Supported Orgs
-        </h3>
-
-        <div className="grid gap-3 grid-cols-2 md:grid-cols-3">
-          {Array.from({ length: 6 }).map((_, index) => (
-            <SkeletonCard key={index} />
-          ))}
-        </div>
-      </section>
-    );
-  }
+  const activeOrgs = organizations.filter(org => org.status === 'active');
+  const comingSoonOrgs = organizations.filter(org => org.status === 'coming_soon');
 
   return (
-    <section aria-labelledby="orgs-heading" className="mb-6">
-      <h3
-        id="orgs-heading"
-        className="text-xs font-black uppercase tracking-wider text-muted mb-3 text-center"
-      >
-        Supported Orgs
-      </h3>
+    <div className="organizations-grid-container">
+      <div className="org-section-header">
+        <h3 className="org-title">🏢 Supported Organizations</h3>
+        <p className="org-description">
+          We're building partnerships with leading open source organizations to bring 
+          you real-world contribution opportunities. Start your open source journey 
+          with verified projects from trusted communities.
+        </p>
+      </div>
 
-      <div className="grid gap-3 grid-cols-2 md:grid-cols-3">
-        {organizations.map((org) => (
-          <a
-            key={org.slug}
-            href={`https://github.com/${org.slug}`}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="border-2 border-black rounded-lg p-2.5 flex items-center gap-2 hover:-translate-y-0.5 transition-all bg-white"
-          >
-            <OptimizedImage
-              src={normalizeImageUrl(
-                org.logo_url ||
-                  org.logoUrl ||
-                  `https://github.com/${org.slug}.png?size=80`,
-                API_BASE,
-              )}
-              alt={`${org.name} avatar`}
-              width={32}
-              height={32}
-              loading="eager"
-              className="w-8 h-8 rounded-lg object-cover border border-black/20"
-            />
-            <div className="truncate min-w-0">
-              <div className="font-bold text-xs truncate uppercase tracking-tight">
-                {org.name}
+      {activeOrgs.length > 0 ? (
+        <div className="org-grid">
+          {activeOrgs.map(org => (
+            <div key={org.id} className="org-card active">
+              <span className="org-icon">🏗️</span>
+              <div className="org-info">
+                <span className="org-name">{org.name}</span>
+                <span className="org-description-small">{org.description}</span>
+                <span className="org-badge active">✅ Active</span>
               </div>
-              <div className="text-[10px] text-muted truncate">GitHub</div>
             </div>
-          </a>
+          ))}
+        </div>
+      ) : null}
+
+      <div className="org-grid coming-soon-grid">
+        {comingSoonOrgs.map(org => (
+          <div key={org.id} className="org-card coming-soon">
+            <span className="org-icon">🚀</span>
+            <div className="org-info">
+              <span className="org-name">{org.name}</span>
+              <span className="org-description-small">{org.description}</span>
+              <span className="org-badge coming-soon">⏳ Coming Soon</span>
+            </div>
+          </div>
         ))}
       </div>
-    </section>
+
+      <div className="org-notice">
+        <span>💡</span>
+        <p>
+          Interested in featuring your organization? Contact us at{' '}
+          <a href="mailto:partners@atelier.dev">partners@atelier.dev</a>
+        </p>
+      </div>
+    </div>
   );
 };
 
