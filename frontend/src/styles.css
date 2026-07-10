@@ -674,3 +674,66 @@ html.high-contrast [tabindex]:focus-visible {
   outline: 3px solid var(--hc-accent) !important;
   outline-offset: 2px !important;
 }
+
+/* Button containers */
+.button-group,
+.cta-buttons,
+.auth-buttons,
+.footer-buttons,
+.flex.gap-2,
+.flex.gap-3,
+.flex.gap-4 {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 16px !important;
+  justify-content: center !important;
+  align-items: center !important;
+}
+
+/* All buttons inside containers */
+.button-group button,
+.cta-buttons button,
+.auth-buttons button,
+.footer-buttons button,
+.flex.gap-2 button,
+.flex.gap-3 button,
+.flex.gap-4 button {
+  position: relative !important;
+  margin: 0 !important;
+  flex: 0 1 auto !important;
+  min-width: 120px !important;
+}
+
+/* Mobile responsive */
+@media (max-width: 640px) {
+  .button-group,
+  .cta-buttons,
+  .auth-buttons,
+  .footer-buttons,
+  .flex.gap-2,
+  .flex.gap-3,
+  .flex.gap-4 {
+    flex-direction: column !important;
+    gap: 12px !important;
+    width: 100% !important;
+  }
+  
+  .button-group button,
+  .cta-buttons button,
+  .auth-buttons button,
+  .footer-buttons button,
+  .flex.gap-2 button,
+  .flex.gap-3 button,
+  .flex.gap-4 button {
+    width: 100% !important;
+    max-width: 300px !important;
+  }
+}
+
+/* Fix any absolute positioned buttons */
+button:not([class*="menu"]):not([class*="toggle"]) {
+  position: relative !important;
+  float: none !important;
+  display: inline-flex !important;
+  margin: 4px 8px !important;
+}

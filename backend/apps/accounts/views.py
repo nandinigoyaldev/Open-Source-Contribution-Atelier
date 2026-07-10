@@ -1,11 +1,14 @@
 import os
 import secrets
+import io
 from pathlib import Path
 from typing import Optional
 from urllib.parse import urlencode
 
 import requests as http_requests
+from PIL import Image
 from django.conf import settings
+from django.core.files.base import ContentFile
 from django.contrib.auth.models import User
 from django.core.mail import send_mail
 from django.db.models import Sum
@@ -33,7 +36,7 @@ from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 from apps.progress.models import LessonProgress, UserBadge
 from apps.progress.serializers import UserBadgeSerializer
 
-from .models import MagicLinkToken, OTPToken, PasswordResetToken
+from .models import MagicLinkToken, OTPToken, PasswordResetToken, UserProfile
 from .serializers import (
     EmailOrUsernameTokenObtainPairSerializer,
     MagicLinkRequestSerializer,
@@ -433,6 +436,47 @@ class UserListView(generics.ListAPIView):
     ]
     search_fields = ["username"]
     ordering_fields = ["id", "username"]
+
+
+class UserSuggestionsView(APIView):
+    """
+    GET /api/accounts/users/suggestions/?q=...
+    Returns up to 10 matching usernames for autocomplete mentions.
+    """
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="q",
+                type=str,
+                location=OpenApiParameter.QUERY,
+                description="Username prefix/search query",
+            )
+        ],
+        responses={200: OpenApiResponse(description="List of matching users")},
+    )
+    def get(self, request):
+        q = request.query_params.get("q", "").strip()
+        if not q:
+            return Response([])
+
+        # Basic case-insensitive matching
+        users = User.objects.filter(username__icontains=q).order_by("username")[:10]
+
+        data = []
+        for user in users:
+            # We can include a basic avatar url or other profile data if available
+            avatar_url = ""
+            if hasattr(user, "profile") and hasattr(user.profile, "avatar_url"):
+                avatar_url = user.profile.avatar_url
+
+            data.append(
+                {"id": user.id, "username": user.username, "avatar_url": avatar_url}
+            )
+
+        return Response(data, status=status.HTTP_200_OK)
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -860,59 +904,62 @@ class ExportDataView(APIView):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
+
 class AvatarUploadView(APIView):
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
         serializer = AvatarUploadSerializer(data=request.data)
-        
+
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        
-        avatar = serializer.validated_data['avatar']
-        
+
+        avatar = serializer.validated_data["avatar"]
+
         # Optimize image
         try:
             img = Image.open(avatar)
-            
+
             # Convert to RGB if needed
-            if img.mode in ('RGBA', 'LA', 'P'):
-                img = img.convert('RGB')
-            
+            if img.mode in ("RGBA", "LA", "P"):
+                img = img.convert("RGB")
+
             # Resize to max 300x300
             img.thumbnail((300, 300))
-            
+
             # Save to buffer
             buffer = io.BytesIO()
-            img.save(buffer, format='JPEG', quality=85)
-            
+            img.save(buffer, format="JPEG", quality=85)
+
             # Create new file
             filename = f"{request.user.id}_avatar.jpg"
             avatar_file = ContentFile(buffer.getvalue(), name=filename)
-            
+
         except Exception as e:
             return Response(
-                {'error': 'Invalid image file'},
-                status=status.HTTP_400_BAD_REQUEST
+                {"error": "Invalid image file"}, status=status.HTTP_400_BAD_REQUEST
             )
-        
+
         # Update or create profile
         profile, created = UserProfile.objects.get_or_create(user=request.user)
-        
+
         # Delete old avatar if exists
         if profile.avatar:
             try:
                 profile.avatar.delete(save=False)
             except:
                 pass
-        
+
         profile.avatar = avatar_file
         profile.save()
-        
-        return Response({
-            'message': 'Avatar uploaded successfully',
-            'avatar_url': profile.avatar.url if profile.avatar else None
-        }, status=status.HTTP_200_OK)
+
+        return Response(
+            {
+                "message": "Avatar uploaded successfully",
+                "avatar_url": profile.avatar.url if profile.avatar else None,
+            },
+            status=status.HTTP_200_OK,
+        )
 
     def delete(self, request):
         """Remove avatar"""
@@ -921,8 +968,8 @@ class AvatarUploadView(APIView):
             profile.avatar.delete()
             profile.avatar = None
             profile.save()
-            return Response({'message': 'Avatar removed'})
-        return Response({'error': 'No avatar found'}, status=status.HTTP_404_NOT_FOUND)
+            return Response({"message": "Avatar removed"})
+        return Response({"error": "No avatar found"}, status=status.HTTP_404_NOT_FOUND)
 
 
 from apps.chat.models import Message

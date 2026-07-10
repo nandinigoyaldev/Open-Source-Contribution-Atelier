@@ -20,6 +20,7 @@ from .views import (
     SignupView,
     UserListView,
     UserStatisticsView,
+    UserSuggestionsView,
 )
 
 urlpatterns = [
@@ -32,6 +33,7 @@ urlpatterns = [
     path("me/export/", ExportDataView.as_view(), name="me-export"),
     path("stats/", UserStatisticsView.as_view(), name="user-stats"),
     path("users/", UserListView.as_view(), name="user-list"),
+    path("users/suggestions/", UserSuggestionsView.as_view(), name="user-suggestions"),
     path("profile/avatar/", AvatarUploadView.as_view(), name="avatar-upload"),
     path("logout/", LogoutView.as_view(), name="logout"),
     # ── OAuth ──────────────────────────────────────────────────────────────────

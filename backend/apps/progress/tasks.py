@@ -17,38 +17,20 @@ def send_weekly_progress_summary():
     for each active user, and dispatch an email summary.
     """
     from apps.notifications.tasks import send_bulk_email
+    from apps.progress.services.digest_service import WeeklyDigestService
 
-    seven_days_ago = timezone.now() - timedelta(days=7)
-
-    # Process active users in chunks
-    users = User.objects.filter(is_active=True).iterator(chunk_size=100)
+    # Process active users in chunks who opted in for the digest
+    users = User.objects.filter(is_active=True, profile__receive_weekly_digest=True).iterator(chunk_size=100)
 
     for user in users:
-        # Get progress in the last 7 days
-        recent_progress = LessonProgress.objects.filter(
-            user=user, updated_at__gte=seven_days_ago, completed=True
-        )
+        # Generate context using the new service
+        context = WeeklyDigestService.get_user_digest_context(user)
 
-        recent_badges = UserBadge.objects.filter(
-            user=user, earned_at__gte=seven_days_ago
-        )
-
-        lessons_completed = recent_progress.count()
-        xp_earned = sum(progress.score for progress in recent_progress)
-        badges_earned = recent_badges.count()
-        badge_names = [ub.badge.name for ub in recent_badges]
-
-        if lessons_completed > 0 or badges_earned > 0:
+        if context["lessons_completed"] > 0 or len(context["badges_earned"]) > 0 or context["xp_earned"] > 0:
             payload = {
                 "template_id": "weekly_progress_summary",
                 "recipients": [user.email],
-                "data": {
-                    "username": user.username,
-                    "lessons_completed": lessons_completed,
-                    "xp_earned": xp_earned,
-                    "badges_earned": badges_earned,
-                    "badge_names": badge_names,
-                },
+                "data": context,
             }
             async_task("apps.notifications.tasks.send_bulk_email", payload)
 

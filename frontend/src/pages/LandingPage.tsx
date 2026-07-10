@@ -5,8 +5,17 @@ import { fetchApi } from "../lib/api";
 import { useAuth } from "../features/auth/AuthContext";
 import { useTheme } from "../context/ThemeContext";
 import OrganizationsGrid from "../components/OrganizationsGrid";
-import { useTranslation } from "react-i18next";
-import SkeletonContributorDashboard from "../components/ui/skeletons/SkeletonContributorDashboard";
+
+declare const require: any;
+
+// react-i18next may be optional in some environments. Import with a safe runtime fallback.
+let useTranslation: any;
+try {
+  useTranslation = require("react-i18next").useTranslation;
+} catch {
+  // Fallback: provide a minimal hook that returns identity translator
+  useTranslation = () => ({ t: (s: string) => s });
+}
 
 // Safely look up variables across Next.js compilation bundles and Vite browser environments
 const getEnvVar = (key: string): string => {
@@ -157,9 +166,9 @@ export function LandingPage() {
           </div>
 
           <h2 className="text-3xl font-black mb-6 text-center text-text dark:text-[#f0ebe2]">
-            {authRole === "student"
-              ? t("landing.enter_sandbox")
-              : t("landing.maintainer_login")}
+             {authRole === "student"
+                ? "Start Your First Contribution"
+                : t("landing.maintainer_login")}
           </h2>
 
           {error && (

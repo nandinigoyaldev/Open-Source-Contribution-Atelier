@@ -17,6 +17,10 @@ from rest_framework import (
     viewsets,
 )
 from rest_framework.permissions import AllowAny
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
+from .permissions import IsLessonUnlocked
 
 from apps.challenges.models import Challenge
 from apps.challenges.serializers import ChallengeSerializer
@@ -76,6 +80,16 @@ class SearchView(views.APIView):
         challenge_ct = ContentType.objects.get_for_model(Challenge)
 
         def get_fts_objects(model_class, content_type):
+            from django.db import connection
+            org = getattr(request.user, "organization", None)
+            if not org:
+                return []
+            if connection.vendor != "postgresql":
+                return list(
+                    model_class.objects.filter(
+                        title__icontains=query, organization=org
+                    )[:50]
+                )
             docs = (
                 SearchDocument.objects.filter(  # type: ignore
                     content_type=content_type, search_vector=search_query
@@ -96,8 +110,11 @@ class SearchView(views.APIView):
             if not object_ids:
                 return []
 
+            org = getattr(request.user, "organization", None)
+            if not org:
+                return []
             objects = model_class.objects.filter(
-                id__in=object_ids, organization=request.user.organization
+                id__in=object_ids, organization=org
             )
             if model_class == Lesson:
                 objects = objects.prefetch_related("exercises", "prerequisites")
@@ -135,10 +152,14 @@ class SemanticSearchView(views.APIView):
             )
 
         # Apply multi-tenant filtering
+        org = getattr(request.user, "organization", None)
+        if not org:
+            return response.Response({"query": query, "results": []})
+
         lessons = (
             Lesson.objects.filter(
                 embedding__isnull=False,
-                organization=request.user.organization,
+                organization=org,
             )
             .annotate(trigram_similarity=TrigramSimilarity("title", query))
             .prefetch_related("exercises")

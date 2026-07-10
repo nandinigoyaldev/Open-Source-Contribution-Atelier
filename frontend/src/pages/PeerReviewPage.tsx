@@ -4,6 +4,8 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { CodeDiffViewer } from "../components/ui/CodeDiffViewer";
 import { ReportDialog } from "../components/moderation/ReportDialog";
 import { AudioRoom } from "../components/ui/AudioRoom";
+import { MentionTextarea } from "../components/ui/MentionTextarea";
+import { renderWithMentions } from "../utils/renderMentions";
 
 interface CodeSubmission {
   id: number;
@@ -324,7 +326,7 @@ export function PeerReviewPage() {
                       Author Notes
                     </h4>
                     <p className="p-3 bg-surface border-l-4 border-primary rounded whitespace-pre-wrap">
-                      {parsedDescription}
+                      {renderWithMentions(parsedDescription)}
                     </p>
                   </div>
                 )}
@@ -343,13 +345,13 @@ export function PeerReviewPage() {
                     <label className="block font-bold mb-2">
                       Your Feedback
                     </label>
-                    <textarea
+                    <MentionTextarea
                       required
                       rows={4}
                       value={feedback}
-                      onChange={(e) => setFeedback(e.target.value)}
-                      className="w-full px-4 py-2 border-2 border-black rounded-lg focus:ring-2 focus:ring-primary dark:bg-black dark:border-[#2e2924]"
-                      placeholder="Be constructive and helpful..."
+                      onChange={(val) => setFeedback(val)}
+                      className=""
+                      placeholder="Be constructive and helpful... (use @ to mention users)"
                     />
                   </div>
                   <div>

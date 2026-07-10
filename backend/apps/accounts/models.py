@@ -153,6 +153,10 @@ class UserProfile(models.Model):
     twitter_url = models.URLField(max_length=500, blank=True, default="")
     linkedin_url = models.URLField(max_length=500, blank=True, default="")
     github_url = models.URLField(max_length=500, blank=True, default="")
+    receive_weekly_digest = models.BooleanField(
+        default=True, 
+        help_text="Receive automated weekly progress digest emails"
+    )
 
     organization = models.ForeignKey(
         "organizations.Organization",
