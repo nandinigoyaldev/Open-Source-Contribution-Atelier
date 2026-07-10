@@ -1,12 +1,14 @@
 import os
 import subprocess
-import boto3
 from datetime import datetime
 from pathlib import Path
+
+import boto3
 from dotenv import load_dotenv
 
 # Load environment variables from .env file
 load_dotenv()
+
 
 class DatabaseBackup:
     def __init__(self):
@@ -24,32 +26,37 @@ class DatabaseBackup:
         self.s3_secret_key = os.getenv("S3_SECRET_KEY")
 
         # Backup config
-        self.backup_dir = Path(__file__).resolve().parent.parent / 'backups'
+        self.backup_dir = Path(__file__).resolve().parent.parent / "backups"
         self.backup_dir.mkdir(exist_ok=True)
-        self.retention_days = int(os.getenv('BACKUP_RETENTION_DAYS', 30))
+        self.retention_days = int(os.getenv("BACKUP_RETENTION_DAYS", 30))
 
     def create_backup(self):
-        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
         filename = f"backup_{self.db_name}_{timestamp}.sql"
         filepath = self.backup_dir / filename
-        
+
         env = os.environ.copy()
         if self.db_password:
-            env['PGPASSWORD'] = self.db_password
-        
+            env["PGPASSWORD"] = self.db_password
+
         cmd = [
-            'pg_dump',
-            '-h', self.db_host,
-            '-p', self.db_port,
-            '-U', self.db_user,
-            '-d', self.db_name,
-            '--clean',
-            '--if-exists',
-            '-F', 'p',
+            "pg_dump",
+            "-h",
+            self.db_host,
+            "-p",
+            self.db_port,
+            "-U",
+            self.db_user,
+            "-d",
+            self.db_name,
+            "--clean",
+            "--if-exists",
+            "-F",
+            "p",
         ]
-        
+
         try:
-            with open(filepath, 'w') as f:
+            with open(filepath, "w") as f:
                 subprocess.run(cmd, stdout=f, env=env, check=True)
             print(f"✅ Backup created: {filepath}")
             return filepath
@@ -58,8 +65,8 @@ class DatabaseBackup:
             return None
 
     def compress_backup(self, filepath):
-        compressed_path = filepath.with_suffix('.sql.gz')
-        subprocess.run(['gzip', str(filepath)], check=True)
+        compressed_path = filepath.with_suffix(".sql.gz")
+        subprocess.run(["gzip", str(filepath)], check=True)
         print(f"✅ Backup compressed: {compressed_path}")
         return compressed_path
 
@@ -67,19 +74,19 @@ class DatabaseBackup:
         if not self.s3_bucket:
             print("⚠️ S3 bucket not configured, skipping upload")
             return False
-        
+
         if not self.s3_access_key or not self.s3_secret_key:
             print("⚠️ AWS credentials not configured, skipping upload")
             return False
-        
+
         try:
             s3 = boto3.client(
-                's3',
+                "s3",
                 region_name=self.s3_region,
                 aws_access_key_id=self.s3_access_key,
-                aws_secret_access_key=self.s3_secret_key
+                aws_secret_access_key=self.s3_secret_key,
             )
-            
+
             s3_key = f"backups/{filepath.name}"
             s3.upload_file(str(filepath), self.s3_bucket, s3_key)
             print(f"✅ Uploaded to S3: s3://{self.s3_bucket}/{s3_key}")
@@ -90,27 +97,29 @@ class DatabaseBackup:
 
     def cleanup_old_backups(self):
         import time
+
         cutoff = time.time() - (self.retention_days * 24 * 60 * 60)
-        
-        for file in self.backup_dir.glob('*.sql.gz'):
+
+        for file in self.backup_dir.glob("*.sql.gz"):
             if file.stat().st_mtime < cutoff:
                 file.unlink()
                 print(f"🧹 Deleted old backup: {file}")
 
     def run(self):
         print(f"📦 Starting database backup at {datetime.now()}")
-        
+
         backup_file = self.create_backup()
         if not backup_file:
             return False
-        
+
         compressed_file = self.compress_backup(backup_file)
         self.upload_to_s3(compressed_file)
         self.cleanup_old_backups()
-        
+
         print(f"✅ Backup completed at {datetime.now()}")
         return True
 
-if __name__ == '__main__':
+
+if __name__ == "__main__":
     backup = DatabaseBackup()
     backup.run()

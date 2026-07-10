@@ -20,47 +20,53 @@ export function AuthPageShell({
   const highlightBox1 =
     mode === "login"
       ? {
-          title: "Wait, you're back?",
-          text: "We all know you're just here to procrastinate on your real homework.",
-          color: "bg-tertiary",
+          title: "Interactive Sandboxes 💻",
+          text: "Practice Git commands and code changes in real time within sandboxed environments.",
+          color:
+            "bg-blue-50/50 dark:bg-blue-950/20 border-blue-100 dark:border-blue-900/50",
         }
       : mode === "info"
         ? {
-            title: "Verify your email",
-            text: "Just one more step. We sent a link to your inbox.",
-            color: "bg-tertiary",
+            title: "Verify your email ✉️",
+            text: "Please check your inbox. We have sent you a verification link to confirm your account.",
+            color:
+              "bg-blue-50/50 dark:bg-blue-950/20 border-blue-100 dark:border-blue-900/50",
           }
         : {
-            title: "Study like your life depends on it 💀",
-            text: "Because it probably does. Let's get you set up.",
-            color: "bg-tertiary",
+            title: "Structured Curriculum 📚",
+            text: "Learn everything from basics of version control to advanced codebase maintenance.",
+            color:
+              "bg-blue-50/50 dark:bg-blue-950/20 border-blue-100 dark:border-blue-900/50",
           };
 
   const highlightBox2 =
     mode === "login"
       ? {
-          title: "Brain power 🧠",
-          text: "Cramming 5 mins before the exam? We got you. Probably.",
-          color: "bg-primary",
+          title: "Peer Reviews 🤝",
+          text: "Collaborate with other contributors, review code changes, and learn through feedback.",
+          color:
+            "bg-purple-50/50 dark:bg-purple-950/20 border-purple-100 dark:border-purple-900/50",
         }
       : mode === "info"
         ? {
-            title: "Almost there",
-            text: "You can't skip this, don't even try.",
-            color: "bg-accent",
+            title: "Almost there ✨",
+            text: "Just verify your email to unlock lessons, challenges, and certificates.",
+            color:
+              "bg-purple-50/50 dark:bg-purple-950/20 border-purple-100 dark:border-purple-900/50",
           }
         : {
-            title: "Lessgooo 🚀",
-            text: "Create an account so we can guilt-trip you into studying every day.",
-            color: "bg-accent",
+            title: "Earn Achievements 🏅",
+            text: "Complete challenges, build your profile stats, and earn shareable certificates.",
+            color:
+              "bg-purple-50/50 dark:bg-purple-950/20 border-purple-100 dark:border-purple-900/50",
           };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 sm:p-8 font-display bg-surface text-text overflow-hidden dark:bg-[#0f0e0c] dark:text-[#f0ebe2]">
+    <div className="min-h-screen flex items-center justify-center p-4 sm:p-8 font-sans bg-slate-50 text-slate-900 dark:bg-[#06060a] dark:text-slate-100 transition-colors duration-300">
       {/* Theme Toggle Buttons */}
       <div className="absolute top-4 right-4 sm:top-8 sm:right-8 flex gap-3 z-50">
         <button
-          className="rounded-lg bg-surface-low p-3 text-muted hover:text-text border-2 border-black dark:border-[#2e2924] shadow-card-sm hover:-translate-y-0.5 active:translate-y-0 transition-all dark:bg-[#151411] dark:text-[#c4bbae] dark:hover:text-[#f0ebe2]"
+          className="rounded-xl bg-white dark:bg-[#12121a] p-3 text-slate-500 hover:text-slate-950 dark:hover:text-white border border-slate-200 dark:border-slate-800 shadow-sm hover:scale-105 active:scale-95 transition-all"
           onClick={toggleTheme}
           aria-label={
             theme === "light" ? "Switch to dark mode" : "Switch to light mode"
@@ -69,10 +75,10 @@ export function AuthPageShell({
           {theme === "light" ? <Moon size={20} /> : <Sun size={20} />}
         </button>
         <button
-          className={`rounded-lg p-3 border-2 border-black dark:border-[#2e2924] shadow-card-sm hover:-translate-y-0.5 active:translate-y-0 transition-all ${
+          className={`rounded-xl p-3 border shadow-sm hover:scale-105 active:scale-95 transition-all ${
             theme === "high-contrast"
-              ? "bg-primary text-white"
-              : "bg-surface-low text-muted hover:text-text dark:bg-[#151411] dark:text-[#c4bbae] dark:hover:text-[#f0ebe2]"
+              ? "bg-primary text-white border-transparent"
+              : "bg-white dark:bg-[#12121a] text-slate-500 hover:text-slate-950 dark:hover:text-white border-slate-200 dark:border-slate-800"
           }`}
           onClick={() =>
             setTheme(theme === "high-contrast" ? "light" : "high-contrast")
@@ -86,38 +92,38 @@ export function AuthPageShell({
 
       <div className="mx-auto flex w-full max-w-6xl flex-col lg:flex-row gap-12 lg:gap-16 items-center relative z-10 py-12">
         {/* LEFT SIDE: Description */}
-        <div className="flex-1 flex flex-col justify-center py-6 order-2 lg:order-1">
+        <div className="flex-1 flex flex-col justify-center py-6 order-2 lg:order-1 max-w-xl">
           <div className="inline-block mb-6">
-            <span className="font-bold text-sm sm:text-base uppercase tracking-widest bg-black text-white px-5 py-2.5 rounded-full shadow-card border-none rotate-[-3deg] inline-block hover:rotate-3 transition-transform cursor-default">
-              {mode} MODE ACTIVATED 🔥
+            <span className="font-bold text-xs uppercase tracking-widest bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-4 py-2 rounded-full shadow-sm inline-block">
+              {mode} MODE
             </span>
           </div>
 
-          <h1 className="text-5xl lg:text-[5.5rem] font-black tracking-tight text-black mb-8 leading-[1.05] drop-shadow-[5px_5px_0_rgba(0,0,0,1)] dark:text-[#f0ebe2]">
+          <h1 className="text-4xl lg:text-6xl font-extrabold tracking-tight text-slate-900 mb-6 leading-tight dark:text-white">
             {title}
           </h1>
-          <p className="text-xl text-black font-semibold leading-relaxed mb-12 border-l-4 border-black pl-5 bg-white p-5 shadow-card rounded-r-xl max-w-lg dark:text-[#c4bbae] dark:bg-[#151411] dark:border-[#2e2924]">
+          <p className="text-lg text-slate-600 font-medium leading-relaxed mb-10 dark:text-slate-400">
             {subtitle}
           </p>
 
-          <div className="flex flex-col sm:flex-row gap-6 mt-auto max-w-xl">
+          <div className="flex flex-col sm:flex-row gap-6 mt-auto">
             <div
-              className={`flex-1 rounded-2xl border-4 border-black ${highlightBox1.color} p-6 shadow-card hover:-translate-y-2 hover:shadow-card-lg transition-all`}
+              className={`flex-1 rounded-2xl border ${highlightBox1.color} p-6 shadow-sm hover:shadow-md transition-all duration-300`}
             >
-              <h3 className="font-black text-black text-xl mb-3">
+              <h3 className="font-bold text-slate-900 dark:text-white text-base mb-2">
                 {highlightBox1.title}
               </h3>
-              <p className="text-black font-medium leading-relaxed">
+              <p className="text-slate-600 dark:text-slate-400 text-sm font-medium leading-relaxed">
                 {highlightBox1.text}
               </p>
             </div>
             <div
-              className={`flex-1 rounded-2xl border-4 border-black ${highlightBox2.color} p-6 shadow-card hover:-translate-y-2 hover:shadow-card-lg transition-all`}
+              className={`flex-1 rounded-2xl border ${highlightBox2.color} p-6 shadow-sm hover:shadow-md transition-all duration-300`}
             >
-              <h3 className="font-black text-black text-xl mb-3">
+              <h3 className="font-bold text-slate-900 dark:text-white text-base mb-2">
                 {highlightBox2.title}
               </h3>
-              <p className="text-black font-medium leading-relaxed">
+              <p className="text-slate-600 dark:text-slate-400 text-sm font-medium leading-relaxed">
                 {highlightBox2.text}
               </p>
             </div>
@@ -126,9 +132,7 @@ export function AuthPageShell({
 
         {/* RIGHT SIDE: Form */}
         <div className="flex-1 w-full max-w-md order-1 lg:order-2 self-center">
-          <div className="w-full rounded-[2rem] border-4 border-black bg-white p-8 sm:p-10 shadow-card-lg relative rotate-[2deg] hover:rotate-0 transition-transform duration-300 dark:bg-[#151411] dark:border-[#2e2924]">
-            {/* Quirky tape or clip on top */}
-            <div className="absolute -top-5 left-1/2 -translate-x-1/2 w-32 h-10 bg-primary border-4 border-black rotate-[-4deg] shadow-card-sm z-20 dark:border-[#2e2924]"></div>
+          <div className="w-full rounded-3xl border border-slate-200 bg-white/80 backdrop-blur-md p-8 sm:p-10 shadow-xl relative dark:bg-[#111118]/80 dark:border-slate-850">
             {children}
           </div>
         </div>

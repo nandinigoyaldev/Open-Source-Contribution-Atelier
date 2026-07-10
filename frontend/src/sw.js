@@ -20,6 +20,33 @@ registerRoute(
   }),
 );
 
+// Cache API GET responses for instant dashboard/progress loads
+// Serves cached data immediately, revalidates in background
+const API_CACHE_PATHS = [
+  "/api/dashboard/",
+  "/api/progress/",
+  "/api/leaderboard/",
+  "/api/recommendations/",
+  "/api/challenges/",
+  "/api/users/me/learning-path/",
+];
+
+registerRoute(
+  ({ request, url }) => {
+    if (request.method !== "GET") return false;
+    return API_CACHE_PATHS.some((p) => url.pathname.startsWith(p));
+  },
+  new StaleWhileRevalidate({
+    cacheName: "api-runtime-cache",
+    plugins: [
+      new ExpirationPlugin({
+        maxEntries: 50,
+        maxAgeSeconds: 60 * 60, // 1 hour
+      }),
+    ],
+  }),
+);
+
 const DB_NAME = "atelier-offline-db";
 const STORE_NAME = "sync-queue";
 const DB_VERSION = 1;

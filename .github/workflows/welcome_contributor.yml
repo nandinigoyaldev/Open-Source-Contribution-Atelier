@@ -1,0 +1,129 @@
+name: Welcome Contributor Automation
+
+on:
+  issues:
+    types: [opened]
+  pull_request_target:
+    types: [opened]
+
+permissions:
+  issues: write
+  pull-requests: write
+  contents: read
+
+jobs:
+  welcome-issue:
+    if: github.event_name == 'issues' && github.event.action == 'opened'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Post welcome comment on new issue
+        uses: actions/github-script@v8
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const issue = context.payload.issue;
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            if (issue.user.login === owner) {
+              console.log('Owner opened issue; skipping welcome comment.');
+              return;
+            }
+            const commentBody = [
+              `## 👋 Welcome, @${issue.user.login}!`,
+              ``,
+              `Thanks for opening this issue on **Open Source Contribution Atelier**! We're glad to have you here. 🎉`,
+              ``,
+              `### 📌 Before you proceed, please read our pinned guides:`,
+              `| Guide | What it covers |`,
+              `|---|---|`,
+              `| [📋 How to Get Assigned](https://github.com/${owner}/${repo}/issues?q=is%3Aissue+is%3Aclosed+label%3Apinned+%22Guide%3A+How+to+get+SSoC%22) | You **must** comment with the keyword \`ssoc26\` or \`ecsoc26\` to be assigned |`,
+              `| [⚡ CI Checks on PRs](https://github.com/${owner}/${repo}/issues?q=is%3Aissue+is%3Aclosed+label%3Apinned+%22CI+Checks%22) | Your PR will be auto-tested against Vercel & Hugging Face builds |`,
+              `| [⏰ 3-Day Stale Rule](https://github.com/${owner}/${repo}/issues?q=is%3Aissue+is%3Aclosed+label%3Apinned+%223-Day%22) | Submit a PR or update within 3 days or lose the assignment |`,
+              ``,
+              `### 📚 Helpful Resources:`,
+              `- [Contribution Guide](https://github.com/${owner}/${repo}/blob/main/CONTRIBUTING.md)`,
+              `- [Code of Conduct](https://github.com/${owner}/${repo}/blob/main/.github/CODE_OF_CONDUCT.md)`,
+              ``,
+              `> **Tip:** Run \`npm run build\` in \`frontend/\` before submitting your PR to catch errors early! 🚀`,
+            ].join('\n');
+            await github.rest.issues.createComment({owner, repo, issue_number: issue.number, body: commentBody});
+
+  welcome-pull-request:
+    if: github.event_name == 'pull_request_target' && github.event.action == 'opened'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Post welcome comment on new PR
+        uses: actions/github-script@v8
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const pr = context.payload.pull_request;
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            
+            // Assign the author of the PR (skip if author is the repo owner)
+            if (pr.user.login !== owner) {
+              try {
+                await github.rest.issues.addAssignees({owner, repo, issue_number: pr.number, assignees: [pr.user.login]});
+              } catch (e) {
+                console.warn(`Could not assign PR to ${pr.user.login}: ${e}`);
+                try {
+                  await github.rest.repos.addCollaborator({owner, repo, username: pr.user.login, permission: 'pull'});
+                  await github.rest.issues.addAssignees({owner, repo, issue_number: pr.number, assignees: [pr.user.login]});
+                } catch (err) {
+                  console.warn(`Failed to invite and assign PR author: ${err}`);
+                }
+              }
+            }
+
+            const isFirstTime = pr.author_association === 'FIRST_TIME_CONTRIBUTOR';
+            
+            let greeting = '';
+            if (isFirstTime) {
+              greeting = `## 🎉 Welcome to the community, @${pr.user.login}!\n\nThis is your **first pull request** to this repository! We're thrilled to have you here. 🚀\n`;
+              try {
+                const labelName = 'first-time-contributor';
+                try {
+                  await github.rest.issues.getLabel({owner, repo, name: labelName});
+                } catch (e) {
+                  await github.rest.issues.createLabel({
+                    owner,
+                    repo,
+                    name: labelName,
+                    color: 'bfd4f2',
+                    description: 'PR submitted by a first-time contributor'
+                  });
+                }
+                await github.rest.issues.addLabels({owner, repo, issue_number: pr.number, labels: [labelName]});
+              } catch (e) {
+                console.warn(`Could not add first-time-contributor label: ${e}`);
+              }
+            } else {
+              greeting = `## 🎉 Thanks for the pull request, @${pr.user.login}!\n`;
+            }
+            
+            const commentBody = [
+              greeting,
+              `### ⚡ Automated CI Checks`,
+              `Our GitHub Actions CI will now automatically run:`,
+              `- ✅ **Frontend Build** (\`npm run build\`) — simulates Vercel deployment`,
+              `- ✅ **Backend Tests** (\`python manage.py test\`) — simulates Hugging Face deployment`,
+              ``,
+              `If any check fails, a comment will be posted here explaining what went wrong.`,
+              ``,
+              `### 📋 Quick Checklist`,
+              `- [ ] I linked the issue this PR fixes (e.g. \`Fixes #123\`)`,
+              `- [ ] I ran \`npm run build\` in \`frontend/\` locally with **0 errors**`,
+              `- [ ] I ran \`pytest\` in \`backend/\` locally with all tests passing`,
+              `- [ ] I added screenshots for any UI changes`,
+              ``,
+              `> **Need help?** Check the [Contribution Guide](https://github.com/${owner}/${repo}/blob/main/CONTRIBUTING.md) or ask in the issue thread. Happy coding! 💻`,
+            ].join('\n');
+            
+            await github.rest.issues.createComment({owner, repo, issue_number: pr.number, body: commentBody});

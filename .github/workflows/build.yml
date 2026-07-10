@@ -1,0 +1,35 @@
+name: Build
+
+on:
+    workflow_call:
+        inputs:
+            working-directory:
+                required: false
+                type: string
+                default: '.'
+
+jobs:
+    build:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Setup Node.js
+              uses: actions/setup-node@v4
+              with:
+                node-version: '20'
+                cache: 'npm'
+
+            - name: Install dependencies
+              run: npm ci
+              working-directory: ${{ inputs.working-directory }}
+
+            - name: Build
+              run: npm run build
+              working-directory: ${{ inputs.working-directory }}
+
+            - name: Upload build artifacts
+              uses: actions/upload-artifact@v4
+              with:
+                name: build
+                path: ${{ inputs.working-directory }}/dist

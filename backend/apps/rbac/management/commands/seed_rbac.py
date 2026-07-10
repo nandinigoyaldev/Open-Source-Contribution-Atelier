@@ -16,6 +16,9 @@ class Command(BaseCommand):
                 "slug": "create_content",
                 "description": "Can create learning modules and challenges",
             },
+            {"slug": "edit_content", "description": "Can edit existing content"},
+            {"slug": "publish_content", "description": "Can publish content to users"},
+            {"slug": "delete_content", "description": "Can delete content"},
             {
                 "slug": "moderate_content",
                 "description": "Can moderate community content and forums",
@@ -40,17 +43,30 @@ class Command(BaseCommand):
 
         # 2. Define Roles and their Permissions
         roles_data = {
-            "Administrator": [
+            "Admin": [
                 "manage_roles",
                 "view_audit_logs",
                 "manage_users",
                 "create_content",
+                "edit_content",
+                "publish_content",
+                "delete_content",
                 "moderate_content",
                 "review_prs",
             ],
-            "Moderator": ["moderate_content", "manage_users"],
-            "Content Creator": ["create_content"],
-            "Mentor": ["review_prs", "moderate_content"],
+            "Moderator": [
+                "edit_content",
+                "publish_content",
+                "moderate_content",
+                "manage_users",
+            ],
+            "Contributor": ["create_content", "edit_content"],
+            "Instructor": [
+                "create_content",
+                "edit_content",
+                "publish_content",
+                "review_prs",
+            ],
             "Student": [],  # Base role, typically no special backend permissions
         }
 

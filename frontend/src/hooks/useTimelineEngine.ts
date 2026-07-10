@@ -4,6 +4,7 @@ export interface TraceEvent {
   step: number;
   line: number;
   event: string;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   locals: Record<string, any>;
   stdout: string;
   error?: string;
@@ -35,11 +36,14 @@ export function useTimelineEngine() {
     setCurrentStepIndex((prev) => Math.max(prev - 1, 0));
   }, []);
 
-  const jumpToStep = useCallback((index: number) => {
-    if (index >= 0 && index < traceEvents.length) {
-      setCurrentStepIndex(index);
-    }
-  }, [traceEvents.length]);
+  const jumpToStep = useCallback(
+    (index: number) => {
+      if (index >= 0 && index < traceEvents.length) {
+        setCurrentStepIndex(index);
+      }
+    },
+    [traceEvents.length],
+  );
 
   const togglePlayback = useCallback(() => {
     if (currentStepIndex >= traceEvents.length - 1) {

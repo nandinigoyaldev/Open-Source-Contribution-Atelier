@@ -1,12 +1,26 @@
-import { useLocation, useOutlet } from "react-router-dom";
+import { useEffect } from "react";
+import { useLocation, useOutlet, useNavigate } from "react-router-dom";
 import { AnimatePresence, motion } from "framer-motion";
 import { Navigation } from "./Navigation";
 import { BadgeToastNotifier } from "../ui/BadgeToastNotifier";
 import { ScrollToTop } from "../ui/ScrollToTop";
+import { SessionTracker } from "../ui/SessionTracker";
+import { useAuth } from "../../features/auth/AuthContext";
 
 export function AppLayout() {
   const location = useLocation();
   const outlet = useOutlet();
+  const navigate = useNavigate();
+  const { user } = useAuth();
+
+  useEffect(() => {
+    if (user && sessionStorage.getItem("justLoggedIn") === "true") {
+      sessionStorage.removeItem("justLoggedIn");
+      if (!user.bio) {
+        navigate("/profile");
+      }
+    }
+  }, [user, navigate]);
 
   return (
     <>
@@ -38,7 +52,7 @@ export function AppLayout() {
 
       <div className="min-h-screen bg-surface text-text dark:bg-transparent dark:text-[#f0ebe2]">
         <Navigation />
-        <main id="main-content" tabIndex={-1} className="lg:pl-[300px]">
+        <main id="main-content" tabIndex={-1} className="lg:pl-[280px]">
           <div className="px-4 pb-10 pt-24 sm:px-6 lg:px-8">
             <div className="mx-auto max-w-7xl">
               <AnimatePresence mode="wait" initial={false}>
@@ -57,6 +71,7 @@ export function AppLayout() {
         </main>
         <BadgeToastNotifier />
         <ScrollToTop />
+        <SessionTracker />
       </div>
     </>
   );

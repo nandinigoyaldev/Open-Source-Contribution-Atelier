@@ -99,7 +99,12 @@ export async function fetchLessonsApi(): Promise<Lesson[]> {
   try {
     const data = await fetchApi("/content/lessons/", { requireAuth: false });
     // Use fallback lessons when the API returns no data (e.g. unseeded database)
-    if (!Array.isArray(data) || data.length === 0) return lessons;
+    if (!Array.isArray(data) || data.length === 0) {
+      console.warn(
+        "[fetchLessonsApi] API returned no lessons. Using built-in fallbacks.",
+      );
+      return lessons;
+    }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return (data as any[]).map((les, index: number) => {
@@ -134,7 +139,10 @@ export async function fetchLessonsApi(): Promise<Lesson[]> {
       } satisfies Lesson;
     });
   } catch (err) {
-    console.error("Error loading live curriculum:", err);
+    console.error(
+      "[fetchLessonsApi] API request failed, using built-in fallback lessons:",
+      err,
+    );
     return lessons;
   }
 }

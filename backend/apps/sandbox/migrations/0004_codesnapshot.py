@@ -8,23 +8,56 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('sandbox', '0003_executionviolationlog'),
+        ("sandbox", "0003_executionviolationlog"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.CreateModel(
-            name='CodeSnapshot',
+            name="CodeSnapshot",
             fields=[
-                ('id', models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('code', models.TextField(help_text='The snapshot code content.')),
-                ('timestamp', models.DateTimeField(auto_now_add=True, help_text='When the snapshot was created.')),
-                ('label', models.CharField(blank=True, help_text='Optional label/bookmark name.', max_length=255)),
-                ('is_auto', models.BooleanField(default=True, help_text='Whether this was an auto-save.')),
-                ('user', models.ForeignKey(help_text='The user who created this snapshot.', on_delete=django.db.models.deletion.CASCADE, related_name='code_snapshots', to=settings.AUTH_USER_MODEL)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                ("code", models.TextField(help_text="The snapshot code content.")),
+                (
+                    "timestamp",
+                    models.DateTimeField(
+                        auto_now_add=True, help_text="When the snapshot was created."
+                    ),
+                ),
+                (
+                    "label",
+                    models.CharField(
+                        blank=True,
+                        help_text="Optional label/bookmark name.",
+                        max_length=255,
+                    ),
+                ),
+                (
+                    "is_auto",
+                    models.BooleanField(
+                        default=True, help_text="Whether this was an auto-save."
+                    ),
+                ),
+                (
+                    "user",
+                    models.ForeignKey(
+                        help_text="The user who created this snapshot.",
+                        on_delete=django.db.models.deletion.CASCADE,
+                        related_name="code_snapshots",
+                        to=settings.AUTH_USER_MODEL,
+                    ),
+                ),
             ],
             options={
-                'ordering': ['-timestamp'],
+                "ordering": ["-timestamp"],
             },
         ),
     ]
