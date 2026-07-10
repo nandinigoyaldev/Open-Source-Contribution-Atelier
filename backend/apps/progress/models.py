@@ -93,11 +93,11 @@ class XPEvent(models.Model):
         ]
         constraints = [
             models.CheckConstraint(
-                check=models.Q(score__gte=0) & models.Q(score__lte=1000),
-                name='score_range_constraint'
-            )
-        ]
-
+                check=models.Q(base_points__gte=0) & models.Q(base_points__lte=1000),
+                name='base_points_range_constraint'
+                )
+            ]
+        
     def __str__(self):
         return f"XPEvent(user={self.user.username}, source={self.source_type}, delta={self.xp_delta})"
 
@@ -135,6 +135,7 @@ class LessonProgressSync(models.Model):
             MinValueValidator(0),
             MaxValueValidator(1000) 
         ]
+    )
 
     client_timestamp_ms = models.BigIntegerField(null=True, blank=True)
 

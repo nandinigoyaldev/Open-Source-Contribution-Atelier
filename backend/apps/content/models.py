@@ -35,8 +35,9 @@ class Lesson(models.Model):
         null=True, blank=True, help_text="Pre-computed semantic embedding vector"
     )
     prerequisites = models.ManyToManyField(
-        "self", symmetrical=False, related_name="dependents", blank=True
-    )
+            "self", symmetrical=False, related_name="dependents", blank=True
+        )
+    js_exercise = models.JSONField(null=True, blank=True, default=None)
 
     @property
     def reading_time(self) -> int:

@@ -80,7 +80,10 @@ class EventBus:
             # Process asynchronously (via Celery)
             from apps.events.tasks import process_event
 
+        try:
             process_event.delay(str(event.id))
+        except Exception:
+            pass
 
     @classmethod
     def _process_handlers(cls, event: DomainEvent, handlers: List[Dict]):
