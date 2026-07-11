@@ -24,7 +24,9 @@ export function ChatMessage({
         )}
       >
         {!isOwn && (
-          <p className="text-[11px] font-bold text-pink-600 mb-0.5 dark:text-pink-300">{username}</p>
+          <p className="text-[11px] font-bold text-pink-600 mb-0.5 dark:text-pink-300">
+            {username}
+          </p>
         )}
         <p className="text-sm leading-snug">{message}</p>
         {timestamp && (

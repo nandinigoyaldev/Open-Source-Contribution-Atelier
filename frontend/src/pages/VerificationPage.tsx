@@ -31,3 +31,5 @@ export function VerificationPage() {
 
   return <div>Verifying your account, please wait...</div>;
 }
+
+export default VerificationPage;

@@ -8,4 +8,4 @@ contact_links:
     url: https://github.com/nandinigoyaldev/Open-Source-Contribution-Atelier/security
     about: Please report security issues privately.
 
-"""A configuration file that makes GitHub show a chooser when creating a new issue, allowing contributors to select the appropriate template (Bug, Feature, Documentation, Question)."""
+# A configuration file that makes GitHub show a chooser when creating a new issue, allowing contributors to select the appropriate template (Bug, Feature, Documentation, Question).

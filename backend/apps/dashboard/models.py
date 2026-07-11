@@ -2,8 +2,10 @@ from django.contrib.auth.models import User
 from django.db import models
 
 
-class Issue(models.Model):
-    objects = models.Manager()
+from apps.core.models import SoftDeleteModel
+
+
+class Issue(SoftDeleteModel):
 
     class Status(models.TextChoices):
         OPEN = "open", "Open"

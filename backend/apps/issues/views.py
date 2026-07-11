@@ -3,11 +3,12 @@ from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from apps.issues.models import IssueReport
 from apps.issues.serializers import IssueReportSerializer
 
+
 class IssueReportViewSet(viewsets.ModelViewSet):
     queryset = IssueReport.objects.all()
     serializer_class = IssueReportSerializer
     parser_classes = (MultiPartParser, FormParser, JSONParser)
-    
+
     # Allow anyone to create a report (anonymous or authenticated)
     permission_classes = [permissions.AllowAny]
 

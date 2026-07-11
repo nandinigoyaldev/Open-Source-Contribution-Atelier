@@ -1,0 +1,33 @@
+name: Lint
+
+on:
+    workflow_call:
+        inputs:
+            working-directory:
+                required: false
+                type: string
+                default: '.'
+
+jobs:
+    lint:
+        runs-on: ubuntu-latest
+        steps:
+            - uses: actions/checkout@v4
+
+            - name: Setup Node.js
+              uses: actions/setup-node@v4
+              with:
+                node-version: '20'
+                cache: 'npm'
+      
+            - name: Install dependencies
+              run: npm ci
+              working-directory: ${{ inputs.working-directory }}
+      
+            - name: Run ESLint
+              run: npm run lint
+              working-directory: ${{ inputs.working-directory }}
+      
+            - name: Run Prettier check
+              run: npx prettier --check "src/**/*.{js,jsx,ts,tsx}"
+              working-directory: ${{ inputs.working-directory }}

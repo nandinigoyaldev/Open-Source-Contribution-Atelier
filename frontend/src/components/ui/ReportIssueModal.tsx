@@ -10,7 +10,11 @@ type Props = {
   urlPath?: string;
 };
 
-export default function ReportIssueModal({ open, onClose, urlPath = window.location.pathname }: Props) {
+export default function ReportIssueModal({
+  open,
+  onClose,
+  urlPath = window.location.pathname,
+}: Props) {
   const modalRef = useRef<HTMLDivElement>(null);
   useFocusTrap(modalRef, open);
 
@@ -19,8 +23,6 @@ export default function ReportIssueModal({ open, onClose, urlPath = window.locat
   const [issueType, setIssueType] = useState("Bug");
   const [image, setImage] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [toastMessage, setToastMessage] = useState("");
-  const [toastType, setToastType] = useState<"success" | "error" | "info">("info");
 
   useEffect(() => {
     if (!open) {
@@ -44,7 +46,7 @@ export default function ReportIssueModal({ open, onClose, urlPath = window.locat
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title || !description) return;
-    
+
     setIsSubmitting(true);
     const formData = new FormData();
     formData.append("title", title);
@@ -63,7 +65,7 @@ export default function ReportIssueModal({ open, onClose, urlPath = window.locat
       setTimeout(() => {
         onClose();
       }, 1000);
-    } catch (error) {
+    } catch {
       toast.error("Failed to submit issue. Please try again.");
     } finally {
       setIsSubmitting(false);
@@ -89,12 +91,18 @@ export default function ReportIssueModal({ open, onClose, urlPath = window.locat
             <h2 id="report-issue-modal-title" className="font-bold text-xl">
               Report an Issue
             </h2>
-            <button onClick={onClose} className="text-gray-500 hover:text-black">
+            <button
+              onClick={onClose}
+              className="text-gray-500 hover:text-black"
+            >
               ✕
             </button>
           </div>
-          
-          <form onSubmit={handleSubmit} className="flex flex-col gap-4 overflow-y-auto pr-2">
+
+          <form
+            onSubmit={handleSubmit}
+            className="flex flex-col gap-4 overflow-y-auto pr-2"
+          >
             <div>
               <label className="block text-sm font-bold mb-1">Issue Type</label>
               <select
@@ -109,7 +117,7 @@ export default function ReportIssueModal({ open, onClose, urlPath = window.locat
                 <option value="Other">Other</option>
               </select>
             </div>
-            
+
             <div>
               <label className="block text-sm font-bold mb-1">Title</label>
               <input
@@ -121,9 +129,11 @@ export default function ReportIssueModal({ open, onClose, urlPath = window.locat
                 placeholder="Brief summary of the issue"
               />
             </div>
-            
+
             <div>
-              <label className="block text-sm font-bold mb-1">Description</label>
+              <label className="block text-sm font-bold mb-1">
+                Description
+              </label>
               <textarea
                 required
                 value={description}
@@ -132,9 +142,11 @@ export default function ReportIssueModal({ open, onClose, urlPath = window.locat
                 placeholder="Detailed steps to reproduce the issue..."
               />
             </div>
-            
+
             <div>
-              <label className="block text-sm font-bold mb-1">Attach Image (Optional)</label>
+              <label className="block text-sm font-bold mb-1">
+                Attach Image (Optional)
+              </label>
               <input
                 type="file"
                 accept="image/*"
