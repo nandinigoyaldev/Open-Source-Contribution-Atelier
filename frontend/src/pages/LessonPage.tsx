@@ -46,6 +46,7 @@ const InteractiveDebugger = React.lazy(() =>
 );
 import { TextToSpeechControls } from "../components/ui/TextToSpeechControls";
 import { ReadingProgressTracker } from "../components/ui/ReadingProgressTracker";
+import { NotesWidget } from "../components/ui/NotesWidget";
 import { lessonPluginRegistry } from "../plugins/LessonPluginRegistry";
 
 import {
@@ -1202,6 +1203,9 @@ export function LessonPage() {
       {lesson && isCompleted && (
         <LessonFeedbackWidget lessonSlug={lesson.slug} />
       )}
+
+      {/* Private Notes Widget */}
+      <NotesWidget />
     </div>
   );
 }
