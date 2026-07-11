@@ -101,7 +101,7 @@ export function MentionTextarea({
       />
       <MentionsInput
         value={value}
-        onChange={(e, newValue) => onChange(newValue)}
+        onChange={(e: { target: { value: string } }, newValue: string) => onChange(newValue)}
         style={defaultStyle}
         className="mention-textarea font-mono text-sm dark:bg-black dark:border-[#2e2924]"
         placeholder={placeholder}
@@ -112,15 +112,15 @@ export function MentionTextarea({
           trigger="@"
           data={fetchUsers}
           markup="@__display__"
-          displayTransform={(id, display) => `@${display}`}
+          displayTransform={(id: string | number, display: string) => `@${display}`}
           className="mention-highlight z-10"
           renderSuggestion={(
-            suggestion,
-            search,
-            highlightedDisplay,
-            index,
-            focused,
-          ) => (
+  suggestion: SuggestionDataItem,
+  search: string,
+  highlightedDisplay: React.ReactNode,
+  index: number,
+  focused: boolean
+) => (
             <div
               className={`flex items-center gap-2 ${focused ? "bg-blue-50 text-blue-900" : "bg-white text-black"} dark:bg-[#1a1816] dark:text-white p-2 transition-colors`}
             >
