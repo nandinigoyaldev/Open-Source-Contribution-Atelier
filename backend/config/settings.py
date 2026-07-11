@@ -207,14 +207,14 @@ ASGI_APPLICATION = "config.asgi.application"
 DATABASES = {
     "default": dj_database_url.config(
         default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}",
-        conn_max_age=600,  # Prepares for PgBouncer connection pooling
+        conn_max_age=int(os.getenv("CONN_MAX_AGE", "0")),  # PgBouncer uses transaction pooling, so conn_max_age=0
         conn_health_checks=True,
     ),
     "replica": dj_database_url.config(
         env="REPLICA_DATABASE_URL",
         default=os.getenv("DATABASE_URL")
-        or f"sqlite:///{BASE_DIR / 'db.sqlite3'}",  # Falls back to primary in production if replica env is unset
-        conn_max_age=600,
+        or f"sqlite:///{BASE_DIR / 'db.sqlite3'}",
+        conn_max_age=int(os.getenv("CONN_MAX_AGE", "0")),
         conn_health_checks=True,
     ),
 }
@@ -222,6 +222,8 @@ DATABASES = {
 for db_name, db_config in DATABASES.items():
     if db_config.get("ENGINE") == "django.db.backends.postgresql":
         db_config["ENGINE"] = "django_prometheus.db.backends.postgresql"
+        # Disable server-side cursors to avoid issues with PgBouncer transaction pooling
+        db_config.setdefault("OPTIONS", {})["DISABLE_SERVER_SIDE_CURSORS"] = True
     elif db_config.get("ENGINE") == "django.db.backends.sqlite3":
         db_config["ENGINE"] = "django_prometheus.db.backends.sqlite3"
 
