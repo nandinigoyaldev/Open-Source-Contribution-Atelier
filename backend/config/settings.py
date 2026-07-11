@@ -6,6 +6,7 @@ from pathlib import Path
 from config.auth import JWT_CONFIG, TOKEN_BLACKLIST_ENABLED
 
 import dj_database_url
+
 # pyrefly: ignore [missing-import]
 from django.core.exceptions import ImproperlyConfigured
 
@@ -152,20 +153,21 @@ INSTALLED_APPS = [
 ]
 # Redis Cache
 CACHES = {
-    'default': {
-        'BACKEND': 'django_redis.cache.RedisCache',
-        'LOCATION': 'redis://127.0.0.1:6379/1',
-        'OPTIONS': {
-            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
-        }
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": "redis://127.0.0.1:6379/1",
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+        },
     }
 }
 
 # Rate Limit
-DEFAULT_RATE = '100/hour'
+DEFAULT_RATE = "100/hour"
 
 MIDDLEWARE = [
     "django_prometheus.middleware.PrometheusBeforeMiddleware",
+    "config.logging_middleware.RequestResponseLoggingMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "config.security_middleware.ContentSecurityPolicyMiddleware",
@@ -347,11 +349,9 @@ SIMPLE_JWT = {
     ),
     "ROTATE_REFRESH_TOKENS": True,
     "BLACKLIST_AFTER_ROTATION": True,
-    
     # ✅ Custom token classes for dynamic salt
     "ACCESS_TOKEN_CLASS": ("apps.accounts.jwt.DynamicSaltAccessToken",),
     "REFRESH_TOKEN_CLASS": ("apps.accounts.jwt.DynamicSaltRefreshToken",),
-    
     # ✅ Other JWT settings
     "ALGORITHM": "HS256",
     "SIGNING_KEY": SECRET_KEY,
@@ -520,6 +520,8 @@ Q_CLUSTER = {
 # ──────────────────────────────────────────
 # Logging Configuration
 # ──────────────────────────────────────────
+REQUEST_LOGGING_VERBOSITY = os.getenv("REQUEST_LOGGING_VERBOSITY", "minimal")
+
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
@@ -586,5 +588,3 @@ CURRICULUM_JSON_PATH = os.getenv(
 
 CELERY_TASK_ALWAYS_EAGER = True
 CELERY_TASK_STORE_EAGER_RESULT = True
-
-
