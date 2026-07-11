@@ -81,7 +81,7 @@ class EventBus:
             from django_q.tasks import async_task
             from apps.events.tasks import process_event
 
-	async_task(process_event, str(event.id))
+            async_task(process_event, str(event.id))
 
     @classmethod
     def _process_handlers(cls, event: DomainEvent, handlers: List[Dict]):
