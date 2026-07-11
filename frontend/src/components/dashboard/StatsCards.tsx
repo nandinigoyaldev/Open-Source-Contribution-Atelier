@@ -1,5 +1,8 @@
-import { CheckCircle2, Code, Flame, Trophy } from "lucide-react";
+import { CheckCircle2, Code, Trophy } from "lucide-react";
 import type { PersonalStats } from "./types";
+import { StreakFlame } from "./StreakFlame";
+import "./streakFlame.css";
+
 
 interface StatsCardsProps {
   personalStats: PersonalStats;
@@ -13,10 +16,17 @@ export function StatsCards({
   return (
     <div id="tour-stats" className="grid grid-cols-2 gap-4">
       <div className="relative rounded-[2rem] border-4 border-black bg-white p-6 shadow-card flex flex-col justify-center items-center text-center dark:bg-[#1f1c18] dark:border-[#2e2924] dark:shadow-none hover:-translate-y-0.5 transition-transform">
-        <Flame className="w-12 h-12 text-primary animate-pulse mb-2" />
+        <div className="relative w-12 h-12 mb-2" style={{ color: "#ff7a18" }}>
+          <StreakFlame
+            animate={personalStats.streak_days >= 3}
+            className="absolute inset-0 m-auto"
+          />
+        </div>
+
         <span className="text-4xl font-black text-primary drop-shadow-[2px_2px_0_#000] dark:drop-shadow-none">
           {personalStats.streak_days}
         </span>
+
         <span className="font-black text-black uppercase tracking-widest text-[9px] mt-1 dark:text-[#c4bbae]">
           Streak Days
         </span>
