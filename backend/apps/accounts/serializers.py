@@ -107,6 +107,7 @@ class UserUpdateSerializer(serializers.ModelSerializer):
         
         if password:
             instance.set_password(password)
+
             if hasattr(instance, "profile"):
                 # ✅ Increment JWT token version on password change
                 instance.profile.jwt_token_version += 1

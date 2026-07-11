@@ -566,6 +566,7 @@ LOGGING = {
 
 
 GRAPHENE = {"SCHEMA": "config.schema.schema"}
+
 GRAPHENE = {"SCHEMA": "config.schema.schema"}
 
 # ──────────────────────────────────────────
