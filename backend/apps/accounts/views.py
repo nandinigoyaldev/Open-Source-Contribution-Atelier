@@ -473,8 +473,9 @@ class UserSuggestionsView(APIView):
         return Response(data, status=status.HTTP_200_OK)
 
 
+>>>>>>> main
 # ─────────────────────────────────────────────────────────────────────────────
-# Password Reset Views
+# Password Reset Views (UPDATED with Custom Token Model)
 # ─────────────────────────────────────────────────────────────────────────────
 
 
@@ -498,7 +499,7 @@ class PasswordResetRequestView(APIView):
         serializer = PasswordResetRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        email = serializer.validated_data["email"].lower()  # type: ignore
+        email = serializer.validated_data["email"].lower()
         user = User.objects.filter(email__iexact=email).first()
 
         if user:
@@ -508,11 +509,13 @@ class PasswordResetRequestView(APIView):
             )
             reset_token = PasswordResetToken.objects.create(user=user)
 
+            # Build reset link
             reset_url = frontend_url(
                 "/reset-password", {"token": str(reset_token.token)}
             )
             timeout = getattr(settings, "PASSWORD_RESET_TIMEOUT_MINUTES", 15)
 
+            # Send email asynchronously with HTML template
             async_task(
                 "apps.accounts.tasks.send_password_reset_email_task",
                 user_email=user.email,
@@ -540,7 +543,6 @@ class PasswordResetConfirmView(APIView):
 
     Accept a reset token and new password to complete the password reset.
     Tokens are single-use and expire after PASSWORD_RESET_TIMEOUT_MINUTES.
-    Rate-limited to 3 requests/hour per IP.
     """
 
     permission_classes = [permissions.AllowAny]
@@ -550,8 +552,8 @@ class PasswordResetConfirmView(APIView):
         serializer = PasswordResetConfirmSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        token_value = serializer.validated_data["token"]  # type: ignore
-        new_password = serializer.validated_data["new_password"]  # type: ignore
+        token_value = serializer.validated_data["token"]
+        new_password = serializer.validated_data["new_password"]
 
         try:
             reset_token = PasswordResetToken.objects.select_related("user").get(
@@ -594,157 +596,52 @@ class PasswordResetConfirmView(APIView):
         )
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# OTP (Email Verification) Views
-# ─────────────────────────────────────────────────────────────────────────────
-
-
 @extend_schema(
-    request=OtpRequestSerializer,
-    responses=OpenApiResponse(description="OTP sent to email if account exists."),
+    responses=OpenApiResponse(description="Check if reset token is valid."),
 )
-class OtpRequestView(APIView):
+class PasswordResetValidateTokenView(APIView):
     """
-    POST /api/auth/otp/request/
+    GET /api/auth/password-reset/validate-token/?token=xxx
 
-    Regenerate and send a new OTP verification code to the given email.
-    Rate-limited to 3 requests/minute per IP to prevent email spam.
+    Check if a reset token is valid and not expired.
     """
 
     permission_classes = [permissions.AllowAny]
-    throttle_classes = [OtpGenerateThrottle]
 
-    def post(self, request):
-        serializer = OtpRequestSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+    def get(self, request):
+        token_value = request.query_params.get('token')
 
-        email = serializer.validated_data["email"].lower()  # type: ignore
-        user = User.objects.filter(email__iexact=email).first()
-
-        if user:
-            # Invalidate previous unused OTP tokens
-            OTPToken.objects.filter(user=user, is_used=False).update(is_used=True)
-            otp_obj = OTPToken.objects.create(user=user)
-
-            async_task(
-                "apps.accounts.tasks.send_otp_email_task",
-                user_email=user.email,
-                user_username=user.username,
-                otp_token=otp_obj.token,
-            )
-
-        return Response(
-            {"message": "If the email is registered, an OTP has been sent."},
-            status=status.HTTP_200_OK,
-        )
-
-
-@extend_schema(
-    request=OtpVerifySerializer,
-    responses=OpenApiResponse(description="Email verified successfully."),
-)
-class OtpVerifyView(APIView):
-    """
-    POST /api/auth/otp/verify/
-
-    Verify a user's email using the OTP token they received by email.
-    Rate-limited to 5 requests/minute per IP to prevent OTP guessing.
-    """
-
-    permission_classes = [permissions.AllowAny]
-    throttle_classes = [OtpVerifyThrottle]
-
-    def post(self, request):
-        serializer = OtpVerifySerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-
-        email = serializer.validated_data["email"].lower()  # type: ignore
-        otp = serializer.validated_data["otp"]  # type: ignore
-
-        user = User.objects.filter(email__iexact=email).first()
-        if not user:
+        if not token_value:
             return Response(
-                {"error": "invalid_otp"}, status=status.HTTP_400_BAD_REQUEST
+                {'valid': False, 'error': 'Token is required'},
+                status=status.HTTP_400_BAD_REQUEST
             )
 
-        token = OTPToken.objects.filter(user=user, token=otp, is_used=False).first()
-        if not token:
-            return Response(
-                {"error": "invalid_otp"}, status=status.HTTP_400_BAD_REQUEST
+        try:
+            reset_token = PasswordResetToken.objects.get(
+                token=token_value,
+                is_used=False,
             )
+        except PasswordResetToken.DoesNotExist:
+            return Response({
+                'valid': False,
+                'error': 'Invalid or already used token'
+            })
 
-        # Mark token as used
-        token.is_used = True
-        token.save()
+        if reset_token.is_expired():
+            return Response({
+                'valid': False,
+                'error': 'Token has expired'
+            })
 
-        user.is_verified = True  # type: ignore[attr-defined]
-        user.save(update_fields=["is_verified"])
-
-        return Response(
-            {
-                "message": "Your email has been verified successfully. You can now log in."
-            },
-            status=status.HTTP_200_OK,
-        )
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Magic Link Views
-# ─────────────────────────────────────────────────────────────────────────────
-
-
-@extend_schema(
-    request=MagicLinkRequestSerializer,
-    responses=OpenApiResponse(
-        description="Magic link sent to email if account exists."
-    ),
-)
-class MagicLinkRequestView(APIView):
-    """
-    POST /api/auth/magic-link/request/
-
-    Accept an email address and send a magic login link if the account exists.
-    Always returns the same response to prevent email enumeration attacks.
-    """
-
-    permission_classes = [permissions.AllowAny]
-    throttle_classes = [MagicLinkRequestThrottle, StrictIdentityMagicLinkThrottle]
-
-    def post(self, request):
-        serializer = MagicLinkRequestSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-
-        email = serializer.validated_data["email"].lower()  # type: ignore
-        user = User.objects.filter(email__iexact=email).first()
-
-        if user:
-            # Invalidate any existing unused tokens for this user
-            MagicLinkToken.objects.filter(user=user, is_used=False).update(is_used=True)
-            magic_token = MagicLinkToken.objects.create(user=user)
-
-            login_url = frontend_url("/magic-login", {"token": str(magic_token.token)})
-            timeout = getattr(settings, "MAGIC_LINK_TIMEOUT_MINUTES", 15)
-
-            async_task(
-                "apps.accounts.tasks.send_magic_link_email_task",
-                user_email=user.email,
-                user_username=user.username,
-                login_url=login_url,
-                timeout=timeout,
-            )
-
-        return Response(
-            {
-                "message": "If an account with that email exists, a magic login link has been sent."
-            },
-            status=status.HTTP_200_OK,
-        )
+<<<<<<< HEAD
+        return Response({
+            'valid': True,
+            'message': 'Token is valid',
+            'email': reset_token.user.email
+        })
 
 
-@extend_schema(
-    request=MagicLinkVerifySerializer,
-    responses=OpenApiResponse(description="Logged in successfully via magic link."),
-)
 class MagicLinkVerifyView(APIView):
     """
     POST /api/auth/magic-link/verify/
@@ -760,7 +657,7 @@ class MagicLinkVerifyView(APIView):
         serializer = MagicLinkVerifySerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        token_value = serializer.validated_data["token"]  # type: ignore
+        token_value = serializer.validated_data["token"]
 
         try:
             magic_token = MagicLinkToken.objects.select_related("user").get(
@@ -1216,3 +1113,4 @@ class PublicProfileView(APIView):
                 "completed_lessons": completed_lessons,
             }
         )
+>>>>>>> main

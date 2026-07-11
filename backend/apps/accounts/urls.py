@@ -15,6 +15,7 @@ from .views import (
     OtpVerifyView,
     PasswordResetConfirmView,
     PasswordResetRequestView,
+    PasswordResetValidateTokenView,  # ✅ ADD THIS IMPORT
     RefreshView,
     SecureAccountDeleteView,
     SignupView,
@@ -41,6 +42,7 @@ urlpatterns = [
     path("google/", GoogleLoginView.as_view(), name="google-login"),
     path("github/", GitHubOAuthStartView.as_view(), name="github-login"),
     path("github/callback/", GitHubOAuthCallbackView.as_view(), name="github-callback"),
+    
     # ── Password Reset ─────────────────────────────────────────────────────────
     path(
         "password-reset/",
@@ -52,9 +54,17 @@ urlpatterns = [
         PasswordResetConfirmView.as_view(),
         name="password-reset-confirm",
     ),
+    # ✅ ADD THIS - Validate Token Endpoint
+    path(
+        "password-reset/validate-token/",
+        PasswordResetValidateTokenView.as_view(),
+        name="password-reset-validate",
+    ),
+    
     # ── OTP / Email Verification ───────────────────────────────────────────────
     path("otp/request/", OtpRequestView.as_view(), name="otp-request"),
     path("otp/verify/", OtpVerifyView.as_view(), name="otp-verify"),
+    
     # ── Magic Link ─────────────────────────────────────────────────────────────
     path(
         "magic-link/request/", MagicLinkRequestView.as_view(), name="magic-link-request"
