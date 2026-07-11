@@ -2,6 +2,10 @@ import React, { useState, useEffect } from "react";
 import { fetchApi } from "../lib/api";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { CodeDiffViewer } from "../components/ui/CodeDiffViewer";
+import { ReportDialog } from "../components/moderation/ReportDialog";
+import { AudioRoom } from "../components/ui/AudioRoom";
+import { MentionTextarea } from "../components/ui/MentionTextarea";
+import { renderWithMentions } from "../utils/renderMentions";
 
 interface CodeSubmission {
   id: number;
@@ -17,6 +21,7 @@ interface CodeSubmission {
 export function PeerReviewPage() {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<"submit" | "review">("submit");
+  const [isAudioRoomActive, setIsAudioRoomActive] = useState(false);
 
   // Submit Tab State
   const [title, setTitle] = useState("");
@@ -34,7 +39,14 @@ export function PeerReviewPage() {
   const [isReviewing, setIsReviewing] = useState(false);
   const [reviewSuccess, setReviewSuccess] = useState(false);
 
-  const { data: pendingSubmissions = [], refetch: fetchPendingSubmissions, isLoading: isLoadingSubmissions } = useQuery<CodeSubmission[]>({
+  // Report Dialog State
+  const [reportDialogOpen, setReportDialogOpen] = useState(false);
+
+  const {
+    data: pendingSubmissions = [],
+    refetch: fetchPendingSubmissions,
+    isLoading: isLoadingSubmissions,
+  } = useQuery<CodeSubmission[]>({
     queryKey: ["pendingSubmissions"],
     queryFn: async () => {
       const response = await fetchApi("/progress/code-submissions/");
@@ -94,6 +106,7 @@ export function PeerReviewPage() {
       setFeedback("");
       setRating(5);
       setSelectedSubmission(null);
+      setIsAudioRoomActive(false);
       fetchPendingSubmissions();
     } catch (error) {
       console.error("Failed to submit review", error);
@@ -174,7 +187,9 @@ export function PeerReviewPage() {
                 />
               </div>
               <div>
-                <label className="block font-bold mb-2">Original Code Snippet (Optional)</label>
+                <label className="block font-bold mb-2">
+                  Original Code Snippet (Optional)
+                </label>
                 <textarea
                   rows={6}
                   value={originalCodeSnippet}
@@ -184,7 +199,9 @@ export function PeerReviewPage() {
                 />
               </div>
               <div>
-                <label className="block font-bold mb-2">Updated Code Snippet</label>
+                <label className="block font-bold mb-2">
+                  Updated Code Snippet
+                </label>
                 <textarea
                   required
                   rows={8}
@@ -240,7 +257,10 @@ export function PeerReviewPage() {
                   {pendingSubmissions.map((sub) => (
                     <div
                       key={sub.id}
-                      onClick={() => setSelectedSubmission(sub)}
+                      onClick={() => {
+                        setSelectedSubmission(sub);
+                        setIsAudioRoomActive(false);
+                      }}
                       className={`p-4 border-2 border-black rounded-lg cursor-pointer transition-all ${
                         selectedSubmission?.id === sub.id
                           ? "bg-primary text-black shadow-card-sm -translate-y-1"
@@ -260,9 +280,37 @@ export function PeerReviewPage() {
 
             {selectedSubmission && (
               <div className="bg-surface-low border-4 border-black rounded-2xl p-6 shadow-card dark:bg-[#1a1816] dark:border-[#2e2924] flex flex-col h-full">
-                <h2 className="text-2xl font-bold mb-4">
-                  Reviewing: {selectedSubmission.title}
-                </h2>
+                <div className="flex justify-between items-center mb-4">
+                  <h2 className="text-2xl font-bold">
+                    Reviewing: {selectedSubmission.title}
+                  </h2>
+                  <div className="flex gap-2">
+                    {!isAudioRoomActive && (
+                      <button
+                        onClick={() => setIsAudioRoomActive(true)}
+                        className="text-xs font-bold uppercase bg-blue-100 text-blue-800 border-2 border-blue-500 px-3 py-1 rounded hover:-translate-y-0.5 transition-all shadow-card-sm"
+                        title="Start Audio Review"
+                      >
+                        Audio Review
+                      </button>
+                    )}
+                    <button
+                      onClick={() => setReportDialogOpen(true)}
+                      className="text-xs font-bold uppercase bg-red-100 text-red-800 border-2 border-red-500 px-3 py-1 rounded hover:-translate-y-0.5 transition-all shadow-card-sm"
+                      title="Report Inappropriate Content"
+                    >
+                      Report
+                    </button>
+                  </div>
+                </div>
+
+                {isAudioRoomActive && (
+                  <AudioRoom
+                    roomId={`submission_${selectedSubmission.id}`}
+                    onEndCall={() => setIsAudioRoomActive(false)}
+                  />
+                )}
+
                 <div className="mb-6">
                   <CodeDiffViewer
                     originalCode={parsedOriginalCode}
@@ -278,7 +326,7 @@ export function PeerReviewPage() {
                       Author Notes
                     </h4>
                     <p className="p-3 bg-surface border-l-4 border-primary rounded whitespace-pre-wrap">
-                      {parsedDescription}
+                      {renderWithMentions(parsedDescription)}
                     </p>
                   </div>
                 )}
@@ -297,13 +345,13 @@ export function PeerReviewPage() {
                     <label className="block font-bold mb-2">
                       Your Feedback
                     </label>
-                    <textarea
+                    <MentionTextarea
                       required
                       rows={4}
                       value={feedback}
-                      onChange={(e) => setFeedback(e.target.value)}
-                      className="w-full px-4 py-2 border-2 border-black rounded-lg focus:ring-2 focus:ring-primary dark:bg-black dark:border-[#2e2924]"
-                      placeholder="Be constructive and helpful..."
+                      onChange={(val) => setFeedback(val)}
+                      className=""
+                      placeholder="Be constructive and helpful... (use @ to mention users)"
                     />
                   </div>
                   <div>
@@ -334,6 +382,15 @@ export function PeerReviewPage() {
           </div>
         )}
       </main>
+
+      <ReportDialog
+        isOpen={reportDialogOpen}
+        onClose={() => setReportDialogOpen(false)}
+        contentType="progress.peerreview"
+        objectId={selectedSubmission?.id || 0}
+      />
     </div>
   );
 }
+
+export default PeerReviewPage;

@@ -15,23 +15,25 @@ export function ChallengePage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [uploadMessage, setUploadMessage] = useState("");
-  const [searchTerm, setSearchTerm] = useState('');
-  const [selectedDifficulty, setSelectedDifficulty] = useState('all');
+  const [searchTerm, setSearchTerm] = useState("");
+  const [selectedDifficulty, setSelectedDifficulty] = useState("all");
 
   const [search, setSearch] = useState("");
   const [difficulty, setDifficulty] = useState<Difficulty | null>(null);
 
-  const filteredChallenges = challengeCards.filter(challenge => {
-  // Search filter
-  const matchesSearch = challenge.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                        challenge.summary?.toLowerCase().includes(searchTerm.toLowerCase());
-  
-  // Difficulty filter
-  const matchesDifficulty = selectedDifficulty === 'all' || 
-                           challenge.difficulty === selectedDifficulty;
-  
-  return matchesSearch && matchesDifficulty;
-});
+  const filteredChallenges = challengeCards.filter((challenge) => {
+    // Search filter
+    const matchesSearch =
+      challenge.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      challenge.summary?.toLowerCase().includes(searchTerm.toLowerCase());
+
+    // Difficulty filter
+    const matchesDifficulty =
+      selectedDifficulty === "all" ||
+      challenge.difficulty === selectedDifficulty;
+
+    return matchesSearch && matchesDifficulty;
+  });
 
   const handleFileUpload = async (
     event: React.ChangeEvent<HTMLInputElement>,
@@ -147,64 +149,64 @@ export function ChallengePage() {
       </div>
 
       <div className="mb-6">
-      <input
-         type="text"
-         placeholder="Search challenges..."
-        value={searchTerm}
-        onChange={(e) => setSearchTerm(e.target.value)}
-        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-        aria-label="Search challenges"
-       />
+        <input
+          type="text"
+          placeholder="Search challenges..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          aria-label="Search challenges"
+        />
       </div>
 
       <div className="flex flex-wrap gap-2 mb-6">
-      <button
-         onClick={() => setSelectedDifficulty('all')}
-         className={`px-4 py-2 rounded-lg font-medium transition ${
-         selectedDifficulty === 'all'
-            ? 'bg-blue-500 text-white'
-            : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-        }`}
-      >
-    All
-  </button>
-  <button
-    onClick={() => setSelectedDifficulty('beginner')}
-    className={`px-4 py-2 rounded-lg font-medium transition ${
-      selectedDifficulty === 'beginner'
-        ? 'bg-green-500 text-white'
-        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-    }`}
-  >
-    🟢 Beginner
-  </button>
-  <button
-    onClick={() => setSelectedDifficulty('intermediate')}
-    className={`px-4 py-2 rounded-lg font-medium transition ${
-      selectedDifficulty === 'intermediate'
-        ? 'bg-yellow-500 text-white'
-        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-    }`}
-  >
-    🟡 Intermediate
-  </button>
-  <button
-    onClick={() => setSelectedDifficulty('advanced')}
-    className={`px-4 py-2 rounded-lg font-medium transition ${
-      selectedDifficulty === 'advanced'
-        ? 'bg-red-500 text-white'
-        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
-    }`}
-  >
-    🔴 Advanced
-  </button>
-</div>
+        <button
+          onClick={() => setSelectedDifficulty("all")}
+          className={`px-4 py-2 rounded-lg font-medium transition ${
+            selectedDifficulty === "all"
+              ? "bg-blue-500 text-white"
+              : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+          }`}
+        >
+          All
+        </button>
+        <button
+          onClick={() => setSelectedDifficulty("beginner")}
+          className={`px-4 py-2 rounded-lg font-medium transition ${
+            selectedDifficulty === "beginner"
+              ? "bg-green-500 text-white"
+              : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+          }`}
+        >
+          🟢 Beginner
+        </button>
+        <button
+          onClick={() => setSelectedDifficulty("intermediate")}
+          className={`px-4 py-2 rounded-lg font-medium transition ${
+            selectedDifficulty === "intermediate"
+              ? "bg-yellow-500 text-white"
+              : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+          }`}
+        >
+          🟡 Intermediate
+        </button>
+        <button
+          onClick={() => setSelectedDifficulty("advanced")}
+          className={`px-4 py-2 rounded-lg font-medium transition ${
+            selectedDifficulty === "advanced"
+              ? "bg-red-500 text-white"
+              : "bg-gray-200 text-gray-700 hover:bg-gray-300"
+          }`}
+        >
+          🔴 Advanced
+        </button>
+      </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
         {filtered.map((item) => (
           <SectionCard key={item.title} eyebrow={item.badge} title={item.title}>
             <p className="text-sm leading-6 text-muted">{item.summary}</p>
-             <button
+            <button
               onClick={() => navigate("/sandbox")}
               className="mt-5 rounded-lg bg-surface-low border-2 border-black px-4 py-2 text-sm font-black text-black shadow-card-sm hover:-translate-y-0.5 active:translate-y-0 transition-all cursor-pointer dark:bg-[#ffd166] dark:text-[#14100a] dark:border-[#b9851d] dark:hover:bg-[#ffe08a]"
             >
@@ -221,3 +223,5 @@ export function ChallengePage() {
     </div>
   );
 }
+
+export default ChallengePage;

@@ -43,3 +43,5 @@ export function ServerErrorPage() {
     </div>
   );
 }
+
+export default ServerErrorPage;

@@ -5,6 +5,15 @@ import type { ShellState } from "../hooks/useGitShell";
 
 const mockShellState: ShellState = {
   cwd: ["~"],
+  vfs: {
+    root: {
+      type: "dir",
+      children: {},
+      created: 0,
+      modified: 0,
+    },
+    cwd: ["~"],
+  },
   fs: {
     "~": { type: "dir", children: {} },
     "~/file.txt": { type: "file", content: "" },
@@ -29,14 +38,14 @@ const mockShellState: ShellState = {
 describe("useTerminalAutocomplete", () => {
   it("should return empty suggestions for empty input", () => {
     const { result } = renderHook(() =>
-      useTerminalAutocomplete("", mockShellState)
+      useTerminalAutocomplete("", mockShellState),
     );
     expect(result.current.suggestions).toEqual([]);
   });
 
   it("should suggest base commands when typing the first word", () => {
     const { result } = renderHook(() =>
-      useTerminalAutocomplete("c", mockShellState)
+      useTerminalAutocomplete("c", mockShellState),
     );
     const texts = result.current.suggestions.map((s) => s.text);
     expect(texts).toContain("cd");
@@ -47,7 +56,7 @@ describe("useTerminalAutocomplete", () => {
 
   it("should suggest git commands when typing 'git '", () => {
     const { result } = renderHook(() =>
-      useTerminalAutocomplete("git ", mockShellState)
+      useTerminalAutocomplete("git ", mockShellState),
     );
     const texts = result.current.suggestions.map((s) => s.text);
     expect(texts).toContain("status");
@@ -57,7 +66,7 @@ describe("useTerminalAutocomplete", () => {
 
   it("should filter git commands based on prefix", () => {
     const { result } = renderHook(() =>
-      useTerminalAutocomplete("git s", mockShellState)
+      useTerminalAutocomplete("git s", mockShellState),
     );
     const texts = result.current.suggestions.map((s) => s.text);
     expect(texts).toContain("status");
@@ -67,7 +76,7 @@ describe("useTerminalAutocomplete", () => {
 
   it("should suggest files and directories for generic commands like 'cat '", () => {
     const { result } = renderHook(() =>
-      useTerminalAutocomplete("cat ", mockShellState)
+      useTerminalAutocomplete("cat ", mockShellState),
     );
     const texts = result.current.suggestions.map((s) => s.text);
     expect(texts).toContain("file.txt");
@@ -77,18 +86,18 @@ describe("useTerminalAutocomplete", () => {
 
   it("should filter files based on prefix", () => {
     const { result } = renderHook(() =>
-      useTerminalAutocomplete("cat app", mockShellState)
+      useTerminalAutocomplete("cat app", mockShellState),
     );
     const texts = result.current.suggestions.map((s) => s.text);
     expect(texts).toEqual(["app.js", "app_test.js"]);
-    
+
     // Check completion text
     expect(result.current.suggestions[0].completionText).toBe("cat app.js ");
   });
 
   it("should only suggest directories for 'cd ' command", () => {
     const { result } = renderHook(() =>
-      useTerminalAutocomplete("cd ", mockShellState)
+      useTerminalAutocomplete("cd ", mockShellState),
     );
     const texts = result.current.suggestions.map((s) => s.text);
     expect(texts).toContain("folder/");
@@ -97,7 +106,7 @@ describe("useTerminalAutocomplete", () => {
 
   it("should suggest children when path contains a slash", () => {
     const { result } = renderHook(() =>
-      useTerminalAutocomplete("cat folder/", mockShellState)
+      useTerminalAutocomplete("cat folder/", mockShellState),
     );
     const texts = result.current.suggestions.map((s) => s.text);
     expect(texts).toContain("script.js");
@@ -107,20 +116,22 @@ describe("useTerminalAutocomplete", () => {
   it("should resolve '..' in paths correctly", () => {
     const deepState = { ...mockShellState, cwd: ["~", "folder", "subfolder"] };
     const { result } = renderHook(() =>
-      useTerminalAutocomplete("cat ../", deepState)
+      useTerminalAutocomplete("cat ../", deepState),
     );
     const texts = result.current.suggestions.map((s) => s.text);
     expect(texts).toContain("script.js");
     expect(texts).toContain("subfolder/");
     // Also tests completion text replacement
-    const scriptSugg = result.current.suggestions.find(s => s.text === "script.js");
+    const scriptSugg = result.current.suggestions.find(
+      (s) => s.text === "script.js",
+    );
     expect(scriptSugg?.completionText).toBe("cat ../script.js ");
   });
 
   it("should include '..' for directories when nested", () => {
     const deepState = { ...mockShellState, cwd: ["~", "folder"] };
     const { result } = renderHook(() =>
-      useTerminalAutocomplete("cd .", deepState)
+      useTerminalAutocomplete("cd .", deepState),
     );
     const texts = result.current.suggestions.map((s) => s.text);
     expect(texts).toContain("../");
@@ -129,7 +140,7 @@ describe("useTerminalAutocomplete", () => {
   it("should handle absolute paths from ~", () => {
     const deepState = { ...mockShellState, cwd: ["~", "folder"] };
     const { result } = renderHook(() =>
-      useTerminalAutocomplete("cat ~/a", deepState)
+      useTerminalAutocomplete("cat ~/a", deepState),
     );
     const texts = result.current.suggestions.map((s) => s.text);
     expect(texts).toContain("app.js");

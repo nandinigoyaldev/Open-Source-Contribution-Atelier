@@ -21,12 +21,20 @@ from apps.notifications.routing import (  # noqa: E402
 )
 from apps.sandbox.routing import websocket_urlpatterns as sandbox_ws  # noqa: E402
 
+# Combine all WebSocket patterns across the platform modules
+# Including dashboard_ws which handles real-time metric distributions
+combined_websocket_urlpatterns = notifications_ws + dashboard_ws + chat_ws + sandbox_ws
+
+from apps.core.middleware import WebSocketRateLimitMiddleware
+
 application = ProtocolTypeRouter(
     {
         "http": django_asgi_app,
         "websocket": AllowedHostsOriginValidator(
-            JWTAuthMiddleware(
-                URLRouter(notifications_ws + dashboard_ws + chat_ws + sandbox_ws)
+            WebSocketRateLimitMiddleware(
+                JWTAuthMiddleware(
+                    URLRouter(combined_websocket_urlpatterns)
+                )
             )
         ),
     }

@@ -1,8 +1,25 @@
 import { enqueueOfflineAction } from "./offlineQueue";
-import toast from "react-hot-toast"; // <-- YEH HUMNE ADD KIYA HAI
+import toast from "react-hot-toast";
 
+// 1. Defend the environment variable retrieval against server-side execution crashes
+const getSafeEnvVar = (key: string): string => {
+  if (typeof process !== "undefined" && process.env && process.env[key]) {
+    return process.env[key] as string;
+  }
+  try {
+    if (typeof import.meta !== "undefined" && import.meta.env?.[key]) {
+      return import.meta.env[key] as string;
+    }
+  } catch (e) {}
+  return "";
+};
+
+// 2. Safely resolve the base URL
 const API_BASE =
-  import.meta.env.VITE_API_BASE_URL?.trim() || `${window.location.origin}/api`;
+  getSafeEnvVar("VITE_API_BASE_URL").trim() ||
+  (typeof window !== "undefined"
+    ? `${window.location.origin}/api`
+    : "http://127.0.0.1:8000/api");
 
 type RequestOptions = RequestInit & {
   requireAuth?: boolean;
@@ -48,7 +65,9 @@ export async function fetchApi(endpoint: string, options: RequestOptions = {}) {
   } = options;
 
   const headers = new Headers(customHeaders);
-  headers.set("Content-Type", "application/json");
+  if (!(config.body instanceof FormData)) {
+    headers.set("Content-Type", "application/json");
+  }
 
   if (requireAuth) {
     let token: string | null = null;
@@ -105,7 +124,9 @@ export async function fetchApi(endpoint: string, options: RequestOptions = {}) {
               toast.error("You do not have permission to perform this action.");
               break;
             case 429:
-              toast.error(errorMessage || "Too many requests. Please slow down!");
+              toast.error(
+                errorMessage || "Too many requests. Please slow down!",
+              );
               break;
             case 500:
               toast.error("Server error. Our team has been notified.");
@@ -144,6 +165,9 @@ export async function fetchApi(endpoint: string, options: RequestOptions = {}) {
         const isOfflineOrNetworkError =
           !navigator.onLine || error instanceof TypeError;
         if (isOfflineOrNetworkError) {
+          if (config.body instanceof FormData) {
+            throw error;
+          }
           const bodyStr = config.body as string;
           try {
             const bodyObj = JSON.parse(bodyStr || "{}");
@@ -247,7 +271,6 @@ export async function saveSandboxSnapshot(
     body: JSON.stringify({ code, label, is_auto }),
   });
 }
-
 
 export interface ProjectFile {
   id: string;
@@ -519,4 +542,49 @@ export async function executeTerminalCommand(
     method: "POST",
     body: JSON.stringify({ command }),
   });
+}
+
+export async function exportWorkspaceZip(projectId: string): Promise<void> {
+  const token = localStorage.getItem("accessToken");
+  const response = await fetch(
+    `${API_BASE}/sandbox/projects/${projectId}/export_zip/`,
+    {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    },
+  );
+
+  if (!response.ok) {
+    throw new Error("Failed to export workspace");
+  }
+
+  // Get filename from Content-Disposition header
+  const contentDisposition = response.headers.get("Content-Disposition") || "";
+  const filenameMatch = contentDisposition.match(/filename(?:\*)?=(?:"([^"]+)"|UTF-8''([^;]+))/i);
+  const filename = filenameMatch ? (filenameMatch[1] || filenameMatch[2]) : "workspace-export.zip";
+
+  // Create blob and download
+  const blob = await response.blob();
+  const url = window.URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  window.URL.revokeObjectURL(url);
+  document.body.removeChild(a);
+}
+
+export function getMediaUrl(path: string | null | undefined): string | null {
+  if (!path) return null;
+  if (path.startsWith("http://") || path.startsWith("https://")) {
+    return path;
+  }
+  const API_BASE = import.meta.env.VITE_API_BASE_URL?.trim() || `${window.location.origin}/api`;
+  const BACKEND_BASE = API_BASE.endsWith("/api")
+    ? API_BASE.substring(0, API_BASE.length - 4)
+    : API_BASE;
+  return `${BACKEND_BASE}${path.startsWith("/") ? "" : "/"}${path}`;
 }

@@ -19,6 +19,7 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
+  overflow-x: hidden;
   font-family: "Outfit", "Inter", sans-serif;
   color: #000000;
   background-color: #fdfbf7;
@@ -62,6 +63,10 @@ html.dark {
   --dark-primary: #ff665c;
   --dark-cyan: #22d3ee;
   --dark-green: #4ade80;
+}
+
+html {
+  overflow-x: hidden;
 }
 
 /*
@@ -164,7 +169,7 @@ html.dark .bg-accent\/20 {
 
 html.dark .bg-primary\/10,
 html.dark .bg-primary\/20 {
-  background-color: rgb(255 102 92 / 0.20) !important;
+  background-color: rgb(255 102 92 / 0.2) !important;
 }
 
 html.dark .bg-green-100,
@@ -473,6 +478,24 @@ input {
     border: none !important;
   }
 
+  /* Reset dark mode styles for printing */
+  html.dark .certificate-printable,
+  html.dark .certificate-printable * {
+    color: #000000 !important;
+    border-color: #000000 !important;
+  }
+
+  html.dark .certificate-printable {
+    color-scheme: light !important;
+    background-color: #ffffff !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  html.dark .certificate-printable.bg-\[\#FFF9F0\] {
+    background-color: #fff9f0 !important;
+  }
+
   .no-print {
     display: none !important;
   }
@@ -694,7 +717,7 @@ html.high-contrast [tabindex]:focus-visible {
     gap: 12px !important;
     width: 100% !important;
   }
-  
+
   .button-group button,
   .cta-buttons button,
   .auth-buttons button,

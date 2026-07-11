@@ -6,7 +6,6 @@ import { fetchApi } from "../../lib/api";
 import { useAuth } from "./AuthContext";
 import { useToast } from "../ui/ToastContext";
 import { AvatarUploadDropzone } from "../../components/ui/AvatarUploadDropzone";
-import { CoverUploadDropzone } from "../../components/ui/CoverUploadDropzone";
 import { useWebPush } from "../../hooks/useWebPush";
 
 const profileSchema = z.object({
@@ -62,17 +61,21 @@ const profileSchema = z.object({
         message: "Please enter a valid URL (starting with http:// or https://)",
       },
     ),
+  receive_weekly_digest: z.boolean().default(true),
 });
 
 type ProfileFormValues = z.input<typeof profileSchema>;
 
-export function ProfileSettingsForm() {
+interface ProfileSettingsFormProps {
+  onChange?: (values: any) => void;
+}
+
+export function ProfileSettingsForm({ onChange }: ProfileSettingsFormProps) {
   const { user, checkUser } = useAuth();
   const { addToast } = useToast();
   const [loading, setLoading] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [selectedAvatar, setSelectedAvatar] = useState<File | null>(null);
-  const [selectedCover, setSelectedCover] = useState<File | null>(null);
 
   const { isSupported, isSubscribed, subscribe, unsubscribe } = useWebPush();
 
@@ -80,6 +83,7 @@ export function ProfileSettingsForm() {
     register,
     handleSubmit,
     reset,
+    watch,
     formState: { errors },
   } = useForm<ProfileFormValues>({
     resolver: zodResolver(profileSchema),
@@ -92,8 +96,18 @@ export function ProfileSettingsForm() {
       twitter_url: user?.twitter_url || "",
       linkedin_url: user?.linkedin_url || "",
       github_url: user?.github_url || "",
+      receive_weekly_digest: user?.receive_weekly_digest ?? true,
     },
   });
+
+  const watchedValues = watch();
+
+  useEffect(() => {
+    onChange?.({
+      ...watchedValues,
+      avatarFile: selectedAvatar,
+    });
+  }, [watchedValues, selectedAvatar, onChange]);
 
   useEffect(() => {
     if (user?.email) {
@@ -106,6 +120,7 @@ export function ProfileSettingsForm() {
         twitter_url: user.twitter_url || "",
         linkedin_url: user.linkedin_url || "",
         github_url: user.github_url || "",
+        receive_weekly_digest: user.receive_weekly_digest ?? true,
       });
     }
   }, [user, reset]);
@@ -116,7 +131,7 @@ export function ProfileSettingsForm() {
     try {
       let body: FormData | string;
 
-      if (selectedAvatar || selectedCover) {
+      if (selectedAvatar) {
         const formData = new FormData();
         formData.append("email", data.email);
         if (data.password) formData.append("password", data.password);
@@ -125,8 +140,11 @@ export function ProfileSettingsForm() {
         formData.append("twitter_url", data.twitter_url || "");
         formData.append("linkedin_url", data.linkedin_url || "");
         formData.append("github_url", data.github_url || "");
-        if (selectedAvatar) formData.append("avatar", selectedAvatar);
-        if (selectedCover) formData.append("cover_image", selectedCover);
+        formData.append(
+          "receive_weekly_digest",
+          String(data.receive_weekly_digest),
+        );
+        formData.append("avatar", selectedAvatar);
         body = formData;
       } else {
         const payload: Record<string, string> = {
@@ -135,6 +153,7 @@ export function ProfileSettingsForm() {
           twitter_url: data.twitter_url || "",
           linkedin_url: data.linkedin_url || "",
           github_url: data.github_url || "",
+          receive_weekly_digest: String(data.receive_weekly_digest),
         };
         if (data.password) payload.password = data.password;
         if (data.bio !== undefined) payload.bio = data.bio;
@@ -147,7 +166,7 @@ export function ProfileSettingsForm() {
         body: body,
       });
 
-      await checkUser(); 
+      await checkUser();
       addToast("Profile settings updated successfully!", "success");
       reset({
         email: data.email,
@@ -157,6 +176,7 @@ export function ProfileSettingsForm() {
         twitter_url: data.twitter_url || "",
         linkedin_url: data.linkedin_url || "",
         github_url: data.github_url || "",
+        receive_weekly_digest: data.receive_weekly_digest,
       });
     } catch (err: unknown) {
       addToast(
@@ -206,10 +226,6 @@ export function ProfileSettingsForm() {
 
   return (
     <form className="space-y-6 pt-2" onSubmit={handleSubmit(onSubmit)}>
-      <CoverUploadDropzone
-        currentCoverUrl={user?.cover_image_url}
-        onFileSelect={(file) => setSelectedCover(file)}
-      />
       <AvatarUploadDropzone
         currentAvatarUrl={user?.avatar_url}
         onFileSelect={(file) => setSelectedAvatar(file)}
@@ -386,6 +402,45 @@ export function ProfileSettingsForm() {
             {errors.twitter_url.message}
           </p>
         )}
+      </div>
+
+      <div className="space-y-4 mt-8 bg-[#E8F0FE] p-6 rounded-2xl border-4 border-black shadow-card dark:bg-[#151411]">
+        <h3 className="font-bold text-black text-xl uppercase tracking-wide">
+          📬 Email Preferences
+        </h3>
+        <p className="text-muted text-sm mb-4 font-medium">
+          Control how we communicate with you via email.
+        </p>
+
+        <label className="flex items-center gap-4 cursor-pointer">
+          <div className="relative">
+            <input
+              type="checkbox"
+              {...register("receive_weekly_digest")}
+              className="sr-only"
+              disabled={loading}
+            />
+            <div
+              className={`block w-14 h-8 rounded-full border-4 border-black transition-colors ${
+                watch("receive_weekly_digest") ? "bg-green-400" : "bg-gray-300"
+              }`}
+            ></div>
+            <div
+              className={`dot absolute left-1 top-1 bg-black w-4 h-4 rounded-full transition-transform ${
+                watch("receive_weekly_digest") ? "transform translate-x-6" : ""
+              }`}
+            ></div>
+          </div>
+          <div>
+            <div className="font-bold text-black uppercase tracking-wide">
+              Weekly Progress Digest
+            </div>
+            <div className="text-muted text-sm font-medium">
+              Receive a personalized summary of your XP, streaks, and smart AI
+              learning insights every week.
+            </div>
+          </div>
+        </label>
       </div>
 
       <div className="space-y-4 mt-8">

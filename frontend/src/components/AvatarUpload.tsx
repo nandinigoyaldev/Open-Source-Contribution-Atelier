@@ -1,14 +1,17 @@
-import React, { useState, useRef } from 'react';
-import { fetchApi } from '../lib/api';
-import { useAuth } from '../features/auth/AuthContext';
-import './AvatarUpload.css';
+import React, { useState, useRef } from "react";
+import { fetchApi } from "../lib/api";
+import { useAuth } from "../features/auth/AuthContext";
+import "./AvatarUpload.css";
 
 interface AvatarUploadProps {
   currentAvatar?: string | null;
   onAvatarUpdate: (url: string) => void;
 }
 
-export function AvatarUpload({ currentAvatar, onAvatarUpdate }: AvatarUploadProps) {
+export function AvatarUpload({
+  currentAvatar,
+  onAvatarUpdate,
+}: AvatarUploadProps) {
   const [preview, setPreview] = useState<string | null>(currentAvatar || null);
   const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -16,14 +19,14 @@ export function AvatarUpload({ currentAvatar, onAvatarUpdate }: AvatarUploadProp
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileSelect = async (file: File) => {
-    const validTypes = ['image/jpeg', 'image/png', 'image/gif', 'image/webp'];
+    const validTypes = ["image/jpeg", "image/png", "image/gif", "image/webp"];
     if (!validTypes.includes(file.type)) {
-      setError('Please upload a JPEG, PNG, GIF, or WebP image.');
+      setError("Please upload a JPEG, PNG, GIF, or WebP image.");
       return;
     }
 
     if (file.size > 5 * 1024 * 1024) {
-      setError('Image size must be under 5MB.');
+      setError("Image size must be under 5MB.");
       return;
     }
 
@@ -37,19 +40,19 @@ export function AvatarUpload({ currentAvatar, onAvatarUpdate }: AvatarUploadProp
     reader.readAsDataURL(file);
 
     const formData = new FormData();
-    formData.append('avatar', file);
+    formData.append("avatar", file);
 
     try {
-      const response = await fetchApi('/accounts/profile/avatar/', {
-        method: 'POST',
+      const response = await fetchApi("/accounts/profile/avatar/", {
+        method: "POST",
         body: formData,
       });
-      
+
       if (response.avatar_url) {
         onAvatarUpdate(response.avatar_url);
       }
     } catch (err) {
-      setError('Failed to upload image. Please try again.');
+      setError("Failed to upload image. Please try again.");
       setPreview(currentAvatar || null);
     } finally {
       setIsUploading(false);
@@ -58,13 +61,13 @@ export function AvatarUpload({ currentAvatar, onAvatarUpdate }: AvatarUploadProp
 
   const handleRemove = async () => {
     try {
-      await fetchApi('/accounts/profile/avatar/', {
-        method: 'DELETE',
+      await fetchApi("/accounts/profile/avatar/", {
+        method: "DELETE",
       });
       setPreview(null);
-      onAvatarUpdate('');
+      onAvatarUpdate("");
     } catch (err) {
-      setError('Failed to remove avatar.');
+      setError("Failed to remove avatar.");
     }
   };
 
@@ -77,9 +80,12 @@ export function AvatarUpload({ currentAvatar, onAvatarUpdate }: AvatarUploadProp
 
   return (
     <div className="avatar-upload-container">
-      <div 
-        className={`avatar-preview ${isDragging ? 'dragging' : ''}`}
-        onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+      <div
+        className={`avatar-preview ${isDragging ? "dragging" : ""}`}
+        onDragOver={(e) => {
+          e.preventDefault();
+          setIsDragging(true);
+        }}
         onDragLeave={() => setIsDragging(false)}
         onDrop={handleDrop}
         onClick={() => fileInputRef.current?.click()}
@@ -113,15 +119,15 @@ export function AvatarUpload({ currentAvatar, onAvatarUpdate }: AvatarUploadProp
       {error && <p className="avatar-error">{error}</p>}
 
       <div className="avatar-actions">
-        <button 
+        <button
           className="avatar-btn upload"
           onClick={() => fileInputRef.current?.click()}
           disabled={isUploading}
         >
-          {isUploading ? 'Uploading...' : '📤 Upload'}
+          {isUploading ? "Uploading..." : "📤 Upload"}
         </button>
         {preview && (
-          <button 
+          <button
             className="avatar-btn remove"
             onClick={handleRemove}
             disabled={isUploading}

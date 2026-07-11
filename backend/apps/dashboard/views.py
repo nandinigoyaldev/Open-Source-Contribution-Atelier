@@ -150,8 +150,9 @@ class AdminDashboardView(APIView):
     """
 
     def get_permissions(self):
-        from apps.rbac.permissions import HasAnyRole
         from rest_framework import permissions
+
+        from apps.rbac.permissions import HasAnyRole
 
         return [permissions.IsAuthenticated(), HasAnyRole(["Admin"])]
 
@@ -626,8 +627,9 @@ from apps.rbac.models import UserRole
 
 class ModeratorAnalyticsView(APIView):
     def get_permissions(self):
-        from apps.rbac.permissions import HasAnyRole
         from rest_framework import permissions
+
+        from apps.rbac.permissions import HasAnyRole
 
         return [permissions.IsAuthenticated(), HasAnyRole(["Admin", "Moderator"])]
 
@@ -636,11 +638,7 @@ class ModeratorAnalyticsView(APIView):
 
         # 1. Registrations
         registrations = (
-feat/localsync-hook
-            User.objects.select_related('profile')
-
             User.objects.select_related("profile")
- main
             .filter(date_joined__gte=thirty_days_ago)
             .annotate(date=TruncDate("date_joined"))
             .values("date")

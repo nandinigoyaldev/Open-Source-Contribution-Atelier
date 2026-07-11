@@ -1,6 +1,12 @@
 // @refresh reset
 /* eslint-disable react-refresh/only-export-components */
-import React, { createContext, useContext, useEffect, useCallback, useMemo } from "react";
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useCallback,
+  useMemo,
+} from "react";
 import { useAppDispatch, useAppSelector } from "../../store/hooks";
 import { useAuth } from "../auth/AuthContext";
 import { useWebSocket } from "../../hooks/useWebSocket";
@@ -28,20 +34,30 @@ interface NotificationContextType {
   dismissToast: (id: string) => void;
 }
 
-const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
+const NotificationContext = createContext<NotificationContextType | undefined>(
+  undefined,
+);
 
 function getNotificationsWsUrl(): string {
-  const apiBase = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api";
+  const apiBase =
+    import.meta.env?.VITE_API_BASE_URL || "http://localhost:8000/api";
   const host = apiBase.replace(/^https?:\/\//, "").replace(/\/api\/?$/, "");
   const scheme = apiBase.startsWith("https") ? "wss" : "ws";
   return `${scheme}://${host}/ws/notifications/`;
 }
 
-export function NotificationProvider({ children }: { children: React.ReactNode }) {
+export function NotificationProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const { user } = useAuth();
   const dispatch = useAppDispatch();
-  const { notifications, wsUnreadCount, isLoading } = useAppSelector((state) => state.notifications);
-  const { toasts, addToast, addDynamicToast, dismissToast } = useBadgeToast(BADGES);
+  const { notifications, wsUnreadCount, isLoading } = useAppSelector(
+    (state) => state.notifications,
+  );
+  const { toasts, addToast, addDynamicToast, dismissToast } =
+    useBadgeToast(BADGES);
 
   // Initial fetch for notifications list
   useEffect(() => {
@@ -54,7 +70,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   const unreadCount = useMemo(() => {
     return Math.max(
       wsUnreadCount,
-      notifications.filter((n) => !n.is_read).length
+      notifications.filter((n) => !n.is_read).length,
     );
   }, [wsUnreadCount, notifications]);
 
@@ -71,11 +87,15 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     token: user && !user.is_staff ? token : null,
     onMessage: (data: unknown) => {
       const msg = data as Record<string, unknown>;
-      
+
       if (msg?.type === "connection_established") {
-        dispatch(setWsUnreadCount(typeof msg.unread_count === "number" ? msg.unread_count : 0));
+        dispatch(
+          setWsUnreadCount(
+            typeof msg.unread_count === "number" ? msg.unread_count : 0,
+          ),
+        );
       }
-      
+
       if (msg?.type === "notification") {
         const notif = msg.notification as AppNotification;
         dispatch(addNotification(notif));
@@ -96,7 +116,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
           }
         }
       }
-      
+
       if (msg?.type === "marked_read") {
         const id = msg.notification_id as number;
         dispatch(markReadLocally(id));
@@ -104,25 +124,28 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     },
   });
 
-  const markAsRead = useCallback(async (id: number) => {
-    if (!user || user.is_staff) return;
-    
-    // Optimistic update
-    dispatch(markReadLocally(id));
+  const markAsRead = useCallback(
+    async (id: number) => {
+      if (!user || user.is_staff) return;
 
-    try {
-      // Use WS to mark read if possible, fallback to REST
-      sendMessage({ action: "mark_read", notification_id: id });
-      await api.post(`/notifications/${id}/read/`);
-    } catch (error) {
-      console.error("Failed to mark notification as read", error);
-      dispatch(fetchNotifications());
-    }
-  }, [user, sendMessage, dispatch]);
+      // Optimistic update
+      dispatch(markReadLocally(id));
+
+      try {
+        // Use WS to mark read if possible, fallback to REST
+        sendMessage({ action: "mark_read", notification_id: id });
+        await api.post(`/notifications/${id}/read/`);
+      } catch (error) {
+        console.error("Failed to mark notification as read", error);
+        dispatch(fetchNotifications());
+      }
+    },
+    [user, sendMessage, dispatch],
+  );
 
   const markAllAsRead = useCallback(async () => {
     if (!user || user.is_staff) return;
-    
+
     // Optimistic update
     dispatch(markAllReadLocally());
 
@@ -154,7 +177,9 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 export function useNotifications() {
   const context = useContext(NotificationContext);
   if (context === undefined) {
-    throw new Error("useNotifications must be used within a NotificationProvider");
+    throw new Error(
+      "useNotifications must be used within a NotificationProvider",
+    );
   }
   return context;
 }

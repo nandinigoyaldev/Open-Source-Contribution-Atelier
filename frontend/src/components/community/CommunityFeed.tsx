@@ -5,7 +5,11 @@ import { HelpCircle, Code, Award, BookOpen, Clock } from "lucide-react";
 
 interface FeedEntry {
   id: string;
-  type: "help_request" | "code_submission" | "badge_earned" | "lesson_completed";
+  type:
+    | "help_request"
+    | "code_submission"
+    | "badge_earned"
+    | "lesson_completed";
   user_id: number;
   username: string;
   title: string;
@@ -46,28 +50,23 @@ function timeAgo(dateStr: string): string {
 }
 
 export function CommunityFeed() {
-  const {
-    data,
-    fetchNextPage,
-    hasNextPage,
-    isFetchingNextPage,
-    isLoading,
-  } = useInfiniteQuery<FeedResponse>({
-    queryKey: ["communityFeed"],
-    queryFn: async ({ pageParam }) => {
-      const url = pageParam
-        ? `/progress/feed/?page=${pageParam}`
-        : "/progress/feed/";
-      return fetchApi(url);
-    },
-    initialPageParam: 1,
-    getNextPageParam: (lastPage) => {
-      if (!lastPage.next) return undefined;
-      const url = new URL(lastPage.next);
-      const page = url.searchParams.get("page");
-      return page ? Number(page) : undefined;
-    },
-  });
+  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } =
+    useInfiniteQuery<FeedResponse>({
+      queryKey: ["communityFeed"],
+      queryFn: async ({ pageParam }) => {
+        const url = pageParam
+          ? `/progress/feed/?page=${pageParam}`
+          : "/progress/feed/";
+        return fetchApi(url);
+      },
+      initialPageParam: 1,
+      getNextPageParam: (lastPage) => {
+        if (!lastPage.next) return undefined;
+        const url = new URL(lastPage.next);
+        const page = url.searchParams.get("page");
+        return page ? Number(page) : undefined;
+      },
+    });
 
   const entries = useMemo(() => {
     if (!data) return [];
