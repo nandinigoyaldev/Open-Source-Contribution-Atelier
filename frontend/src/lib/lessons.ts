@@ -43,6 +43,7 @@ export interface RustExercise {
 }
 
 export interface Lesson {
+  id: number;
   slug: string; // used for URL
   title: string;
   description: string; // summary
@@ -74,6 +75,7 @@ export interface Lesson {
 // Small built-in fallback lessons (used if API unreachable)
 export const lessons: Lesson[] = [
   {
+    id: 1,
     slug: "intro",
     title: "Open Source Mindset",
     description: "Understand how open source collaboration actually works.",
@@ -112,6 +114,7 @@ export async function fetchLessonsApi(): Promise<Lesson[]> {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const firstExercise = (les.exercises as any[] | undefined)?.[0];
       return {
+        id: Number(les.id ?? 0),
         slug: String(les.slug ?? ""),
         title: String(les.title ?? ""),
         description: String(les.description ?? les.summary ?? ""),

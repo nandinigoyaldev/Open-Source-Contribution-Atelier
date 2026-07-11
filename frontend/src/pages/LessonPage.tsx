@@ -11,6 +11,7 @@ import {
   CheckCircle2,
   Lock,
   Bookmark,
+  History,
 } from "lucide-react";
 
 import SkeletonLesson from "../components/ui/skeletons/SkeletonLesson";
@@ -29,6 +30,7 @@ const MarkdownRenderer = React.lazy(() =>
     default: module.MarkdownRenderer,
   })),
 );
+import { LessonHistoryModal } from "../components/LessonHistoryModal";
 import { GitGraph } from "../components/ui/GitGraph";
 import { NotePanel } from "../components/ui/NotePanel";
 import { LessonFeedbackWidget } from "../components/ui/LessonFeedbackWidget";
@@ -105,6 +107,9 @@ export function LessonPage() {
   const [input, setInput] = useState("");
   const [feedback, setFeedback] = useState<string>("");
   const [showHint, setShowHint] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+
+  // For Interactive Terminal Lessons
   const [terminalOutput, setTerminalOutput] = useState("");
   const [repoState, setRepoState] = useState<RepoState>(createInitialRepo());
 
@@ -636,30 +641,38 @@ export function LessonPage() {
                   COMPLETED ✅
                 </div>
               )}
-              <button
-                onClick={() =>
-                  toggleBookmark.mutate({
-                    slug: lesson.slug,
-                    isBookmarked: isBookmarked(lesson.slug),
-                  })
-                }
-                disabled={toggleBookmark.isPending}
-                className="self-start sm:self-center ml-auto flex items-center justify-center p-2 rounded-xl border-4 border-black bg-surface-low hover:-translate-y-1 hover:shadow-card-sm transition-all"
-                title={
-                  isBookmarked(lesson.slug)
-                    ? "Remove from Read Later"
-                    : "Save for later"
-                }
-              >
-                <Bookmark
-                  className={
-                    isBookmarked(lesson.slug)
-                      ? "fill-primary text-primary"
-                      : "text-black dark:text-[#f0ebe2]"
+              <div className="self-start sm:self-center ml-auto flex gap-2">
+                <button
+                  onClick={() => setShowHistory(true)}
+                  className="flex items-center justify-center p-2 rounded-xl border-4 border-black bg-surface-low hover:-translate-y-1 hover:shadow-card-sm transition-all"
+                  title="View History"
+                >
+                  <History className="text-text h-6 w-6" />
+                </button>
+                <button
+                  onClick={() =>
+                    toggleBookmark.mutate({
+                      slug: lesson.slug,
+                      isBookmarked: isBookmarked(lesson.slug),
+                    })
                   }
-                  size={24}
-                />
-              </button>
+                  disabled={toggleBookmark.isPending}
+                  className="flex items-center justify-center p-2 rounded-xl border-4 border-black bg-surface-low hover:-translate-y-1 hover:shadow-card-sm transition-all"
+                  title={
+                    isBookmarked(lesson.slug)
+                      ? "Remove from Read Later"
+                      : "Save for later"
+                  }
+                >
+                  <Bookmark
+                    className={
+                      isBookmarked(lesson.slug)
+                        ? "fill-accent text-accent h-6 w-6"
+                        : "text-text h-6 w-6"
+                    }
+                  />
+                </button>
+              </div>
             </div>
 
             <p className="text-xl font-bold text-muted dark:text-[#c4bbae]">
@@ -1201,6 +1214,17 @@ export function LessonPage() {
       {/* Lesson Feedback Widget */}
       {lesson && isCompleted && (
         <LessonFeedbackWidget lessonSlug={lesson.slug} />
+      )}
+      {showConfetti && (
+        <Confetti duration={6000} onComplete={() => setShowConfetti(false)} />
+      )}
+      
+      {showHistory && (
+        <LessonHistoryModal 
+          lessonId={lesson.id} 
+          currentContent={markdownContent} 
+          onClose={() => setShowHistory(false)} 
+        />
       )}
     </div>
   );
