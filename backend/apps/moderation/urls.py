@@ -5,5 +5,9 @@ app_name = "moderation"
 
 urlpatterns = [
     path("reports/", ContentReportListCreateView.as_view(), name="report-list-create"),
-    path("reports/<int:pk>/action/", ContentReportActionView.as_view(), name="report-action"),
+    path(
+        "reports/<int:pk>/action/",
+        ContentReportActionView.as_view(),
+        name="report-action",
+    ),
 ]

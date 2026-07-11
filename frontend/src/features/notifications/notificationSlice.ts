@@ -36,7 +36,7 @@ export const fetchNotifications = createAsyncThunk(
       }
       return rejectWithValue("Failed to fetch notifications");
     }
-  }
+  },
 );
 
 export const notificationSlice = createSlice({

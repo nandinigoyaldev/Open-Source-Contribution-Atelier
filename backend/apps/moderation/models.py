@@ -5,6 +5,7 @@ from django.contrib.contenttypes.fields import GenericForeignKey
 
 User = get_user_model()
 
+
 class ContentReport(models.Model):
     class Category(models.TextChoices):
         SPAM = "SPAM", "Spam"
@@ -24,28 +25,43 @@ class ContentReport(models.Model):
         HIDDEN = "HIDDEN", "Hidden"
         REMOVED = "REMOVED", "Removed"
 
-    reporter = models.ForeignKey(User, on_delete=models.CASCADE, related_name="submitted_reports")
-    
+    reporter = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="submitted_reports"
+    )
+
     # Generic relation to the reported object (e.g., PeerReview, Comment)
     content_type = models.ForeignKey(ContentType, on_delete=models.CASCADE)
     object_id = models.PositiveIntegerField()
     content_object = GenericForeignKey("content_type", "object_id")
-    
+
     category = models.CharField(max_length=50, choices=Category.choices)
     description = models.TextField(blank=True)
-    
-    status = models.CharField(max_length=20, choices=Status.choices, default=Status.PENDING)
-    action_taken = models.CharField(max_length=20, choices=ActionTaken.choices, default=ActionTaken.NONE)
-    
-    moderator = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name="handled_reports")
-    
+
+    status = models.CharField(
+        max_length=20, choices=Status.choices, default=Status.PENDING
+    )
+    action_taken = models.CharField(
+        max_length=20, choices=ActionTaken.choices, default=ActionTaken.NONE
+    )
+
+    moderator = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="handled_reports",
+    )
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
         ordering = ["-created_at"]
         constraints = [
-            models.UniqueConstraint(fields=["reporter", "content_type", "object_id"], name="unique_user_content_report")
+            models.UniqueConstraint(
+                fields=["reporter", "content_type", "object_id"],
+                name="unique_user_content_report",
+            )
         ]
 
     def __str__(self):

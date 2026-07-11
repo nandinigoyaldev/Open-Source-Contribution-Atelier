@@ -3,9 +3,19 @@ from django.contrib.auth.models import User
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import models
 from django.utils import timezone
+from django.core.validators import MinValueValidator, MaxValueValidator
+
 
 from apps.content.models import Exercise, Lesson
 from apps.organizations.models import Organization
+
+
+STREAK_MILESTONES = [
+    {"days": 3, "multiplier": 1.1, "label": "3-Day Streak"},
+    {"days": 7, "multiplier": 1.25, "label": "1-Week Streak"},
+    {"days": 14, "multiplier": 1.5, "label": "2-Week Streak"},
+    {"days": 30, "multiplier": 2.0, "label": "1-Month Streak"},
+]
 
 
 class XPMultiplierEvent(models.Model):
@@ -89,6 +99,12 @@ class XPEvent(models.Model):
             models.Index(fields=["user", "source_type"], name="idx_xp_user_source"),
             models.Index(fields=["-created_at"], name="idx_xp_created_desc"),
         ]
+        constraints = [
+            models.CheckConstraint(
+                check=models.Q(base_points__gte=0) & models.Q(base_points__lte=1000),
+                name="base_points_range_constraint",
+            )
+        ]
 
     def __str__(self):
         return f"XPEvent(user={self.user.username}, source={self.source_type}, delta={self.xp_delta})"
@@ -121,7 +137,13 @@ class LessonProgressSync(models.Model):
     completed = models.BooleanField(default=False)
     base_score = models.PositiveIntegerField(default=0)
     multiplier_applied = models.FloatField(default=1.0)
-    score = models.PositiveIntegerField(default=0)
+    score = models.PositiveIntegerField(
+        default=0,
+        validators=[
+            MinValueValidator(0),
+            MaxValueValidator(1000),
+        ],
+    )
 
     client_timestamp_ms = models.BigIntegerField(null=True, blank=True)
 
@@ -389,6 +411,15 @@ class StreakProfile(models.Model):
     longest_streak = models.PositiveIntegerField(default=0)
     last_activity_date = models.DateField(null=True, blank=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    @property
+    def current_multiplier(self) -> float:
+        from apps.progress.streak_engine import StreakEngine
+        return StreakEngine.get_multiplier_for_streak(self.current_streak)
+
+    @current_multiplier.setter
+    def current_multiplier(self, value):
+        pass
 
     class Meta:
         indexes = [

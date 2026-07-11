@@ -10,6 +10,7 @@
 
 2. **Issue Search Filters**:
    Use GitHub's search bar to filter for issues marked specifically for beginners:
+
    ```text
    is:open is:issue label:"good first issue"
    is:open is:issue label:"beginner-friendly" language:javascript
@@ -23,11 +24,12 @@
 
 ## 📢 Open Source Programs
 
-Here are a few popular open source programs/events for you to participate in as a contributor! 
+Here are a few popular open source programs/events for you to participate in as a contributor!
 
 ---
 
 ### 👻 Hacktoberfest
+
 A month-long celebration of open source software held every October. Completing 4 PRs often earns you badges, stickers, and tree plantings!
 
 <img width="600" height=auto alt="image" src="https://github.com/user-attachments/assets/3f0d5c5f-ead5-4643-9336-4e3236d5547f" />

@@ -14,26 +14,6 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.CreateModel(
-            name="PlagiarismReport",
-            fields=[
-                (
-                    "id",
-                    models.BigAutoField(
-                        auto_created=True,
-                        primary_key=True,
-                        serialize=False,
-                        verbose_name="ID",
-                    ),
-                ),
-                ("similarity_score", models.FloatField()),
-                ("is_flagged", models.BooleanField(default=False)),
-                ("created_at", models.DateTimeField(auto_now_add=True)),
-            ],
-            options={
-                "ordering": ["-similarity_score"],
-            },
-        ),
-        migrations.CreateModel(
             name="XPEvent",
             fields=[
                 (
@@ -88,24 +68,6 @@ class Migration(migrations.Migration):
                 to=settings.AUTH_USER_MODEL,
             ),
         ),
-        migrations.AddField(
-            model_name="plagiarismreport",
-            name="matched_submission",
-            field=models.ForeignKey(
-                on_delete=django.db.models.deletion.CASCADE,
-                related_name="matched_in_reports",
-                to="progress.codesubmission",
-            ),
-        ),
-        migrations.AddField(
-            model_name="plagiarismreport",
-            name="submission",
-            field=models.ForeignKey(
-                on_delete=django.db.models.deletion.CASCADE,
-                related_name="plagiarism_reports",
-                to="progress.codesubmission",
-            ),
-        ),
         migrations.AddIndex(
             model_name="xpevent",
             index=models.Index(
@@ -115,9 +77,5 @@ class Migration(migrations.Migration):
         migrations.AddIndex(
             model_name="xpevent",
             index=models.Index(fields=["-created_at"], name="idx_xp_created_desc"),
-        ),
-        migrations.AlterUniqueTogether(
-            name="plagiarismreport",
-            unique_together={("submission", "matched_submission")},
         ),
     ]

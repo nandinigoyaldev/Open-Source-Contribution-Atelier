@@ -37,7 +37,9 @@ export function CommunityPage() {
   const queryClient = useQueryClient();
 
   // Local state overlay to merge incoming real-time websocket updates seamlessly
-  const [liveOverrides, setLiveOverrides] = useState<Record<string, { prs_merged: number; xp: number }>>({});
+  const [liveOverrides, setLiveOverrides] = useState<
+    Record<string, { prs_merged: number; xp: number }>
+  >({});
 
   const {
     data: leaderboardData,
@@ -142,7 +144,7 @@ export function CommunityPage() {
       import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api";
     const wsHost = apiBase.replace(/^https?:\/\//, "").replace(/\/api$/, "");
     const wsScheme = apiBase.startsWith("https") ? "wss" : "ws";
-    
+
     // Explicit route mapped directly to the shared real-time dashboard multiplex context
     const wsUrl = `${wsScheme}://${wsHost}/ws/dashboard/`;
 
@@ -151,16 +153,23 @@ export function CommunityPage() {
     socket.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
-        
+
         // Handle explicit real-time cohort progression sync actions broadcasted by server groups
-        if (data.type === "leaderboard_update" || data.action === "leaderboard_sync") {
+        if (
+          data.type === "leaderboard_update" ||
+          data.action === "leaderboard_sync"
+        ) {
           console.log("Real-time snapshot update received:", data.message);
-          
+
           if (data.username && typeof data.xp !== "undefined") {
             setLiveOverrides((prev) => ({
               ...prev,
               [data.username]: {
-                prs_merged: data.prs_merged || data.contributions || prev[data.username]?.prs_merged || 0,
+                prs_merged:
+                  data.prs_merged ||
+                  data.contributions ||
+                  prev[data.username]?.prs_merged ||
+                  0,
                 xp: data.xp,
               },
             }));
@@ -364,3 +373,5 @@ export function CommunityPage() {
     </div>
   );
 }
+
+export default CommunityPage;

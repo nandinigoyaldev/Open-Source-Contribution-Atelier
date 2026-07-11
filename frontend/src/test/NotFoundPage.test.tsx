@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from "vitest";
 import { render, screen, cleanup } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import { NotFoundPage } from "./NotFoundPage";
+import { NotFoundPage } from "../pages/NotFoundPage";
 
 describe("NotFoundPage edge cases and rendering", () => {
   beforeEach(() => {

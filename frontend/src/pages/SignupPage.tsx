@@ -7,8 +7,8 @@ import { GitBranch } from "lucide-react";
 import PasswordStrengthMeter from "../components/PasswordStrengthMeter";
 
 const githubAuthUrl =
-  import.meta.env.VITE_GITHUB_OAUTH_URL ||
-  `${import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api"}/auth/github/`;
+  import.meta.env?.VITE_GITHUB_OAUTH_URL ||
+  `${import.meta.env?.VITE_API_BASE_URL || "http://localhost:8000/api"}/auth/github/`;
 
 function getErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback;
@@ -34,6 +34,7 @@ export function SignupPage() {
           body: JSON.stringify({ access_token: tokenResponse.access_token }),
         });
         login(tokens);
+        sessionStorage.setItem("justLoggedIn", "true");
         window.location.href = "/dashboard";
       } catch (err: unknown) {
         setError(getErrorMessage(err, "Google Auth Failed. Check Backend."));
@@ -63,6 +64,7 @@ export function SignupPage() {
         body: JSON.stringify({ username, password }),
       });
       login(tokens);
+      sessionStorage.setItem("justLoggedIn", "true");
       window.location.href = "/dashboard";
     } catch (err: unknown) {
       setError(getErrorMessage(err, "Failed to create account"));
@@ -208,3 +210,5 @@ export function SignupPage() {
     </AuthPageShell>
   );
 }
+
+export default SignupPage;

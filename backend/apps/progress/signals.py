@@ -132,3 +132,22 @@ def on_exercise_attempt(sender, instance, created, **kwargs):
             )
         except Exception as exc:
             logger.error("Failed to evaluate achievements: %s", exc)
+
+
+@receiver(post_save, sender="progress.XPEvent")
+def on_xp_event(sender, instance, created, **kwargs):
+    if created and instance.xp_delta > 0:
+        try:
+            from django.db import transaction
+            from django_q.tasks import async_task
+            
+            transaction.on_commit(
+                lambda: async_task(
+                    "apps.progress.tasks.update_leaderboard_task", 
+                    instance.user.id,
+                    instance.user.username,
+                    instance.xp_delta
+                )
+            )
+        except Exception as exc:
+            logger.error("Failed to enqueue leaderboard update: %s", exc)

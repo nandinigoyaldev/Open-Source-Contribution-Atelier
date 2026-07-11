@@ -1,48 +1,31 @@
 import os
 import sys
+import logging
 from datetime import timedelta
 from pathlib import Path
 from config.auth import JWT_CONFIG, TOKEN_BLACKLIST_ENABLED
 
 import dj_database_url
+# pyrefly: ignore [missing-import]
 from django.core.exceptions import ImproperlyConfigured
+
+logger = logging.getLogger(__name__)
 
 TESTING = "test" in sys.argv or "pytest" in sys.modules
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
-def load_dotenv(dotenv_path: Path) -> None:
-    if not dotenv_path.exists():
-        return
-
-    for raw_line in dotenv_path.read_text().splitlines():
-        line = raw_line.strip()
-        if not line or line.startswith("#") or "=" not in line:
-            continue
-        key, value = line.split("=", 1)
-        val_stripped = value.strip()
-        if (val_stripped.startswith('"') and val_stripped.endswith('"')) or (
-            val_stripped.startswith("'") and val_stripped.endswith("'")
-        ):
-            val_stripped = val_stripped[1:-1].strip()
-        if val_stripped:
-            os.environ.setdefault(key.strip(), val_stripped)
-
+from dotenv import load_dotenv
 
 load_dotenv(BASE_DIR / ".env")
 
-print("DEBUG - DATABASE_URL present:", "DATABASE_URL" in os.environ)
-if "DATABASE_URL" in os.environ:
-    print("DEBUG - DATABASE_URL length:", len(os.environ["DATABASE_URL"]))
-    print("DEBUG - DATABASE_URL prefix:", os.environ["DATABASE_URL"][:15])
-print("DEBUG - REDIS_URL present:", "REDIS_URL" in os.environ)
-if "REDIS_URL" in os.environ:
-    print("DEBUG - REDIS_URL prefix:", os.environ["REDIS_URL"][:15])
 
 SECRET_KEY = os.getenv(
     "SECRET_KEY", "django-insecure-dev-key-not-for-production-use-32bytes!!"
 )
+if not SECRET_KEY:
+    raise ImproperlyConfigured("SECRET_KEY environment variable is not set")
 DEBUG = os.getenv("DEBUG", "False") == "True"
 
 # ──────────────────────────────────────────
@@ -148,6 +131,7 @@ INSTALLED_APPS = [
     "allauth.socialaccount.providers.github",
     "apps.accounts",
     "apps.cache",
+    "apps.core",
     "apps.content",
     "apps.progress",
     "apps.challenges",
@@ -156,16 +140,29 @@ INSTALLED_APPS = [
     "apps.webhooks",
     "apps.notes",
     "apps.recommendations",
-    "apps.cache",
     "apps.rbac",
     "apps.uploads",
     "graphene_django",
+    "apps.moderation",
+    "apps.events",
+    "apps.portfolio",
     "apps.feature_flags",
     "apps.issues",
-"apps.cache",
-"apps.moderation",
     "django_q",
 ]
+# Redis Cache
+CACHES = {
+    'default': {
+        'BACKEND': 'django_redis.cache.RedisCache',
+        'LOCATION': 'redis://127.0.0.1:6379/1',
+        'OPTIONS': {
+            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+        }
+    }
+}
+
+# Rate Limit
+DEFAULT_RATE = '100/hour'
 
 MIDDLEWARE = [
     "django_prometheus.middleware.PrometheusBeforeMiddleware",
@@ -180,6 +177,7 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "apps.cache.middleware.RateLimitMiddleware",
     "apps.sandbox.middleware.SandboxExecutionLogMiddleware",
     "allauth.account.middleware.AccountMiddleware",
     "django_prometheus.middleware.PrometheusAfterMiddleware",
@@ -190,7 +188,7 @@ ROOT_URLCONF = "config.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [],
+        "DIRS": [BASE_DIR / "templates"],  # ✅ ADDED: For email templates
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -255,15 +253,16 @@ DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 # Update JWT settings
 SIMPLE_JWT = JWT_CONFIG
 
-#Github App Configuration
-GITHUB_APP={
-    'APP_ID': os.getenv('GITHUB_APP_ID'),
-    'PRIVATE_KEY_PATH': os.getenv('GITHUB_PRIVATE_KEY_PATH'),
-    'CLIENT_ID': os.getenv('GITHUB_CLIENT_ID'),
-    'CLIENT_SECRET': os.getenv('GITHUB_CLIENT_SECRET'),
-    'WEBHOOK_SECRET': os.getenv('GITHUB_WEBHOOK_SECRET'),
+# Github App Configuration
+GITHUB_APP = {
+    "APP_ID": os.getenv("GITHUB_APP_ID"),
+    "PRIVATE_KEY_PATH": os.getenv("GITHUB_PRIVATE_KEY_PATH"),
+    "CLIENT_ID": os.getenv("GITHUB_CLIENT_ID"),
+    "CLIENT_SECRET": os.getenv("GITHUB_CLIENT_SECRET"),
+    "WEBHOOK_SECRET": os.getenv("GITHUB_WEBHOOK_SECRET"),
 }
 GITHUB_INSTALLATION_ID = os.getenv("GITHUB_INSTALLATION_ID")
+GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
 
 # ── Discord Integration ────────────────────────────────────────────────────────
 # Discord webhook URL for achievement announcements
@@ -280,6 +279,10 @@ EMAIL_BACKEND = os.getenv(
     "EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend"
 )
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "noreply@atelier.dev")
+
+# ── Frontend URL for password reset links ────────────────────────────────────
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
+SITE_NAME = os.getenv("SITE_NAME", "Open Source Contribution Atelier")
 
 # ── Proxy / Load-Balancer Support ─────────────────────────────────────────────
 # Number of trusted proxy hops in front of Django (e.g. Nginx + AWS ALB = 2).
@@ -331,6 +334,10 @@ REST_FRAMEWORK = {
     "EXCEPTION_HANDLER": "apps.accounts.exceptions.throttle_exception_handler",
 }
 
+# ============================================================
+# ✅ UPDATED: SimpleJWT Configuration with Dynamic Salt
+# ============================================================
+
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(
         minutes=int(os.getenv("ACCESS_TOKEN_LIFETIME_MINUTES", "30"))
@@ -340,6 +347,31 @@ SIMPLE_JWT = {
     ),
     "ROTATE_REFRESH_TOKENS": True,
     "BLACKLIST_AFTER_ROTATION": True,
+    
+    # ✅ Custom token classes for dynamic salt
+    "ACCESS_TOKEN_CLASS": ("apps.accounts.jwt.DynamicSaltAccessToken",),
+    "REFRESH_TOKEN_CLASS": ("apps.accounts.jwt.DynamicSaltRefreshToken",),
+    
+    # ✅ Other JWT settings
+    "ALGORITHM": "HS256",
+    "SIGNING_KEY": SECRET_KEY,
+    "VERIFYING_KEY": None,
+    "AUDIENCE": None,
+    "ISSUER": None,
+    "JWK_URL": None,
+    "LEEWAY": 0,
+    "AUTH_HEADER_TYPES": ("Bearer",),
+    "AUTH_HEADER_NAME": "HTTP_AUTHORIZATION",
+    "USER_ID_FIELD": "id",
+    "USER_ID_CLAIM": "user_id",
+    "USER_AUTHENTICATION_RULE": "rest_framework_simplejwt.authentication.default_user_authentication_rule",
+    "AUTH_TOKEN_CLASSES": ("rest_framework_simplejwt.tokens.AccessToken",),
+    "TOKEN_TYPE_CLAIM": "token_type",
+    "TOKEN_USER_CLASS": "rest_framework_simplejwt.models.TokenUser",
+    "JTI_CLAIM": "jti",
+    "SLIDING_TOKEN_REFRESH_EXP_CLAIM": "refresh_exp",
+    "SLIDING_TOKEN_LIFETIME": timedelta(minutes=30),
+    "SLIDING_TOKEN_REFRESH_LIFETIME": timedelta(days=1),
 }
 
 # ──────────────────────────────────────────
@@ -532,6 +564,9 @@ LOGGING = {
     },
 }
 
+
+GRAPHENE = {"SCHEMA": "config.schema.schema"}
+
 GRAPHENE = {"SCHEMA": "config.schema.schema"}
 
 # ──────────────────────────────────────────
@@ -548,3 +583,8 @@ CURRICULUM_JSON_PATH = os.getenv(
         ).resolve()
     ),
 )
+
+CELERY_TASK_ALWAYS_EAGER = True
+CELERY_TASK_STORE_EAGER_RESULT = True
+
+

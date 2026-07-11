@@ -14,6 +14,7 @@ type User = {
   twitter_url?: string;
   linkedin_url?: string;
   github_url?: string;
+  receive_weekly_digest?: boolean;
 };
 
 interface AuthState {
@@ -40,7 +41,7 @@ function sanitizeStorageData(value: string): string {
 
 function safeSetItem(key: string, value: string) {
   try {
-    localStorage.setItem(key, sanitizeStorageData(value));
+    localStorage.setItem(key, value);
   } catch {
     /* localStorage unavailable */
   }
@@ -77,38 +78,35 @@ export const checkUser = createAsyncThunk(
       safeRemoveItem("refreshToken");
       return rejectWithValue("Failed to fetch user");
     }
-  }
+  },
 );
 
-export const logoutAction = createAsyncThunk(
-  "auth/logout",
-  async () => {
-    try {
-      if ("serviceWorker" in navigator && "PushManager" in window) {
-        const reg = await navigator.serviceWorker.ready;
-        const sub = await reg.pushManager.getSubscription();
-        if (sub) {
-          const endpoint = sub.endpoint;
-          await sub.unsubscribe();
-          try {
-            await fetchApi("/notifications/push/unsubscribe/", {
-              method: "POST",
-              requireAuth: true,
-              body: JSON.stringify({ endpoint }),
-            });
-          } catch (e) {
-            console.error("Failed to notify backend of push unsubscribe", e);
-          }
+export const logoutAction = createAsyncThunk("auth/logout", async () => {
+  try {
+    if ("serviceWorker" in navigator && "PushManager" in window) {
+      const reg = await navigator.serviceWorker.ready;
+      const sub = await reg.pushManager.getSubscription();
+      if (sub) {
+        const endpoint = sub.endpoint;
+        await sub.unsubscribe();
+        try {
+          await fetchApi("/notifications/push/unsubscribe/", {
+            method: "POST",
+            requireAuth: true,
+            body: JSON.stringify({ endpoint }),
+          });
+        } catch (e) {
+          console.error("Failed to notify backend of push unsubscribe", e);
         }
       }
-    } catch (e) {
-      console.error("Error unsubscribing push on logout", e);
     }
-
-    safeRemoveItem("accessToken");
-    safeRemoveItem("refreshToken");
+  } catch (e) {
+    console.error("Error unsubscribing push on logout", e);
   }
-);
+
+  safeRemoveItem("accessToken");
+  safeRemoveItem("refreshToken");
+});
 
 export const authSlice = createSlice({
   name: "auth",
@@ -116,7 +114,7 @@ export const authSlice = createSlice({
   reducers: {
     loginTokens: (
       state,
-      action: PayloadAction<{ access: string; refresh: string }>
+      action: PayloadAction<{ access: string; refresh: string }>,
     ) => {
       safeSetItem("accessToken", action.payload.access);
       safeSetItem("refreshToken", action.payload.refresh);

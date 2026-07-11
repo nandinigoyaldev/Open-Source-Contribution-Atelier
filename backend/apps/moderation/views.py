@@ -4,15 +4,20 @@ from rest_framework.views import APIView
 from django.db import IntegrityError
 from rest_framework import serializers
 from apps.moderation.models import ContentReport
-from apps.moderation.serializers import ContentReportSerializer, ModerationActionSerializer
+from apps.moderation.serializers import (
+    ContentReportSerializer,
+    ModerationActionSerializer,
+)
+
 
 class IsModeratorOrAdmin(permissions.BasePermission):
     def has_permission(self, request, view):
         return request.user and (request.user.is_staff or request.user.is_superuser)
 
+
 class ContentReportListCreateView(generics.ListCreateAPIView):
     serializer_class = ContentReportSerializer
-    
+
     def get_permissions(self):
         if self.request.method == "POST":
             return [permissions.IsAuthenticated()]
@@ -31,7 +36,10 @@ class ContentReportListCreateView(generics.ListCreateAPIView):
             serializer.save(reporter=self.request.user)
         except IntegrityError:
             # Handle unique constraint violation
-            raise serializers.ValidationError({"error": "You have already reported this content."})
+            raise serializers.ValidationError(
+                {"error": "You have already reported this content."}
+            )
+
 
 class ContentReportActionView(APIView):
     permission_classes = [IsModeratorOrAdmin]
@@ -39,12 +47,12 @@ class ContentReportActionView(APIView):
     def post(self, request, pk):
         report = generics.get_object_or_404(ContentReport, pk=pk)
         serializer = ModerationActionSerializer(data=request.data)
-        
+
         if serializer.is_valid():
             new_status = serializer.validated_data["status"]
             report.status = new_status
             report.moderator = request.user
-            
+
             if new_status == ContentReport.Status.APPROVED:
                 # Need to hide the actual content
                 content_obj = report.content_object
@@ -54,8 +62,8 @@ class ContentReportActionView(APIView):
                 report.action_taken = ContentReport.ActionTaken.HIDDEN
             elif new_status == ContentReport.Status.DISMISSED:
                 report.action_taken = ContentReport.ActionTaken.NONE
-                
+
             report.save()
             return Response(ContentReportSerializer(report).data)
-            
+
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

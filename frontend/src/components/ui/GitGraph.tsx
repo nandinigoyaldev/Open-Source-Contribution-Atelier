@@ -14,8 +14,8 @@ interface ConflictInfo {
   theirsContent?: string;
 }
 
-export const GitGraph: React.FC<GitGraphProps> = ({ 
-  state, 
+export const GitGraph: React.FC<GitGraphProps> = ({
+  state,
   onSelectCommit,
   highlightedCommits = [],
 }) => {
@@ -61,7 +61,14 @@ export const GitGraph: React.FC<GitGraphProps> = ({
 
   // Determine branch colors for better visualization
   const getBranchColor = (branchName: string): string => {
-    const colors = ["#3B82F6", "#10B981", "#F59E0B", "#EF4444", "#8B5CF6", "#EC4899"];
+    const colors = [
+      "#3B82F6",
+      "#10B981",
+      "#F59E0B",
+      "#EF4444",
+      "#8B5CF6",
+      "#EC4899",
+    ];
     if (branchName === "main") return "#6B7280";
     const hash = branchName.split("").reduce((a, b) => a + b.charCodeAt(0), 0);
     return colors[hash % colors.length];
@@ -70,9 +77,11 @@ export const GitGraph: React.FC<GitGraphProps> = ({
   // Find commits involved in conflicts
   const isConflictCommit = (commit: GitCommit): boolean => {
     // Merge commits with multiple parents are often conflict sources
-    return commit.parents.length > 1 || 
-           highlightedCommits.includes(commit.id) ||
-           (hasConflicts && selectedCommit === commit.id);
+    return (
+      commit.parents.length > 1 ||
+      highlightedCommits.includes(commit.id) ||
+      (hasConflicts && selectedCommit === commit.id)
+    );
   };
 
   const handleCommitClick = (commitId: string) => {
@@ -123,11 +132,13 @@ export const GitGraph: React.FC<GitGraphProps> = ({
         </div>
         {state.branches.map((branch) => (
           <div key={branch.name} className="flex items-center gap-1.5">
-            <div 
-              className="w-4 h-1 rounded" 
-              style={{ backgroundColor: getBranchColor(branch.name) }} 
+            <div
+              className="w-4 h-1 rounded"
+              style={{ backgroundColor: getBranchColor(branch.name) }}
             />
-            <span className="text-gray-600 dark:text-gray-400">{branch.name}</span>
+            <span className="text-gray-600 dark:text-gray-400">
+              {branch.name}
+            </span>
           </div>
         ))}
       </div>
@@ -148,15 +159,17 @@ export const GitGraph: React.FC<GitGraphProps> = ({
             const parentPos = nodePositions.get(parentId);
             if (!parentPos) return null;
 
-            const isHighlighted = isConflictCommit(commit) || 
-                                  highlightedCommits.includes(parentId);
+            const isHighlighted =
+              isConflictCommit(commit) || highlightedCommits.includes(parentId);
 
             return (
               <path
                 key={`edge-${parentId}-${commit.id}-${parentIdx}`}
                 d={createPath(parentPos.x, parentPos.y, pos.x, pos.y)}
                 fill="none"
-                stroke={isHighlighted ? "#ef4444" : getBranchColor(commit.branch)}
+                stroke={
+                  isHighlighted ? "#ef4444" : getBranchColor(commit.branch)
+                }
                 strokeWidth={isHighlighted ? "5" : "3"}
                 strokeOpacity={isHighlighted ? 0.8 : 0.6}
                 className={isHighlighted ? "animate-pulse" : ""}
@@ -214,8 +227,8 @@ export const GitGraph: React.FC<GitGraphProps> = ({
           const branchColor = getBranchColor(commit.branch);
 
           return (
-            <g 
-              key={`node-${commit.id}`} 
+            <g
+              key={`node-${commit.id}`}
               className="cursor-pointer"
               onMouseEnter={() => setHoveredCommit(commit.id)}
               onMouseLeave={() => setHoveredCommit(null)}
@@ -240,10 +253,10 @@ export const GitGraph: React.FC<GitGraphProps> = ({
                 cy={pos.y}
                 r={isHovered || isSelected ? "18" : "14"}
                 className={`transition-all duration-200 stroke-black dark:stroke-[#f0ebe2] ${
-                  isConflict 
-                    ? "fill-red-400" 
-                    : isHead 
-                      ? "fill-yellow-400 dark:fill-yellow-500" 
+                  isConflict
+                    ? "fill-red-400"
+                    : isHead
+                      ? "fill-yellow-400 dark:fill-yellow-500"
                       : "fill-white dark:fill-[#2e2924]"
                 }`}
                 strokeWidth="4"
@@ -284,7 +297,9 @@ export const GitGraph: React.FC<GitGraphProps> = ({
               )}
 
               {/* Tooltip on hover */}
-              <g className={`transition-opacity duration-150 ${isHovered || isSelected ? "opacity-100" : "opacity-0"}`}>
+              <g
+                className={`transition-opacity duration-150 ${isHovered || isSelected ? "opacity-100" : "opacity-0"}`}
+              >
                 <rect
                   x={pos.x - 60}
                   y={pos.y + 22}
@@ -391,7 +406,7 @@ export const GitGraph: React.FC<GitGraphProps> = ({
           </h5>
           <div className="space-y-2">
             {state.conflicts.map((file, idx) => (
-              <div 
+              <div
                 key={idx}
                 className="flex items-center justify-between bg-white dark:bg-[#1a1a2e] p-2 rounded border border-red-200 dark:border-red-800"
               >
@@ -406,7 +421,11 @@ export const GitGraph: React.FC<GitGraphProps> = ({
             ))}
           </div>
           <p className="text-xs text-red-600 dark:text-red-400 mt-3">
-            💡 Use <code className="font-mono bg-red-100 dark:bg-red-900 px-1 rounded">git add &lt;file&gt;</code> to stage resolved files after editing.
+            💡 Use{" "}
+            <code className="font-mono bg-red-100 dark:bg-red-900 px-1 rounded">
+              git add &lt;file&gt;
+            </code>{" "}
+            to stage resolved files after editing.
           </p>
         </div>
       )}

@@ -1,6 +1,6 @@
 import { render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
-import { VerifyCertificatePage } from "./VerifyCertificatePage";
+import { VerifyCertificatePage } from "../pages/VerifyCertificatePage";
 import { fetchApi } from "../lib/api";
 import { vi, describe, it, expect } from "vitest";
 

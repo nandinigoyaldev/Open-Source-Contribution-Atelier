@@ -6,8 +6,11 @@ import { useState, useEffect, useCallback } from "react";
  */
 export function useLocalSyncGeneric<T>(key: string, initialData: T) {
   const [data, setData] = useState<T>(() => {
-    const stored = localStorage.getItem(key);
-    return stored ? JSON.parse(stored) : initialData;
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem(key);
+      return stored ? JSON.parse(stored) : initialData;
+    }
+    return initialData;
   });
 
   const [isSyncing, setIsSyncing] = useState(false);

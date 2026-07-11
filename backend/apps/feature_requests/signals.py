@@ -9,36 +9,38 @@ from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
 from apps.feature_requests.models import FeatureRequest, Vote
 
+
 @receiver(post_save, sender=Vote)
 def update_feature_votes_on_vote(sender, instance, created, **kwargs):
     """
     Update feature vote counts when a vote is saved.
     """
     feature = instance.feature_request
-    
+
     # Update vote counts
     feature.upvotes = Vote.objects.filter(
-        feature_request=feature,
-        vote_type='upvote'
+        feature_request=feature, vote_type="upvote"
     ).count()
     feature.downvotes = Vote.objects.filter(
-        feature_request=feature,
-        vote_type='downvote'
+        feature_request=feature, vote_type="downvote"
     ).count()
     feature.total_votes = feature.upvotes + feature.downvotes
-    
+
     # Calculate weighted votes
-    weighted = Vote.objects.filter(
-        feature_request=feature
-    ).aggregate(total=Sum('weight'))['total'] or 0
+    weighted = (
+        Vote.objects.filter(feature_request=feature).aggregate(total=Sum("weight"))[
+            "total"
+        ]
+        or 0
+    )
     feature.weighted_votes = weighted
-    
+
     feature.save()
-    
+
     # Invalidate cache
     cache.delete(f"feature_requests:top")
     cache.delete(f"feature_requests:feature_{feature.id}")
-    
+
     # Send WebSocket update
     try:
         channel_layer = get_channel_layer()
@@ -54,8 +56,8 @@ def update_feature_votes_on_vote(sender, instance, created, **kwargs):
                     "total_votes": feature.total_votes,
                     "weighted_votes": feature.weighted_votes,
                     "priority_score": feature.priority_score,
-                }
-            }
+                },
+            },
         )
     except Exception as e:
         logger.error(f"WebSocket update failed: {e}")
@@ -67,26 +69,27 @@ def update_feature_votes_on_vote_delete(sender, instance, **kwargs):
     Update feature vote counts when a vote is deleted.
     """
     feature = instance.feature_request
-    
+
     # Update vote counts
     feature.upvotes = Vote.objects.filter(
-        feature_request=feature,
-        vote_type='upvote'
+        feature_request=feature, vote_type="upvote"
     ).count()
     feature.downvotes = Vote.objects.filter(
-        feature_request=feature,
-        vote_type='downvote'
+        feature_request=feature, vote_type="downvote"
     ).count()
     feature.total_votes = feature.upvotes + feature.downvotes
-    
+
     # Calculate weighted votes
-    weighted = Vote.objects.filter(
-        feature_request=feature
-    ).aggregate(total=Sum('weight'))['total'] or 0
+    weighted = (
+        Vote.objects.filter(feature_request=feature).aggregate(total=Sum("weight"))[
+            "total"
+        ]
+        or 0
+    )
     feature.weighted_votes = weighted
-    
+
     feature.save()
-    
+
     # Invalidate cache
     cache.delete(f"feature_requests:top")
     cache.delete(f"feature_requests:feature_{feature.id}")

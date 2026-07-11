@@ -17,6 +17,10 @@ from rest_framework import (
     viewsets,
 )
 from rest_framework.permissions import AllowAny
+from rest_framework.response import Response
+from rest_framework.views import APIView
+
+from .permissions import IsLessonUnlocked
 
 from apps.challenges.models import Challenge
 from apps.challenges.serializers import ChallengeSerializer
@@ -25,6 +29,7 @@ from apps.search.models import SearchDocument
 
 from . import semantic_search
 from .models import Lesson, Organization
+from .permissions import IsLessonUnlocked
 from .serializers import (
     LessonSearchSerializer,
     LessonSerializer,
@@ -75,6 +80,16 @@ class SearchView(views.APIView):
         challenge_ct = ContentType.objects.get_for_model(Challenge)
 
         def get_fts_objects(model_class, content_type):
+            from django.db import connection
+            org = getattr(request.user, "organization", None)
+            if not org:
+                return []
+            if connection.vendor != "postgresql":
+                return list(
+                    model_class.objects.filter(
+                        title__icontains=query, organization=org
+                    )[:50]
+                )
             docs = (
                 SearchDocument.objects.filter(  # type: ignore
                     content_type=content_type, search_vector=search_query
@@ -95,8 +110,11 @@ class SearchView(views.APIView):
             if not object_ids:
                 return []
 
+            org = getattr(request.user, "organization", None)
+            if not org:
+                return []
             objects = model_class.objects.filter(
-                id__in=object_ids, organization=request.user.organization
+                id__in=object_ids, organization=org
             )
             if model_class == Lesson:
                 objects = objects.prefetch_related("exercises", "prerequisites")
@@ -134,10 +152,14 @@ class SemanticSearchView(views.APIView):
             )
 
         # Apply multi-tenant filtering
+        org = getattr(request.user, "organization", None)
+        if not org:
+            return response.Response({"query": query, "results": []})
+
         lessons = (
             Lesson.objects.filter(
                 embedding__isnull=False,
-                organization=request.user.organization,
+                organization=org,
             )
             .annotate(trigram_similarity=TrigramSimilarity("title", query))
             .prefetch_related("exercises")
@@ -290,6 +312,18 @@ class LessonPDFView(views.APIView):
 
         return response_obj
 
+class LessonAccessCheckView(views.APIView):
+    """
+    Check if user can access a lesson.
+    """
+    permission_classes = [IsLessonUnlocked]
+    
+    def get(self, request, slug):
+        return Response({
+            "has_access": True,
+            "message": "You have access to this lesson"
+        })
+
 
 import json
 import os
@@ -346,8 +380,7 @@ class LessonFeedbackListCreateView(generics.ListCreateAPIView):
     def get_queryset(self):
         lesson_slug = self.kwargs.get("lesson_slug")
         return LessonFeedback.objects.filter(
-            lesson__slug=lesson_slug,
-            is_deleted=False
+            lesson__slug=lesson_slug, is_deleted=False
         ).select_related("user", "lesson")
 
     def get_serializer_context(self):
@@ -372,7 +405,8 @@ class LessonFeedbackRetrieveUpdateDeleteView(generics.RetrieveUpdateDestroyAPIVi
 
     def get_queryset(self):
         return LessonFeedback.objects.filter(
-            is_deleted=False
+            user=self.request.user,
+            is_deleted=False,
         ).select_related("user", "lesson")
 
     def perform_destroy(self, instance):
@@ -389,25 +423,25 @@ class LessonFeedbackMetricsView(views.APIView):
             lesson = Lesson.objects.get(slug=lesson_slug)
         except Lesson.DoesNotExist:
             return response.Response(
-                {"error": "Lesson not found"},
-                status=status.HTTP_404_NOT_FOUND
+                {"error": "Lesson not found"}, status=status.HTTP_404_NOT_FOUND
             )
 
-        feedbacks = LessonFeedback.objects.filter(
-            lesson=lesson,
-            is_deleted=False
-        )
+        feedbacks = LessonFeedback.objects.filter(lesson=lesson, is_deleted=False)
 
         total_count = feedbacks.count()
 
         if total_count == 0:
             metrics = {
-                "lessonSlug": lesson_slug,
-                "averageRating": 0.0,
-                "totalCount": 0,
-                "ratingDistribution": {
-                    "1": 0, "2": 0, "3": 0, "4": 0, "5": 0
-                }
+                "lesson_slug": lesson_slug,
+                "average_rating": 0.0,
+                "total_count": 0,
+                "rating_distribution": {
+                    "1": 0,
+                    "2": 0,
+                    "3": 0,
+                    "4": 0,
+                    "5": 0,
+                },
             }
         else:
             # Calculate average rating
@@ -420,10 +454,10 @@ class LessonFeedbackMetricsView(views.APIView):
                 distribution[str(fb.rating)] += 1
 
             metrics = {
-                "lessonSlug": lesson_slug,
-                "averageRating": round(average_rating, 2),
-                "totalCount": total_count,
-                "ratingDistribution": distribution
+                "lesson_slug": lesson_slug,
+                "average_rating": round(average_rating, 2),
+                "total_count": total_count,
+                "rating_distribution": distribution,
             }
 
         serializer = LessonFeedbackMetricsSerializer(data=metrics)
@@ -441,20 +475,17 @@ class UserLessonFeedbackView(views.APIView):
             lesson = Lesson.objects.get(slug=lesson_slug)
         except Lesson.DoesNotExist:
             return response.Response(
-                {"error": "Lesson not found"},
-                status=status.HTTP_404_NOT_FOUND
+                {"error": "Lesson not found"}, status=status.HTTP_404_NOT_FOUND
             )
 
         try:
             feedback = LessonFeedback.objects.get(
-                user=request.user,
-                lesson=lesson,
-                is_deleted=False
+                user=request.user, lesson=lesson, is_deleted=False
             )
             serializer = LessonFeedbackSerializer(feedback)
             return response.Response(serializer.data)
         except LessonFeedback.DoesNotExist:
             return response.Response(
                 {"error": "No feedback found for this lesson"},
-                status=status.HTTP_404_NOT_FOUND
+                status=status.HTTP_404_NOT_FOUND,
             )

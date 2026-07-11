@@ -12,6 +12,7 @@ import { initKeepAlive } from "./lib/hfKeepAlive";
 import i18n from "./lib/i18n";
 import { I18nextProvider } from "react-i18next";
 import "./styles.css";
+import "./plugins/coreLessonPlugins";
 
 const GOOGLE_CLIENT_ID =
   import.meta.env.VITE_GOOGLE_CLIENT_ID ||

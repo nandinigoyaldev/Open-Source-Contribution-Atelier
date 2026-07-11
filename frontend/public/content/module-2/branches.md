@@ -21,6 +21,7 @@ When you want to add a feature or fix a bug in the codebase:
 ## 🛠️ Creating and Switching Branches
 
 To create a new branch and switch to it immediately in one step, run:
+
 ```bash
 git switch -c <branch-name>
 ```
@@ -28,6 +29,7 @@ git switch -c <branch-name>
 _(Or the older syntax: `git checkout -b <branch-name>`)_
 
 To create a branch first, and then switch to it, run:
+
 ```
 git branch <branch-name>
 git switch <branch-name>
@@ -68,14 +70,17 @@ Depending on your branch status, choose one of the options below to push your ch
 #### 📌 Option A: If this is a brand new local branch (e.g., `feature-branch`)
 
 You need to set the upstream tracking branch on the remote server (usually called `origin`). This links your local branch to the remote branch so Git knows where to pull/push in the future. This only needs to be done once.
+
 ```bash
 git push -u origin feature-branch
 ```
-*(Note: `-u` is short for `--set-upstream`. Once you run this, you can just type `git push` or `git pull` for this branch in the future).*
+
+_(Note: `-u` is short for `--set-upstream`. Once you run this, you can just type `git push` or `git pull` for this branch in the future)._
 
 #### 📌 Option B: Setting up and pushing to the `main` branch for the first time
 
 If you just initialized a brand new repository and want to push your local `main` branch to GitHub/GitLab, you first tell Git where the remote repository lives, and then push with tracking:
+
 ```bash
 # 1. Link your local repo to the remote server (only done once per project)
 git remote add origin https://github.com/username/repo-name.git
@@ -90,6 +95,7 @@ git push -u origin main
 #### 📌 Option C: If the branch already exists on the remote
 
 If tracking is already established from a previous push (or you are working on an already-tracked `main` branch), simply run:
+
 ```bash
 git push
 ```
@@ -99,12 +105,15 @@ git push
 ### 4. Troubleshoot common errors
 
 #### ⚠️ `fatal: The current branch has no upstream branch.`
-* **Why it happens:** You used a plain `git push` on a brand-new local branch instead of using Option A.
-* **How to fix it:** Run `git push -u origin <branch-name>` to link it.
+
+- **Why it happens:** You used a plain `git push` on a brand-new local branch instead of using Option A.
+- **How to fix it:** Run `git push -u origin <branch-name>` to link it.
 
 #### ⚠️ `Updates were rejected because the remote contains work...`
-* **Why it happens:** Someone else pushed changes to this branch on the remote server while you were working locally, or you created files on GitHub (like a README) that your local machine doesn't have yet.
-* **How to fix it:** Safely pull and integrate their changes first by running:
+
+- **Why it happens:** Someone else pushed changes to this branch on the remote server while you were working locally, or you created files on GitHub (like a README) that your local machine doesn't have yet.
+- **How to fix it:** Safely pull and integrate their changes first by running:
+
 ```bash
 git pull origin <branch-name>
 ```

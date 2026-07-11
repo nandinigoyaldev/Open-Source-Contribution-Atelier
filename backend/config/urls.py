@@ -34,6 +34,8 @@ urlpatterns = [
     path("api/chat/", include("apps.chat.urls")),
     path("api/recommendations/", include("apps.recommendations.urls")),
     path("api/moderation/", include("apps.moderation.urls")),
+    path("api/portfolio/", include("apps.portfolio.urls")),
+    path("api/organizations/", include("apps.organizations.urls")),
     # ============================================================
     # WEBHOOKS & UPLOADS
     # ============================================================
@@ -60,8 +62,13 @@ urlpatterns = [
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
     path(
         "api/docs/",
-        SpectacularSwaggerSplitView.as_view(url_name="schema"),
+        SpectacularSwaggerView.as_view(url_name="schema"),  # Fixed here
         name="swagger-ui",
+    ),
+    path(
+        "api/redoc/",
+        SpectacularRedocView.as_view(url_name="schema"),
+        name="redoc-ui",
     ),
     path("api/graphql/", csrf_exempt(GraphQLView.as_view(graphiql=True))),
 ]
@@ -73,13 +80,17 @@ if settings.DEBUG:
     from apps.feature_flags.debug_view import feature_flags_debug_view
 
     urlpatterns += [
-        path("api/organizations/", include("apps.organizations.urls")),
-        path("api/feature-flags/", include("apps.feature_flags.urls")),
+        path("api/feature-flags/", feature_flags_debug_view, name="feature-flags-debug"),
         path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
         path(
             "api/docs/",
-            SpectacularSwaggerSplitView.as_view(url_name="schema"),
+            SpectacularSwaggerView.as_view(url_name="schema"),  # Fixed here as well
             name="swagger-ui",
+        ),
+        path(
+            "api/redoc/",
+            SpectacularRedocView.as_view(url_name="schema"),
+            name="redoc-ui",
         ),
         path("graphql/", csrf_exempt(GraphQLView.as_view(graphiql=True))),
     ]

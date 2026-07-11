@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { Menu } from "lucide-react";
 import {
   Bell,
   BookOpen,
@@ -15,6 +16,7 @@ import {
   Moon,
   Settings,
   Eye,
+  FileText,
 } from "lucide-react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import { useTheme } from "../../hooks/useTheme";
@@ -27,8 +29,9 @@ import { NotificationMenu } from "../ui/NotificationMenu";
 
 const navItems = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutGrid },
-  { to: "/lessons/what-is-open-source", label: "Lessons", icon: BookOpen },
+  { to: "/learning-path", label: "Lessons", icon: BookOpen },
   { to: "/challenges", label: "Challenges", icon: Trophy },
+  { to: "/portfolio", label: "Portfolio", icon: FileText },
   { to: "/leaderboard", label: "Leaderboard", icon: TrendingUp },
   { to: "/contributor-sandbox", label: "Playground", icon: TerminalSquare },
   { to: "/community", label: "Community", icon: BriefcaseBusiness },
@@ -56,6 +59,7 @@ export function Navigation() {
     { slug: string; title: string; description: string }[]
   >([]);
   const [isStarting, setIsStarting] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const handleStartSandbox = () => {
     setIsStarting(true);
     setTimeout(() => {
@@ -209,7 +213,13 @@ export function Navigation() {
 
       <header className="fixed inset-x-0 top-0 z-30 border-b border-outline bg-white lg:left-[280px] dark:border-[#2e2924] dark:bg-[#0f0e0c]">
         <div className="flex items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
-            <div className="flex min-w-0 items-center gap-3 relative grow max-w-md">
+          <button
+            onClick={() => setMobileOpen(!mobileOpen)}
+            className="lg:hidden rounded-lg border-2 border-black p-2"
+          >
+            <Menu size={22} />
+          </button>
+          <div className="flex min-w-0 items-center gap-3 relative grow max-w-md">
             <div className="flex items-center gap-2 rounded-lg bg-surface-low px-3 py-2 text-muted w-full border-2 border-black dark:border-[#2e2924] shadow-card-sm focus-within:bg-white transition-all dark:bg-[#151411] dark:text-[#c4bbae] dark:focus-within:bg-[#0f0e0c]">
               <Search size={15} className="shrink-0" />
               <input
@@ -369,6 +379,29 @@ export function Navigation() {
           </div>
         </div>
       </header>
+      {mobileOpen && (
+        <div className="fixed inset-0 z-50 bg-black/50 lg:hidden">
+          <div className="absolute left-0 top-0 h-full w-72 bg-white dark:bg-[#151411] p-6">
+            <div className="space-y-2">
+              {navItems.map((item) => {
+                const Icon = item.icon;
+
+                return (
+                  <NavLink
+                    key={item.to}
+                    to={item.to}
+                    onClick={() => setMobileOpen(false)}
+                    className="flex items-center gap-3 rounded-lg px-4 py-3 hover:bg-gray-100"
+                  >
+                    <Icon size={18} />
+                    {item.label}
+                  </NavLink>
+                );
+              })}
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

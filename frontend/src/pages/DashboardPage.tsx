@@ -1,15 +1,19 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
-import React, { useMemo, useState, useEffect } from "react";
+import { AdminDashboard } from "../components/dashboard/AdminDashboard";
+import { ContributorDashboard } from "../components/dashboard/ContributorDashboard";
 import { useAuth } from "../features/auth/AuthContext";
 import { useQuery } from "@tanstack/react-query";
 import { fetchApi } from "../lib/api";
 import { Link } from "react-router-dom";
 import { SocialShareButtons } from "../components/ui/SocialShareButtons";
+import { ProgressRing } from '../components/ProgressRing';
 import SkeletonAdminDashboard from "../components/ui/skeletons/SkeletonAdminDashboard";
 import SkeletonContributorDashboard from "../components/ui/skeletons/SkeletonContributorDashboard";
 import { useRef } from "react";
 import { useElementSize } from "../hooks/useElementSize";
 import { fetchLessonsApi, Lesson } from "../lib/lessons";
+import { LessonsChart } from '../components/LessonsChart';
+import { useQuery } from '@tanstack/react-query';
+import { fetchApi } from '../lib/api';
 import { useUserProgress } from "../hooks/useUserProgress";
 import { useBookmarks } from "../hooks/useBookmarks";
 import { BADGES } from "../constants/badges";
@@ -85,289 +89,7 @@ interface AssignedIssue {
 }
 
 export function DashboardPage() {
-  const taskDistRef = useRef<HTMLElement>(null);
-  const { width: taskDistWidth } = useElementSize(taskDistRef);
-  const completionRef = useRef<HTMLElement>(null);
-  const { width: completionWidth } = useElementSize(completionRef);
-
   const { user } = useAuth();
-  const { progress, isLessonCompleted } = useUserProgress();
-  const { bookmarks, isLoading: isLoadingBookmarks, toggleBookmark } = useBookmarks();
-
-  const [tourKey, setTourKey] = useState(0);
-
-  // 1. Fetch static modules catalog
-  const [curriculumData, setCurriculumData] = useState<ModuleData[]>([]);
-  useEffect(() => {
-    fetch("/content/curriculum.json")
-      .then((res) => res.json())
-      .then((data) => {
-        if (data && data.modules) {
-          setCurriculumData(data.modules);
-        }
-      })
-      .catch((err) =>
-        console.error("Error loading dashboard curriculum:", err),
-      );
-  }, []);
-
-  // 2. Fetch Admin Dashboard stats (only queries if user is staff)
-  const {
-    data: adminData,
-    isLoading: isAdminLoading,
-    error: adminError,
-  } = useQuery({
-    queryKey: ["adminDashboardStats"],
-    queryFn: () => fetchApi("/dashboard/admin/", { suppressErrorToast: true }),
-    enabled: !!user?.is_staff,
-  });
-
-  // 3. Fetch paginated leaderboard for admin chart (only queries if user is staff)
-  const { data: leaderboardData, isLoading: isLeaderboardLoading } = useQuery({
-    queryKey: ["leaderboard", 1],
-    queryFn: () => fetchApi("/leaderboard/", { suppressErrorToast: true }),
-    enabled: !!user?.is_staff,
-  });
-
-  // 4. Fetch Contributor Dashboard stats (only queries if user is NOT staff)
-  const {
-    data: contributorData,
-    isLoading: isContributorLoading,
-    error: contributorError,
-  } = useQuery({
-    queryKey: ["contributorDashboardStats"],
-    queryFn: () =>
-      fetchApi("/dashboard/contributor/", { suppressErrorToast: true }),
-    enabled: !!user && !user.is_staff,
-  });
-
-  // 5. Fetch standard list of lessons via cache
-  const { data: lessons = [], isLoading: isLessonsLoading } = useQuery<
-    Lesson[]
-  >({
-    queryKey: ["lessons"],
-    queryFn: fetchLessonsApi,
-    enabled: !user?.is_staff,
-  });
-
-  // 6. Fetch personalized learning path
-  const { data: learningPathData, isLoading: isLearningPathLoading } =
-    useQuery<any>({
-      queryKey: ["learningPath"],
-      queryFn: () => fetchApi("/users/me/learning-path/"),
-      enabled: !!user && !user.is_staff,
-    });
-
-  const isLoading = isAdminLoading || isContributorLoading || isLessonsLoading;
-
-  const [showSkeleton, setShowSkeleton] = useState(isLoading);
-
-  useEffect(() => {
-    if (isLoading) {
-      setShowSkeleton(true);
-      return;
-    }
-    const timer = setTimeout(() => setShowSkeleton(false), 400);
-    return () => clearTimeout(timer);
-  }, [isLoading]);
-
-  // Random Fact of the Day
-  const factOfDay = useMemo(() => {
-    const day = new Date().getDate();
-    return FACTS[day % FACTS.length];
-  }, []);
-
-  // GitHub Live Contributors list
-  const [gitHubContributors, setGitHubContributors] = useState<
-    { login: string; avatar_url: string; html_url: string }[]
-  >([]);
-  useEffect(() => {
-    const fallbackContributors = [
-      {
-        login: "goyaljiiiiii",
-        avatar_url: "https://github.com/goyaljiiiiii.png",
-        html_url: "https://github.com/goyaljiiiiii",
-      },
-      {
-        login: "nandini",
-        avatar_url: "https://github.com/github.png",
-        html_url: "https://github.com",
-      },
-      {
-        login: "antigravity",
-        avatar_url: "https://github.com/google.png",
-        html_url: "https://github.com",
-      },
-    ];
-
-    fetch(
-      "https://api.github.com/repos/goyaljiiiiii/Open-Source-Contribution-Atelier/contributors",
-    )
-      .then((res) => {
-        if (!res.ok) throw new Error("API Limit");
-        return res.json();
-      })
-      .then((data) => {
-        if (Array.isArray(data)) {
-          const contributors = data.slice(0, 8);
-
-          setGitHubContributors(contributors);
-
-          localStorage.setItem(
-            CONTRIBUTORS_CACHE_KEY,
-            JSON.stringify({
-              data: contributors,
-              timestamp: Date.now(),
-            }),
-          );
-        }
-      })
-      .catch(() => {
-        const cachedData = localStorage.getItem(CONTRIBUTORS_CACHE_KEY);
-
-        if (cachedData) {
-          try {
-            const parsedCache = JSON.parse(cachedData);
-
-            const isCacheValid =
-              Date.now() - parsedCache.timestamp < CACHE_EXPIRY;
-
-            if (isCacheValid) {
-              setGitHubContributors(parsedCache.data);
-              return;
-            }
-
-            localStorage.removeItem(CONTRIBUTORS_CACHE_KEY);
-          } catch {
-            localStorage.removeItem(CONTRIBUTORS_CACHE_KEY);
-          }
-        }
-
-        setGitHubContributors(fallbackContributors);
-      });
-  }, []);
-
-  // Onboarding Tour state
-  const [showOnboarding, setShowOnboarding] = useState(false);
-  const [onboardingStep, setOnboardingStep] = useState(0);
-
-  useEffect(() => {
-    if (user && !user.is_staff) {
-      const isBoarded = localStorage.getItem("atelier_onboarded");
-      if (!isBoarded) {
-        setShowOnboarding(true);
-      }
-    }
-  }, [user]);
-
-  const handleFinishOnboarding = () => {
-    localStorage.setItem("atelier_onboarded", "true");
-    setShowOnboarding(false);
-  };
-
-  // Certificate Modal state
-  const [showCertificate, setShowCertificate] = useState(false);
-  // Progress Report Modal state
-  const [showProgressReport, setShowProgressReport] = useState(false);
-
-  // Compute local progress metrics based on frontend curriculum data
-  const {
-    completedLessonsCount,
-    totalLessonsCount,
-    completionPercentage,
-    activeLessonsQueue,
-    earnedBadges,
-  } = useMemo(() => {
-    if (user?.is_staff || !lessons.length || !curriculumData.length) {
-      return {
-        completedLessonsCount: 0,
-        totalLessonsCount: 0,
-        completionPercentage: 0,
-        activeLessonsQueue: [],
-        earnedBadges: [],
-      };
-    }
-
-    const total = lessons.length;
-    const completed = lessons.filter((l) => isLessonCompleted(l.slug)).length;
-    const percentage = total > 0 ? Math.round((completed / total) * 100) : 0;
-
-    // Build the lessons queue (uncompleted ones first, up to 3)
-    const queue = lessons.filter((l) => !isLessonCompleted(l.slug)).slice(0, 3);
-
-    // Calculate which badges are earned
-    const earned = new Set<string>(
-      contributorData?.personal_stats?.earned_badges || [],
-    );
-    curriculumData.forEach((mod, index) => {
-      const allCompleted = mod.lessons.every((les: { slug: string }) =>
-        isLessonCompleted(les.slug),
-      );
-      if (allCompleted) {
-        earned.add(`mod-${index + 1}`);
-      }
-    });
-
-    if (percentage === 100) {
-      earned.add("grad");
-    }
-
-    return {
-      completedLessonsCount: completed,
-      totalLessonsCount: total,
-      completionPercentage: percentage,
-      activeLessonsQueue: queue,
-      earnedBadges: Array.from(earned),
-    };
-  }, [lessons, curriculumData, isLessonCompleted, user, contributorData]);
-
-  // Fetch user certificate if course is completed
-  const { data: certificateData } = useQuery({
-    queryKey: ["userCertificate"],
-    queryFn: () =>
-      fetchApi("/progress/certificate/", { suppressErrorToast: true }),
-    enabled: !!user && !user.is_staff && completionPercentage === 100,
-    retry: false,
-  });
-
-  if (showSkeleton) {
-    if (user?.is_staff) {
-      return (
-        <div aria-busy="true" role="status">
-          <SkeletonAdminDashboard />
-          <span className="sr-only">Loading admin dashboard...</span>
-        </div>
-      );
-    }
-    return (
-      <div aria-busy="true" role="status">
-        <SkeletonContributorDashboard />
-        <span className="sr-only">Loading dashboard...</span>
-      </div>
-    );
-  }
-
-  // Admin Dashboard Render
-  if (user?.is_staff) {
-    if (adminError || !adminData) {
-      return (
-        <div className="pt-24 max-w-7xl mx-auto px-4">
-          <div className="p-8 text-center bg-red-100 rounded-2xl border-4 border-black font-bold">
-            Failed to load Maintainer Dashboard. Please run the backend seed
-            script.
-          </div>
-        </div>
-      );
-    }
-
-    const { system_stats, pending_prs } = adminData;
-    const leaderboardResults = leaderboardData?.results || [];
-    const issueStatusData = [
-      { name: "Open", value: system_stats.open_issues },
-      { name: "In Progress", value: system_stats.in_progress_issues },
-      { name: "Solved", value: system_stats.solved_issues },
-    ];
-    const COLORS = ["#ffcc00", "#ff9500", "#ff3b30"];
 
     return (
       <div className="max-w-7xl mx-auto px-4 pt-24 pb-12 space-y-10">
@@ -829,6 +551,11 @@ export function DashboardPage() {
             >
               View Full Learning Path 🗺️
             </Link>
+          </div>
+
+          <div className="module-card">
+            <h4>Git Basics</h4>
+            <ProgressRing percentage={75} label="3/4 lessons" />
           </div>
 
           <div className="grid gap-6 md:grid-cols-[1.5fr_1fr] pt-4 border-t-2 border-dashed border-black/10 dark:border-white/10">
@@ -1453,115 +1180,8 @@ export function DashboardPage() {
           </div>
         </div>
       )}
-
-      {/* --- MODAL 3: PROGRESS REPORT (A4 Print / Export as PDF) --- */}
-      {showProgressReport && (
-        <div className="fixed inset-0 bg-black/75 z-50 flex items-center justify-center p-4 overflow-y-auto">
-          <div className="certificate-printable w-full max-w-2xl bg-white rounded-[2rem] border-8 border-black p-8 sm:p-10 relative shadow-card print:border-none print:shadow-none print:p-0 dark:bg-[#1f1c18] dark:border-[#2e2924]">
-            <button
-              onClick={() => setShowProgressReport(false)}
-              className="no-print absolute top-4 right-4 bg-white border-2 border-black p-2 rounded-full hover:bg-surface-low transition-colors print:hidden"
-            >
-              <X size={16} />
-            </button>
-
-            <div className="space-y-6">
-              <div className="text-center">
-                <div className="text-5xl mb-2">📊</div>
-                <h2 className="text-3xl font-black uppercase tracking-tight text-text dark:text-[#f0ebe2]">
-                  Progress Report
-                </h2>
-                <p className="font-mono text-xs text-primary uppercase tracking-widest font-black mt-1">
-                  The Open Source Contribution Atelier
-                </p>
-                <h3 className="text-xl font-black text-text mt-3 dark:text-[#f0ebe2]">
-                  {user?.username}
-                </h3>
-                <p className="text-xs text-muted dark:text-[#c4bbae] mt-1">
-                  Generated on {new Date().toLocaleDateString()}
-                </p>
-              </div>
-
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 border-t border-b border-black/10 py-4">
-                <div className="text-center">
-                  <span className="block text-2xl font-black text-text dark:text-[#f0ebe2]">
-                    {completionPercentage}%
-                  </span>
-                  <span className="block text-[10px] uppercase font-bold text-muted dark:text-[#c4bbae]">
-                    Curriculum
-                  </span>
-                </div>
-                <div className="text-center">
-                  <span className="block text-2xl font-black text-text dark:text-[#f0ebe2]">
-                    {completedLessonsCount}/{totalLessonsCount}
-                  </span>
-                  <span className="block text-[10px] uppercase font-bold text-muted dark:text-[#c4bbae]">
-                    Lessons
-                  </span>
-                </div>
-                <div className="text-center">
-                  <span className="block text-2xl font-black text-text dark:text-[#f0ebe2]">
-                    {personal_stats?.total_xp ?? 0}
-                  </span>
-                  <span className="block text-[10px] uppercase font-bold text-muted dark:text-[#c4bbae]">
-                    XP
-                  </span>
-                </div>
-                <div className="text-center">
-                  <span className="block text-2xl font-black text-text dark:text-[#f0ebe2]">
-                    {personal_stats?.streak_days ?? 0}
-                  </span>
-                  <span className="block text-[10px] uppercase font-bold text-muted dark:text-[#c4bbae]">
-                    Day Streak
-                  </span>
-                </div>
-              </div>
-
-              <div>
-                <h4 className="font-black text-xs uppercase tracking-wider text-muted dark:text-[#c4bbae] mb-3">
-                  Badges Earned ({earnedBadges.length}/{BADGES.length})
-                </h4>
-                {earnedBadges.length > 0 ? (
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                    {BADGES.filter((b) => earnedBadges.includes(b.id)).map(
-                      (badge) => (
-                        <div
-                          key={badge.id}
-                          className="flex items-center gap-2 rounded-lg border-2 border-black bg-surface-low p-2 dark:bg-[#151411] dark:border-[#2e2924]"
-                        >
-                          <span className="text-lg">{badge.icon}</span>
-                          <span className="text-xs font-bold text-text dark:text-[#f0ebe2] leading-tight">
-                            {badge.name}
-                          </span>
-                        </div>
-                      ),
-                    )}
-                  </div>
-                ) : (
-                  <p className="text-xs text-muted dark:text-[#c4bbae]">
-                    No badges earned yet — keep going!
-                  </p>
-                )}
-              </div>
-            </div>
-
-            <div className="no-print mt-8 flex gap-3 print:hidden">
-              <button
-                onClick={() => window.print()}
-                className="flex items-center gap-2 rounded-lg bg-primary text-black border-4 border-black px-6 py-3 font-black text-sm shadow-card-sm hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-card-sm cursor-pointer"
-              >
-                <Printer size={16} /> Export as PDF
-              </button>
-              <button
-                onClick={() => setShowProgressReport(false)}
-                className="rounded-lg bg-white border-4 border-black px-6 py-3 font-black text-sm shadow-card-sm hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-card-sm cursor-pointer"
-              >
-                Return to Dashboard
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
+
+export default DashboardPage;

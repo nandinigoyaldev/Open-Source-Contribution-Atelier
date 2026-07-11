@@ -10,7 +10,10 @@
 const PING_INTERVAL_MS = 4 * 60 * 1000; // 4 minutes
 
 const API_BASE =
-  import.meta.env.VITE_API_BASE_URL?.trim() || `${window.location.origin}/api`;
+  import.meta.env?.VITE_API_BASE_URL?.trim() ||
+  (typeof window !== "undefined"
+    ? `${window.location.origin}/api`
+    : "http://localhost:8000/api");
 const PING_URL = `${API_BASE}/ping/`;
 
 let intervalId: ReturnType<typeof setInterval> | null = null;
