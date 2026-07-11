@@ -575,3 +575,87 @@ def test_semantic_search_view_anonymous_user():
     if response.status_code == 200:
         assert response.data == {"query": "React", "results": []}
 
+
+@pytest.mark.django_db
+def test_seed_lessons_json_output_format():
+    """Test that seed_lessons command outputs valid JSON with required fields."""
+    import json
+    from io import StringIO
+    from django.core.management import call_command
+
+    out = StringIO()
+    call_command("seed_lessons", "--format", "json", stdout=out)
+    output = out.getvalue()
+
+    # Parse JSON output
+    result = json.loads(output)
+
+    # Validate structure
+    assert "seeded" in result
+    assert "skipped" in result
+    assert "exercises_seeded" in result
+    assert "exercises_skipped" in result
+    assert "errors" in result
+    assert "total" in result
+
+    # Validate types
+    assert isinstance(result["seeded"], list)
+    assert isinstance(result["skipped"], list)
+    assert isinstance(result["exercises_seeded"], int)
+    assert isinstance(result["exercises_skipped"], int)
+    assert isinstance(result["errors"], list)
+    assert isinstance(result["total"], int)
+
+    # Validate totals
+    assert result["total"] == len(result["seeded"]) + len(result["skipped"])
+
+    # On first run, should seed all lessons and exercises
+    assert len(result["seeded"]) > 0
+    assert len(result["skipped"]) == 0
+    assert result["exercises_seeded"] > 0
+    assert result["exercises_skipped"] == 0
+    assert len(result["errors"]) == 0
+
+
+@pytest.mark.django_db
+def test_seed_lessons_idempotent_with_skip_detection():
+    """Test that running seed_lessons twice produces skipped on second run."""
+    import json
+    from io import StringIO
+    from django.core.management import call_command
+
+    # First run
+    out1 = StringIO()
+    call_command("seed_lessons", "--format", "json", stdout=out1)
+    result1 = json.loads(out1.getvalue())
+
+    first_seeded = set(result1["seeded"])
+    assert len(first_seeded) > 0
+
+    # Second run should skip all
+    out2 = StringIO()
+    call_command("seed_lessons", "--format", "json", stdout=out2)
+    result2 = json.loads(out2.getvalue())
+
+    second_skipped = set(result2["skipped"])
+    assert first_seeded == second_skipped
+    assert len(result2["seeded"]) == 0
+
+
+@pytest.mark.django_db
+def test_seed_lessons_default_format_is_text():
+    """Test that default format is human-readable text (backward compatibility)."""
+    from io import StringIO
+    from django.core.management import call_command
+
+    out = StringIO()
+    call_command("seed_lessons", stdout=out)
+    output = out.getvalue()
+
+    import json
+
+    # Should not be JSON (would fail to parse)
+    with pytest.raises(json.JSONDecodeError):
+        json.loads(output)
+    # Should contain text markers
+    assert "✓" in output or "~" in output or "Seeding complete" in output

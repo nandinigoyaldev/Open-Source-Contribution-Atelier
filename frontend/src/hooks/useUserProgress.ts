@@ -33,7 +33,7 @@ export function useUserProgress() {
   const { data: progress = [], isLoading } = useQuery<ProgressEntry[]>({
     queryKey: ["userProgress"],
     queryFn: () => fetchApi("/progress/me/", { suppressErrorToast: true }),
-    staleTime: 1000 * 60 * 5, // 5 minutes
+    // Uses global staleTime default from queryClient (5 min)
   });
 
   // 2. NEW: Bulk Mutation to replace the single sync mutation

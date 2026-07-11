@@ -35,6 +35,7 @@ urlpatterns = [
     path("api/recommendations/", include("apps.recommendations.urls")),
     path("api/moderation/", include("apps.moderation.urls")),
     path("api/portfolio/", include("apps.portfolio.urls")),
+    path("api/organizations/", include("apps.organizations.urls")),
     # ============================================================
     # WEBHOOKS & UPLOADS
     # ============================================================
@@ -79,7 +80,6 @@ if settings.DEBUG:
     from apps.feature_flags.debug_view import feature_flags_debug_view
 
     urlpatterns += [
-        path("api/organizations/", include("apps.organizations.urls")),
         path("api/feature-flags/", feature_flags_debug_view, name="feature-flags-debug"),
         path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
         path(

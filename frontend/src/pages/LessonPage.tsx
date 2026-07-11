@@ -112,10 +112,11 @@ export function LessonPage() {
   const [currentQuizIndex, setCurrentQuizIndex] = useState(0);
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
   const [quizFeedback, setQuizFeedback] = useState<
-    "correct" | "incorrect" | null
+    "correct" | "incorrect" | "timeout" | null
   >(null);
   // NEW: Cryptographic Nonce State
   const [quizNonce, setQuizNonce] = useState<string | null>(null);
+  const [timeLeft, setTimeLeft] = useState<number | null>(null);
 
   // Help Request panel
   const [isHelpPanelOpen, setIsHelpPanelOpen] = useState(false);
@@ -262,6 +263,7 @@ export function LessonPage() {
     setSelectedOption(null);
     setQuizFeedback(null);
     setQuizNonce(null);
+    setTimeLeft(null);
 
     if (lesson.filePath) {
       fetchLessonContent(lesson.filePath).then((content) => {
@@ -290,6 +292,55 @@ export function LessonPage() {
 
     fetchNonce();
   }, [lesson, currentQuizIndex]);
+
+  // Quiz Timer Effects
+  useEffect(() => {
+    if (lesson?.quizzes && lesson.quizzes.length > currentQuizIndex) {
+      const currentQuiz = lesson.quizzes[currentQuizIndex];
+      if (currentQuiz.timeLimitSeconds) {
+        setTimeLeft(currentQuiz.timeLimitSeconds);
+      } else {
+        setTimeLeft(null);
+      }
+    } else {
+      setTimeLeft(null);
+    }
+  }, [lesson, currentQuizIndex]);
+
+  useEffect(() => {
+    if (timeLeft === null || timeLeft <= 0 || quizFeedback !== null) return;
+    const timer = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev === null || prev <= 1) {
+          clearInterval(timer);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [timeLeft, quizFeedback]);
+
+  const handleTimeout = useCallback(() => {
+    if (!lesson || !lesson.quizzes || !quizNonce || quizFeedback !== null) return;
+    const currentQuiz = lesson.quizzes[currentQuizIndex];
+    
+    quizAttemptMutation.mutate({
+      question_id: `${lesson.slug}-q${currentQuizIndex}`,
+      question_text: currentQuiz.question,
+      selected_answer: "Timeout",
+      correct_answer: currentQuiz.options[currentQuiz.answer] || "",
+      is_correct: false,
+      nonce: quizNonce,
+    });
+    setQuizFeedback("timeout");
+  }, [lesson, currentQuizIndex, quizNonce, quizFeedback, quizAttemptMutation]);
+
+  useEffect(() => {
+    if (timeLeft === 0 && quizFeedback === null) {
+      handleTimeout();
+    }
+  }, [timeLeft, quizFeedback, handleTimeout]);
 
   // 3. Scroll tracking for reading progress
   useEffect(() => {
@@ -408,6 +459,7 @@ export function LessonPage() {
     setSelectedOption(null);
     setQuizFeedback(null);
     setQuizNonce(null); // Clear old nonce so the useEffect can fetch a new one
+    setTimeLeft(null);
     setCurrentQuizIndex((prev) => prev + 1);
   };
 
@@ -723,14 +775,19 @@ export function LessonPage() {
                         Knowledge Check: Question {currentQuizIndex + 1} of{" "}
                         {lesson.quizzes!.length}
                       </span>
-                      <span className="text-xs font-black text-accent bg-black text-white px-2 py-0.5 rounded-full dark:bg-[#2e2924]">
-                        {lesson.points || 15} XP
-                      </span>
+                      <div className="flex items-center gap-3">
+                        {timeLeft !== null && (
+                          <div className={`text-xs font-black px-2 py-0.5 rounded-full border-2 ${
+                            timeLeft <= 5 ? "bg-red-100 text-red-600 border-red-600 animate-pulse" : "bg-surface text-text border-black dark:border-[#2e2924] dark:text-[#f0ebe2]"
+                          }`}>
+                            ⏱ {Math.floor(timeLeft / 60).toString().padStart(2, "0")}:{(timeLeft % 60).toString().padStart(2, "0")}
+                          </div>
+                        )}
+                        <span className="text-xs font-black text-accent bg-black text-white px-2 py-0.5 rounded-full dark:bg-[#2e2924]">
+                          {lesson.points || 15} XP
+                        </span>
+                      </div>
                     </div>
-
-                    <h3>💻 Git Sandbox</h3>
-                    <p>Try Git commands in this interactive terminal:</p>
-                    <GitTerminal />
 
                     <h3 className="text-lg font-black mb-4 text-text dark:text-[#f0ebe2]">
                       {lesson.quizzes![currentQuizIndex].question}
@@ -803,8 +860,17 @@ export function LessonPage() {
                         aria-live="assertive"
                         className="mt-4 p-4 bg-red-50 text-red-800 border-4 border-red-600 rounded-lg font-bold text-sm"
                       >
-                        ❌ Not quite. Try reviewing the lesson text or options
-                        again.
+                        ❌ Incorrect. Try reviewing the lesson material again.
+                      </div>
+                    )}
+
+                    {quizFeedback === "timeout" && (
+                      <div
+                        role="alert"
+                        aria-live="assertive"
+                        className="mt-4 p-4 bg-orange-50 text-orange-800 border-4 border-orange-600 rounded-lg font-bold text-sm"
+                      >
+                        ⏳ Time's Up! You ran out of time for this question.
                       </div>
                     )}
 

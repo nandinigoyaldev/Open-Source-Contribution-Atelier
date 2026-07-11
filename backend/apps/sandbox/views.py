@@ -290,14 +290,12 @@ class CodeReviewThreadViewSet(viewsets.ModelViewSet):
         return queryset
 
 
-
 # ============================================================
 # SNIPPET COLLECTIONS
 # ============================================================
 
 from .models import CodeSnippet, SnippetCollection
 from .serializers import CodeSnippetSerializer, SnippetCollectionSerializer
-
 
 
 class SnippetCollectionViewSet(viewsets.ModelViewSet):
@@ -320,7 +318,6 @@ class CodeSnippetViewSet(viewsets.ModelViewSet):
 
     def get_queryset(self):
         queryset = CodeSnippet.objects.filter(user=self.request.user)
-
         
         # Filtering by collection
         collection_id = self.request.query_params.get('collection', None)
@@ -424,3 +421,4 @@ class ClearExecutionView(APIView):
             queryset = queryset.filter(title__icontains=search)
 
         return queryset
+ 

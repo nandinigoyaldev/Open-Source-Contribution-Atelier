@@ -41,7 +41,7 @@ function sanitizeStorageData(value: string): string {
 
 function safeSetItem(key: string, value: string) {
   try {
-    localStorage.setItem(key, sanitizeStorageData(value));
+    localStorage.setItem(key, value);
   } catch {
     /* localStorage unavailable */
   }

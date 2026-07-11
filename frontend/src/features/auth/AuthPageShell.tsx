@@ -132,7 +132,7 @@ export function AuthPageShell({
 
         {/* RIGHT SIDE: Form */}
         <div className="flex-1 w-full max-w-md order-1 lg:order-2 self-center">
-          <div className="w-full rounded-3xl border border-slate-200 bg-white/80 backdrop-blur-md p-8 sm:p-10 shadow-xl relative dark:bg-[#111118]/80 dark:border-slate-850">
+          <div className="w-full rounded-3xl border border-slate-200 bg-white/80 backdrop-blur-md p-8 sm:p-10 shadow-xl relative dark:bg-[#111118]/80 dark:border-slate-800">
             {children}
           </div>
         </div>
