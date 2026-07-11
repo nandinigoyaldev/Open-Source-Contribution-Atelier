@@ -10,4 +10,10 @@ urlpatterns = [
     path(
         "<int:pk>/dismiss/", views.DismissRecommendationView.as_view(), name="dismiss"
     ),
+    path(
+        "next-lesson/",
+        views.NextLessonRecommendationView.as_view(),
+        name="next-lesson",
+    ),
 ]
+
