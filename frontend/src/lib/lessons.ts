@@ -62,6 +62,7 @@ export interface Lesson {
     options: string[];
     answer: number;
     explanation: string;
+    timeLimitSeconds?: number;
   }>;
   conflictScenario?: ConflictScenario;
   pythonExercise?: PythonExercise;
@@ -113,7 +114,7 @@ export async function fetchLessonsApi(): Promise<Lesson[]> {
       return {
         slug: String(les.slug ?? ""),
         title: String(les.title ?? ""),
-        description: String(les.summary ?? ""),
+        description: String(les.description ?? les.summary ?? ""),
         explanation: String(les.content ?? ""),
         expected: String(firstExercise?.expectedCommand ?? ""),
         hint: String(
@@ -139,7 +140,10 @@ export async function fetchLessonsApi(): Promise<Lesson[]> {
       } satisfies Lesson;
     });
   } catch (err) {
-    console.error("[fetchLessonsApi] API request failed, using built-in fallback lessons:", err);
+    console.error(
+      "[fetchLessonsApi] API request failed, using built-in fallback lessons:",
+      err,
+    );
     return lessons;
   }
 }

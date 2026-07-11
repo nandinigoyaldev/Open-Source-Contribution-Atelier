@@ -1,0 +1,70 @@
+name: Sync Issue Labels to Linked PRs
+
+on:
+  issues:
+    types: [labeled, unlabeled]
+
+permissions:
+  issues: write
+  pull-requests: write
+  contents: read
+
+jobs:
+  sync-labels-to-prs:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Sync labels from issue to referencing PRs
+        uses: actions/github-script@v8
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const issue = context.payload.issue;
+            const label = context.payload.label;
+            const action = context.payload.action; // 'labeled' or 'unlabeled'
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+
+            // Skip if this event is on a PR (GitHub treats PRs as issues too)
+            if (issue.pull_request) {
+              console.log('Event is on a PR, not an issue – skipping.');
+              return;
+            }
+
+            console.log(`Issue #${issue.number} was ${action} with "${label.name}"`);
+
+            // Search for open PRs that reference this issue number
+            const searchQuery = `repo:${owner}/${repo} is:pr is:open ${issue.number}`;
+            const result = await github.rest.search.issuesAndPullRequests({q: searchQuery, per_page: 20});
+            const linkedPRs = result.data.items || [];
+
+            if (linkedPRs.length === 0) {
+              console.log(`No open PRs reference issue #${issue.number}`);
+              return;
+            }
+
+            for (const pr of linkedPRs) {
+              // Verify the PR body actually references this issue (not just any number match)
+              const prBody = (pr.body || '');
+              const referencesIssue = new RegExp(`#${issue.number}\\b`).test(prBody);
+              if (!referencesIssue) {
+                console.log(`PR #${pr.number} does not reference #${issue.number} in body – skipping.`);
+                continue;
+              }
+
+              if (action === 'labeled') {
+                // Add the label to the PR
+                const prLabels = pr.labels.map(l => l.name);
+                if (!prLabels.includes(label.name)) {
+                  await github.rest.issues.addLabels({owner, repo, issue_number: pr.number, labels: [label.name]});
+                  console.log(`Added label "${label.name}" to PR #${pr.number}`);
+                }
+              } else if (action === 'unlabeled') {
+                // Remove the label from the PR
+                try {
+                  await github.rest.issues.removeLabel({owner, repo, issue_number: pr.number, name: label.name});
+                  console.log(`Removed label "${label.name}" from PR #${pr.number}`);
+                } catch (e) {
+                  console.log(`Label "${label.name}" not on PR #${pr.number} or already removed.`);
+                }
+              }
+            }

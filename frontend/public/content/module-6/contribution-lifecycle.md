@@ -32,6 +32,7 @@ graph TD
 ---
 
 ### 1. Pick/Raise Issue:
+
 Locate an existing issue or raise a new issue with a well-defined problem statement and your proposed solution/changes.
 
 <br>
@@ -49,11 +50,13 @@ _Raising a New Issue_
 ---
 
 ### 2. Request Assignment:
+
 Coordinate with maintainers/project admins requesting them to assign you to your issue.
 
 ---
 
 ### 3. Get Assigned:
+
 Wait for the maintainer to assign the issue to you so you don't duplicate work.
 
 <br>
@@ -62,6 +65,7 @@ Wait for the maintainer to assign the issue to you so you don't duplicate work.
 ---
 
 ### 4. Create Branch:
+
 Checkout a feature branch from the latest `main`.
 
 <br>
@@ -70,6 +74,7 @@ Checkout a feature branch from the latest `main`.
 ---
 
 ### 5. Development/Making Changes:
+
 Write clean code, following the project style guide.
 
 <br>
@@ -78,11 +83,13 @@ Write clean code, following the project style guide.
 ---
 
 ### 6. Testing:
+
 Run test suites locally to ensure no regressions occur.
 
 ---
 
 ### 7. Open Pull Request:
+
 Open a PR detailing _why_ and _how_ changes were made.
 
 <br>
@@ -92,11 +99,13 @@ Open a PR detailing _why_ and _how_ changes were made.
 ---
 
 ### 8. Review & Revisions:
+
 Reviewers request comments or edits. You apply changes according to their needs.
 
 ---
 
 ### 9. Merge & Close:
+
 The core maintainer merges the branch and closes the issue.
 
 <br>
