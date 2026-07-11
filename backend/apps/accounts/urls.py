@@ -3,6 +3,7 @@ from django.urls import path
 from .views import (
 
     ChangePasswordView,  # ✅ ADD THIS IMPORT
+
     AvatarUploadView,
 
     ExportDataView,

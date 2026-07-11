@@ -38,6 +38,7 @@ urlpatterns = [
     path("buffer-metrics/", BufferMetricsView.as_view(), name="buffer-metrics"),
     path("heatmap/", HeatmapView.as_view(), name="heatmap"),
     path("export/pdf/", UserProgressPDFExportView.as_view(), name="export-pdf"),
+
     path("badges/", BadgeListView.as_view(), name="badges"),
     
     # Progress
@@ -47,10 +48,12 @@ urlpatterns = [
     
     # Recommendations
     path("recommendations/", RecommendationsView.as_view(), name="recommendations"),
+
     
     # Community
 
     path("daily-stats/", DailyLessonStatsView.as_view(), name="daily-stats"),
+
     path("feed/", CommunityFeedView.as_view(), name="community-feed"),
     path("community-stats/", CommunityStatsView.as_view(), name="community-stats"),
     

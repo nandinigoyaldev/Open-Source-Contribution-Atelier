@@ -113,6 +113,7 @@ class UserUpdateSerializer(serializers.ModelSerializer):
                 instance.profile.jwt_token_version += 1
                 instance.profile.last_password_change = timezone.now()
                 instance.profile.save(update_fields=["jwt_token_version", "last_password_change"])
+
             if hasattr(instance, "user_profile"):
                 instance.user_profile.last_password_change = timezone.now()
                 instance.user_profile.save(update_fields=["last_password_change"])
