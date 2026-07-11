@@ -12,7 +12,8 @@
     "test": "vitest run",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "generate:api": "npx openapi-typescript http://127.0.0.1:8000/api/schema/ -o src/types/api.d.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",
