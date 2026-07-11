@@ -1,4 +1,3 @@
-
 import os
 import secrets
 import io
@@ -31,6 +30,7 @@ from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
@@ -109,37 +109,17 @@ class SignupView(generics.CreateAPIView):
     throttle_classes = [SignupThrottle]
 
 
-@extend_schema(
-    summary="Login user",
-    description="Authenticate user and return JWT token",
-    request=UserLoginSchema,
-    responses={
-        200: OpenApiResponse(
-            description="Login successful", response=UserResponseSchema
-        ),
-        401: OpenApiResponse(description="Invalid credentials"),
-    },
-)
-def login(request):
-    pass
-
-
-@extend_schema(
-    summary="Get user profile",
-    description="Returns current user profile information",
-    responses={
-        200: UserResponseSchema,
-        401: OpenApiResponse(description="Unauthorized"),
-    },
-)
-def get_profile(request):
-    pass
-
-
 class MeView(APIView):
     permission_classes = [IsAuthenticated]  # check jwt authentication
 
-    @extend_schema(responses=UserListSerializer)
+    @extend_schema(
+        summary="Get user profile",
+        description="Returns current user profile information",
+        responses={
+            200: UserResponseSchema,
+            401: OpenApiResponse(description="Unauthorized"),
+        },
+    )
     def get(self, request):
         serializer = UserListSerializer(request.user, context={"request": request})
         return Response(serializer.data)
@@ -218,6 +198,19 @@ class UserStatisticsView(APIView):
         )
 
 
+@extend_schema_view(
+    post=extend_schema(
+        summary="Login user",
+        description="Authenticate user and return JWT token",
+        request=UserLoginSchema,
+        responses={
+            200: OpenApiResponse(
+                description="Login successful", response=TokenObtainPairSerializer
+            ),
+            401: OpenApiResponse(description="Invalid credentials"),
+        },
+    )
+)
 class LoginView(TokenObtainPairView):
     permission_classes = [permissions.AllowAny]
     serializer_class = EmailOrUsernameTokenObtainPairSerializer
@@ -480,7 +473,7 @@ class UserSuggestionsView(APIView):
         return Response(data, status=status.HTTP_200_OK)
 
 
-
+>>>>>>> main
 # ─────────────────────────────────────────────────────────────────────────────
 # Password Reset Views (UPDATED with Custom Token Model)
 # ─────────────────────────────────────────────────────────────────────────────
@@ -642,12 +635,36 @@ class PasswordResetValidateTokenView(APIView):
                 'error': 'Token has expired'
             })
 
+<<<<<<< HEAD
         return Response({
             'valid': True,
             'message': 'Token is valid',
             'email': reset_token.user.email
         })
 
+
+class MagicLinkVerifyView(APIView):
+    """
+    POST /api/auth/magic-link/verify/
+
+    Accept a magic link token to log the user in.
+    Tokens are single-use and expire after MAGIC_LINK_TIMEOUT_MINUTES.
+    """
+
+    permission_classes = [permissions.AllowAny]
+    throttle_classes = [MagicLinkVerifyThrottle]
+
+    def post(self, request):
+        serializer = MagicLinkVerifySerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        token_value = serializer.validated_data["token"]
+
+        try:
+            magic_token = MagicLinkToken.objects.select_related("user").get(
+                token=token_value,
+                is_used=False,
+            )
         except MagicLinkToken.DoesNotExist:
             return Response(
                 {
@@ -1097,4 +1114,4 @@ class PublicProfileView(APIView):
                 "completed_lessons": completed_lessons,
             }
         )
-
+>>>>>>> main

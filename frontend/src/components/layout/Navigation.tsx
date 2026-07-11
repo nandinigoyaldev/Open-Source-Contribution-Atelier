@@ -29,7 +29,7 @@ import { NotificationMenu } from "../ui/NotificationMenu";
 
 const navItems = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutGrid },
-  { to: "/lessons/what-is-open-source", label: "Lessons", icon: BookOpen },
+  { to: "/learning-path", label: "Lessons", icon: BookOpen },
   { to: "/challenges", label: "Challenges", icon: Trophy },
   { to: "/portfolio", label: "Portfolio", icon: FileText },
   { to: "/leaderboard", label: "Leaderboard", icon: TrendingUp },
