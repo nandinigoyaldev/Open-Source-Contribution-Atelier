@@ -23,9 +23,16 @@ class StartUploadView(views.APIView):
                 {"error": "Missing required fields"}, status=status.HTTP_400_BAD_REQUEST
             )
 
+        # Sanitize filename to prevent path traversal
+        sanitized_filename = os.path.basename(filename)
+        if not sanitized_filename:
+            return Response(
+                {"error": "Invalid filename"}, status=status.HTTP_400_BAD_REQUEST
+            )
+
         session = UploadSession.objects.create(
             user=request.user,
-            filename=filename,
+            filename=sanitized_filename,
             total_size=int(total_size),
             total_chunks=int(total_chunks),
             status=UploadSession.Status.PENDING,
@@ -102,7 +109,16 @@ class CompleteUploadView(views.APIView):
 
         temp_dir = session.get_temp_dir()
         final_filename = f"{session.session_id}_{session.filename}"
-        final_path = os.path.join(settings.MEDIA_ROOT, "uploads", final_filename)
+        
+        # Verify absolute path resides strictly within MEDIA_ROOT/uploads
+        allowed_prefix = os.path.abspath(os.path.join(settings.MEDIA_ROOT, "uploads"))
+        final_path = os.path.abspath(os.path.join(allowed_prefix, final_filename))
+        
+        if not final_path.startswith(allowed_prefix + os.sep) and final_path != allowed_prefix:
+            return Response(
+                {"error": "Invalid file path"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         os.makedirs(os.path.dirname(final_path), exist_ok=True)
 

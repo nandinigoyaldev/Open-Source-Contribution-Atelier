@@ -1,4 +1,3 @@
-/// <reference lib="webworker" />
 import { openDB } from "./offlineDB";
 import { queryClient } from "./queryClient";
 export interface QueuedAction {

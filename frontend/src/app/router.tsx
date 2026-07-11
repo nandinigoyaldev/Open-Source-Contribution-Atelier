@@ -101,10 +101,38 @@ export function AppRouter() {
           />
 
           {/* Public auth routes */}
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/signup" element={<SignupPage />} />
-          <Route path="/verify" element={<VerifyCertificatePage />} />
-          <Route path="/verify/:hash" element={<VerifyCertificatePage />} />
+          <Route
+            path="/login"
+            element={
+              <PublicOnlyRoute>
+                <LoginPage />
+              </PublicOnlyRoute>
+            }
+          />
+          <Route
+            path="/signup"
+            element={
+              <PublicOnlyRoute>
+                <SignupPage />
+              </PublicOnlyRoute>
+            }
+          />
+          <Route
+            path="/verify"
+            element={
+              <PublicOnlyRoute>
+                <VerifyCertificatePage />
+              </PublicOnlyRoute>
+            }
+          />
+          <Route
+            path="/verify/:hash"
+            element={
+              <PublicOnlyRoute>
+                <VerifyCertificatePage />
+              </PublicOnlyRoute>
+            }
+          />
 
           <Route path="*" element={<NotFoundPage />} />
         </Route>
@@ -183,19 +211,35 @@ export function AppRouter() {
               </ProtectedRoute>
             }
           />
-          <Route path="/sandbox" element={<SandboxPage />} />
-          <Route path="/sandbox/pr-reviewer" element={<PRReviewGamePage />} />
+          <Route
+            path="/sandbox"
+            element={
+              <ProtectedRoute>
+                <SandboxPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/sandbox/pr-reviewer"
+            element={
+              <ProtectedRoute>
+                <PRReviewGamePage />
+              </ProtectedRoute>
+            }
+          />
           <Route
             path="/a11y-sandbox"
             element={
-              <div className="p-6 max-w-7xl mx-auto space-y-6 flex flex-col h-[calc(100vh-64px)]">
-                <h1 className="text-3xl font-black text-text dark:text-[#f0ebe2]">
-                  A11y Editor Sandbox
-                </h1>
-                <div className="flex-1 min-h-[500px]">
-                  <A11yLinterSandbox />
+              <ProtectedRoute>
+                <div className="p-6 max-w-7xl mx-auto space-y-6 flex flex-col h-[calc(100vh-64px)]">
+                  <h1 className="text-3xl font-black text-text dark:text-[#f0ebe2]">
+                    A11y Editor Sandbox
+                  </h1>
+                  <div className="flex-1 min-h-[500px]">
+                    <A11yLinterSandbox />
+                  </div>
                 </div>
-              </div>
+              </ProtectedRoute>
             }
           />
           <Route
@@ -209,58 +253,60 @@ export function AppRouter() {
           <Route
             path="/test-terminal"
             element={
-              <div className="p-10 h-screen bg-[#0a0a0a] flex gap-8">
-                <div className="flex-1 flex flex-col h-[600px]">
-                  <h2 className="text-white mb-4 font-bold text-xl">
-                    Interactive Git Terminal
-                  </h2>
-                  <GitTerminal />
+              <ProtectedRoute>
+                <div className="p-10 h-screen bg-[#0a0a0a] flex gap-8">
+                  <div className="flex-1 flex flex-col h-[600px]">
+                    <h2 className="text-white mb-4 font-bold text-xl">
+                      Interactive Git Terminal
+                    </h2>
+                    <GitTerminal />
+                  </div>
+                  <div className="flex-1 flex flex-col h-[600px]">
+                    <h2 className="text-white mb-4 font-bold text-xl">
+                      Interactive Terminal Replay
+                    </h2>
+                    <TerminalReplay
+                      sessionName="Git Tutorial Replay"
+                      commands={[
+                        {
+                          command: "git init",
+                          output:
+                            "Initialized empty Git repository in /workspace/.git/",
+                          typingDelayMs: 60,
+                          executionDelayMs: 400,
+                        },
+                        {
+                          command: "git add .",
+                          output: "",
+                          typingDelayMs: 50,
+                          executionDelayMs: 300,
+                        },
+                        {
+                          command: "git commit -m 'Initial commit'",
+                          output:
+                            "[main (root-commit) 1a2b3c4] Initial commit\n 3 files changed, 120 insertions(+)\n create mode 100644 index.js\n create mode 100644 package.json",
+                          typingDelayMs: 60,
+                          executionDelayMs: 800,
+                        },
+                        {
+                          command: "npm run test",
+                          output:
+                            "Running tests...\nPASS  src/test/app.test.js\nTest Suites: 1 passed, 1 total\nTests:       3 passed, 3 total\nSnapshots:   0 total\nTime:        1.2s",
+                          typingDelayMs: 50,
+                          executionDelayMs: 1200,
+                        },
+                        {
+                          command: "git status",
+                          output:
+                            "On branch main\nnothing to commit, working tree clean",
+                          typingDelayMs: 60,
+                          executionDelayMs: 500,
+                        },
+                      ]}
+                    />
+                  </div>
                 </div>
-                <div className="flex-1 flex flex-col h-[600px]">
-                  <h2 className="text-white mb-4 font-bold text-xl">
-                    Interactive Terminal Replay
-                  </h2>
-                  <TerminalReplay
-                    sessionName="Git Tutorial Replay"
-                    commands={[
-                      {
-                        command: "git init",
-                        output:
-                          "Initialized empty Git repository in /workspace/.git/",
-                        typingDelayMs: 60,
-                        executionDelayMs: 400,
-                      },
-                      {
-                        command: "git add .",
-                        output: "",
-                        typingDelayMs: 50,
-                        executionDelayMs: 300,
-                      },
-                      {
-                        command: "git commit -m 'Initial commit'",
-                        output:
-                          "[main (root-commit) 1a2b3c4] Initial commit\n 3 files changed, 120 insertions(+)\n create mode 100644 index.js\n create mode 100644 package.json",
-                        typingDelayMs: 60,
-                        executionDelayMs: 800,
-                      },
-                      {
-                        command: "npm run test",
-                        output:
-                          "Running tests...\nPASS  src/test/app.test.js\nTest Suites: 1 passed, 1 total\nTests:       3 passed, 3 total\nSnapshots:   0 total\nTime:        1.2s",
-                        typingDelayMs: 50,
-                        executionDelayMs: 1200,
-                      },
-                      {
-                        command: "git status",
-                        output:
-                          "On branch main\nnothing to commit, working tree clean",
-                        typingDelayMs: 60,
-                        executionDelayMs: 500,
-                      },
-                    ]}
-                  />
-                </div>
-              </div>
+              </ProtectedRoute>
             }
           />
           <Route
@@ -305,11 +351,6 @@ export function AppRouter() {
           />
         </Route>
 
-        {/* Public auth routes */}
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/signup" element={<SignupPage />} />
-        <Route path="/verify" element={<VerifyCertificatePage />} />
-        <Route path="/verify/:hash" element={<VerifyCertificatePage />} />
         <Route path="/u/:username" element={<UserProfilePage />} />
         <Route path="/500" element={<ServerErrorPage />} />
         <Route path="*" element={<NotFoundPage />} />

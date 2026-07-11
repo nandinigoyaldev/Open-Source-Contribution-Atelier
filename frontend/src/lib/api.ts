@@ -1,5 +1,5 @@
 import { enqueueOfflineAction } from "./offlineQueue";
-import toast from "react-hot-toast"; // <-- YEH HUMNE ADD KIYA HAI
+import toast from "react-hot-toast";
 
 // 1. Defend the environment variable retrieval against server-side execution crashes
 const getSafeEnvVar = (key: string): string => {
@@ -165,6 +165,9 @@ export async function fetchApi(endpoint: string, options: RequestOptions = {}) {
         const isOfflineOrNetworkError =
           !navigator.onLine || error instanceof TypeError;
         if (isOfflineOrNetworkError) {
+          if (config.body instanceof FormData) {
+            throw error;
+          }
           const bodyStr = config.body as string;
           try {
             const bodyObj = JSON.parse(bodyStr || "{}");
@@ -559,8 +562,8 @@ export async function exportWorkspaceZip(projectId: string): Promise<void> {
 
   // Get filename from Content-Disposition header
   const contentDisposition = response.headers.get("Content-Disposition") || "";
-  const filenameMatch = contentDisposition.match(/filename="(.+)"/);
-  const filename = filenameMatch ? filenameMatch[1] : "workspace-export.zip";
+  const filenameMatch = contentDisposition.match(/filename(?:\*)?=(?:"([^"]+)"|UTF-8''([^;]+))/i);
+  const filename = filenameMatch ? (filenameMatch[1] || filenameMatch[2]) : "workspace-export.zip";
 
   // Create blob and download
   const blob = await response.blob();
