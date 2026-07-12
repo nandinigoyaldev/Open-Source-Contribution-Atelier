@@ -1,0 +1,57 @@
+# Label rules for actions/labeler
+# PRs are auto-labeled based on which files they modify
+
+"frontend":
+  - changed-files:
+      - any-glob-to-any-file: "frontend/**"
+
+"backend":
+  - changed-files:
+      - any-glob-to-any-file: "backend/**"
+
+"documentation":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "docs/**"
+          - "*.md"
+          - "**/*.md"
+
+"ci/cd":
+  - changed-files:
+      - any-glob-to-any-file:
+          - ".github/workflows/**"
+          - ".github/**/*.yml"
+
+"docker":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "docker-compose.yml"
+          - "**/Dockerfile"
+          - "**/.dockerignore"
+
+"content":
+  - changed-files:
+      - any-glob-to-any-file: "frontend/public/content/**"
+
+"styling":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "**/*.css"
+          - "**/tailwind.config.*"
+
+"tests":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "**/*.test.*"
+          - "**/*.spec.*"
+          - "**/tests/**"
+          - "**/test_*"
+
+"config":
+  - changed-files:
+      - any-glob-to-any-file:
+          - "**/.env*"
+          - "**/package.json"
+          - "**/requirements.txt"
+          - "vite.config.*"
+          - "tsconfig.*"

@@ -67,7 +67,7 @@ describe("useUserProgress", () => {
   it("syncs progress to backend successfully", async () => {
     vi.mocked(fetchApi).mockResolvedValueOnce([]); // initial fetch
     vi.mocked(fetchApi).mockResolvedValueOnce({}); // mutation response
-    
+
     const mockProgress = [
       {
         id: 1,
@@ -91,10 +91,17 @@ describe("useUserProgress", () => {
     });
 
     await waitFor(() => {
-      expect(fetchApi).toHaveBeenCalledWith("/progress/me/", expect.objectContaining({
-        method: "POST",
-        body: JSON.stringify({ lesson_slug: "new-lesson", score: 50, completed: true })
-      }));
+      expect(fetchApi).toHaveBeenCalledWith(
+        "/progress/me/",
+        expect.objectContaining({
+          method: "POST",
+          body: JSON.stringify({
+            lesson_slug: "new-lesson",
+            score: 50,
+            completed: true,
+          }),
+        }),
+      );
     });
 
     await waitFor(() => {
@@ -104,11 +111,14 @@ describe("useUserProgress", () => {
 
   it("reads pending sync progress from localStorage for isLessonCompleted", async () => {
     vi.mocked(fetchApi).mockResolvedValueOnce([]); // no progress from backend
-    
+
     // Simulate offline completion
-    localStorage.setItem("atelier_pending_sync", JSON.stringify([
-      { lesson_slug: "offline-lesson", score: 10, completed: true }
-    ]));
+    localStorage.setItem(
+      "atelier_pending_sync",
+      JSON.stringify([
+        { lesson_slug: "offline-lesson", score: 10, completed: true },
+      ]),
+    );
 
     const { result } = renderHook(() => useUserProgress(), {
       wrapper: createWrapper(),

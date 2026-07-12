@@ -81,3 +81,5 @@ export const PathwayPage: React.FC = () => {
     </div>
   );
 };
+
+export default PathwayPage;

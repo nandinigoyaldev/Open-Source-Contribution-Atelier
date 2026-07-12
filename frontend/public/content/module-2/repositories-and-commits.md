@@ -1,22 +1,38 @@
-# Repositories & Commits
+# 🗂️ Repositories & Commits
 
-To collaborate in open source, you must understand **Git**, the distributed version control system that tracks the history of files.
+### To collaborate in open source, you must understand the terminologies **'repositories'** and **'commits'**.
 
 ---
 
-### What is a Repository?
+## 📁 What is a Repository?
 
-A **repository** (or "repo") is a directory containing all your project files and a hidden folder named `.git`. This `.git` folder holds the entire database of all changes, versions, and branches.
+A **repository** (or "repo") is a directory containing all your project files.
 
-### What is a Commit?
+It also contains these essential files:
+
+- The `.git` folder is a hidden folder that holds the entire database of all changes, versions, and branches.
+- The `.gitignore` file specifies the files in the repository which must not be committed when making changes to the codebase.
+- The `README.md` file is the file that appears on the main page of the repository, and contains information about the repository and its contents.
+- Other files, such as `CONTRIBUTING.md` (which lays out guidelines and templates for contributors), `LICENSE.md` (which specificies the type of license and project copyright, if any).
+
+---
+
+## 📤 What is a Commit?
 
 A **commit** is a snapshot of your files at a specific point in time. Think of it as a save game in a video game. If you make a mistake, you can revert back to any previous commit.
+A commit pushes all the changes which are currently in the staging area.
+
+To commit your changes:
+
+```bash
+git init
+```
 
 ---
 
-### Working Tree States
+## 🌲 Working Tree States
 
-In Git, files reside in one of three states:
+In Git, files reside in one of 3 states:
 
 1. **Working Directory**: Modifying files locally but not tracked yet.
 2. **Staging Area**: Selecting files you want to include in your next snapshot.
@@ -24,7 +40,7 @@ In Git, files reside in one of three states:
 
 ---
 
-### Getting Started
+## ,🚀 Getting Started
 
 To turn any local folder into a Git repository, run:
 
@@ -32,5 +48,9 @@ To turn any local folder into a Git repository, run:
 git init
 ```
 
+This will initialize a Git repository inside your project folder.
+
+---
+
 > [!TIP]
-> Run `git init` in the terminal below to start tracking your project!
+> Run `git init` in your terminal to start tracking your project!

@@ -50,6 +50,25 @@ class Command(BaseCommand):
                 f"  Contributor: {user.username} ({'created' if c_created else 'updated'})"
             )
 
+        # Seed XP to Redis Leaderboard
+        try:
+            from apps.progress.services.leaderboard_service import LeaderboardService
+            xps = {"alice": 450, "bob": 350, "charlie": 200, "diana": 100}
+            for user in contributors:
+                # Reset score first
+                client = get_redis_client() if 'get_redis_client' in globals() else None
+                if not client:
+                    from apps.progress.services.leaderboard_service import get_redis_client
+                    client = get_redis_client()
+                if client:
+                    client.zrem(LeaderboardService.ALL_TIME, user.username)
+                    client.zrem(LeaderboardService.get_weekly_key(), user.username)
+                    client.zrem(LeaderboardService.get_monthly_key(), user.username)
+                LeaderboardService.update_user_xp(user.id, user.username, xps.get(user.username, 50))
+            self.stdout.write(self.style.SUCCESS("  Seeded mock Redis leaderboard records successfully."))
+        except Exception as e:
+            self.stdout.write(self.style.WARNING(f"  Could not seed Redis leaderboard: {e}"))
+
         # 2. Create Lessons
         self.stdout.write("- Creating Lessons & Curriculum...")
         lessons_data = [

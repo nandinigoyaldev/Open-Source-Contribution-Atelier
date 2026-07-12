@@ -15,13 +15,11 @@ Thank you for considering contributing to **Open Source Contribution Atelier**! 
    # e.g. feat/add‑new‑module or bug/fix‑login‑error
    ```
 4. **Install dependencies** – see the `README` for backend/frontend setup.
-5. **Run the test suite** to ensure everything passes:
+5. **Run the verification checklist** to ensure everything passes:
    ```bash
-   # Backend tests
-   cd backend && pytest
-   # Frontend tests
-   cd ../frontend && npm run test
+   ./verify.sh
    ```
+   *(This runs frontend linting, formatting check, and tests, followed by backend formatting check and django tests. Alternatively, you can run them manually inside `backend` and `frontend` directories).*
 
 ## Commit Messages
 We follow the **Conventional Commits** format:

@@ -17,6 +17,10 @@ vi.mock("../features/auth/AuthContext", () => ({
   useAuth: () => mockUseAuth(),
 }));
 
+vi.mock("../hooks/useTheme", () => ({
+  useTheme: () => ({ theme: "light" }),
+}));
+
 function renderWithProviders(ui: React.ReactElement) {
   const queryClient = new QueryClient({
     defaultOptions: { queries: { retry: false } },

@@ -1,10 +1,5 @@
-/**
- * React hook for JavaScript sandbox execution using WebWorkers.
- * 
- * @file useJSSandbox.ts
- * @location frontend/src/hooks/useJSSandbox.ts
- */
-
+import { useCallback, useState } from "react";
+import { useSandboxCore } from "./useSandboxCore";
 import { TraceEvent } from "./useTimelineEngine";
 
 export interface JSExecutionResult {
@@ -13,36 +8,8 @@ export interface JSExecutionResult {
   trace_events?: TraceEvent[];
 }
 
-export interface UseJSSandboxOptions {
-  timeout?: number;
-  maxWorkers?: number;
-  autoInit?: boolean;
-}
-
-export interface UseJSSandboxReturn {
-  // State
-  isExecuting: boolean;
-  isReady: boolean;
-  status: 'idle' | 'running' | 'completed' | 'error' | 'timeout';
-  executionTime: number | null;
-  error: string | null;
-  output: SandboxOutput[];
-  workerStatus: WorkerStatus;
-  
-  // Actions
-  runJSCode: (code: string, timeoutMs?: number) => Promise<JSExecutionResult>;
-  clearOutput: () => void;
-  stopExecution: () => void;
-  resetSandbox: () => void;
-  loadExample: (exampleCode: string) => string;
-}
-
-// ============================================================
-// Example Codes
-// ============================================================
-
 export const EXAMPLES: Record<string, string> = {
-  'Hello World': `// Hello World Example
+  "Hello World": `// Hello World Example
 console.log('Hello, World!');
 console.log('Welcome to the Open Source Contribution Atelier!');
 
@@ -54,7 +21,7 @@ console.log('5 + 3 =', sum);
 const greeting = 'Hello ' + 'Developer!';
 console.log(greeting);`,
 
-  'Functions': `// Functions Example
+  Functions: `// Functions Example
 function calculateSum(a, b) {
   return a + b;
 }
@@ -77,7 +44,7 @@ console.log('Greeting:', message);
 
 console.log('Sum + Product:', sum + product);`,
 
-  'Arrays': `// Array Operations Example
+  Arrays: `// Array Operations Example
 const numbers = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 
 console.log('Original array:', numbers);
@@ -101,7 +68,7 @@ const result = numbers
   .reduce((acc, n) => acc + n, 0);
 console.log('Result (filter > 5, double, sum):', result);`,
 
-  'Objects': `// Objects and Destructuring Example
+  Objects: `// Objects and Destructuring Example
 const user = {
   name: 'Alice',
   age: 30,
@@ -128,7 +95,7 @@ console.log(\`\${name} is \${age} years old and knows \${skills.join(', ')}\`);
 const userWithId = { id: 1, ...user };
 console.log('User with ID:', userWithId);`,
 
-  'Async/Await': `// Async/Await Example
+  "Async/Await": `// Async/Await Example
 async function fetchData() {
   console.log('Fetching data...');
   
@@ -155,7 +122,7 @@ async function main() {
 
 main();`,
 
-  'Error Handling': `// Error Handling Example
+  "Error Handling": `// Error Handling Example
 try {
   console.log('Attempting to divide by zero...');
   const result = 10 / 0;
@@ -181,224 +148,138 @@ try {
 }`,
 };
 
-// ============================================================
-// Hook Implementation
-// ============================================================
+export function useJSSandbox(
+  _options: { timeout?: number; maxWorkers?: number } = {},
+) {
+  const createWorker = useCallback(
+    () =>
+      new Worker(new URL("../workers/jsWorker.ts", import.meta.url), {
+        type: "module",
+      }),
+    [],
+  );
 
-/**
- * Hook for using the JavaScript sandbox with WebWorker support.
- * 
- * @param options - Configuration options
- * @returns Sandbox state and actions
- * 
- * @example
- * ```tsx
- * const { runJSCode, isExecuting, isReady, status, output } = useJSSandbox({
- *   timeout: 5000,
- *   maxWorkers: 4,
- * });
- * ```
- */
-export function useJSSandbox(options: UseJSSandboxOptions = {}): UseJSSandboxReturn {
-  const {
-    timeout: defaultTimeout = 5000,
-    maxWorkers = 4,
-    autoInit = true,
-  } = options;
-
-  // State
-  const [isExecuting, setIsExecuting] = useState<boolean>(false);
-  const [isReady, setIsReady] = useState<boolean>(false);
-  const [status, setStatus] = useState<'idle' | 'running' | 'completed' | 'error' | 'timeout'>('idle');
+  const [status, setStatus] = useState<
+    "idle" | "running" | "completed" | "error" | "timeout"
+  >("idle");
   const [executionTime, setExecutionTime] = useState<number | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const [output, setOutput] = useState<SandboxOutput[]>([]);
-  const [workerStatus, setWorkerStatus] = useState<WorkerStatus>({
-    totalWorkers: 0,
-    busyWorkers: 0,
-    availableWorkers: 0,
-    activeExecutions: 0,
-  });
+  const [errorState, setErrorState] = useState<string | null>(null);
+  const [output, setOutput] = useState<
+    Array<{
+      type: "log" | "error" | "info";
+      timestamp: string;
+      content: string;
+    }>
+  >([]);
+  const [workerStatus] = useState({ availableWorkers: 4, totalWorkers: 4 });
 
-  // Refs
-  const manager = useRef(sandboxManager);
-  const isMounted = useRef<boolean>(true);
-  const statusInterval = useRef<number | null>(null);
+  const { executeCode, isExecuting, isReady, initWorker } =
+    useSandboxCore(createWorker);
 
-  // ============================================================
-  // Initialize Sandbox
-  // ============================================================
+  const clearOutput = useCallback(() => {
+    setOutput([]);
+  }, []);
 
-  useEffect(() => {
-    isMounted.current = true;
+  const stopExecution = useCallback(() => {
+    initWorker();
+    setStatus("idle");
+  }, [initWorker]);
 
-    if (autoInit) {
-      manager.current.init(maxWorkers);
-      setIsReady(true);
-    }
+  const resetSandbox = useCallback(() => {
+    clearOutput();
+    setStatus("idle");
+    setExecutionTime(null);
+    setErrorState(null);
+  }, [clearOutput]);
 
-    // Update worker status periodically
-    statusInterval.current = window.setInterval(() => {
-      if (isMounted.current) {
-        setWorkerStatus(manager.current.getStatus());
-      }
-    }, 2000);
+  const loadExample = useCallback(
+    (code: string) => {
+      resetSandbox();
+      return code;
+    },
+    [resetSandbox],
+  );
 
-
-    setIsReady(true);
-
-    return () => {
-      isMounted.current = false;
-      if (statusInterval.current) {
-        clearInterval(statusInterval.current);
-      }
-      manager.current.cleanup();
-    };
-  }, [autoInit, maxWorkers]);
-
-  // ============================================================
-  // Core Functions
-  // ============================================================
-
-  /**
-   * Run JavaScript code in the sandbox.
-   */
   const runJSCode = useCallback(
-    async (code: string, timeoutMs: number = defaultTimeout): Promise<JSExecutionResult> => {
-      if (!code.trim()) {
-        return { output: '', error: 'No code to execute' };
-      }
-
-      setIsExecuting(true);
-      setStatus('running');
-      setError(null);
-      setExecutionTime(null);
+    async (
+      code: string,
+      timeoutMs: number = 5000,
+    ): Promise<JSExecutionResult> => {
+      setStatus("running");
+      setErrorState(null);
+      const startTime = performance.now();
+      const res = await executeCode<JSExecutionResult>(
+        { code, action: "execute_code" },
+        timeoutMs,
+        (data: any) => ({
+          output: data.output || data.results || "",
+          error: data.error || null,
+        }),
+        {
+          output: "",
+          error:
+            "Execution Timeout: The code took too long to run and was terminated.",
+        },
+      );
+      const endTime = performance.now();
+      setExecutionTime(endTime - startTime);
 
       const timestamp = new Date().toLocaleTimeString();
-      setOutput((prev) => [
-        ...prev,
-        { type: 'info', content: '▶️ Running code...', timestamp } as SandboxOutput,
-      ]);
-
-      try {
-        const result = await manager.current.execute(code, timeoutMs);
-
-        if (!isMounted.current) {
-          return result;
-        }
-
-        setExecutionTime(result.executionTime || null);
-        setIsExecuting(false);
-
-        if (result.error) {
-          setStatus('error');
-          setError(result.error);
-          setOutput((prev) => [
-            ...prev,
-            {
-              type: 'error',
-              content: `❌ ${result.error}`,
-              timestamp: new Date().toLocaleTimeString(),
-            } as SandboxOutput,
-          ]);
-        } else {
-          setStatus('completed');
-          setOutput((prev) => [
-            ...prev,
-            {
-              type: 'info',
-              content: `✅ Execution completed in ${(result.executionTime || 0).toFixed(2)}ms`,
-              timestamp: new Date().toLocaleTimeString(),
-            } as SandboxOutput,
-            {
-              type: 'result',
-              content: result.output || '✅ Execution completed (no output)',
-              timestamp: new Date().toLocaleTimeString(),
-            } as SandboxOutput,
-          ]);
-        }
-
-        return result;
-      } catch (err: any) {
-        if (!isMounted.current) {
-          return { output: '', error: err.message };
-        }
-
-        const errorMessage = err.message || 'Unknown error occurred';
-        setStatus('timeout');
-        setError(errorMessage);
-        setIsExecuting(false);
-
+      if (res.error) {
+        setStatus(res.error.includes("Timeout") ? "timeout" : "error");
+        setErrorState(res.error);
         setOutput((prev) => [
           ...prev,
-          {
-            type: 'timeout',
-            content: `⏰ ${errorMessage}`,
-            timestamp: new Date().toLocaleTimeString(),
-          } as SandboxOutput,
+          { type: "error", timestamp, content: res.error! },
         ]);
-
-        workerRef.current.postMessage({ id: executionId, code, action: "execute_code" });
-      });
+      } else {
+        setStatus("completed");
+        setOutput((prev) => [
+          ...prev,
+          { type: "log", timestamp, content: res.output },
+        ]);
+      }
+      return res;
     },
-    [defaultTimeout]
+    [executeCode],
   );
 
   const traceJSCode = useCallback(
     (code: string, timeoutMs: number = 10000): Promise<TraceEvent[]> => {
-      return new Promise((resolve) => {
-        if (!workerRef.current) {
-          resolve([]);
-          return;
-        }
-
-        setExecutionTime(result.executionTime || null);
-        setIsExecuting(false);
-
-        const handleMessage = (event: MessageEvent) => {
-          if (event.data.id === executionId) {
-            cleanup();
-            resolve(event.data.trace_events || []);
-          }
-        };
-
-        return result;
-      } catch (err: any) {
-        if (!isMounted.current) {
-          return { output: '', error: err.message };
-        }
-
-        const errorMessage = err.message || 'Unknown error occurred';
-        setStatus('timeout');
-        setError(errorMessage);
-        setIsExecuting(false);
-
-        timeoutRef.current = window.setTimeout(() => {
-          if (workerRef.current) {
-            workerRef.current.terminate();
-            workerRef.current = new Worker(
-              new URL("../workers/jsWorker.ts", import.meta.url),
-              { type: "module" },
-            );
-          }
-          cleanup();
-          resolve([{
+      return executeCode<TraceEvent[]>(
+        { code, action: "execute_trace" },
+        timeoutMs,
+        (data: any) => data.trace_events || [],
+        [
+          {
             step: 0,
             line: 0,
             event: "error",
             locals: {},
             stdout: "",
-            error: "Execution Timeout: Code took too long to run."
-          }]);
-        }, timeoutMs);
-
-        workerRef.current.postMessage({ id: executionId, code, action: "execute_trace" });
-      });
+            error: "Execution Timeout: Code took too long to run.",
+          },
+        ],
+      );
     },
-    []
+    [executeCode],
   );
 
-  return { runJSCode, traceJSCode, isExecuting, isReady };
+  return {
+    runJSCode,
+    traceJSCode,
+    isExecuting,
+    isReady,
+    status,
+    executionTime,
+    error: errorState,
+    output,
+    workerStatus,
+    clearOutput,
+    stopExecution,
+    resetSandbox,
+    loadExample,
+  };
 }
 
 export default useJSSandbox;

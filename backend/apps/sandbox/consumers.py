@@ -237,7 +237,20 @@ class SandboxConsumer(AsyncWebsocketConsumer):
 
 
 class CollabConsumer(AsyncWebsocketConsumer):
+    """
+    Handles real-time WebSocket communication for collaborative pair-programming sessions.
+
+    This consumer manages a channel layer group unique to each `room_id`. It handles the
+    distribution of code changes, cursor movements, and code review comments between clients.
+    State is managed per connection by tracking the `room_group_name`. Reconnection strategies
+    and ping/pong heartbeats are managed by the client and the underlying ASGI server (Daphne),
+    while this consumer focuses on application-level message brokering.
+    """
+
     async def connect(self):
+        """
+        Accepts the WebSocket connection and adds the client to the collaboration room's group.
+        """
         self.room_id = self.scope["url_route"]["kwargs"]["room_id"]
         self.room_group_name = f"collab_{self.room_id}"
 
@@ -245,6 +258,9 @@ class CollabConsumer(AsyncWebsocketConsumer):
         await self.accept()
 
     async def disconnect(self, close_code):
+        """
+        Removes the client from the collaboration room's group upon disconnection.
+        """
         await self.channel_layer.group_discard(self.room_group_name, self.channel_name)
 
     async def receive(self, text_data=None, bytes_data=None):
