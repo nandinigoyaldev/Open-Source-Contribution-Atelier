@@ -1,5 +1,8 @@
+import toast from "react-hot-toast";
 import { enqueueOfflineAction } from "./offlineQueue";
-import toast from "react-hot-toast"; // <-- YEH HUMNE ADD KIYA HAI
+import { LRUCache } from "../utils/cache";
+
+const snippetsCache = new LRUCache<any[]>(50, 300000);
 
 // 1. Defend the environment variable retrieval against server-side execution crashes
 const getSafeEnvVar = (key: string): string => {
@@ -165,6 +168,9 @@ export async function fetchApi(endpoint: string, options: RequestOptions = {}) {
         const isOfflineOrNetworkError =
           !navigator.onLine || error instanceof TypeError;
         if (isOfflineOrNetworkError) {
+          if (config.body instanceof FormData) {
+            throw error;
+          }
           const bodyStr = config.body as string;
           try {
             const bodyObj = JSON.parse(bodyStr || "{}");
@@ -404,7 +410,16 @@ export async function fetchSnippets(filters?: {
   if (filters?.search) url += `search=${filters.search}&`;
   if (filters?.is_favorite !== undefined)
     url += `is_favorite=${filters.is_favorite}&`;
-  return fetchApi(url, { method: "GET" });
+  
+  // Try to return from cache
+  const cachedData = snippetsCache.get(url);
+  if (cachedData) {
+    return cachedData as CodeSnippet[];
+  }
+
+  const result = await fetchApi(url, { method: "GET" });
+  snippetsCache.set(url, result);
+  return result;
 }
 
 export async function createSnippet(
@@ -559,8 +574,8 @@ export async function exportWorkspaceZip(projectId: string): Promise<void> {
 
   // Get filename from Content-Disposition header
   const contentDisposition = response.headers.get("Content-Disposition") || "";
-  const filenameMatch = contentDisposition.match(/filename="(.+)"/);
-  const filename = filenameMatch ? filenameMatch[1] : "workspace-export.zip";
+  const filenameMatch = contentDisposition.match(/filename(?:\*)?=(?:"([^"]+)"|UTF-8''([^;]+))/i);
+  const filename = filenameMatch ? (filenameMatch[1] || filenameMatch[2]) : "workspace-export.zip";
 
   // Create blob and download
   const blob = await response.blob();

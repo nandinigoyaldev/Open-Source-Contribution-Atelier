@@ -5,12 +5,12 @@ import { useState, useEffect } from "react";
 
 import { AppRouter } from "./router";
 import { queryClient } from "../lib/queryClient";
-import { ThemeProvider } from "../context/ThemeContext";
 import { ThemeToggle } from "../components/ui/ThemeToggle";
 import { CommandPalette } from "../components/CommandPalette";
 import ReportIssueButton from "../components/ui/ReportIssueButton";
 import { NotificationProvider } from "../features/notifications/NotificationContext";
 import { ScrollToTop } from "../components/ui/ScrollToTop";
+import { WebSocketStatusIndicator } from "../components/WebSocketStatus/WebSocketStatusIndicator";
 
 // Pure React Onboarding Tour Step Definition Type Map
 interface TourStep {
@@ -120,8 +120,7 @@ export function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <BrowserRouter>
-        <ThemeProvider>
-          <NotificationProvider>
+        <NotificationProvider>
             <div className="min-h-screen bg-white dark:bg-slate-900 text-gray-900 dark:text-gray-100 transition-colors duration-300">
               {/* Global Toast Configuration */}
               <Toaster
@@ -142,6 +141,7 @@ export function App() {
               <ScrollToTop />
               <CommandPalette />
               <ReportIssueButton />
+              <WebSocketStatusIndicator />
 
               {/* Pure React Onboarding Modals Highlight Tour Overlay Portal */}
               {currentStep >= 0 && coords && (
@@ -205,7 +205,6 @@ export function App() {
               )}
             </div>
           </NotificationProvider>
-        </ThemeProvider>
       </BrowserRouter>
     </QueryClientProvider>
   );

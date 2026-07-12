@@ -11,6 +11,7 @@ import {
   CheckCircle2,
   Lock,
   Bookmark,
+  History,
 } from "lucide-react";
 
 import SkeletonLesson from "../components/ui/skeletons/SkeletonLesson";
@@ -18,7 +19,33 @@ import { useUserProgress } from "../hooks/useUserProgress";
 import { useBookmarks } from "../hooks/useBookmarks";
 import { fetchApi } from "../lib/api";
 import { Lesson, fetchLessonsApi, fetchLessonContent } from "../lib/lessons";
+import { RecentlyViewedLessonsWidget } from "../components/ui/RecentlyViewedLessonsWidget";
+
+const SESSION_KEY_RECENT = "recentlyViewedLessonsV1";
+const MAX_RECENT_ITEMS = 3;
+
+function safeParseRecentlyViewedLessons(raw: string | null): { slug: string; title: string }[] {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter(
+        (x) =>
+          x &&
+          typeof x === "object" &&
+          typeof (x as any).slug === "string" &&
+          typeof (x as any).title === "string",
+      )
+      .map((x) => ({ slug: (x as any).slug, title: (x as any).title }))
+      .slice(0, MAX_RECENT_ITEMS);
+  } catch {
+    return [];
+  }
+}
+
 const RichTextEditor = React.lazy(() =>
+
   import("../components/ui/RichTextEditor").then((mod) => ({
     default: mod.RichTextEditor,
   })),
@@ -29,6 +56,7 @@ const MarkdownRenderer = React.lazy(() =>
     default: module.MarkdownRenderer,
   })),
 );
+import { LessonHistoryModal } from "../components/LessonHistoryModal";
 import { GitGraph } from "../components/ui/GitGraph";
 import { NotePanel } from "../components/ui/NotePanel";
 import { LessonFeedbackWidget } from "../components/ui/LessonFeedbackWidget";
@@ -46,6 +74,7 @@ const InteractiveDebugger = React.lazy(() =>
 );
 import { TextToSpeechControls } from "../components/ui/TextToSpeechControls";
 import { ReadingProgressTracker } from "../components/ui/ReadingProgressTracker";
+import { NotesWidget } from "../components/ui/NotesWidget";
 import { lessonPluginRegistry } from "../plugins/LessonPluginRegistry";
 
 import {
@@ -105,6 +134,9 @@ export function LessonPage() {
   const [input, setInput] = useState("");
   const [feedback, setFeedback] = useState<string>("");
   const [showHint, setShowHint] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+
+  // For Interactive Terminal Lessons
   const [terminalOutput, setTerminalOutput] = useState("");
   const [repoState, setRepoState] = useState<RepoState>(createInitialRepo());
 
@@ -112,10 +144,11 @@ export function LessonPage() {
   const [currentQuizIndex, setCurrentQuizIndex] = useState(0);
   const [selectedOption, setSelectedOption] = useState<number | null>(null);
   const [quizFeedback, setQuizFeedback] = useState<
-    "correct" | "incorrect" | null
+    "correct" | "incorrect" | "timeout" | null
   >(null);
   // NEW: Cryptographic Nonce State
   const [quizNonce, setQuizNonce] = useState<string | null>(null);
+  const [timeLeft, setTimeLeft] = useState<number | null>(null);
 
   // Help Request panel
   const [isHelpPanelOpen, setIsHelpPanelOpen] = useState(false);
@@ -252,16 +285,35 @@ export function LessonPage() {
   useEffect(() => {
     if (!lesson) return;
 
+    // Update session-based "Recently Viewed Lessons".
+    try {
+      const nextItem = { slug: lesson.slug, title: lesson.title };
+      const raw = window.sessionStorage.getItem(SESSION_KEY_RECENT);
+      const current = safeParseRecentlyViewedLessons(raw);
+
+      const deduped = current.filter((x) => x.slug !== nextItem.slug);
+      const updated = [nextItem, ...deduped].slice(0, MAX_RECENT_ITEMS);
+
+      window.sessionStorage.setItem(
+        SESSION_KEY_RECENT,
+        JSON.stringify(updated),
+      );
+    } catch {
+      // Ignore storage errors (private mode / quota / unsupported browsers)
+    }
+
     setFeedback("");
     setInput("");
     setShowHint(false);
     setTerminalOutput("");
     setRepoState(createInitialRepo());
 
+
     setCurrentQuizIndex(0);
     setSelectedOption(null);
     setQuizFeedback(null);
     setQuizNonce(null);
+    setTimeLeft(null);
 
     if (lesson.filePath) {
       fetchLessonContent(lesson.filePath).then((content) => {
@@ -290,6 +342,55 @@ export function LessonPage() {
 
     fetchNonce();
   }, [lesson, currentQuizIndex]);
+
+  // Quiz Timer Effects
+  useEffect(() => {
+    if (lesson?.quizzes && lesson.quizzes.length > currentQuizIndex) {
+      const currentQuiz = lesson.quizzes[currentQuizIndex];
+      if (currentQuiz.timeLimitSeconds) {
+        setTimeLeft(currentQuiz.timeLimitSeconds);
+      } else {
+        setTimeLeft(null);
+      }
+    } else {
+      setTimeLeft(null);
+    }
+  }, [lesson, currentQuizIndex]);
+
+  useEffect(() => {
+    if (timeLeft === null || timeLeft <= 0 || quizFeedback !== null) return;
+    const timer = setInterval(() => {
+      setTimeLeft((prev) => {
+        if (prev === null || prev <= 1) {
+          clearInterval(timer);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [timeLeft, quizFeedback]);
+
+  const handleTimeout = useCallback(() => {
+    if (!lesson || !lesson.quizzes || !quizNonce || quizFeedback !== null) return;
+    const currentQuiz = lesson.quizzes[currentQuizIndex];
+    
+    quizAttemptMutation.mutate({
+      question_id: `${lesson.slug}-q${currentQuizIndex}`,
+      question_text: currentQuiz.question,
+      selected_answer: "Timeout",
+      correct_answer: currentQuiz.options[currentQuiz.answer] || "",
+      is_correct: false,
+      nonce: quizNonce,
+    });
+    setQuizFeedback("timeout");
+  }, [lesson, currentQuizIndex, quizNonce, quizFeedback, quizAttemptMutation]);
+
+  useEffect(() => {
+    if (timeLeft === 0 && quizFeedback === null) {
+      handleTimeout();
+    }
+  }, [timeLeft, quizFeedback, handleTimeout]);
 
   // 3. Scroll tracking for reading progress
   useEffect(() => {
@@ -389,15 +490,11 @@ export function LessonPage() {
       nonce: quizNonce, // NEW: Appended
     });
 
-    if (isCorrect) {
-      setQuizFeedback("correct");
-      if (currentQuizIndex === lesson.quizzes.length - 1) {
-        setFeedback("correct");
-        syncProgress({
-          lesson_slug: lesson.slug,
-          score: lesson.points || 15,
-          completed: true,
-        });
+    {isCorrect ? (
+              <span>✅ Correct! Well done!</span>
+            ) : (
+              <span>❌ Incorrect. The correct answer was: {correctAnswer}</span>
+            )}
       }
     } else {
       setQuizFeedback("incorrect");
@@ -408,6 +505,7 @@ export function LessonPage() {
     setSelectedOption(null);
     setQuizFeedback(null);
     setQuizNonce(null); // Clear old nonce so the useEffect can fetch a new one
+    setTimeLeft(null);
     setCurrentQuizIndex((prev) => prev + 1);
   };
 
@@ -495,8 +593,13 @@ export function LessonPage() {
         </div>
 
         <div className="space-y-6">
+          <div className="pt-2">
+            <RecentlyViewedLessonsWidget />
+          </div>
+
           {modules.map((mod, modIdx) => (
             <div key={mod.id} className="space-y-2">
+
               <h3
                 className={`font-mono text-[10px] uppercase tracking-wider font-bold px-2 py-1.5 rounded-lg border-2 transition-all
                          ${
@@ -584,30 +687,38 @@ export function LessonPage() {
                   COMPLETED ✅
                 </div>
               )}
-              <button
-                onClick={() =>
-                  toggleBookmark.mutate({
-                    slug: lesson.slug,
-                    isBookmarked: isBookmarked(lesson.slug),
-                  })
-                }
-                disabled={toggleBookmark.isPending}
-                className="self-start sm:self-center ml-auto flex items-center justify-center p-2 rounded-xl border-4 border-black bg-surface-low hover:-translate-y-1 hover:shadow-card-sm transition-all"
-                title={
-                  isBookmarked(lesson.slug)
-                    ? "Remove from Read Later"
-                    : "Save for later"
-                }
-              >
-                <Bookmark
-                  className={
-                    isBookmarked(lesson.slug)
-                      ? "fill-primary text-primary"
-                      : "text-black dark:text-[#f0ebe2]"
+              <div className="self-start sm:self-center ml-auto flex gap-2">
+                <button
+                  onClick={() => setShowHistory(true)}
+                  className="flex items-center justify-center p-2 rounded-xl border-4 border-black bg-surface-low hover:-translate-y-1 hover:shadow-card-sm transition-all"
+                  title="View History"
+                >
+                  <History className="text-text h-6 w-6" />
+                </button>
+                <button
+                  onClick={() =>
+                    toggleBookmark.mutate({
+                      slug: lesson.slug,
+                      isBookmarked: isBookmarked(lesson.slug),
+                    })
                   }
-                  size={24}
-                />
-              </button>
+                  disabled={toggleBookmark.isPending}
+                  className="flex items-center justify-center p-2 rounded-xl border-4 border-black bg-surface-low hover:-translate-y-1 hover:shadow-card-sm transition-all"
+                  title={
+                    isBookmarked(lesson.slug)
+                      ? "Remove from Read Later"
+                      : "Save for later"
+                  }
+                >
+                  <Bookmark
+                    className={
+                      isBookmarked(lesson.slug)
+                        ? "fill-accent text-accent h-6 w-6"
+                        : "text-text h-6 w-6"
+                    }
+                  />
+                </button>
+              </div>
             </div>
 
             <p className="text-xl font-bold text-muted dark:text-[#c4bbae]">
@@ -723,14 +834,19 @@ export function LessonPage() {
                         Knowledge Check: Question {currentQuizIndex + 1} of{" "}
                         {lesson.quizzes!.length}
                       </span>
-                      <span className="text-xs font-black text-accent bg-black text-white px-2 py-0.5 rounded-full dark:bg-[#2e2924]">
-                        {lesson.points || 15} XP
-                      </span>
+                      <div className="flex items-center gap-3">
+                        {timeLeft !== null && (
+                          <div className={`text-xs font-black px-2 py-0.5 rounded-full border-2 ${
+                            timeLeft <= 5 ? "bg-red-100 text-red-600 border-red-600 animate-pulse" : "bg-surface text-text border-black dark:border-[#2e2924] dark:text-[#f0ebe2]"
+                          }`}>
+                            ⏱ {Math.floor(timeLeft / 60).toString().padStart(2, "0")}:{(timeLeft % 60).toString().padStart(2, "0")}
+                          </div>
+                        )}
+                        <span className="text-xs font-black text-accent bg-black text-white px-2 py-0.5 rounded-full dark:bg-[#2e2924]">
+                          {lesson.points || 15} XP
+                        </span>
+                      </div>
                     </div>
-
-                    <h3>💻 Git Sandbox</h3>
-                    <p>Try Git commands in this interactive terminal:</p>
-                    <GitTerminal />
 
                     <h3 className="text-lg font-black mb-4 text-text dark:text-[#f0ebe2]">
                       {lesson.quizzes![currentQuizIndex].question}
@@ -803,8 +919,17 @@ export function LessonPage() {
                         aria-live="assertive"
                         className="mt-4 p-4 bg-red-50 text-red-800 border-4 border-red-600 rounded-lg font-bold text-sm"
                       >
-                        ❌ Not quite. Try reviewing the lesson text or options
-                        again.
+                        ❌ Incorrect. Try reviewing the lesson material again.
+                      </div>
+                    )}
+
+                    {quizFeedback === "timeout" && (
+                      <div
+                        role="alert"
+                        aria-live="assertive"
+                        className="mt-4 p-4 bg-orange-50 text-orange-800 border-4 border-orange-600 rounded-lg font-bold text-sm"
+                      >
+                        ⏳ Time's Up! You ran out of time for this question.
                       </div>
                     )}
 
@@ -1136,6 +1261,20 @@ export function LessonPage() {
       {lesson && isCompleted && (
         <LessonFeedbackWidget lessonSlug={lesson.slug} />
       )}
+      {showConfetti && (
+        <Confetti duration={6000} onComplete={() => setShowConfetti(false)} />
+      )}
+
+      {showHistory && (
+        <LessonHistoryModal
+          lessonId={lesson.slug}
+          currentContent={markdownContent}
+          onClose={() => setShowHistory(false)}
+        />
+      )}
+
+      {/* Private Notes Widget */}
+      <NotesWidget />
     </div>
   );
 }

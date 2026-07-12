@@ -2,7 +2,8 @@ import React, { useState, useEffect } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchApi } from "../../lib/api";
 import { encryptNoteContent, decryptNoteContent } from "../../lib/notesCrypto";
-import { Lock, Save, Plus, Trash2, X } from "lucide-react";
+import { Lock, Save, Plus, Trash2, X, Download } from "lucide-react";
+import { NotesExportButton } from "./NotesExportButton";
 
 interface EncryptedNote {
   id: number;
@@ -133,7 +134,8 @@ export function NotesWidget() {
               <Lock className="w-5 h-5" />
               <h3 className="font-black text-lg">E2E Notes</h3>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-2 items-center">
+              <NotesExportButton variant="outline" size="sm" className="border-2 border-black !px-2 !py-1 text-xs" />
               <button
                 onClick={handleNewNote}
                 className="hover:bg-black/10 p-1 rounded transition-colors"

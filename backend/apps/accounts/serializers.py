@@ -104,11 +104,20 @@ class UserUpdateSerializer(serializers.ModelSerializer):
 
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
+        
         if password:
             instance.set_password(password)
+
+            if hasattr(instance, "profile"):
+                # ✅ Increment JWT token version on password change
+                instance.profile.jwt_token_version += 1
+                instance.profile.last_password_change = timezone.now()
+                instance.profile.save(update_fields=["jwt_token_version", "last_password_change"])
+
             if hasattr(instance, "user_profile"):
                 instance.user_profile.last_password_change = timezone.now()
                 instance.user_profile.save(update_fields=["last_password_change"])
+
         instance.save()
 
         if (
@@ -339,3 +348,53 @@ class MagicLinkVerifySerializer(serializers.Serializer):
     """Accept a magic link token to verify and login the user."""
 
     token = serializers.UUIDField()
+
+
+# ============================================================
+# ✅ ADDED: Change Password Serializer (with JWT Invalidation)
+# ============================================================
+
+
+class ChangePasswordSerializer(serializers.Serializer):
+    """
+    Serializer for password change with JWT invalidation.
+    """
+    current_password = serializers.CharField(required=True, write_only=True)
+    new_password = serializers.CharField(required=True, write_only=True, min_length=8)
+
+    def validate_current_password(self, value):
+        """Validate current password (checks against user)."""
+        user = self.context.get('user')
+        if not user:
+            raise serializers.ValidationError("User not found")
+        if not user.check_password(value):
+            raise serializers.ValidationError("Current password is incorrect")
+        return value
+
+    def validate_new_password(self, value):
+        """Validate new password strength."""
+        return validate_strong_password(value)
+
+    def save(self, **kwargs):
+        """Change password and invalidate JWT tokens."""
+        user = self.context.get('user')
+        new_password = self.validated_data['new_password']
+        
+        # Set new password (this will trigger JWT invalidation via signal)
+        user.set_password(new_password)
+        
+        # Increment JWT token version
+        if hasattr(user, "profile") and user.profile:
+            user.profile.jwt_token_version += 1
+            user.profile.last_password_change = timezone.now()
+            user.profile.save(update_fields=["jwt_token_version", "last_password_change"])
+        else:
+            from apps.accounts.models import UserProfile
+            UserProfile.objects.create(
+                user=user,
+                last_password_change=timezone.now(),
+                jwt_token_version=2
+            )
+        
+        user.save()
+        return user

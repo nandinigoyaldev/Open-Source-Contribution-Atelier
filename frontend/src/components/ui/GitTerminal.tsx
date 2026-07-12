@@ -60,8 +60,10 @@ export function GitTerminal({
   const [editorVal, setEditorVal] = useState("");
   const [completed, setCompleted] = useState(false);
   const [showCheatSheet, setShowCheatSheet] = useState(false);
+  const [liveMsg, setLiveMsg] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+
 
   const handleComplete = useCallback(() => {
     setCompleted(true);
@@ -128,16 +130,53 @@ export function GitTerminal({
     setIsExecuting(false);
   };
 
+  const clearTerminal = useCallback(() => {
+    resetShell();
+    setCompleted(false);
+    setInputVal("");
+    setShowSuggestions(false);
+    setLiveMsg("Terminal cleared.");
+    inputRef.current?.focus();
+  }, [resetShell]);
+
+  const copyTerminalText = useCallback(async () => {
+    // Best-effort: copy rendered terminal lines (excluding nano editor UI).
+    const text = lines
+      .map((l) => (l.kind === "command" ? `${l.prompt ?? "~"}$ ${l.text}` : l.text))
+      .join("\n");
+    try {
+      await navigator.clipboard.writeText(text);
+      setLiveMsg("Terminal output copied to clipboard.");
+    } catch {
+      // Clipboard may be blocked; do not fail hard for screen reader users.
+      setLiveMsg("Unable to copy terminal output to clipboard.");
+    }
+  }, [lines]);
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // Allow standard Tab/keyboard traversal when no suggestions are being displayed.
+
     // Ctrl+L clears the terminal (override browser "clear URL bar" behavior)
     if (e.ctrlKey && e.key.toLowerCase() === "l") {
       e.preventDefault();
-      resetShell();
-      setCompleted(false);
-      setInputVal("");
-      setShowSuggestions(false);
+      clearTerminal();
       return;
     }
+
+    // Ctrl+Shift+C copies terminal text
+    if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === "c") {
+      e.preventDefault();
+      void copyTerminalText();
+      return;
+    }
+
+    // Ctrl+R resets the shell
+    if (e.ctrlKey && e.key.toLowerCase() === "r") {
+      e.preventDefault();
+      clearTerminal();
+      return;
+    }
+
 
     // Ctrl+/ focuses the input (defensive; input already has focus)
     if (e.ctrlKey && e.key === "/") {
@@ -172,12 +211,10 @@ export function GitTerminal({
         return;
       }
     } else if (e.key === "Tab") {
-      e.preventDefault();
-      if (suggestions.length > 0) {
-        setInputVal(suggestions[0].completionText);
-      }
+      // If suggestions are not open, keep default Tab behavior.
       return;
     }
+
 
     if (e.key === "ArrowUp") {
       e.preventDefault();
@@ -200,15 +237,42 @@ export function GitTerminal({
   return (
     <div
       ref={termRef}
-      className="flex flex-col bg-[#0f0f1d] rounded-lg shadow-card-lg border-2 border-black"
+      tabIndex={0}
+      role="application"
+      aria-label={title}
+      className="flex flex-col bg-[#0f0f1d] rounded-lg shadow-card-lg border-2 border-black outline-none"
+      onFocus={() => {
+        if (!shellState.editorState) inputRef.current?.focus();
+      }}
       onKeyDownCapture={(e) => {
         // Ctrl+/ focuses the terminal input even when focus is on other elements
         if (e.ctrlKey && e.key === "/" && !shellState.editorState) {
           e.preventDefault();
           inputRef.current?.focus();
+          return;
+        }
+
+        // Terminal-level shortcuts (work even if wrapper has focus)
+        if (!shellState.editorState) {
+          if (e.ctrlKey && e.key.toLowerCase() === "l") {
+            e.preventDefault();
+            clearTerminal();
+            return;
+          }
+          if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === "c") {
+            e.preventDefault();
+            void copyTerminalText();
+            return;
+          }
+          if (e.ctrlKey && e.key.toLowerCase() === "r") {
+            e.preventDefault();
+            clearTerminal();
+            return;
+          }
         }
       }}
     >
+
       {/* ── Title bar ─────────────────────────────────────────────── */}
       <div className="flex items-center justify-between px-4 py-2 bg-[#1a1a2e] border-b-4 border-black dark:border-[#2e2924]">
         <div className="flex items-center gap-3">
@@ -243,7 +307,13 @@ export function GitTerminal({
         </div>
       </div>
 
+      {/* ARIA live announcements for assistive tech */}
+      <div aria-live="assertive" className="sr-only">
+        {liveMsg}
+      </div>
+
       {/* ── Output area / Editor Overlay ───────────────────────────── */}
+
       {shellState.editorState ? (
         <div className="bg-[#1e1e1e] min-h-[260px] max-h-[380px] p-0 flex flex-col relative">
           <div className="bg-gray-800 text-gray-300 text-xs px-3 py-1 font-mono flex justify-between items-center border-b border-gray-700">

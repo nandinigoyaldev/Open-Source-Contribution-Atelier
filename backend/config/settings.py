@@ -6,6 +6,7 @@ from pathlib import Path
 from config.auth import JWT_CONFIG, TOKEN_BLACKLIST_ENABLED
 
 import dj_database_url
+
 # pyrefly: ignore [missing-import]
 from django.core.exceptions import ImproperlyConfigured
 
@@ -152,20 +153,21 @@ INSTALLED_APPS = [
 ]
 # Redis Cache
 CACHES = {
-    'default': {
-        'BACKEND': 'django_redis.cache.RedisCache',
-        'LOCATION': 'redis://127.0.0.1:6379/1',
-        'OPTIONS': {
-            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
-        }
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": "redis://127.0.0.1:6379/1",
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+        },
     }
 }
 
 # Rate Limit
-DEFAULT_RATE = '100/hour'
+DEFAULT_RATE = "100/hour"
 
 MIDDLEWARE = [
     "django_prometheus.middleware.PrometheusBeforeMiddleware",
+    "config.logging_middleware.RequestResponseLoggingMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "config.security_middleware.ContentSecurityPolicyMiddleware",
@@ -176,6 +178,7 @@ MIDDLEWARE = [
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
+    "apps.core.audit_middleware.AuditLogMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "apps.cache.middleware.RateLimitMiddleware",
     "apps.sandbox.middleware.SandboxExecutionLogMiddleware",
@@ -188,7 +191,7 @@ ROOT_URLCONF = "config.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [],
+        "DIRS": [BASE_DIR / "templates"],  # ✅ ADDED: For email templates
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -207,14 +210,14 @@ ASGI_APPLICATION = "config.asgi.application"
 DATABASES = {
     "default": dj_database_url.config(
         default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}",
-        conn_max_age=600,  # Prepares for PgBouncer connection pooling
+        conn_max_age=int(os.getenv("CONN_MAX_AGE", "0")),  # PgBouncer uses transaction pooling, so conn_max_age=0
         conn_health_checks=True,
     ),
     "replica": dj_database_url.config(
         env="REPLICA_DATABASE_URL",
         default=os.getenv("DATABASE_URL")
-        or f"sqlite:///{BASE_DIR / 'db.sqlite3'}",  # Falls back to primary in production if replica env is unset
-        conn_max_age=600,
+        or f"sqlite:///{BASE_DIR / 'db.sqlite3'}",
+        conn_max_age=int(os.getenv("CONN_MAX_AGE", "0")),
         conn_health_checks=True,
     ),
 }
@@ -222,6 +225,8 @@ DATABASES = {
 for db_name, db_config in DATABASES.items():
     if db_config.get("ENGINE") == "django.db.backends.postgresql":
         db_config["ENGINE"] = "django_prometheus.db.backends.postgresql"
+        # Disable server-side cursors to avoid issues with PgBouncer transaction pooling
+        db_config.setdefault("OPTIONS", {})["DISABLE_SERVER_SIDE_CURSORS"] = True
     elif db_config.get("ENGINE") == "django.db.backends.sqlite3":
         db_config["ENGINE"] = "django_prometheus.db.backends.sqlite3"
 
@@ -280,6 +285,10 @@ EMAIL_BACKEND = os.getenv(
 )
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "noreply@atelier.dev")
 
+# ── Frontend URL for password reset links ────────────────────────────────────
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
+SITE_NAME = os.getenv("SITE_NAME", "Open Source Contribution Atelier")
+
 # ── Proxy / Load-Balancer Support ─────────────────────────────────────────────
 # Number of trusted proxy hops in front of Django (e.g. Nginx + AWS ALB = 2).
 # Used by throttles.py to extract the real client IP from X-Forwarded-For.
@@ -330,6 +339,10 @@ REST_FRAMEWORK = {
     "EXCEPTION_HANDLER": "apps.accounts.exceptions.throttle_exception_handler",
 }
 
+# ============================================================
+# ✅ UPDATED: SimpleJWT Configuration with Dynamic Salt
+# ============================================================
+
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(
         minutes=int(os.getenv("ACCESS_TOKEN_LIFETIME_MINUTES", "30"))
@@ -339,6 +352,29 @@ SIMPLE_JWT = {
     ),
     "ROTATE_REFRESH_TOKENS": True,
     "BLACKLIST_AFTER_ROTATION": True,
+    # ✅ Custom token classes for dynamic salt
+    "ACCESS_TOKEN_CLASS": ("apps.accounts.jwt.DynamicSaltAccessToken",),
+    "REFRESH_TOKEN_CLASS": ("apps.accounts.jwt.DynamicSaltRefreshToken",),
+    # ✅ Other JWT settings
+    "ALGORITHM": "HS256",
+    "SIGNING_KEY": SECRET_KEY,
+    "VERIFYING_KEY": None,
+    "AUDIENCE": None,
+    "ISSUER": None,
+    "JWK_URL": None,
+    "LEEWAY": 0,
+    "AUTH_HEADER_TYPES": ("Bearer",),
+    "AUTH_HEADER_NAME": "HTTP_AUTHORIZATION",
+    "USER_ID_FIELD": "id",
+    "USER_ID_CLAIM": "user_id",
+    "USER_AUTHENTICATION_RULE": "rest_framework_simplejwt.authentication.default_user_authentication_rule",
+    "AUTH_TOKEN_CLASSES": ("rest_framework_simplejwt.tokens.AccessToken",),
+    "TOKEN_TYPE_CLAIM": "token_type",
+    "TOKEN_USER_CLASS": "rest_framework_simplejwt.models.TokenUser",
+    "JTI_CLAIM": "jti",
+    "SLIDING_TOKEN_REFRESH_EXP_CLAIM": "refresh_exp",
+    "SLIDING_TOKEN_LIFETIME": timedelta(minutes=30),
+    "SLIDING_TOKEN_REFRESH_LIFETIME": timedelta(days=1),
 }
 
 # ──────────────────────────────────────────
@@ -482,11 +518,47 @@ Q_CLUSTER = {
     "bulk": 10,
     **_q_broker,
 }
+# Audit Logging
+AUDIT_LOG_ENABLED = True
 
+# Configure audit logger
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'json': {
+            'format': '%(message)s',
+        },
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'json',
+        },
+        'file': {
+            'class': 'logging.FileHandler',
+            'filename': 'audit.log',
+            'formatter': 'json',
+        },
+    },
+    'loggers': {
+        'audit': {
+            'handlers': ['console', 'file'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+    },
+}
 
 # ──────────────────────────────────────────
 # Logging Configuration
 # ──────────────────────────────────────────
+REQUEST_LOGGING_VERBOSITY = os.getenv("REQUEST_LOGGING_VERBOSITY", "minimal")
+
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
@@ -531,6 +603,9 @@ LOGGING = {
     },
 }
 
+
+GRAPHENE = {"SCHEMA": "config.schema.schema"}
+
 GRAPHENE = {"SCHEMA": "config.schema.schema"}
 
 # ──────────────────────────────────────────
@@ -550,4 +625,3 @@ CURRICULUM_JSON_PATH = os.getenv(
 
 CELERY_TASK_ALWAYS_EAGER = True
 CELERY_TASK_STORE_EAGER_RESULT = True
-

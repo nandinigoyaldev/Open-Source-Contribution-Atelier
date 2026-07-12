@@ -31,6 +31,7 @@ from .models import (
     LessonProgress,
     QuizAttempt,
     UserBadge,
+    UserNote,  # ✅ ADD: UserNote model
 )
 from .serializers import (
     BadgeSerializer,
@@ -44,6 +45,162 @@ from .serializers import (
 )
 from .throttles import HelpRequestRateThrottle
 
+
+# ============================================================
+# ✅ ADD: Notes Export View
+# ============================================================
+
+class ExportNotesView(APIView):
+    """
+    GET /api/progress/notes/export/
+    
+    Export all user notes as a single structured Markdown file.
+    Supports optional format parameter: ?format=md (default) or ?format=json
+    """
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+        format_type = request.query_params.get('format', 'md').lower()
+
+        # Fetch all notes for the user
+        notes = UserNote.objects.filter(
+            user=user
+        ).select_related('lesson', 'lesson__module').order_by('lesson__module__order', 'lesson__order')
+
+        if not notes.exists():
+            return Response(
+                {'error': 'No notes found to export'},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        if format_type == 'json':
+            return self._export_json(notes, user)
+        else:
+            return self._export_markdown(notes, user)
+
+    def _export_markdown(self, notes, user):
+        """
+        Export notes as a structured Markdown file.
+        """
+        # Group notes by module
+        modules = {}
+        for note in notes:
+            module_name = note.lesson.module.title if note.lesson.module else 'Uncategorized'
+            if module_name not in modules:
+                modules[module_name] = {
+                    'module': note.lesson.module,
+                    'lessons': {}
+                }
+            
+            lesson_title = note.lesson.title
+            if lesson_title not in modules[module_name]['lessons']:
+                modules[module_name]['lessons'][lesson_title] = []
+            
+            modules[module_name]['lessons'][lesson_title].append(note)
+
+        # Build Markdown content
+        markdown_lines = []
+        
+        # Header
+        markdown_lines.append(f"# 📝 Notes Export - {user.username}")
+        markdown_lines.append(f"**Exported on:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        markdown_lines.append(f"**Total Notes:** {notes.count()}")
+        markdown_lines.append("")
+        markdown_lines.append("---")
+        markdown_lines.append("")
+
+        # Table of Contents
+        markdown_lines.append("## 📑 Table of Contents")
+        for module_name in modules.keys():
+            markdown_lines.append(f"- [{module_name}](#{module_name.lower().replace(' ', '-')})")
+        markdown_lines.append("")
+        markdown_lines.append("---")
+        markdown_lines.append("")
+
+        # Notes by module
+        for module_name, module_data in modules.items():
+            markdown_lines.append(f"## {module_name}")
+            markdown_lines.append("")
+            
+            for lesson_title, lesson_notes in module_data['lessons'].items():
+                markdown_lines.append(f"### 📖 {lesson_title}")
+                markdown_lines.append("")
+                
+                for note in lesson_notes:
+                    # Note metadata
+                    markdown_lines.append(f"**Note ID:** {note.id}")
+                    markdown_lines.append(f"**Created:** {note.created_at.strftime('%Y-%m-%d %H:%M')}")
+                    if note.updated_at and note.updated_at != note.created_at:
+                        markdown_lines.append(f"**Updated:** {note.updated_at.strftime('%Y-%m-%d %H:%M')}")
+                    
+                    # Note content with tags
+                    if hasattr(note, 'tags') and note.tags:
+                        markdown_lines.append(f"**Tags:** {', '.join(note.tags)}")
+                    
+                    markdown_lines.append("")
+                    
+                    # Note content
+                    markdown_lines.append("```")
+                    markdown_lines.append(note.content)
+                    markdown_lines.append("```")
+                    markdown_lines.append("")
+                    
+                    # Separator between notes in same lesson
+                    if len(lesson_notes) > 1:
+                        markdown_lines.append("---")
+                        markdown_lines.append("")
+
+        # Footer
+        markdown_lines.append("---")
+        markdown_lines.append(f"*Exported from Open Source Contribution Atelier on {datetime.now().strftime('%Y-%m-%d')}*")
+        markdown_lines.append("")
+        markdown_lines.append("_Happy Learning! 🚀_")
+
+        # Create response
+        markdown_content = "\n".join(markdown_lines)
+        filename = f"notes_export_{user.username}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md"
+        
+        response = HttpResponse(markdown_content, content_type='text/markdown; charset=utf-8')
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        
+        return response
+
+    def _export_json(self, notes, user):
+        """
+        Export notes as JSON.
+        """
+        data = {
+            'username': user.username,
+            'email': user.email,
+            'exported_at': datetime.now().isoformat(),
+            'total_notes': notes.count(),
+            'notes': []
+        }
+        
+        for note in notes:
+            data['notes'].append({
+                'id': note.id,
+                'lesson_title': note.lesson.title,
+                'module_title': note.lesson.module.title if note.lesson.module else None,
+                'content': note.content,
+                'tags': note.tags if hasattr(note, 'tags') else [],
+                'created_at': note.created_at.isoformat(),
+                'updated_at': note.updated_at.isoformat() if note.updated_at else None,
+            })
+        
+        filename = f"notes_export_{user.username}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+        json_content = json.dumps(data, indent=2, ensure_ascii=False)
+        
+        response = HttpResponse(json_content, content_type='application/json; charset=utf-8')
+        response['Content-Disposition'] = f'attachment; filename="{filename}"'
+        
+        return response
+
+
+# ============================================================
+# Rest of the views (existing code continues below)
+# ============================================================
 
 @extend_schema(responses=BadgeSerializer(many=True))
 class BadgeListView(ListAPIView):
@@ -106,6 +263,34 @@ class MyProgressView(APIView):
             request.user.id, lesson_slug, payload
         )
 
+                client_dt = datetime.datetime.fromtimestamp(
+                    client_timestamp_ms / 1000.0, tz=datetime.timezone.utc
+                )
+                if progress.updated_at > client_dt:
+                    skip_update = True
+
+            if not skip_update and (
+                progress.base_score != base_score or progress.completed != completed
+            ):
+                progress.completed = completed
+                progress.base_score = base_score
+                progress.multiplier_applied = multiplier
+                progress.score = int(base_score * multiplier)
+                progress.organization = request.user.organization
+                progress.save()
+                # Record XP event
+                old_score = getattr(progress, "score", 0) if not created else 0
+                xp_delta = progress.score - old_score
+                XPEvent.objects.create(
+                    user=request.user,
+                    source_type="lesson",
+                    source_id=lesson.id,
+                    base_points=base_score,
+                    multiplier=multiplier,
+                    xp_delta=xp_delta,
+                )
+except LessonProgress.DoesNotExist:
+            progress = LessonProgress.objects.create(
         if buffered:
             # Return accepted response with optimistic in-memory model
             progress = LessonProgress(
@@ -115,6 +300,18 @@ class MyProgressView(APIView):
                 base_score=base_score,
                 score=base_score,
             )
+            # Record XP event for new progress
+            XPEvent.objects.create(
+                user=request.user,
+                source_type="lesson",
+                source_id=lesson.id,
+                base_points=base_score,
+                multiplier=multiplier,
+                xp_delta=progress.score,
+            )
+            created = True
+
+        from django_q.tasks import async_task
             serializer = LessonProgressSerializer(progress)
             return Response(serializer.data, status=status.HTTP_202_ACCEPTED)
 
@@ -926,6 +1123,9 @@ class LessonBookmarkView(APIView):
             LessonBookmark, user=request.user, lesson__slug=slug
         )
         bookmark.delete()
+
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
         return Response(status=status.HTTP_204_NO_CONTENT)
 
 
@@ -1080,3 +1280,4 @@ class HeatmapView(APIView):
             data.append({"date": act.date.isoformat(), "count": 1})
 
         return Response(data, status=status.HTTP_200_OK)
+

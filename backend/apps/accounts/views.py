@@ -30,6 +30,7 @@ from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
@@ -108,37 +109,17 @@ class SignupView(generics.CreateAPIView):
     throttle_classes = [SignupThrottle]
 
 
-@extend_schema(
-    summary="Login user",
-    description="Authenticate user and return JWT token",
-    request=UserLoginSchema,
-    responses={
-        200: OpenApiResponse(
-            description="Login successful", response=UserResponseSchema
-        ),
-        401: OpenApiResponse(description="Invalid credentials"),
-    },
-)
-def login(request):
-    pass
-
-
-@extend_schema(
-    summary="Get user profile",
-    description="Returns current user profile information",
-    responses={
-        200: UserResponseSchema,
-        401: OpenApiResponse(description="Unauthorized"),
-    },
-)
-def get_profile(request):
-    pass
-
-
 class MeView(APIView):
     permission_classes = [IsAuthenticated]  # check jwt authentication
 
-    @extend_schema(responses=UserListSerializer)
+    @extend_schema(
+        summary="Get user profile",
+        description="Returns current user profile information",
+        responses={
+            200: UserResponseSchema,
+            401: OpenApiResponse(description="Unauthorized"),
+        },
+    )
     def get(self, request):
         serializer = UserListSerializer(request.user, context={"request": request})
         return Response(serializer.data)
@@ -217,6 +198,19 @@ class UserStatisticsView(APIView):
         )
 
 
+@extend_schema_view(
+    post=extend_schema(
+        summary="Login user",
+        description="Authenticate user and return JWT token",
+        request=UserLoginSchema,
+        responses={
+            200: OpenApiResponse(
+                description="Login successful", response=TokenObtainPairSerializer
+            ),
+            401: OpenApiResponse(description="Invalid credentials"),
+        },
+    )
+)
 class LoginView(TokenObtainPairView):
     permission_classes = [permissions.AllowAny]
     serializer_class = EmailOrUsernameTokenObtainPairSerializer
@@ -479,8 +473,9 @@ class UserSuggestionsView(APIView):
         return Response(data, status=status.HTTP_200_OK)
 
 
+>>>>>>> main
 # ─────────────────────────────────────────────────────────────────────────────
-# Password Reset Views
+# Password Reset Views (UPDATED with Custom Token Model & JWT Invalidation)
 # ─────────────────────────────────────────────────────────────────────────────
 
 
@@ -504,7 +499,7 @@ class PasswordResetRequestView(APIView):
         serializer = PasswordResetRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        email = serializer.validated_data["email"].lower()  # type: ignore
+        email = serializer.validated_data["email"].lower()
         user = User.objects.filter(email__iexact=email).first()
 
         if user:
@@ -514,11 +509,13 @@ class PasswordResetRequestView(APIView):
             )
             reset_token = PasswordResetToken.objects.create(user=user)
 
+            # Build reset link
             reset_url = frontend_url(
                 "/reset-password", {"token": str(reset_token.token)}
             )
             timeout = getattr(settings, "PASSWORD_RESET_TIMEOUT_MINUTES", 15)
 
+            # Send email asynchronously with HTML template
             async_task(
                 "apps.accounts.tasks.send_password_reset_email_task",
                 user_email=user.email,
@@ -546,7 +543,6 @@ class PasswordResetConfirmView(APIView):
 
     Accept a reset token and new password to complete the password reset.
     Tokens are single-use and expire after PASSWORD_RESET_TIMEOUT_MINUTES.
-    Rate-limited to 3 requests/hour per IP.
     """
 
     permission_classes = [permissions.AllowAny]
@@ -556,8 +552,8 @@ class PasswordResetConfirmView(APIView):
         serializer = PasswordResetConfirmSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        token_value = serializer.validated_data["token"]  # type: ignore
-        new_password = serializer.validated_data["new_password"]  # type: ignore
+        token_value = serializer.validated_data["token"]
+        new_password = serializer.validated_data["new_password"]
 
         try:
             reset_token = PasswordResetToken.objects.select_related("user").get(
@@ -583,174 +579,89 @@ class PasswordResetConfirmView(APIView):
             )
 
         user = reset_token.user
+        
+        # Set new password (this will trigger JWT invalidation via signal)
         user.set_password(new_password)
+        
+        # Update last_password_change in profile
         if hasattr(user, "profile"):
             user.profile.last_password_change = timezone.now()
-            user.profile.save(update_fields=["last_password_change"])
+            # ✅ Increment JWT token version to invalidate all existing tokens
+            user.profile.jwt_token_version += 1
+            user.profile.save(update_fields=["last_password_change", "jwt_token_version"])
+        else:
+            # Create profile if it doesn't exist
+            from apps.accounts.models import UserProfile
+            UserProfile.objects.create(
+                user=user,
+                last_password_change=timezone.now(),
+                jwt_token_version=2
+            )
+        
         user.save()
 
+        # Mark token as used
         reset_token.is_used = True
         reset_token.save(update_fields=["is_used"])
 
+        # ✅ Log the invalidation
+        logger.info(f"Password reset confirmed for user {user.username} - all JWT tokens invalidated")
+
         return Response(
             {
-                "message": "Your password has been successfully reset. You can now log in."
+                "message": "Your password has been successfully reset. All existing JWT tokens have been invalidated. You can now log in with your new password."
             },
             status=status.HTTP_200_OK,
         )
 
 
-# ─────────────────────────────────────────────────────────────────────────────
-# OTP (Email Verification) Views
-# ─────────────────────────────────────────────────────────────────────────────
-
-
 @extend_schema(
-    request=OtpRequestSerializer,
-    responses=OpenApiResponse(description="OTP sent to email if account exists."),
+    responses=OpenApiResponse(description="Check if reset token is valid."),
 )
-class OtpRequestView(APIView):
+class PasswordResetValidateTokenView(APIView):
     """
-    POST /api/auth/otp/request/
+    GET /api/auth/password-reset/validate-token/?token=xxx
 
-    Regenerate and send a new OTP verification code to the given email.
-    Rate-limited to 3 requests/minute per IP to prevent email spam.
+    Check if a reset token is valid and not expired.
     """
 
     permission_classes = [permissions.AllowAny]
-    throttle_classes = [OtpGenerateThrottle]
 
-    def post(self, request):
-        serializer = OtpRequestSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+    def get(self, request):
+        token_value = request.query_params.get('token')
 
-        email = serializer.validated_data["email"].lower()  # type: ignore
-        user = User.objects.filter(email__iexact=email).first()
-
-        if user:
-            # Invalidate previous unused OTP tokens
-            OTPToken.objects.filter(user=user, is_used=False).update(is_used=True)
-            otp_obj = OTPToken.objects.create(user=user)
-
-            async_task(
-                "apps.accounts.tasks.send_otp_email_task",
-                user_email=user.email,
-                user_username=user.username,
-                otp_token=otp_obj.token,
-            )
-
-        return Response(
-            {"message": "If the email is registered, an OTP has been sent."},
-            status=status.HTTP_200_OK,
-        )
-
-
-@extend_schema(
-    request=OtpVerifySerializer,
-    responses=OpenApiResponse(description="Email verified successfully."),
-)
-class OtpVerifyView(APIView):
-    """
-    POST /api/auth/otp/verify/
-
-    Verify a user's email using the OTP token they received by email.
-    Rate-limited to 5 requests/minute per IP to prevent OTP guessing.
-    """
-
-    permission_classes = [permissions.AllowAny]
-    throttle_classes = [OtpVerifyThrottle]
-
-    def post(self, request):
-        serializer = OtpVerifySerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-
-        email = serializer.validated_data["email"].lower()  # type: ignore
-        otp = serializer.validated_data["otp"]  # type: ignore
-
-        user = User.objects.filter(email__iexact=email).first()
-        if not user:
+        if not token_value:
             return Response(
-                {"error": "invalid_otp"}, status=status.HTTP_400_BAD_REQUEST
+                {'valid': False, 'error': 'Token is required'},
+                status=status.HTTP_400_BAD_REQUEST
             )
 
-        token = OTPToken.objects.filter(user=user, token=otp, is_used=False).first()
-        if not token:
-            return Response(
-                {"error": "invalid_otp"}, status=status.HTTP_400_BAD_REQUEST
+        try:
+            reset_token = PasswordResetToken.objects.get(
+                token=token_value,
+                is_used=False,
             )
 
-        # Mark token as used
-        token.is_used = True
-        token.save()
+        except PasswordResetToken.DoesNotExist:
+            return Response({
+                'valid': False,
+                'error': 'Invalid or already used token'
+            })
 
-        user.is_verified = True  # type: ignore[attr-defined]
-        user.save(update_fields=["is_verified"])
+        if reset_token.is_expired():
+            return Response({
+                'valid': False,
+                'error': 'Token has expired'
+            })
 
-        return Response(
-            {
-                "message": "Your email has been verified successfully. You can now log in."
-            },
-            status=status.HTTP_200_OK,
-        )
-
-
-# ─────────────────────────────────────────────────────────────────────────────
-# Magic Link Views
-# ─────────────────────────────────────────────────────────────────────────────
-
-
-@extend_schema(
-    request=MagicLinkRequestSerializer,
-    responses=OpenApiResponse(
-        description="Magic link sent to email if account exists."
-    ),
-)
-class MagicLinkRequestView(APIView):
-    """
-    POST /api/auth/magic-link/request/
-
-    Accept an email address and send a magic login link if the account exists.
-    Always returns the same response to prevent email enumeration attacks.
-    """
-
-    permission_classes = [permissions.AllowAny]
-    throttle_classes = [MagicLinkRequestThrottle, StrictIdentityMagicLinkThrottle]
-
-    def post(self, request):
-        serializer = MagicLinkRequestSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-
-        email = serializer.validated_data["email"].lower()  # type: ignore
-        user = User.objects.filter(email__iexact=email).first()
-
-        if user:
-            # Invalidate any existing unused tokens for this user
-            MagicLinkToken.objects.filter(user=user, is_used=False).update(is_used=True)
-            magic_token = MagicLinkToken.objects.create(user=user)
-
-            login_url = frontend_url("/magic-login", {"token": str(magic_token.token)})
-            timeout = getattr(settings, "MAGIC_LINK_TIMEOUT_MINUTES", 15)
-
-            async_task(
-                "apps.accounts.tasks.send_magic_link_email_task",
-                user_email=user.email,
-                user_username=user.username,
-                login_url=login_url,
-                timeout=timeout,
-            )
-
-        return Response(
-            {
-                "message": "If an account with that email exists, a magic login link has been sent."
-            },
-            status=status.HTTP_200_OK,
-        )
+<<<<<<< HEAD
+        return Response({
+            'valid': True,
+            'message': 'Token is valid',
+            'email': reset_token.user.email
+        })
 
 
-@extend_schema(
-    request=MagicLinkVerifySerializer,
-    responses=OpenApiResponse(description="Logged in successfully via magic link."),
-)
 class MagicLinkVerifyView(APIView):
     """
     POST /api/auth/magic-link/verify/
@@ -766,7 +677,7 @@ class MagicLinkVerifyView(APIView):
         serializer = MagicLinkVerifySerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        token_value = serializer.validated_data["token"]  # type: ignore
+        token_value = serializer.validated_data["token"]
 
         try:
             magic_token = MagicLinkToken.objects.select_related("user").get(
@@ -793,114 +704,88 @@ class MagicLinkVerifyView(APIView):
 
         user = magic_token.user
 
-        magic_token.is_used = True
-        magic_token.save(update_fields=["is_used"])
 
-        refresh = RefreshToken.for_user(user)
-
-        return Response(
-            {
-                "refresh": str(refresh),
-                "access": str(refresh.access_token),
-                "user": {
-                    "username": user.username,
-                    "email": user.email,
-                    "is_staff": user.is_staff,
-                },
-                "message": "You have been successfully logged in.",
-            },
-            status=status.HTTP_200_OK,
-        )
-
+# ─────────────────────────────────────────────────────────────────────────────
+# ✅ ADD: Change Password View with JWT Invalidation
+# ─────────────────────────────────────────────────────────────────────────────
 
 from rest_framework import status
-from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
-from rest_framework_simplejwt.exceptions import TokenError
-from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework.permissions import IsAuthenticated
+from django.contrib.auth.password_validation import validate_password
+from django.core.exceptions import ValidationError
+import logging
+
+logger = logging.getLogger(__name__)
 
 
-class LogoutView(APIView):
+class ChangePasswordView(APIView):
     """
-    Accepts a refresh token in the request body and adds it to the blacklist.
-    Requires user to be authenticated.
+    POST /api/auth/change-password/
+
+    Change user password and invalidate all existing JWT tokens.
+    Rate-limited to 5 requests/minute per user.
     """
 
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
+        user = request.user
+        current_password = request.data.get('current_password')
+        new_password = request.data.get('new_password')
+
+        if not current_password or not new_password:
+            return Response(
+                {'error': 'Current password and new password are required'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Verify current password
+        if not user.check_password(current_password):
+            return Response(
+                {'error': 'Current password is incorrect'},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # Validate new password
         try:
-            refresh_token = request.data.get("refresh")
-            if not refresh_token:
-                return Response(
-                    {"error": "Refresh token is required"},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
-            # This automatically adds the token to the BlacklistedToken model
-            token = RefreshToken(refresh_token)
-            token.blacklist()
-
+            validate_password(new_password, user)
+        except ValidationError as e:
             return Response(
-                {"message": "Successfully logged out."},
-                status=status.HTTP_205_RESET_CONTENT,
+                {'error': e.messages[0]},
+                status=status.HTTP_400_BAD_REQUEST
             )
-        except TokenError:
-            return Response(
-                {"error": "Invalid or expired refresh token."},
-                status=status.HTTP_400_BAD_REQUEST,
+
+        # Set new password (this will trigger the signal)
+        user.set_password(new_password)
+        
+        # ✅ Increment JWT token version to invalidate all existing tokens
+        if hasattr(user, "profile") and user.profile:
+            user.profile.jwt_token_version += 1
+            user.profile.last_password_change = timezone.now()
+            user.profile.save(update_fields=["jwt_token_version", "last_password_change"])
+        else:
+            # Create profile if it doesn't exist
+            from apps.accounts.models import UserProfile
+            UserProfile.objects.create(
+                user=user,
+                last_password_change=timezone.now(),
+                jwt_token_version=2
             )
-        except Exception as e:
-            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        
+        user.save()
 
-
-from django.http import HttpResponse, JsonResponse
-
-from .export import DataExportService
-
-
-class ExportDataView(APIView):
-    """
-    GET /api/users/me/export/?export_format=csv|json
-    Generates a GDPR-compliant export of all personal data.
-    """
-
-    permission_classes = [permissions.IsAuthenticated]
-
-    @extend_schema(
-        responses={
-            200: OpenApiResponse(
-                description="Data export file (JSON or ZIP containing CSVs)"
-            ),
-            400: OpenApiResponse(description="Unsupported format requested"),
-        }
-    )
-    def get(self, request):
-        export_format = request.query_params.get("export_format", "json").lower()
-        service = DataExportService(request.user)
-
-        if export_format == "json":
-            json_data = service.generate_json()
-            response = HttpResponse(json_data, content_type="application/json")
-            response["Content-Disposition"] = (
-                f'attachment; filename="data_export_{request.user.username}.json"'
-            )
-            return response
-
-        elif export_format == "csv":
-            zip_data = service.generate_csv_zip()
-            response = HttpResponse(zip_data, content_type="application/zip")
-            response["Content-Disposition"] = (
-                f'attachment; filename="data_export_{request.user.username}.zip"'
-            )
-            return response
+        logger.info(f"Password changed for user {user.username} - all JWT tokens invalidated")
 
         return Response(
             {
-                "error": "unsupported_format",
-                "message": "Only 'json' and 'csv' formats are supported.",
+                'message': 'Password changed successfully. All existing JWT tokens have been invalidated.'
             },
+
+            status=status.HTTP_200_OK
+        )
+
             status=status.HTTP_400_BAD_REQUEST,
         )
 
@@ -1222,3 +1107,4 @@ class PublicProfileView(APIView):
                 "completed_lessons": completed_lessons,
             }
         )
+>>>>>>> main

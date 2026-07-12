@@ -99,6 +99,12 @@ class XPEvent(models.Model):
             models.Index(fields=["user", "source_type"], name="idx_xp_user_source"),
             models.Index(fields=["-created_at"], name="idx_xp_created_desc"),
         ]
+        constraints = [
+            models.CheckConstraint(
+                check=models.Q(base_points__gte=0) & models.Q(base_points__lte=1000),
+                name="base_points_range_constraint",
+            )
+        ]
 
     def __str__(self):
         return f"XPEvent(user={self.user.username}, source={self.source_type}, delta={self.xp_delta})"
@@ -513,3 +519,18 @@ class LessonBookmark(models.Model):
 
     def __str__(self):
         return f"{self.user.username} - {self.lesson.slug}"
+
+
+class UserNote(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="lesson_notes")
+    lesson = models.ForeignKey("content.Lesson", on_delete=models.CASCADE, related_name="lesson_notes")
+    content = models.TextField()
+    tags = models.JSONField(default=list, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"Note by {self.user.username} for {self.lesson.slug}"

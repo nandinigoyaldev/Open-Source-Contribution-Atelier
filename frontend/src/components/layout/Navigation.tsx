@@ -29,7 +29,7 @@ import { NotificationMenu } from "../ui/NotificationMenu";
 
 const navItems = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutGrid },
-  { to: "/lessons/what-is-open-source", label: "Lessons", icon: BookOpen },
+  { to: "/learning-path", label: "Lessons", icon: BookOpen },
   { to: "/challenges", label: "Challenges", icon: Trophy },
   { to: "/portfolio", label: "Portfolio", icon: FileText },
   { to: "/leaderboard", label: "Leaderboard", icon: TrendingUp },
@@ -37,6 +37,7 @@ const navItems = [
   { to: "/community", label: "Community", icon: BriefcaseBusiness },
   { to: "/chat", label: "Chat", icon: MessageSquare },
   { to: "/peer-review", label: "Peer Review", icon: Shield },
+  { to: "/a11y-sandbox", label: "A11y Sandbox", icon: Eye },
   { to: "/profile", label: "Profile Settings", icon: Settings },
 ];
 

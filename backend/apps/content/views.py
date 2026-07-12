@@ -20,8 +20,6 @@ from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .permissions import IsLessonUnlocked
-
 from apps.challenges.models import Challenge
 from apps.challenges.serializers import ChallengeSerializer
 from apps.progress.models import LessonProgress
@@ -69,6 +67,17 @@ class LessonViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(lessons, many=True)
         return response.Response(serializer.data)
 
+    from rest_framework.decorators import action
+
+    @action(detail=True, methods=["get"])
+    def versions(self, request, pk=None):
+        from .serializers import LessonVersionSerializer
+
+        lesson = self.get_object()
+        versions = lesson.versions.all()
+        serializer = LessonVersionSerializer(versions, many=True)
+        return response.Response(serializer.data)
+
 
 class SearchView(views.APIView):
     def get(self, request):
@@ -81,6 +90,7 @@ class SearchView(views.APIView):
 
         def get_fts_objects(model_class, content_type):
             from django.db import connection
+
             org = getattr(request.user, "organization", None)
             if not org:
                 return []
@@ -113,9 +123,7 @@ class SearchView(views.APIView):
             org = getattr(request.user, "organization", None)
             if not org:
                 return []
-            objects = model_class.objects.filter(
-                id__in=object_ids, organization=org
-            )
+            objects = model_class.objects.filter(id__in=object_ids, organization=org)
             if model_class == Lesson:
                 objects = objects.prefetch_related("exercises", "prerequisites")
             # Sort them in the exact order returned by FTS
@@ -312,17 +320,18 @@ class LessonPDFView(views.APIView):
 
         return response_obj
 
+
 class LessonAccessCheckView(views.APIView):
     """
     Check if user can access a lesson.
     """
+
     permission_classes = [IsLessonUnlocked]
-    
+
     def get(self, request, slug):
-        return Response({
-            "has_access": True,
-            "message": "You have access to this lesson"
-        })
+        return Response(
+            {"has_access": True, "message": "You have access to this lesson"}
+        )
 
 
 import json
@@ -362,8 +371,8 @@ from django.db.models.functions import Coalesce
 from .models import Lesson, LessonFeedback
 from .serializers import (
     LessonFeedbackCreateSerializer,
-    LessonFeedbackSerializer,
     LessonFeedbackMetricsSerializer,
+    LessonFeedbackSerializer,
 )
 
 
