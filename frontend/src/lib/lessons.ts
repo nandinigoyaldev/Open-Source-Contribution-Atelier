@@ -43,6 +43,7 @@ export interface RustExercise {
 }
 
 export interface Lesson {
+  id: number;
   slug: string; // used for URL
   title: string;
   description: string; // summary
@@ -62,6 +63,7 @@ export interface Lesson {
     options: string[];
     answer: number;
     explanation: string;
+    timeLimitSeconds?: number;
   }>;
   conflictScenario?: ConflictScenario;
   pythonExercise?: PythonExercise;
@@ -73,6 +75,7 @@ export interface Lesson {
 // Small built-in fallback lessons (used if API unreachable)
 export const lessons: Lesson[] = [
   {
+    id: 1,
     slug: "intro",
     title: "Open Source Mindset",
     description: "Understand how open source collaboration actually works.",
@@ -99,16 +102,22 @@ export async function fetchLessonsApi(): Promise<Lesson[]> {
   try {
     const data = await fetchApi("/content/lessons/", { requireAuth: false });
     // Use fallback lessons when the API returns no data (e.g. unseeded database)
-    if (!Array.isArray(data) || data.length === 0) return lessons;
+    if (!Array.isArray(data) || data.length === 0) {
+      console.warn(
+        "[fetchLessonsApi] API returned no lessons. Using built-in fallbacks.",
+      );
+      return lessons;
+    }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return (data as any[]).map((les, index: number) => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const firstExercise = (les.exercises as any[] | undefined)?.[0];
       return {
+        id: Number(les.id ?? 0),
         slug: String(les.slug ?? ""),
         title: String(les.title ?? ""),
-        description: String(les.summary ?? ""),
+        description: String(les.description ?? les.summary ?? ""),
         explanation: String(les.content ?? ""),
         expected: String(firstExercise?.expectedCommand ?? ""),
         hint: String(
@@ -134,7 +143,10 @@ export async function fetchLessonsApi(): Promise<Lesson[]> {
       } satisfies Lesson;
     });
   } catch (err) {
-    console.error("Error loading live curriculum:", err);
+    console.error(
+      "[fetchLessonsApi] API request failed, using built-in fallback lessons:",
+      err,
+    );
     return lessons;
   }
 }

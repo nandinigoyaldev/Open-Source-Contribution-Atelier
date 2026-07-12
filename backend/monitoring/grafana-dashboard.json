@@ -1,0 +1,54 @@
+{
+  "title": "Celery Task Monitoring",
+  "panels": [
+    {
+      "title": "Task Count by Status",
+      "type": "graph",
+      "targets": [
+        {
+          "expr": "celery_tasks_total",
+          "legendFormat": "{{task_name}} - {{status}}"
+        }
+      ]
+    },
+    {
+      "title": "Task Duration",
+      "type": "graph",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum(rate(celery_task_duration_seconds_bucket[5m])) by (task_name, le))",
+          "legendFormat": "{{task_name}}"
+        }
+      ]
+    },
+    {
+      "title": "Queue Size",
+      "type": "graph",
+      "targets": [
+        {
+          "expr": "celery_queue_size",
+          "legendFormat": "{{queue_name}}"
+        }
+      ]
+    },
+    {
+      "title": "Failed Tasks",
+      "type": "graph",
+      "targets": [
+        {
+          "expr": "celery_failed_tasks_total",
+          "legendFormat": "{{task_name}} - {{reason}}"
+        }
+      ]
+    },
+    {
+      "title": "Active Workers",
+      "type": "stat",
+      "targets": [
+        {
+          "expr": "celery_active_workers"
+        }
+      ]
+    }
+  ]
+}
