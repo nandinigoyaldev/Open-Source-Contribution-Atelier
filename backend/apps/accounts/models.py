@@ -144,7 +144,7 @@ class UserProfile(models.Model):
         max_length=255,
     )
     cover_image = models.ImageField(upload_to="covers/", null=True, blank=True)
-    last_password_change = models.DateTimeField(auto_now_add=True)
+    last_password_change = models.DateTimeField(auto_now_add=True, null=True, blank=True)
     timezone = models.CharField(
         max_length=64,
         choices=get_timezone_choices(),

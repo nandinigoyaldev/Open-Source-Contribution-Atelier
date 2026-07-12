@@ -1,8 +1,10 @@
-import React, { useState } from "react";
+
+import React, { useState, useEffect } from "react";
 import { GitBranch, LogIn, ArrowRight } from "lucide-react";
 import { AuthPageShell } from "../features/auth/AuthPageShell";
 import { fetchApi } from "../lib/api";
 import { useAuth } from "../features/auth/AuthContext";
+import { toast } from "react-hot-toast";
 
 const githubAuthUrl =
   import.meta.env?.VITE_GITHUB_OAUTH_URL ||
@@ -16,7 +18,28 @@ export function LoginPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   const { login } = useAuth();
+
+  // ✅ Check for session expired parameter
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const expired = params.get('expired');
+    const redirect = params.get('redirect');
+    
+    if (expired === 'true') {
+      toast.error('Your session has expired. Please log in again.', {
+        duration: 4000,
+        position: 'bottom-center',
+        icon: '🔒',
+      });
+    }
+    
+    // If there's a redirect parameter, store it for after login
+    if (redirect) {
+      sessionStorage.setItem('login_redirect', redirect);
+    }
+  }, []);
 
   const handleGithubSignIn = () => {
     window.location.href = githubAuthUrl;
@@ -29,17 +52,35 @@ export function LoginPage() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setIsLoading(true);
+    
     try {
       const tokens = await fetchApi("/auth/login/", {
         method: "POST",
         requireAuth: false,
         body: JSON.stringify({ username, password }),
       });
+      
       login(tokens);
+      
+      // ✅ Show success toast
+      toast.success('Welcome back! 🎉', {
+        duration: 3000,
+        position: 'bottom-center',
+      });
+      
+      // ✅ Redirect to dashboard or previous page
+      const redirect = sessionStorage.getItem('login_redirect') || '/dashboard';
+      sessionStorage.removeItem('login_redirect');
+      window.location.href = redirect;
+      
       sessionStorage.setItem("justLoggedIn", "true");
       window.location.href = "/dashboard";
     } catch (err: unknown) {
       setError(getErrorMessage(err, "Failed to login"));
+      toast.error('Login failed. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -136,6 +177,14 @@ export function LoginPage() {
             required
           />
         </div>
+
+        <button
+          type="submit"
+          disabled={isLoading}
+          className="w-full rounded-2xl border-4 border-black bg-primary px-5 py-5 font-black text-black text-xl shadow-card hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-card-sm transition-all cursor-pointer mt-4 uppercase disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {isLoading ? 'Logging in...' : 'Let Me In!'}
+        </button>
 
         <button className="w-full rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-4 py-3.5 font-bold text-sm hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer mt-4 uppercase flex items-center justify-center gap-2 shadow-md hover:shadow-lg">
           <LogIn size={16} />

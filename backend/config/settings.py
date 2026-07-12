@@ -6,6 +6,7 @@ from pathlib import Path
 from config.auth import JWT_CONFIG, TOKEN_BLACKLIST_ENABLED
 
 import dj_database_url
+
 # pyrefly: ignore [missing-import]
 from django.core.exceptions import ImproperlyConfigured
 
@@ -153,20 +154,21 @@ INSTALLED_APPS = [
 ]
 # Redis Cache
 CACHES = {
-    'default': {
-        'BACKEND': 'django_redis.cache.RedisCache',
-        'LOCATION': 'redis://127.0.0.1:6379/1',
-        'OPTIONS': {
-            'CLIENT_CLASS': 'django_redis.client.DefaultClient',
-        }
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": "redis://127.0.0.1:6379/1",
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+        },
     }
 }
 
 # Rate Limit
-DEFAULT_RATE = '100/hour'
+DEFAULT_RATE = "100/hour"
 
 MIDDLEWARE = [
     "django_prometheus.middleware.PrometheusBeforeMiddleware",
+    "config.logging_middleware.RequestResponseLoggingMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
     "config.security_middleware.ContentSecurityPolicyMiddleware",
@@ -177,6 +179,7 @@ MIDDLEWARE = [
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
+    "apps.core.audit_middleware.AuditLogMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "waffle.middleware.WaffleMiddleware",
     "apps.cache.middleware.RateLimitMiddleware",
@@ -209,14 +212,14 @@ ASGI_APPLICATION = "config.asgi.application"
 DATABASES = {
     "default": dj_database_url.config(
         default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}",
-        conn_max_age=600,  # Prepares for PgBouncer connection pooling
+        conn_max_age=int(os.getenv("CONN_MAX_AGE", "0")),  # PgBouncer uses transaction pooling, so conn_max_age=0
         conn_health_checks=True,
     ),
     "replica": dj_database_url.config(
         env="REPLICA_DATABASE_URL",
         default=os.getenv("DATABASE_URL")
-        or f"sqlite:///{BASE_DIR / 'db.sqlite3'}",  # Falls back to primary in production if replica env is unset
-        conn_max_age=600,
+        or f"sqlite:///{BASE_DIR / 'db.sqlite3'}",
+        conn_max_age=int(os.getenv("CONN_MAX_AGE", "0")),
         conn_health_checks=True,
     ),
 }
@@ -224,6 +227,8 @@ DATABASES = {
 for db_name, db_config in DATABASES.items():
     if db_config.get("ENGINE") == "django.db.backends.postgresql":
         db_config["ENGINE"] = "django_prometheus.db.backends.postgresql"
+        # Disable server-side cursors to avoid issues with PgBouncer transaction pooling
+        db_config.setdefault("OPTIONS", {})["DISABLE_SERVER_SIDE_CURSORS"] = True
     elif db_config.get("ENGINE") == "django.db.backends.sqlite3":
         db_config["ENGINE"] = "django_prometheus.db.backends.sqlite3"
 
@@ -349,11 +354,9 @@ SIMPLE_JWT = {
     ),
     "ROTATE_REFRESH_TOKENS": True,
     "BLACKLIST_AFTER_ROTATION": True,
-    
     # ✅ Custom token classes for dynamic salt
     "ACCESS_TOKEN_CLASS": ("apps.accounts.jwt.DynamicSaltAccessToken",),
     "REFRESH_TOKEN_CLASS": ("apps.accounts.jwt.DynamicSaltRefreshToken",),
-    
     # ✅ Other JWT settings
     "ALGORITHM": "HS256",
     "SIGNING_KEY": SECRET_KEY,
@@ -517,11 +520,47 @@ Q_CLUSTER = {
     "bulk": 10,
     **_q_broker,
 }
+# Audit Logging
+AUDIT_LOG_ENABLED = True
 
+# Configure audit logger
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'json': {
+            'format': '%(message)s',
+        },
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'json',
+        },
+        'file': {
+            'class': 'logging.FileHandler',
+            'filename': 'audit.log',
+            'formatter': 'json',
+        },
+    },
+    'loggers': {
+        'audit': {
+            'handlers': ['console', 'file'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+    },
+}
 
 # ──────────────────────────────────────────
 # Logging Configuration
 # ──────────────────────────────────────────
+REQUEST_LOGGING_VERBOSITY = os.getenv("REQUEST_LOGGING_VERBOSITY", "minimal")
+
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
