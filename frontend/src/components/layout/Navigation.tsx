@@ -213,15 +213,15 @@ export function Navigation() {
       </aside>
 
       <header className="fixed inset-x-0 top-0 z-30 border-b border-outline bg-white lg:left-[280px] dark:border-[#2e2924] dark:bg-[#0f0e0c]">
-        <div className="flex items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
+        <div className="flex items-center justify-between space-x-4 px-4 py-4 sm:px-6 lg:px-8">
           <button
             onClick={() => setMobileOpen(!mobileOpen)}
-            className="lg:hidden rounded-lg border-2 border-black p-2"
+            className="lg:hidden rounded-lg border-2 border-black p-2 menu-btn"
           >
             <Menu size={22} />
           </button>
-          <div className="flex min-w-0 items-center gap-3 relative grow max-w-md">
-            <div className="flex items-center gap-2 rounded-lg bg-surface-low px-3 py-2 text-muted w-full border-2 border-black dark:border-[#2e2924] shadow-card-sm focus-within:bg-white transition-all dark:bg-[#151411] dark:text-[#c4bbae] dark:focus-within:bg-[#0f0e0c]">
+          <div className="flex min-w-0 items-center space-x-3 relative grow max-w-md">
+            <div className="flex items-center space-x-2 rounded-lg bg-surface-low px-3 py-2 text-muted w-full border-2 border-black dark:border-[#2e2924] shadow-card-sm focus-within:bg-white transition-all dark:bg-[#151411] dark:text-[#c4bbae] dark:focus-within:bg-[#0f0e0c]">
               <Search size={15} className="shrink-0" />
               <input
                 type="text"
@@ -310,7 +310,7 @@ export function Navigation() {
               </div>
             )}
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center space-x-3">
             <Link
               to="/dashboard"
               className="hidden rounded-lg px-3 py-2 text-sm font-medium text-primary md:inline-flex"
@@ -319,7 +319,7 @@ export function Navigation() {
             </Link>
             <SyncStatusIndicator />
             <button
-              className="rounded-lg bg-surface-low p-2 text-muted hover:text-text border-2 border-black dark:border-[#2e2924] shadow-card-sm hover:-translate-y-0.5 active:translate-y-0 transition-all dark:bg-[#151411] dark:text-[#c4bbae] dark:hover:text-[#f0ebe2]"
+              className="rounded-lg bg-surface-low p-2 text-muted hover:text-text border-2 border-black dark:border-[#2e2924] shadow-card-sm hover:-translate-y-0.5 active:translate-y-0 transition-all dark:bg-[#151411] dark:text-[#c4bbae] dark:hover:text-[#f0ebe2] theme-toggle"
               onClick={toggleTheme}
               aria-label={
                 theme === "light"
@@ -330,7 +330,7 @@ export function Navigation() {
               {theme === "light" ? <Moon size={16} /> : <Sun size={16} />}
             </button>
             <button
-              className={`rounded-lg p-2 border-2 border-black dark:border-[#2e2924] shadow-card-sm hover:-translate-y-0.5 active:translate-y-0 transition-all ${
+              className={`rounded-lg p-2 border-2 border-black dark:border-[#2e2924] shadow-card-sm hover:-translate-y-0.5 active:translate-y-0 transition-all toggle-contrast ${
                 theme === "high-contrast"
                   ? "bg-primary text-white"
                   : "bg-surface-low text-muted hover:text-text dark:bg-[#151411] dark:text-[#c4bbae] dark:hover:text-[#f0ebe2]"
@@ -345,7 +345,7 @@ export function Navigation() {
             </button>
             {user && !user.is_staff && <NotificationMenu />}
             {user ? (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center space-x-2">
                 <Link
                   to="/profile"
                   className="font-bold text-sm text-text bg-white px-3 py-2 rounded-lg border-2 border-black dark:bg-[#151411] dark:text-[#f0ebe2] dark:border-[#2e2924] flex items-center gap-1.5 shadow-card-sm hover:bg-surface-low transition-colors dark:hover:bg-[#1f1c18]"
@@ -362,7 +362,7 @@ export function Navigation() {
                 <LogoutButtonWithConfirm />
               </div>
             ) : (
-              <div className="flex items-center gap-3">
+              <div className="flex items-center space-x-3">
                 <Link
                   to="/login"
                   className="rounded-xl bg-white border-2 border-black px-4 py-2 text-sm font-bold text-text shadow-card-sm hover:-translate-y-0.5 active:translate-y-0 transition-all dark:bg-[#151411] dark:text-[#f0ebe2] dark:border-[#2e2924]"
