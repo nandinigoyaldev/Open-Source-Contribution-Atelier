@@ -26,6 +26,10 @@ To get started quickly, we provide a `Makefile` that wraps the core commands.
    ```bash
    make test
    ```
+5. **Run Full Verification Checklist**:
+   ```bash
+   make verify  # (or ./verify.sh)
+   ```
 
 ---
 

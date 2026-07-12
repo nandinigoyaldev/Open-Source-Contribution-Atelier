@@ -111,7 +111,7 @@
                 "No, but writing code is the only way to earn badges."
               ],
               "answer": 1,
-            "explanation": "Open source relies heavily on documentation, translations, design, bug triage, and mentoring, which are highly valued non-code contributions."
+              "explanation": "Open source relies heavily on documentation, translations, design, bug triage, and mentoring, which are highly valued non-code contributions."
             }
           ]
         },

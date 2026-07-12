@@ -3,6 +3,7 @@ from django.contrib.auth import get_user_model
 
 User = get_user_model()
 
+
 class IssueReport(models.Model):
     class IssueType(models.TextChoices):
         BUG = "Bug", "Bug"
@@ -25,9 +26,15 @@ class IssueReport(models.Model):
     status = models.CharField(
         max_length=50, choices=Status.choices, default=Status.OPEN
     )
-    url_path = models.CharField(max_length=1024, blank=True, help_text="URL where the issue occurred")
+    url_path = models.CharField(
+        max_length=1024, blank=True, help_text="URL where the issue occurred"
+    )
     user = models.ForeignKey(
-        User, on_delete=models.SET_NULL, null=True, blank=True, related_name="issue_reports"
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="issue_reports",
     )
     image = models.ImageField(upload_to="issue_reports/", null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)

@@ -37,9 +37,28 @@ class Lesson(models.Model):
     prerequisites = models.ManyToManyField(
         "self", symmetrical=False, related_name="dependents", blank=True
     )
+    js_exercise = models.JSONField(null=True, blank=True, default=None)
+
+    @property
+    def reading_time(self) -> int:
+        from .utils import calculate_reading_time
+
+        return calculate_reading_time(self.content)
 
     class Meta:
         ordering = ["order", "id"]
+
+
+class LessonVersion(models.Model):
+    lesson = models.ForeignKey(
+        Lesson, related_name="versions", on_delete=models.CASCADE
+    )
+    content = models.TextField()
+    summary = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
 
 
 class Exercise(models.Model):
@@ -55,15 +74,18 @@ class Exercise(models.Model):
 
 
 class SoftDeleteQuerySet(models.QuerySet):
-    def delete(self, hard=False):
-        if hard:
-            return super().delete()  # type: ignore
-        return self.update(is_deleted=True)
+    def delete(self, *args, **kwargs) -> tuple[int, dict[str, int]]:
+        # Soft delete by default; restore by toggling `is_deleted`.
+        self.update(is_deleted=True)
+        return (1, {self.model._meta.label: 1})
 
 
 class SoftDeleteManager(models.Manager):
     def get_queryset(self):
         return SoftDeleteQuerySet(self.model, using=self._db).filter(is_deleted=False)
+
+    def delete(self):
+        return self.get_queryset().delete()
 
 
 class LessonThread(models.Model):
@@ -199,3 +221,74 @@ class Organization(models.Model):
 
     def __str__(self) -> str:
         return str(self.name)
+
+
+class LessonFeedback(models.Model):
+    """Stores user feedback for lessons including star ratings and optional comments."""
+
+    objects = SoftDeleteManager()
+    all_objects = models.Manager()
+
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="lesson_feedbacks"
+    )
+    lesson = models.ForeignKey(
+        Lesson, on_delete=models.CASCADE, related_name="feedbacks"
+    )
+    rating = models.PositiveSmallIntegerField(
+        validators=[
+            MinValueValidator(1),
+            MaxValueValidator(5),
+        ],
+        help_text="Star rating from 1 to 5",
+    )
+    comment = models.TextField(blank=True, help_text="Optional written feedback")
+    is_deleted = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        unique_together = ["user", "lesson"]
+        indexes = [
+            models.Index(fields=["lesson", "is_deleted"], name="idx_feedback_les_del"),
+            models.Index(fields=["user", "lesson"], name="idx_feedback_user_les"),
+        ]
+
+    def delete(self, using=None, keep_parents=False, hard=False):
+        if hard:
+            return super().delete(using=using, keep_parents=keep_parents)
+        self.is_deleted = True
+        self.save(update_fields=["is_deleted"])
+        return (1, {self._meta.label: 1})
+
+    def restore(self):
+        self.is_deleted = False
+        self.save(update_fields=["is_deleted"])
+
+    def __str__(self):
+        status = "[DELETED] " if self.is_deleted else ""
+        return f"{status}Feedback by {self.user.username} for {self.lesson.title}: {self.rating} stars"
+
+
+class Profile(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="profile")
+    bio = models.TextField(
+        max_length=160,
+        blank=True,
+        default="",
+        help_text="A short biography or description.",
+    )
+    # Individual fields for requested social platforms
+    github_link = models.URLField(
+        blank=True, default="", help_text="GitHub profile URL"
+    )
+    linkedin_link = models.URLField(
+        blank=True, default="", help_text="LinkedIn profile URL"
+    )
+    portfolio_link = models.URLField(
+        blank=True, default="", help_text="Personal portfolio URL"
+    )
+
+    def __str__(self):
+        return f"Profile for {self.user.username}"

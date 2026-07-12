@@ -1,48 +1,120 @@
 import os
+import sys
+import logging
 from datetime import timedelta
 from pathlib import Path
+from config.auth import TOKEN_BLACKLIST_ENABLED
 
 import dj_database_url
 from django.core.exceptions import ImproperlyConfigured
 
+# pyrefly: ignore [missing-import]
+from django.core.exceptions import ImproperlyConfigured
+
+logger = logging.getLogger(__name__)
+
+TESTING = "test" in sys.argv or "pytest" in sys.modules
+
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
-def load_dotenv(dotenv_path: Path) -> None:
-    if not dotenv_path.exists():
-        return
-
-    for raw_line in dotenv_path.read_text().splitlines():
-        line = raw_line.strip()
-        if not line or line.startswith("#") or "=" not in line:
-            continue
-        key, value = line.split("=", 1)
-        os.environ.setdefault(key.strip(), value.strip())
-
+from dotenv import load_dotenv
 
 load_dotenv(BASE_DIR / ".env")
+
 
 SECRET_KEY = os.getenv(
     "SECRET_KEY", "django-insecure-dev-key-not-for-production-use-32bytes!!"
 )
+if not SECRET_KEY:
+    raise ImproperlyConfigured("SECRET_KEY environment variable is not set")
 DEBUG = os.getenv("DEBUG", "False") == "True"
 
 # Explicit environment designation, independent of DEBUG. Used below to make
 # sure DEBUG=True (and the wildcard CORS it enables) can never silently reach
 # a production deployment.
 DJANGO_ENV = os.getenv("DJANGO_ENV", "development")
+# ──────────────────────────────────────────
+# Security Headers
+# ──────────────────────────────────────────
+
+# Prevent browsers from MIME-sniffing responses away from their declared
+# Content-Type.
+SECURE_CONTENT_TYPE_NOSNIFF = True
+
+# Prevent application pages from being embedded in frames.
+X_FRAME_OPTIONS = "DENY"
+
+# Keep HSTS disabled for local development. Production defaults to one year.
+SECURE_HSTS_SECONDS = int(
+    os.getenv(
+        "SECURE_HSTS_SECONDS",
+        "0" if DEBUG else "31536000",
+    )
+)
+
+SECURE_HSTS_INCLUDE_SUBDOMAINS = os.getenv(
+    "SECURE_HSTS_INCLUDE_SUBDOMAINS",
+    "True",
+).lower() in {"1", "true", "yes", "on"}
+
+# HSTS preload is opt-in because enabling it has long-lived operational impact.
+SECURE_HSTS_PRELOAD = os.getenv(
+    "SECURE_HSTS_PRELOAD",
+    "False",
+).lower() in {"1", "true", "yes", "on"}
+
+# Restrictive default Content Security Policy.
+# Allow jsDelivr because the API documentation UI loads its assets from there.
+CONTENT_SECURITY_POLICY = os.getenv(
+    "CONTENT_SECURITY_POLICY",
+    (
+        "default-src 'self'; "
+        "base-uri 'self'; "
+        "object-src 'none'; "
+        "frame-ancestors 'none'; "
+        "form-action 'self'; "
+        "script-src 'self' https://cdn.jsdelivr.net; "
+        "style-src 'self' https://cdn.jsdelivr.net; "
+        "img-src 'self' data: https://cdn.jsdelivr.net; "
+        "font-src 'self' data: https://cdn.jsdelivr.net; "
+        "connect-src 'self'; "
+        "media-src 'self'; "
+        "worker-src 'self'; "
+        "manifest-src 'self'; "
+        "upgrade-insecure-requests"
+    ),
+)
+
+TESTING = "test" in sys.argv or "pytest" in sys.modules
 
 ALLOWED_HOSTS = [
     host.strip()
     for host in os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
     if host.strip()
 ]
-ALLOWED_HOSTS.append(".vercel.app")
+
+if not DEBUG and not TESTING and not ALLOWED_HOSTS:
+    from django.core.exceptions import ImproperlyConfigured
+
+    raise ImproperlyConfigured("ALLOWED_HOSTS cannot be empty in production.")
+
 CORS_ALLOWED_ORIGINS = [
     origin.strip()
     for origin in os.getenv("CORS_ALLOWED_ORIGINS", "").split(",")
     if origin.strip()
 ]
+
+# Auto-include FRONTEND_URL if set and not already in the list
+_frontend_url = os.getenv("FRONTEND_URL", "").strip().rstrip("/")
+if _frontend_url and _frontend_url not in CORS_ALLOWED_ORIGINS:
+    CORS_ALLOWED_ORIGINS.append(_frontend_url)
+
+if not DEBUG and not TESTING and not CORS_ALLOWED_ORIGINS:
+    from django.core.exceptions import ImproperlyConfigured
+
+    raise ImproperlyConfigured("CORS_ALLOWED_ORIGINS cannot be empty in production.")
+
 CORS_ALLOW_CREDENTIALS = True
 if DEBUG:
     if DJANGO_ENV == "production":
@@ -58,9 +130,9 @@ if DEBUG:
             "DJANGO_ENV to something other than 'production') to continue."
         )
     CORS_ALLOW_ALL_ORIGINS = True
+# CORS_ALLOW_ALL_ORIGINS defaults to False; rely on CORS_ALLOWED_ORIGINS allowlist.
 
 INSTALLED_APPS = [
-    "django_prometheus",
     "daphne",
     "django.contrib.admin",
     "django.contrib.auth",
@@ -69,6 +141,9 @@ INSTALLED_APPS = [
     "django.contrib.messages",
     "django.contrib.staticfiles",
     "django_filters",
+    "django_prometheus",
+    "celery_prometheus_exporter",
+    "drf_spectacular",
     "corsheaders",
     "rest_framework",
     "rest_framework_simplejwt",
@@ -80,6 +155,8 @@ INSTALLED_APPS = [
     "allauth.socialaccount",
     "allauth.socialaccount.providers.github",
     "apps.accounts",
+    "apps.cache",
+    "apps.core",
     "apps.content",
     "apps.progress",
     "apps.challenges",
@@ -91,22 +168,45 @@ INSTALLED_APPS = [
     "apps.rbac",
     "apps.uploads",
     "graphene_django",
+    "apps.moderation",
+    "apps.events",
+    "apps.portfolio",
     "apps.feature_flags",
     "apps.issues",
     "django_q",
+    "waffle",
 ]
+# Redis Cache
+CACHES = {
+    "default": {
+        "BACKEND": "django_redis.cache.RedisCache",
+        "LOCATION": "redis://127.0.0.1:6379/1",
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+        },
+    }
+}
+
+# Rate Limit
+DEFAULT_RATE = "100/hour"
 
 MIDDLEWARE = [
     "django_prometheus.middleware.PrometheusBeforeMiddleware",
+    "config.logging_middleware.RequestResponseLoggingMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
+    "config.security_middleware.ContentSecurityPolicyMiddleware",
+    "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.middleware.gzip.GZipMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
+    "apps.core.audit_middleware.AuditLogMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "waffle.middleware.WaffleMiddleware",
+    "apps.cache.middleware.RateLimitMiddleware",
     "apps.sandbox.middleware.SandboxExecutionLogMiddleware",
     "allauth.account.middleware.AccountMiddleware",
     "django_prometheus.middleware.PrometheusAfterMiddleware",
@@ -117,7 +217,7 @@ ROOT_URLCONF = "config.urls"
 TEMPLATES = [
     {
         "BACKEND": "django.template.backends.django.DjangoTemplates",
-        "DIRS": [],
+        "DIRS": [BASE_DIR / "templates"],  # ✅ ADDED: For email templates
         "APP_DIRS": True,
         "OPTIONS": {
             "context_processors": [
@@ -136,22 +236,27 @@ ASGI_APPLICATION = "config.asgi.application"
 DATABASES = {
     "default": dj_database_url.config(
         default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}",
-        conn_max_age=600,  # Prepares for PgBouncer connection pooling
+        conn_max_age=int(os.getenv("CONN_MAX_AGE", "0")),  # PgBouncer uses transaction pooling, so conn_max_age=0
         conn_health_checks=True,
     ),
     "replica": dj_database_url.config(
         env="REPLICA_DATABASE_URL",
-        default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}",  # Falls back to local sqlite in dev
-        conn_max_age=600,
+        default=os.getenv("DATABASE_URL")
+        or f"sqlite:///{BASE_DIR / 'db.sqlite3'}",
+        conn_max_age=int(os.getenv("CONN_MAX_AGE", "0")),
         conn_health_checks=True,
     ),
 }
 
-for key in DATABASES:
-    if DATABASES[key]['ENGINE'] == 'django.db.backends.sqlite3':
-        DATABASES[key]['ENGINE'] = 'django_prometheus.db.backends.sqlite3'
-    elif DATABASES[key]['ENGINE'] == 'django.db.backends.postgresql':
-        DATABASES[key]['ENGINE'] = 'django_prometheus.db.backends.postgresql'
+for db_name, db_config in DATABASES.items():
+    if db_config.get("ENGINE") == "django.db.backends.postgresql":
+        db_config["ENGINE"] = "django_prometheus.db.backends.postgresql"
+        # Disable server-side cursors to avoid issues with PgBouncer transaction pooling
+        db_config.setdefault("OPTIONS", {})["DISABLE_SERVER_SIDE_CURSORS"] = True
+    elif db_config.get("ENGINE") == "django.db.backends.sqlite3":
+        db_config["ENGINE"] = "django_prometheus.db.backends.sqlite3"
+
+DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 DATABASE_ROUTERS = ["config.db_router.PrimaryReplicaRouter"]
 
@@ -169,9 +274,31 @@ USE_I18N = True
 USE_TZ = True
 
 STATIC_URL = "/static/"
+STATIC_ROOT = BASE_DIR / "staticfiles"
+STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
+
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
+
+# Github App Configuration
+GITHUB_APP = {
+    "APP_ID": os.getenv("GITHUB_APP_ID"),
+    "PRIVATE_KEY_PATH": os.getenv("GITHUB_PRIVATE_KEY_PATH"),
+    "CLIENT_ID": os.getenv("GITHUB_CLIENT_ID"),
+    "CLIENT_SECRET": os.getenv("GITHUB_CLIENT_SECRET"),
+    "WEBHOOK_SECRET": os.getenv("GITHUB_WEBHOOK_SECRET"),
+}
+GITHUB_INSTALLATION_ID = os.getenv("GITHUB_INSTALLATION_ID")
+GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
+
+# ── Discord Integration ────────────────────────────────────────────────────────
+# Discord webhook URL for achievement announcements
+DISCORD_WEBHOOK_URL = os.getenv("DISCORD_WEBHOOK_URL")
+# Whether to enable Discord announcements (can be disabled per environment)
+DISCORD_ANNOUNCEMENTS_ENABLED = (
+    os.getenv("DISCORD_ANNOUNCEMENTS_ENABLED", "true").lower() == "true"
+)
 
 # ── Email Configuration ────────────────────────────────────────────────────────
 # Default: console backend (prints emails to stdout) — safe for dev/CI.
@@ -180,6 +307,10 @@ EMAIL_BACKEND = os.getenv(
     "EMAIL_BACKEND", "django.core.mail.backends.console.EmailBackend"
 )
 DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "noreply@atelier.dev")
+
+# ── Frontend URL for password reset links ────────────────────────────────────
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
+SITE_NAME = os.getenv("SITE_NAME", "Open Source Contribution Atelier")
 
 # ── Proxy / Load-Balancer Support ─────────────────────────────────────────────
 # Number of trusted proxy hops in front of Django (e.g. Nginx + AWS ALB = 2).
@@ -235,6 +366,10 @@ REST_FRAMEWORK = {
     "EXCEPTION_HANDLER": "apps.accounts.exceptions.throttle_exception_handler",
 }
 
+# ============================================================
+# ✅ UPDATED: SimpleJWT Configuration with Dynamic Salt
+# ============================================================
+
 SIMPLE_JWT = {
     "ACCESS_TOKEN_LIFETIME": timedelta(
         minutes=int(os.getenv("ACCESS_TOKEN_LIFETIME_MINUTES", "30"))
@@ -244,6 +379,29 @@ SIMPLE_JWT = {
     ),
     "ROTATE_REFRESH_TOKENS": True,
     "BLACKLIST_AFTER_ROTATION": True,
+    # ✅ Custom token classes for dynamic salt
+    "ACCESS_TOKEN_CLASS": ("apps.accounts.jwt.DynamicSaltAccessToken",),
+    "REFRESH_TOKEN_CLASS": ("apps.accounts.jwt.DynamicSaltRefreshToken",),
+    # ✅ Other JWT settings
+    "ALGORITHM": "HS256",
+    "SIGNING_KEY": SECRET_KEY,
+    "VERIFYING_KEY": None,
+    "AUDIENCE": None,
+    "ISSUER": None,
+    "JWK_URL": None,
+    "LEEWAY": 0,
+    "AUTH_HEADER_TYPES": ("Bearer",),
+    "AUTH_HEADER_NAME": "HTTP_AUTHORIZATION",
+    "USER_ID_FIELD": "id",
+    "USER_ID_CLAIM": "user_id",
+    "USER_AUTHENTICATION_RULE": "rest_framework_simplejwt.authentication.default_user_authentication_rule",
+    "AUTH_TOKEN_CLASSES": ("rest_framework_simplejwt.tokens.AccessToken",),
+    "TOKEN_TYPE_CLAIM": "token_type",
+    "TOKEN_USER_CLASS": "rest_framework_simplejwt.models.TokenUser",
+    "JTI_CLAIM": "jti",
+    "SLIDING_TOKEN_REFRESH_EXP_CLAIM": "refresh_exp",
+    "SLIDING_TOKEN_LIFETIME": timedelta(minutes=30),
+    "SLIDING_TOKEN_REFRESH_LIFETIME": timedelta(days=1),
 }
 
 # ──────────────────────────────────────────
@@ -253,12 +411,26 @@ SITE_ID = 1
 
 SOCIALACCOUNT_PROVIDERS = {
     "github": {
+        "APP": {
+            "client_id": os.getenv("GITHUB_OAUTH_CLIENT_ID"),
+            "secret": os.getenv("GITHUB_OAUTH_CLIENT_SECRET"),
+        },
         "SCOPE": [
             "user",
             "repo",
             "read:user",
         ],
-    }
+    },
+    "google": {
+        "APP": {
+            "client_id": os.getenv("GOOGLE_CLIENT_ID"),
+            "secret": os.getenv("GOOGLE_CLIENT_SECRET", ""),
+        },
+        "SCOPE": [
+            "profile",
+            "email",
+        ],
+    },
 }
 
 SOCIALACCOUNT_AUTO_SIGNUP = True
@@ -274,13 +446,24 @@ ACCOUNT_UNIQUE_EMAIL = True
 INSTALLED_APPS += [
     "channels",
     "apps.notifications.apps.NotificationsConfig",
-    "drf_spectacular",
     "apps.dashboard.apps.DashboardConfig",
     "apps.chat.apps.ChatConfig",
     "django.contrib.postgres",
     "apps.search.apps.SearchConfig",
 ]
 
+CSRF_TRUSTED_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv("CSRF_TRUSTED_ORIGINS", "").split(",")
+    if origin.strip()
+] or [
+    "http://localhost:8000",
+    "http://localhost:5173",
+]
+
+# Auto-include FRONTEND_URL if set and not already in the list
+if _frontend_url and _frontend_url not in CSRF_TRUSTED_ORIGINS:
+    CSRF_TRUSTED_ORIGINS.append(_frontend_url)
 
 # ──────────────────────────────────────────
 # Redis Availability and Configuration (Dynamic Fallbacks)
@@ -292,7 +475,7 @@ def is_redis_available(url):
     try:
         if not url:
             return False
-        clean_url = url.replace("redis://", "")
+        clean_url = url.replace("rediss://", "").replace("redis://", "")
         host_port = clean_url.split("/")[0]
         if "@" in host_port:
             host_port = host_port.split("@")[1]
@@ -348,6 +531,9 @@ else:
         }
     }
 
+# Cache timeout for Search API (in seconds) - Default: 1 hour
+SEARCH_CACHE_TIMEOUT = 60 * 60
+
 # ──────────────────────────────────────────
 # Django-Q Configuration
 # ──────────────────────────────────────────
@@ -367,11 +553,47 @@ Q_CLUSTER = {
     "bulk": 10,
     **_q_broker,
 }
+# Audit Logging
+AUDIT_LOG_ENABLED = True
 
+# Configure audit logger
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'json': {
+            'format': '%(message)s',
+        },
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'json',
+        },
+        'file': {
+            'class': 'logging.FileHandler',
+            'filename': 'audit.log',
+            'formatter': 'json',
+        },
+    },
+    'loggers': {
+        'audit': {
+            'handlers': ['console', 'file'],
+            'level': 'INFO',
+            'propagate': False,
+        },
+    },
+}
 
 # ──────────────────────────────────────────
 # Logging Configuration
 # ──────────────────────────────────────────
+REQUEST_LOGGING_VERBOSITY = os.getenv("REQUEST_LOGGING_VERBOSITY", "minimal")
+
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
@@ -416,6 +638,9 @@ LOGGING = {
     },
 }
 
+
+GRAPHENE = {"SCHEMA": "config.schema.schema"}
+
 GRAPHENE = {"SCHEMA": "config.schema.schema"}
 
 # ──────────────────────────────────────────
@@ -432,3 +657,10 @@ CURRICULUM_JSON_PATH = os.getenv(
         ).resolve()
     ),
 )
+
+CELERY_TASK_ALWAYS_EAGER = True
+CELERY_TASK_STORE_EAGER_RESULT = True
+
+# Waffle Feature Flags
+WAFFLE_CREATE_MISSING_FLAGS = True
+WAFFLE_FLAG_DEFAULT = False

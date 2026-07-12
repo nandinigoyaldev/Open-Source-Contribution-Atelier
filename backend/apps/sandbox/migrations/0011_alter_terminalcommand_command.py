@@ -6,13 +6,13 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('sandbox', '0010_terminalsession_terminalcommand'),
+        ("sandbox", "0010_terminalsession_terminalcommand"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='terminalcommand',
-            name='command',
+            model_name="terminalcommand",
+            name="command",
             field=models.TextField(blank=True),
         ),
     ]

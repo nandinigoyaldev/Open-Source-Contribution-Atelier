@@ -1,0 +1,91 @@
+.git-terminal {
+  background: #1a1a2e;
+  border-radius: 12px;
+  border: 2px solid #2d2d44;
+  overflow: hidden;
+  margin: 20px 0;
+  font-family: "Courier New", monospace;
+}
+
+.terminal-header {
+  background: #2d2d44;
+  padding: 10px 16px;
+  display: flex;
+  justify-content: space-between;
+  color: #aaa;
+  font-size: 13px;
+  border-bottom: 1px solid #3d3d5c;
+}
+
+.terminal-status {
+  font-size: 12px;
+  padding: 2px 10px;
+  border-radius: 10px;
+  background: #1a1a2e;
+}
+
+.terminal-output {
+  padding: 16px;
+  color: #e0e0e0;
+  min-height: 300px;
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.terminal-line {
+  padding: 2px 0;
+  font-size: 14px;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+.terminal-line:empty {
+  height: 20px;
+}
+
+.terminal-input-line {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid #2d2d44;
+}
+
+.prompt {
+  color: #4caf50;
+  font-weight: bold;
+}
+
+.terminal-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  color: #e0e0e0;
+  font-size: 14px;
+  font-family: "Courier New", monospace;
+  outline: none;
+}
+
+.terminal-input::placeholder {
+  color: #555;
+}
+
+/* Scrollbar */
+.terminal-output::-webkit-scrollbar {
+  width: 8px;
+}
+
+.terminal-output::-webkit-scrollbar-track {
+  background: #1a1a2e;
+}
+
+.terminal-output::-webkit-scrollbar-thumb {
+  background: #3d3d5c;
+  border-radius: 4px;
+}
+
+.terminal-output::-webkit-scrollbar-thumb:hover {
+  background: #4d4d6c;
+}

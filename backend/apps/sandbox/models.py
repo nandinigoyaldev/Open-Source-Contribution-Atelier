@@ -283,14 +283,26 @@ class CodeSnippet(models.Model):
     def __str__(self):
         return self.title
 
+
 class TerminalSession(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    project = models.ForeignKey(Project, on_delete=models.CASCADE, related_name="terminal_sessions", null=True, blank=True)
-    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="terminal_sessions")
+    project = models.ForeignKey(
+        Project,
+        on_delete=models.CASCADE,
+        related_name="terminal_sessions",
+        null=True,
+        blank=True,
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="terminal_sessions",
+    )
     name = models.CharField(max_length=255, default="Terminal")
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
 
 class BulkReplaceOperation(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)

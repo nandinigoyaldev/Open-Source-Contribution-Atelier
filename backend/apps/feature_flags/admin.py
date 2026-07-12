@@ -59,3 +59,4 @@ class FeatureFlagAdmin(admin.ModelAdmin):
         return obj.description
 
     description_short.short_description = "Description"
+# Waffle models are automatically registered in the admin panel.

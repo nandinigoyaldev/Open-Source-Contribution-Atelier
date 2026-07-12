@@ -1,7 +1,7 @@
 /**
  * WebWorker for secure JavaScript/TypeScript code execution in isolated thread.
  * Uses Sucrase for TypeScript transpilation.
- * 
+ *
  * @file jsWorker.ts
  * @location frontend/src/workers/jsWorker.ts
  */
@@ -9,6 +9,24 @@
 import { transform } from "sucrase";
 import { instrumentJS } from "../lib/jsTracer";
 import { TraceEvent } from "../hooks/useTimelineEngine";
+
+interface WorkerMessage {
+  id: string;
+  code: string;
+  action?: "execute_code" | "execute_trace";
+  timeout?: number;
+}
+
+interface WorkerResponse {
+  id: string;
+  type: "result" | "error" | "timeout" | "console" | "warning";
+  results?: string;
+  error?: string;
+  executionTime?: number;
+  method?: string;
+  args?: unknown[];
+  message?: string;
+}
 
 self.addEventListener("message", async (event) => {
   const { id, code, action } = event.data;
@@ -18,16 +36,19 @@ self.addEventListener("message", async (event) => {
   const traceEvents: TraceEvent[] = [];
   let stepCounter = 0;
 
-interface WorkerResponse {
-  id: string;
-  type: 'result' | 'error' | 'timeout' | 'console' | 'warning';
-  results?: string;
-  error?: string;
-  executionTime?: number;
-  method?: string;
-  args?: any[];
-  message?: string;
-}
+  const intercept = () => {
+    return (...args: unknown[]) => {
+      const msg = args
+        .map((a) => {
+          if (a instanceof Error) {
+            return a.toString();
+          }
+          return typeof a === "object" ? JSON.stringify(a, null, 2) : String(a);
+        })
+        .join(" ");
+      output += `${msg}\n`;
+    };
+  };
 
   const customConsole = {
     log: intercept(),
@@ -40,29 +61,29 @@ interface WorkerResponse {
     },
   };
 
-// ============================================================
-// Console Interceptor
-// ============================================================
+  try {
+    // 1. Transpile TS to JS using sucrase
+    const compiled = transform(code, { transforms: ["typescript"] }).code;
 
     if (action === "execute_trace") {
       // 2a. Instrument for tracing
       const instrumented = instrumentJS(compiled);
-      
+
       const __trace = (line: number, locals: Record<string, unknown>) => {
-        // Only record the variable values, filtering out functions for cleaner display
+        // Variable values filter (no functions)
         const cleanLocals: Record<string, unknown> = {};
         for (const [key, val] of Object.entries(locals)) {
           if (typeof val !== "function" && val !== undefined) {
             cleanLocals[key] = val;
           }
         }
-        
+
         traceEvents.push({
           step: stepCounter++,
           line,
           event: "line",
           locals: cleanLocals,
-          stdout: output, // capture stdout up to this point
+          stdout: output,
         });
       };
 
@@ -81,8 +102,6 @@ interface WorkerResponse {
       );
 
       await executionFn(customConsole, __trace);
-      
-      // Send back trace results instead of just string
       self.postMessage({ id, trace_events: traceEvents, error });
     } else {
       // 2b. Normal execution
@@ -105,7 +124,6 @@ interface WorkerResponse {
   } catch (err: unknown) {
     error = err instanceof Error ? err.toString() : String(err);
     if (action === "execute_trace") {
-      // Append the error to the last trace event if exists, or create one
       if (traceEvents.length > 0) {
         traceEvents[traceEvents.length - 1].error = error;
       } else {
@@ -125,26 +143,18 @@ interface WorkerResponse {
   }
 });
 
-// ============================================================
-// Error Handlers
-// ============================================================
-
-self.addEventListener('error', (error: ErrorEvent) => {
+self.addEventListener("error", (error: ErrorEvent) => {
   self.postMessage({
-    type: 'error',
-    error: error.message || 'Worker error occurred',
+    type: "error",
+    error: error.message || "Worker error occurred",
   } as WorkerResponse);
 });
 
-self.addEventListener('unhandledrejection', (event: PromiseRejectionEvent) => {
+self.addEventListener("unhandledrejection", (event: PromiseRejectionEvent) => {
   self.postMessage({
-    type: 'error',
-    error: event.reason?.message || 'Unhandled promise rejection',
+    type: "error",
+    error: event.reason?.message || "Unhandled promise rejection",
   } as WorkerResponse);
 });
-
-// ============================================================
-// Export for TypeScript
-// ============================================================
 
 export type { WorkerMessage, WorkerResponse };

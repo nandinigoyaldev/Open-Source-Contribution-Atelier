@@ -243,3 +243,5 @@ export const LearningPathPage: React.FC = () => {
     </div>
   );
 };
+
+export default LearningPathPage;

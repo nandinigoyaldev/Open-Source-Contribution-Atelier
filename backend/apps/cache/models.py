@@ -12,40 +12,44 @@ class CacheDependency(models.Model):
     """
     Tracks dependencies between models for cache invalidation.
     """
-    
+
     # Source (what depends on)
     source_content_type = models.ForeignKey(
-        ContentType,
-        on_delete=models.CASCADE,
-        related_name='cache_source_dependencies'
+        ContentType, on_delete=models.CASCADE, related_name="cache_source_dependencies"
     )
     source_object_id = models.PositiveIntegerField()
-    source_object = GenericForeignKey('source_content_type', 'source_object_id')
-    
+    source_object = GenericForeignKey("source_content_type", "source_object_id")
+
     # Target (what is depended on)
     target_content_type = models.ForeignKey(
-        ContentType,
-        on_delete=models.CASCADE,
-        related_name='cache_target_dependencies'
+        ContentType, on_delete=models.CASCADE, related_name="cache_target_dependencies"
     )
     target_object_id = models.PositiveIntegerField()
-    target_object = GenericForeignKey('target_content_type', 'target_object_id')
-    
+    target_object = GenericForeignKey("target_content_type", "target_object_id")
+
     # Cache key that depends on these objects
     cache_key = models.CharField(max_length=500, db_index=True)
-    
+
     # Timestamps
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
+
     class Meta:
         indexes = [
-            models.Index(fields=['source_content_type', 'source_object_id']),
-            models.Index(fields=['target_content_type', 'target_object_id']),
-            models.Index(fields=['cache_key']),
+            models.Index(fields=["source_content_type", "source_object_id"]),
+            models.Index(fields=["target_content_type", "target_object_id"]),
+            models.Index(fields=["cache_key"]),
         ]
-        unique_together = [['source_content_type', 'source_object_id', 'target_content_type', 'target_object_id', 'cache_key']]
-    
+        unique_together = [
+            [
+                "source_content_type",
+                "source_object_id",
+                "target_content_type",
+                "target_object_id",
+                "cache_key",
+            ]
+        ]
+
     def __str__(self):
         return f"{self.source_object} -> {self.target_object} ({self.cache_key})"
 
@@ -54,16 +58,18 @@ class CacheConfig(models.Model):
     """
     Configuration for cache strategies per model.
     """
-    
+
     STRATEGY_CHOICES = [
-        ('write_through', 'Write-Through'),
-        ('write_around', 'Write-Around'),
-        ('write_back', 'Write-Back'),
-        ('stale_while_revalidate', 'Stale-While-Revalidate'),
+        ("write_through", "Write-Through"),
+        ("write_around", "Write-Around"),
+        ("write_back", "Write-Back"),
+        ("stale_while_revalidate", "Stale-While-Revalidate"),
     ]
-    
+
     model_name = models.CharField(max_length=100, unique=True)
-    strategy = models.CharField(max_length=50, choices=STRATEGY_CHOICES, default='write_through')
+    strategy = models.CharField(
+        max_length=50, choices=STRATEGY_CHOICES, default="write_through"
+    )
     ttl = models.IntegerField(default=300)  # Seconds
     max_size = models.IntegerField(default=1000)  # Max items
     warm_on_startup = models.BooleanField(default=False)
@@ -71,6 +77,6 @@ class CacheConfig(models.Model):
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
-    
+
     def __str__(self):
         return f"{self.model_name} - {self.strategy}"

@@ -1,62 +1,29 @@
 import type { Config } from "tailwindcss";
 
 export default {
+  content: ["./src/**/*.{js,jsx,ts,tsx}"],
   darkMode: "class",
-  content: ["./index.html", "./src/**/*.{ts,tsx}"],
   theme: {
     extend: {
       colors: {
-        blue: {
-          500: "#2D6FE0",
+        light: {
+          bg: "#ffffff",
+          text: "#111827",
+          card: "#f9fafb",
+          border: "#e5e7eb",
+          primary: "#7c3aed",
+          secondary: "#6b7280",
+          muted: "#9ca3af",
         },
-        surface: "#FFF9F0",
-        "surface-lowest": "#FFFFFF",
-        "surface-low": "#FFEBC2",
-        "surface-high": "#FFD580",
-        "surface-highest": "#FFAA00",
-        primary: "#FF3B30",
-        "primary-container": "#FFC0B3",
-        tertiary: "#FF9500",
-        accent: "#FFCC00",
-        outline: "#000000",
-        text: "#1F1A15",
-        muted: "#6B5A49",
-      },
-      fontFamily: {
-        display: ["Outfit", "Inter", "sans-serif"],
-        body: ["Inter", "sans-serif"],
-        mono: ["JetBrains Mono", "monospace"],
-      },
-      boxShadow: {
-        card: "4px 4px 0px 0px rgba(0, 0, 0, 1)",
-        "card-lg": "8px 8px 0px 0px rgba(0, 0, 0, 1)",
-        "card-sm": "2px 2px 0px 0px rgba(0, 0, 0, 1)",
-        gel: "0px 8px 0px 0px rgba(230, 40, 20, 1), 0px -4px 0px 0px rgba(255,100,80,1) inset",
-      },
-      scale: {
-        "102": "1.02",
-      },
-      keyframes: {
-        shake: {
-          "0%": { transform: "translateX(0)" },
-          "10%, 30%, 50%, 70%, 90%": { transform: "translateX(-8px)" },
-          "20%, 40%, 60%, 80%": { transform: "translateX(8px)" },
-          "100%": { transform: "translateX(0)" },
+        dark: {
+          bg: "#0f172a",
+          text: "#f3f4f6",
+          card: "#1e293b",
+          border: "#334155",
+          primary: "#8b5cf6",
+          secondary: "#9ca3af",
+          muted: "#64748b",
         },
-        flash: {
-          "0%": { backgroundColor: "transparent" },
-          "50%": { backgroundColor: "rgba(255, 0, 0, 0.06)" },
-          "100%": { backgroundColor: "transparent" },
-        },
-        shimmer: {
-          "0%": { backgroundPosition: "-200% 0" },
-          "100%": { backgroundPosition: "200% 0" },
-        },
-      },
-      animation: {
-        shake: "shake 600ms cubic-bezier(.36,.07,.19,.97)",
-        flash: "flash 350ms ease-in-out",
-        shimmer: "shimmer 1.5s ease-in-out infinite",
       },
     },
   },
