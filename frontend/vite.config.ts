@@ -52,7 +52,7 @@ export default defineConfig({
         test: {
           environment: "jsdom",
           setupFiles: "./src/test/setup.ts",
-          include: ["src/test/**/*.test.{ts,tsx}"],
+          include: ["src/**/*.test.{ts,tsx}"],
           exclude: ["**/*.stories.{ts,tsx}", "**/*.stories.{js,jsx}"],
         },
       },

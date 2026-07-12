@@ -10,6 +10,7 @@ import { CommandPalette } from "../components/CommandPalette";
 import ReportIssueButton from "../components/ui/ReportIssueButton";
 import { NotificationProvider } from "../features/notifications/NotificationContext";
 import { ScrollToTop } from "../components/ui/ScrollToTop";
+import { WebSocketStatusIndicator } from "../components/WebSocketStatus/WebSocketStatusIndicator";
 
 // Pure React Onboarding Tour Step Definition Type Map
 interface TourStep {
@@ -140,6 +141,7 @@ export function App() {
               <ScrollToTop />
               <CommandPalette />
               <ReportIssueButton />
+              <WebSocketStatusIndicator />
 
               {/* Pure React Onboarding Modals Highlight Tour Overlay Portal */}
               {currentStep >= 0 && coords && (

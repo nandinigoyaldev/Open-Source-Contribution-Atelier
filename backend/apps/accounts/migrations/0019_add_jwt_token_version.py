@@ -8,7 +8,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('accounts', '000X_previous_migration'),  # Replace with actual previous migration
+        ('accounts', '0018_userprofile_bio'),
     ]
 
     operations = [

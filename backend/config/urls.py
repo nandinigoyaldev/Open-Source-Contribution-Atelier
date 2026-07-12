@@ -80,6 +80,14 @@ if settings.DEBUG:
     from apps.feature_flags.debug_view import feature_flags_debug_view
 
     urlpatterns += [
+        path("api/organizations/", include("apps.organizations.urls")),
+        path("api/feature-flags/", include("apps.feature_flags.urls")),
+        path(
+            "api/feature-flags/debug/",
+            feature_flags_debug_view,
+            name="feature-flags-debug",
+        ),
+    ]
         path("api/feature-flags/", feature_flags_debug_view, name="feature-flags-debug"),
         path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
         path(
