@@ -7,25 +7,48 @@ type ChatMessageProps = {
   timestamp?: string;
 };
 
+function getInitials(username: string): string {
+  if (!username) return "?";
+  const clean = username.replace(/^@/, "");
+  return clean.slice(0, 2).toUpperCase();
+}
+
+function getAvatarColor(username: string): string {
+  const colors = [
+    "bg-red-500 text-white",
+    "bg-blue-500 text-white",
+    "bg-emerald-500 text-white",
+    "bg-amber-500 text-black",
+    "bg-indigo-500 text-white",
+    "bg-pink-500 text-white",
+    "bg-purple-500 text-white",
+    "bg-cyan-500 text-black",
+  ];
+  let hash = 0;
+  for (let i = 0; i < username.length; i++) {
+    hash = username.charCodeAt(i) + ((hash << 5) - hash);
+  }
+  const index = Math.abs(hash) % colors.length;
+  return colors[index];
+}
+
 export function ChatMessage({
   message,
   username,
   isOwn,
   timestamp,
 }: ChatMessageProps) {
-  const avatarUrl = `https://github.com/${username || "octocat"}.png`;
-
   return (
     <div className={clsx("flex gap-2.5 items-end mb-2.5", isOwn ? "flex-row-reverse" : "flex-row")}>
       <div className="flex-shrink-0">
-        <img
-          src={avatarUrl}
-          alt={username}
-          onError={(e) => {
-            (e.currentTarget as HTMLImageElement).src = `https://api.dicebear.com/7.x/identicon/svg?seed=${username}`;
-          }}
-          className="w-7.5 h-7.5 rounded-full border border-black/10 dark:border-white/15 shadow-sm"
-        />
+        <div
+          className={clsx(
+            "w-8 h-8 rounded-full flex items-center justify-center font-black text-xs border border-black/5 shadow-sm uppercase select-none",
+            getAvatarColor(username)
+          )}
+        >
+          {getInitials(username)}
+        </div>
       </div>
 
       <div className="flex flex-col max-w-[70%]">

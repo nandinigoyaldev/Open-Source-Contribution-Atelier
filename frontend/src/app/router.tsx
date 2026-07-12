@@ -20,6 +20,12 @@ const ChallengePage = lazy(() =>
   })),
 );
 
+const A11yLinterSandbox = lazy(() =>
+  import("../components/ui/A11yLinterSandbox").then((module) => ({
+    default: module.A11yLinterSandbox,
+  })),
+);
+
 const ChatPage = lazy(() =>
   import("../pages/ChatPage").then((module) => ({
     default: module.ChatPage,
@@ -291,6 +297,15 @@ export function AppRouter() {
             element={
               <ProtectedRoute>
                 <ChatPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/a11y-sandbox"
+            element={
+              <ProtectedRoute>
+                <A11yLinterSandbox />
               </ProtectedRoute>
             }
           />
