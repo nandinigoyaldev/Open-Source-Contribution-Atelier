@@ -12,11 +12,23 @@
     "test": "vitest run",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build",
-    "type-check": "tsc --noEmit"
+    "type-check": "tsc --noEmit",
+    "generate:api": "npx openapi-typescript http://127.0.0.1:8000/api/schema/ -o src/types/api.d.ts",
+    "test:a11y": "playwright test accessibility",
+    "test:a11y:ci": "playwright test accessibility --reporter=html,json,junit",
+    "test:a11y:report": "node tests/accessibility/generate-report.js"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",
     "@monaco-editor/react": "^4.7.0",
+    "@opentelemetry/api": "^1.9.1",
+    "@opentelemetry/auto-instrumentations-web": "^0.65.0",
+    "@opentelemetry/context-zone": "^2.9.0",
+    "@opentelemetry/exporter-trace-otlp-http": "^0.220.0",
+    "@opentelemetry/instrumentation": "^0.220.0",
+    "@opentelemetry/instrumentation-document-load": "^0.65.0",
+    "@opentelemetry/instrumentation-fetch": "^0.220.0",
+    "@opentelemetry/sdk-trace-web": "^2.9.0",
     "@react-oauth/google": "^0.13.4",
     "@reduxjs/toolkit": "^2.12.0",
     "@tanstack/react-query": "^5.101.1",
@@ -109,6 +121,8 @@
     "typescript-eslint": "^8.22.0",
     "vite": "^6.4.2",
     "vite-plugin-pwa": "^1.3.0",
-    "vitest": "^3.0.5"
+    "vitest": "^3.0.5",
+    "@axe-core/playwright": "^4.8.0",
+    "axe-playwright": "^2.0.1"
   }
 }

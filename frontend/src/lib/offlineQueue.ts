@@ -1,5 +1,5 @@
 import { openDB } from "./offlineDB";
-import { queryClient } from "./queryClient";
+import { eventBus } from "../core/events";
 export interface QueuedAction {
   id: string;
   url: string;
@@ -247,8 +247,8 @@ export async function syncOfflineQueue() {
             JSON.stringify(filtered),
           );
 
-          // Invalidate React Query progress query
-          queryClient.invalidateQueries({ queryKey: ["userProgress"] });
+          // Emit sync success event instead of directly importing queryClient
+          eventBus.emit("sync:success", { lesson_slug: bodyObj.lesson_slug });
         } else {
           console.warn(
             `[OfflineQueue] Action ${action.id} returned status ${response.status}. Will retry later.`,
@@ -289,8 +289,8 @@ if (typeof window !== "undefined") {
             JSON.stringify(filtered),
           );
 
-          // Invalidate React Query progress query
-          queryClient.invalidateQueries({ queryKey: ["userProgress"] });
+          // Emit sync success event to decouple UI logic
+          eventBus.emit("sync:success", { lesson_slug });
         } catch (e) {
           console.error(
             "[OfflineQueue] Error clearing sync'd item from localStorage",

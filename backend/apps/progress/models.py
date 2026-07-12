@@ -519,3 +519,18 @@ class LessonBookmark(models.Model):
 
     def __str__(self):
         return f"{self.user.username} - {self.lesson.slug}"
+
+
+class UserNote(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="lesson_notes")
+    lesson = models.ForeignKey("content.Lesson", on_delete=models.CASCADE, related_name="lesson_notes")
+    content = models.TextField()
+    tags = models.JSONField(default=list, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"Note by {self.user.username} for {self.lesson.slug}"

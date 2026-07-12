@@ -1,7 +1,4 @@
-
 import React, { useState, useEffect } from "react";
-import { GitBranch } from "lucide-react";
-import React, { useState } from "react";
 import { GitBranch, LogIn, ArrowRight } from "lucide-react";
 import { AuthPageShell } from "../features/auth/AuthPageShell";
 import { fetchApi } from "../lib/api";
@@ -64,7 +61,6 @@ export function LoginPage() {
       });
       
       login(tokens);
-
       
       // ✅ Show success toast
       toast.success('Welcome back! 🎉', {
@@ -76,7 +72,6 @@ export function LoginPage() {
       const redirect = sessionStorage.getItem('login_redirect') || '/dashboard';
       sessionStorage.removeItem('login_redirect');
       window.location.href = redirect;
-      
 
       sessionStorage.setItem("justLoggedIn", "true");
       window.location.href = "/dashboard";
@@ -183,13 +178,14 @@ export function LoginPage() {
           />
         </div>
 
-
         <button
           type="submit"
           disabled={isLoading}
           className="w-full rounded-2xl border-4 border-black bg-primary px-5 py-5 font-black text-black text-xl shadow-card hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-card-sm transition-all cursor-pointer mt-4 uppercase disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isLoading ? 'Logging in...' : 'Let Me In!'}
+        </button>
+
         <button className="w-full rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-4 py-3.5 font-bold text-sm hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer mt-4 uppercase flex items-center justify-center gap-2 shadow-md hover:shadow-lg">
           <LogIn size={16} />
           <span>Sign In</span>

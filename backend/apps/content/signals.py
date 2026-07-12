@@ -4,9 +4,10 @@ from django.core.cache import cache
 from django.db import transaction
 from django.db.models.signals import post_delete, post_save
 from django.dispatch import receiver
+
 from apps.events.services.event_bus import EventBus
 
-from .models import Exercise, Lesson
+from .models import Exercise, Lesson, LessonVersion
 from .semantic_search import encode
 
 logger = logging.getLogger(__name__)
@@ -64,3 +65,17 @@ def publish_lesson_deindexed_event(sender, instance, **kwargs):
             "object_id": instance.pk,
         },
     )
+
+
+@receiver(post_save, sender=Lesson)
+def create_lesson_version(sender, instance, **kwargs):
+    def _create_version():
+        latest = instance.versions.first()
+        if not latest or latest.content != instance.content:
+            LessonVersion.objects.create(
+                lesson=instance,
+                content=instance.content,
+                summary=instance.summary,
+            )
+
+    transaction.on_commit(_create_version)

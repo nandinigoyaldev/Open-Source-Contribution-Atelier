@@ -35,8 +35,8 @@ class Lesson(models.Model):
         null=True, blank=True, help_text="Pre-computed semantic embedding vector"
     )
     prerequisites = models.ManyToManyField(
-            "self", symmetrical=False, related_name="dependents", blank=True
-        )
+        "self", symmetrical=False, related_name="dependents", blank=True
+    )
     js_exercise = models.JSONField(null=True, blank=True, default=None)
 
     @property
@@ -47,6 +47,18 @@ class Lesson(models.Model):
 
     class Meta:
         ordering = ["order", "id"]
+
+
+class LessonVersion(models.Model):
+    lesson = models.ForeignKey(
+        Lesson, related_name="versions", on_delete=models.CASCADE
+    )
+    content = models.TextField()
+    summary = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
 
 
 class Exercise(models.Model):
