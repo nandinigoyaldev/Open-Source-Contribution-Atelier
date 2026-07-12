@@ -180,6 +180,7 @@ INSTALLED_APPS = [
     "apps.challenges",
     "apps.sandbox",
     "apps.organizations",
+    "apps.billing",
     "apps.webhooks",
     "apps.notes",
     "apps.recommendations",

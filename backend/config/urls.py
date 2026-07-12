@@ -31,6 +31,7 @@ urlpatterns = [
     path("api/users/", include("apps.accounts.user_urls")),
     # ── Core Apps ──────────────────────────────────────────────────────────────
     path("api/content/", include("apps.content.urls")),
+    path("api/billing/", include("apps.billing.urls")),
     path("api/progress/", include("apps.progress.urls")),
     path("api/challenges/", include("apps.challenges.urls")),
     path("api/sandbox/", include("apps.sandbox.urls")),
