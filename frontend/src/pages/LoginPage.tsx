@@ -195,7 +195,7 @@ export function LoginPage() {
         <button
           type="submit"
           disabled={isLoading}
-          className="w-full rounded-xl border-2 border-black bg-[#C3C0FF] px-4 py-3.5 font-black text-black text-sm shadow-card-sm hover:-translate-y-0.5 active:translate-y-0 active:shadow-none transition-all cursor-pointer mt-4 uppercase disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full rounded-xl border-2 border-black bg-[#C3C0FF] px-4 py-3.5 font-black text-black text-sm shadow-card-sm hover:-translate-y-0.5 active:translate-y-0 active:shadow-none transition-all cursor-pointer uppercase disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isLoading ? 'Logging in...' : 'Let Me In!'}
         </button>
