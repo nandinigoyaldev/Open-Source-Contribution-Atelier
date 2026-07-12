@@ -3,6 +3,7 @@ from datetime import timedelta
 from pathlib import Path
 
 import dj_database_url
+from django.core.exceptions import ImproperlyConfigured
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -25,6 +26,12 @@ SECRET_KEY = os.getenv(
     "SECRET_KEY", "django-insecure-dev-key-not-for-production-use-32bytes!!"
 )
 DEBUG = os.getenv("DEBUG", "False") == "True"
+
+# Explicit environment designation, independent of DEBUG. Used below to make
+# sure DEBUG=True (and the wildcard CORS it enables) can never silently reach
+# a production deployment.
+DJANGO_ENV = os.getenv("DJANGO_ENV", "development")
+
 ALLOWED_HOSTS = [
     host.strip()
     for host in os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1").split(",")
@@ -38,6 +45,18 @@ CORS_ALLOWED_ORIGINS = [
 ]
 CORS_ALLOW_CREDENTIALS = True
 if DEBUG:
+    if DJANGO_ENV == "production":
+        # CORS_ALLOW_ALL_ORIGINS + CORS_ALLOW_CREDENTIALS together let any
+        # website make authenticated, cookie/credential-bearing requests to
+        # this API. That's fine for local development, but must never reach
+        # production silently just because DEBUG was left on by mistake.
+        raise ImproperlyConfigured(
+            "Refusing to start: DEBUG=True while DJANGO_ENV=production. "
+            "This would also silently enable CORS_ALLOW_ALL_ORIGINS together "
+            "with CORS_ALLOW_CREDENTIALS, letting any website make "
+            "authenticated requests to this API. Set DEBUG=False (or "
+            "DJANGO_ENV to something other than 'production') to continue."
+        )
     CORS_ALLOW_ALL_ORIGINS = True
 
 INSTALLED_APPS = [
