@@ -1,7 +1,7 @@
 from datetime import timedelta
 
 from django.contrib.auth.models import User
-from django.core.cache import cache
+from apps.core.cache import multi_level_cache as cache
 from django.db import models, transaction
 from django.db.models import Count, F, IntegerField, OuterRef, Q, Subquery, Sum, Value
 from django.db.models.functions import Coalesce, TruncDate

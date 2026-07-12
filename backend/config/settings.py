@@ -478,6 +478,10 @@ if is_redis_available(CHECK_REDIS_URL):
         "default": {
             "BACKEND": "django.core.cache.backends.redis.RedisCache",
             "LOCATION": REDIS_URL,
+        },
+        "l1_memory": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            "LOCATION": "atelier-l1-cache",
         }
     }
 else:
@@ -490,6 +494,10 @@ else:
         "default": {
             "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
             "LOCATION": "atelier-unique-cache",
+        },
+        "l1_memory": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            "LOCATION": "atelier-l1-cache",
         }
     }
 
