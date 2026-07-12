@@ -18,7 +18,7 @@ export function AuthPageShell({
   const { theme, toggleTheme } = useTheme();
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 sm:p-8 font-sans bg-[#ffffff] text-slate-900 dark:bg-transparent dark:text-[#f0ebe2] transition-colors duration-300 relative overflow-hidden">
+    <div className="h-screen flex items-center justify-center p-4 sm:p-8 font-sans bg-[#ffffff] text-slate-900 dark:bg-transparent dark:text-[#f0ebe2] transition-colors duration-300 relative overflow-y-auto md:overflow-hidden">
       {/* Theme Toggle Buttons */}
       <div className="absolute top-4 right-4 sm:top-8 sm:right-8 flex gap-3 z-50">
         <button
