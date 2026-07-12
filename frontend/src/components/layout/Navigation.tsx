@@ -149,7 +149,7 @@ export function Navigation() {
         aria-label="Main sidebar"
         className="fixed inset-y-0 left-0 z-40 hidden w-[240px] border-r-4 border-black bg-surface-lowest/95 backdrop-blur-xl lg:flex lg:flex-col dark:bg-[#0f0e0c]/95 dark:border-[#2e2924]"
       >
-        <div className="border-b-4 border-black px-6 py-4 dark:border-[#2e2924]">
+        <div className="flex h-[72px] flex-col justify-center border-b-4 border-black px-6 dark:border-[#2e2924]">
           <Link
             to="/"
             className="block font-display text-xl font-black tracking-tight text-black dark:text-white uppercase"
@@ -202,8 +202,8 @@ export function Navigation() {
         </div>
       </aside>
 
-      <header className="fixed inset-x-0 top-0 z-30 border-b-4 border-black bg-white lg:left-[240px] dark:border-[#2e2924] dark:bg-[#0f0e0c]">
-        <div className="flex items-center justify-between space-x-4 px-4 py-4 sm:px-6 lg:px-8">
+      <header className="fixed inset-x-0 top-0 z-30 h-[72px] border-b-4 border-black bg-white lg:left-[240px] dark:border-[#2e2924] dark:bg-[#0f0e0c]">
+        <div className="flex h-full items-center justify-between space-x-4 px-4 sm:px-6 lg:px-8">
           <button
             onClick={() => setMobileOpen(!mobileOpen)}
             className="lg:hidden rounded-lg border-2 border-black p-2 menu-btn"
