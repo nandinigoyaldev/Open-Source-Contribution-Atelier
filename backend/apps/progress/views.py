@@ -263,6 +263,34 @@ class MyProgressView(APIView):
             request.user.id, lesson_slug, payload
         )
 
+                client_dt = datetime.datetime.fromtimestamp(
+                    client_timestamp_ms / 1000.0, tz=datetime.timezone.utc
+                )
+                if progress.updated_at > client_dt:
+                    skip_update = True
+
+            if not skip_update and (
+                progress.base_score != base_score or progress.completed != completed
+            ):
+                progress.completed = completed
+                progress.base_score = base_score
+                progress.multiplier_applied = multiplier
+                progress.score = int(base_score * multiplier)
+                progress.organization = request.user.organization
+                progress.save()
+                # Record XP event
+                old_score = getattr(progress, "score", 0) if not created else 0
+                xp_delta = progress.score - old_score
+                XPEvent.objects.create(
+                    user=request.user,
+                    source_type="lesson",
+                    source_id=lesson.id,
+                    base_points=base_score,
+                    multiplier=multiplier,
+                    xp_delta=xp_delta,
+                )
+except LessonProgress.DoesNotExist:
+            progress = LessonProgress.objects.create(
         if buffered:
             # Return accepted response with optimistic in-memory model
             progress = LessonProgress(
@@ -272,6 +300,18 @@ class MyProgressView(APIView):
                 base_score=base_score,
                 score=base_score,
             )
+            # Record XP event for new progress
+            XPEvent.objects.create(
+                user=request.user,
+                source_type="lesson",
+                source_id=lesson.id,
+                base_points=base_score,
+                multiplier=multiplier,
+                xp_delta=progress.score,
+            )
+            created = True
+
+        from django_q.tasks import async_task
             serializer = LessonProgressSerializer(progress)
             return Response(serializer.data, status=status.HTTP_202_ACCEPTED)
 

@@ -37,3 +37,7 @@ celery-prometheus-exporter>=1.7.0
 whitenoise[brotli]>=6.5.0
 pydantic>=2.0
 email-validator
+opentelemetry-api>=1.23.0
+opentelemetry-sdk>=1.23.0
+opentelemetry-instrumentation-django>=0.44b0
+opentelemetry-exporter-otlp>=1.23.0

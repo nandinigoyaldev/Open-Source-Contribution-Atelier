@@ -7,7 +7,6 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ("progress", "0026_merge_20260709_0732"),
-        ("progress", "0026_merge_20260709_0935"),
     ]
 
     operations = []

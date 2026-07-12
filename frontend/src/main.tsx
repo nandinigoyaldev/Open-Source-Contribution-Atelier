@@ -13,6 +13,11 @@ import i18n from "./lib/i18n";
 import { I18nextProvider } from "react-i18next";
 import "./styles.css";
 import "./plugins/coreLessonPlugins";
+import { initializeTracing } from "./tracing";
+
+// Initialize OpenTelemetry tracing before rendering
+initializeTracing();
+
 
 const GOOGLE_CLIENT_ID =
   import.meta.env.VITE_GOOGLE_CLIENT_ID ||
