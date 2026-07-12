@@ -1,7 +1,8 @@
 import toast from "react-hot-toast";
-
 import { enqueueOfflineAction } from "./offlineQueue";
+import { LRUCache } from "../utils/cache";
 
+const snippetsCache = new LRUCache<any[]>(50, 300000);
 
 // 1. Defend the environment variable retrieval against server-side execution crashes
 const getSafeEnvVar = (key: string): string => {
@@ -409,7 +410,16 @@ export async function fetchSnippets(filters?: {
   if (filters?.search) url += `search=${filters.search}&`;
   if (filters?.is_favorite !== undefined)
     url += `is_favorite=${filters.is_favorite}&`;
-  return fetchApi(url, { method: "GET" });
+  
+  // Try to return from cache
+  const cachedData = snippetsCache.get(url);
+  if (cachedData) {
+    return cachedData as CodeSnippet[];
+  }
+
+  const result = await fetchApi(url, { method: "GET" });
+  snippetsCache.set(url, result);
+  return result;
 }
 
 export async function createSnippet(

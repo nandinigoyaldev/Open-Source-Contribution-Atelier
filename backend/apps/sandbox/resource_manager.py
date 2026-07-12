@@ -143,7 +143,13 @@ except ImportError:
     pass
 
 code = {repr(code)}
-safe_globals = {{"__builtins__": {{k: v for k, v in __builtins__.items() if k not in {cls.FORBIDDEN_FUNCTIONS}}}}}
+
+# NOTE: __builtins__ is the *builtins module* here (not a dict), because this
+# script runs as the top-level `__main__` module (via `python -c`). Importing
+# the module explicitly and using vars() works in both contexts.
+import builtins
+safe_builtins = {{k: v for k, v in vars(builtins).items() if k not in {cls.FORBIDDEN_FUNCTIONS}}}
+safe_globals = {{"__builtins__": safe_builtins}}
 
 try:
     exec(code, safe_globals)
