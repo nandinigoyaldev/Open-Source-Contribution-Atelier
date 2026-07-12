@@ -69,6 +69,7 @@ export function LessonPage() {
   const [lessonsList, setLessonsList] = useState<Lesson[]>([]);
   const [markdownContent, setMarkdownContent] = useState("");
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   // Curriculum modules list for sidebar
   const [modules, setModules] = useState<
@@ -178,6 +179,7 @@ export function LessonPage() {
   // 1. Fetch modules catalog & lessons
   useEffect(() => {
     setIsLoading(true);
+    setError(null);
 
     const curriculumPromise = fetch("/content/curriculum.json")
       .then((res) => {
@@ -233,7 +235,8 @@ export function LessonPage() {
         }
 
         if (!found) {
-          navigate("/dashboard", { replace: true });
+          setError("Lesson not found. Please check the lesson URL.");
+          setIsLoading(false);
           return;
         }
 
@@ -241,7 +244,7 @@ export function LessonPage() {
       })
       .catch((err) => {
         console.error("[LessonPage] Unexpected error loading lesson:", err);
-        navigate("/dashboard", { replace: true });
+        setError("Failed to load lesson. Please check your connection and try again.");
       })
       .finally(() => {
         setIsLoading(false);
@@ -426,6 +429,46 @@ export function LessonPage() {
       >
         <div className="w-full max-w-3xl">
           <SkeletonLesson />
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div
+        className="pt-20 h-screen w-full flex items-center justify-center px-4"
+        role="alert"
+        aria-live="assertive"
+      >
+        <div className="w-full max-w-2xl">
+          <div className="rounded-2xl border-4 border-red-600 bg-red-50 p-8 shadow-card dark:bg-red-950 dark:border-red-700">
+            <h2 className="text-2xl font-black mb-4 text-red-900 dark:text-red-200">
+              ⚠️ Error Loading Lesson
+            </h2>
+            <p className="text-red-800 dark:text-red-300 mb-6 font-semibold">
+              {error}
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4">
+              <button
+                onClick={() => {
+                  setError(null);
+                  setIsLoading(true);
+                  // Re-trigger the fetch by resetting the effect
+                  window.location.reload();
+                }}
+                className="flex-1 px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-black rounded-lg border-2 border-red-800 transition-colors"
+              >
+                🔄 Retry
+              </button>
+              <Link
+                to="/dashboard"
+                className="flex-1 px-6 py-3 bg-black dark:bg-[#2e2924] hover:bg-gray-800 text-white font-black rounded-lg border-2 border-black dark:border-[#2e2924] transition-colors text-center"
+              >
+                ← Go Back to Dashboard
+              </Link>
+            </div>
+          </div>
         </div>
       </div>
     );
