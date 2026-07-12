@@ -48,11 +48,6 @@ vi.mock("../../hooks/useWebPush", () => ({
   }),
 }));
 
-function submitForm() {
-  const form = document.querySelector("form")!;
-  fireEvent.submit(form);
-}
-
 describe("ProfileSettingsForm Edge Cases", () => {
   beforeEach(() => {
     vi.clearAllMocks();
@@ -139,7 +134,7 @@ describe("ProfileSettingsForm Edge Cases", () => {
       });
 
       expect(
-        screen.getByText("Profile settings updated successfully!")
+        screen.getByText("Profile settings updated successfully!"),
       ).toBeInTheDocument();
     });
   });

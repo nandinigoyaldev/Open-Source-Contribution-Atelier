@@ -30,7 +30,6 @@ export function VerifyCertificatePage() {
   const [searchHash, setSearchHash] = useState("");
 
   useEffect(() => {
-    /* eslint-disable react-hooks/set-state-in-effect */
     const verifyHash = async () => {
       setLoading(true);
       setError("");
@@ -69,7 +68,6 @@ export function VerifyCertificatePage() {
       setError("");
       setData(null);
     }
-    /* eslint-enable react-hooks/set-state-in-effect */
   }, [hash]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
@@ -413,3 +411,5 @@ export function VerifyCertificatePage() {
     </div>
   );
 }
+
+export default VerifyCertificatePage;

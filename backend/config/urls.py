@@ -1,7 +1,11 @@
 from django.contrib import admin
-from django.urls import include, path
+from django.urls import include, path, re_path
 from django.views.decorators.csrf import csrf_exempt
-from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
+from drf_spectacular.views import (
+    SpectacularAPIView,
+    SpectacularRedocView,
+    SpectacularSwaggerView,
+)
 from graphene_django.views import GraphQLView
 
 from apps.dashboard.views import LeaderboardView
@@ -12,6 +16,7 @@ from .version_view import version_view
 urlpatterns = [
     # ── Admin ──────────────────────────────────────────────────────────────────
     path("admin/", admin.site.urls),
+    path("", include("django_prometheus.urls")),
     
     # ── Health Checks ──────────────────────────────────────────────────────────
     path("health/", include("apps.health.urls")),
@@ -45,7 +50,6 @@ urlpatterns = [
     path("api/search/", include("apps.search.urls")),
     path("api/notes/", include("apps.notes.urls")),
     path("api/recommendations/", include("apps.recommendations.urls")),
-    
     # ── Webhooks & Uploads ─────────────────────────────────────────────────────
     path("api/webhooks/", include("apps.webhooks.urls")),
     path("api/uploads/", include("apps.uploads.urls")),
@@ -53,19 +57,31 @@ urlpatterns = [
     # ── RBAC ───────────────────────────────────────────────────────────────────
     path("api/rbac/", include("apps.rbac.urls")),
     
+    # ── Additional Apps ────────────────────────────────────────────────────────
+    path("api/moderation/", include("apps.moderation.urls")),
+    path("api/portfolio/", include("apps.portfolio.urls")),
+    path("api/organizations/", include("apps.organizations.urls")),
+    
+    # ── Events & GraphQL ──────────────────────────────────────────────────────
+    # path("api/events/", include("apps.events.urls")),
+    # path("api/graphql/", include("apps.graphql_gateway.urls")),
+    path("api/graphql/legacy/", csrf_exempt(GraphQLView.as_view(graphiql=True))),
+    
     # ── API Documentation ──────────────────────────────────────────────────────
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
     path(
         "api/docs/",
-        SpectacularSwaggerView.as_view(url_name="schema"),
+        SpectacularSwaggerView.as_view(url_name="schema"),  # Fixed here
         name="swagger-ui",
+    ),
+    path(
+        "api/redoc/",
+        SpectacularRedocView.as_view(url_name="schema"),
+        name="redoc-ui",
     ),
     
     # ── GraphQL ────────────────────────────────────────────────────────────────
     path("api/graphql/", csrf_exempt(GraphQLView.as_view(graphiql=True))),
-    
-    # ── Prometheus Metrics ─────────────────────────────────────────────────────
-    path("", include("django_prometheus.urls")),
 ]
 
 # ── Development URLs ──────────────────────────────────────────────────────────
@@ -75,9 +91,15 @@ from django.conf.urls.static import static
 if settings.DEBUG:
     from apps.feature_flags.debug_view import feature_flags_debug_view
 
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
-    urlpatterns.append(
+    urlpatterns += [
+        path("api/organizations/", include("apps.organizations.urls")),
+        path("api/feature-flags/", include("apps.feature_flags.urls")),
         path(
             "debug/feature-flags/", feature_flags_debug_view, name="debug-feature-flags"
-        )
-    )
+        ),
+        path(
+            "api/feature-flags/debug/",
+            feature_flags_debug_view,
+            name="feature-flags-debug",
+        ),
+    ]

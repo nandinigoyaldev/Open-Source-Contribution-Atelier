@@ -1,0 +1,381 @@
+name: Issue & PR Automation
+
+on:
+  issues:
+    types: [opened]
+  issue_comment:
+    types: [created]
+  pull_request_target:
+    types: [opened, synchronize, reopened, edited]
+  schedule:
+    - cron: '0 0 * * *'   # run daily at midnight UTC
+
+permissions:
+  issues: write
+  pull-requests: write
+  contents: read
+
+jobs:
+  issue-opened:
+    if: github.event_name == 'issues' && github.event.action == 'opened'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Add labels & assign author
+        id: automate
+        uses: actions/github-script@v8
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const issue = context.payload.issue;
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+
+            async function ensureLabel(name, color='c2e0c6', description='') {
+              try {
+                await github.rest.issues.getLabel({owner, repo, name});
+              } catch (e) {
+                await github.rest.issues.createLabel({owner, repo, name, color, description: description || 'Auto‑created by automation'});
+              }
+            }
+
+            const title = (issue.title || '').toLowerCase();
+            const body = (issue.body || '').toLowerCase();
+
+            // Check for explicit difficulty declarations first
+            let difficulty = null;
+            const explicitRegex = /(?:difficulty|level|label)\s*(?:level)?\s*(?::|is)\s*(easy|medium|hard)/i;
+            const difficultyMatch = body.match(explicitRegex) || title.match(explicitRegex);
+            if (difficultyMatch) {
+              difficulty = difficultyMatch[1].toLowerCase();
+            } else {
+              // Fallback to keyword matching ONLY on the title using word boundaries to avoid false positives in the body text
+              const difficultyPatterns = [
+                {regex: /\b(hard|difficult|complex|high)\b/i, label: 'hard'},
+                {regex: /\b(medium|moderate|intermediate)\b/i, label: 'medium'},
+                {regex: /\b(easy|low|simple)\b/i, label: 'easy'}
+              ];
+
+              for (const pattern of difficultyPatterns) {
+                if (pattern.regex.test(title)) {
+                  difficulty = pattern.label;
+                  break;
+                }
+              }
+            }
+
+            if (difficulty) {
+              const labelColors = {
+                easy: '84b6eb',
+                Medium: 'f0b37e',
+                hard: 'f77f7f'
+              };
+              const labelName = difficulty === 'medium' ? 'Medium' : difficulty;
+              const labelDesc = `Difficulty ${labelName}`;
+              await ensureLabel(labelName, labelColors[labelName] || labelColors[difficulty], labelDesc);
+              await github.rest.issues.addLabels({owner, repo, issue_number: issue.number, labels: [labelName]});
+            }
+
+            // Detect checkbox states for contributor program selection
+            const isSsocChecked = /-\s*\[x\]\s*ssoc\s*2026/i.test(body);
+            const isEcsocChecked = /-\s*\[x\]\s*ecsoc\s*2026/i.test(body);
+
+            // Detect if checkboxes exist at all (checked OR unchecked)
+            const hasSsocCheckbox = /-\s*\[[ x]\]\s*ssoc\s*2026/i.test(body);
+            const hasEcsocCheckbox = /-\s*\[[ x]\]\s*ecsoc\s*2026/i.test(body);
+            const hasAnyCheckbox = hasSsocCheckbox || hasEcsocCheckbox;
+
+            // Determine labels: if checkboxes exist, use ONLY checkbox state.
+            // Regex fallback on body/title keywords only when NO checkboxes are present.
+            const shouldAddSsoc = hasAnyCheckbox
+              ? isSsocChecked
+              : (/\bssoc26?\b/i.test(body) || /\bssoc26?\b/i.test(title) || /\bssoc\s*2026\b/i.test(body) || /\bssoc\s*2026\b/i.test(title));
+
+            const shouldAddEcsoc = hasAnyCheckbox
+              ? isEcsocChecked
+              : (/\becsoc26?\b/i.test(body) || /\becsoc26?\b/i.test(title) || /\becsoc\s*2026\b/i.test(body) || /\becsoc\s*2026\b/i.test(title));
+
+            if (shouldAddSsoc) {
+              const ssocLabel = 'SSoC26';
+              await ensureLabel(ssocLabel, 'c5def5', 'SSOC participation');
+              await github.rest.issues.addLabels({owner, repo, issue_number: issue.number, labels: [ssocLabel]});
+            }
+            if (shouldAddEcsoc) {
+              const ecsocLabel = 'ECSoC26';
+              await ensureLabel(ecsocLabel, 'd4c5f9', 'ECSoC participation');
+              await github.rest.issues.addLabels({owner, repo, issue_number: issue.number, labels: [ecsocLabel]});
+            }
+
+            // Assign the author of the issue (skip if author is the repo owner)
+            if (issue.user.login !== owner) {
+              try {
+                await github.rest.issues.addAssignees({owner, repo, issue_number: issue.number, assignees: [issue.user.login]});
+              } catch (e) {
+                console.warn(`Could not assign issue to ${issue.user.login}: ${e}`);
+                try {
+                  await github.rest.repos.addCollaborator({owner, repo, username: issue.user.login, permission: 'pull'});
+                  await github.rest.issues.addAssignees({owner, repo, issue_number: issue.number, assignees: [issue.user.login]});
+                } catch (err) {
+                  console.warn(`Failed to invite and assign issue author: ${err}`);
+                }
+              }
+              
+              // Welcome Comment with Contributor Pathfinder & interactive tools
+              const welcomeBody = [
+                `### 🚀 Welcome to the Open-Source Contribution Atelier, @${issue.user.login}!`,
+                ``,
+                `We are thrilled to have you here. To help you make your first contribution, we've set up some premium interactive developer tools:`,
+                ``,
+                `| Tool / Resource | Description | Link |`,
+                `| --- | --- | --- |`,
+                `| 🛠️ **Readiness Checker** | A local command-line diagnostic tool to verify your setup before pushing. | Run \`python3 verify_readiness.py\` |`,
+                `| 💻 **Contributor Sandbox** | Interactive browser sandbox to simulate making your first git commit, resolving conflicts, and opening mock PRs. | [Try Sandbox Simulator](https://open-source-contribution-atelier.vercel.app/contributor-sandbox) |`,
+                `| 📊 **SSoC Leaderboard** | Track project contributions, merged PRs, and active contributors. | [View Leaderboard](https://open-source-contribution-atelier.vercel.app/leaderboard) |`,
+                ``,
+                `#### 🎯 Recommended Next Steps:`,
+                `1. Fork the repo and set up your local environment (follow [AGENTS.md](https://github.com/${owner}/${repo}/blob/main/AGENTS.md) or [CONTRIBUTING.md](https://github.com/${owner}/${repo}/blob/main/CONTRIBUTING.md)).`,
+                `2. Browse through the available issues marked with **SSoC26** or **ECSoC26**.`,
+                `3. Run \`python3 verify_readiness.py\` locally before submitting your Pull Request to ensure everything is green!`,
+                ``,
+                `Happy contributing! 💻✨`
+              ].join('\n');
+
+              await github.rest.issues.createComment({
+                owner,
+                repo,
+                issue_number: issue.number,
+                body: welcomeBody
+              });
+            }
+
+
+  first-commenter-assignment:
+    if: github.event_name == 'issue_comment' && github.event.action == 'created'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Assign first commenter (if none already)
+        id: assigner
+        uses: actions/github-script@v8
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const comment = context.payload.comment;
+            const issue = context.payload.issue;
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+
+            // Skip if this is a comment on a PR, not an issue
+            if (issue.pull_request) {
+              console.log('Comment is on a PR, not an issue – skipping assignment.');
+              return;
+            }
+
+            const existingAssignees = issue.assignees.map(a => a.login);
+            const author = issue.user.login;
+            const commenter = comment.user.login;
+
+            if (commenter === author) { console.log('Commenter is the author – no reassignment.'); return; }
+
+            const hasNonAuthorAssignee = existingAssignees.some(a => a !== author);
+            if (hasNonAuthorAssignee) { console.log('Issue already has a non‑author assignee – nothing to do.'); return; }
+
+            // Extract issue labels to check what program it belongs to
+            const labels = issue.labels.map(l => l.name.toLowerCase());
+            const isSsoc = labels.some(l => l.includes('ssoc26') || l.includes('ssoc-26'));
+            const isEcsoc = labels.some(l => l.includes('ecsoc26') || l.includes('ecsoc-26'));
+            
+            const commentText = (comment.body || '').toLowerCase();
+
+            if (isSsoc || isEcsoc) {
+              const mentionsSsoc = /\b(ssoc|ssoc26|ssoc2026|ssoc-26|ssoc-2026)\b/i.test(commentText);
+              const mentionsEcsoc = /\b(ecsoc|ecsoc26|ecsoc2026|ecsoc-26|ecsoc-2026)\b/i.test(commentText);
+
+              if (isSsoc && !mentionsSsoc) {
+                await github.rest.issues.createComment({
+                  owner,
+                  repo,
+                  issue_number: issue.number,
+                  body: `⚠️ @${commenter}, this issue is reserved for **SSoC 2026** contributors. To be assigned, please post a comment mentioning \`ssoc26\`.`
+                });
+                return;
+              }
+              if (isEcsoc && !mentionsEcsoc) {
+                await github.rest.issues.createComment({
+                  owner,
+                  repo,
+                  issue_number: issue.number,
+                  body: `⚠️ @${commenter}, this issue is reserved for **ECSoC 2026** contributors. To be assigned, please post a comment mentioning \`ecsoc26\`.`
+                });
+                return;
+              }
+            }
+
+            // If it passes check or has no specific labels, assign it
+            try {
+              await github.rest.issues.addAssignees({owner, repo, issue_number: issue.number, assignees: [commenter]});
+              await github.rest.issues.createComment({owner, repo, issue_number: issue.number, body: `🛠️ @${commenter} has been **assigned** to this issue as the first responder.`});
+            } catch (e) {
+              console.warn(`Could not assign issue to ${commenter}: ${e}`);
+              try {
+                await github.rest.repos.addCollaborator({owner, repo, username: commenter, permission: 'pull'});
+                await github.rest.issues.addAssignees({owner, repo, issue_number: issue.number, assignees: [commenter]});
+                await github.rest.issues.createComment({owner, repo, issue_number: issue.number, body: `🛠️ @${commenter} has been **assigned** to this issue as the first responder (invitation sent).`});
+              } catch (err) {
+                console.warn(`Failed to invite and assign commenter: ${err}`);
+                await github.rest.issues.createComment({owner, repo, issue_number: issue.number, body: `⚠️ Could not assign @${commenter} to this issue. Please make sure you are a collaborator or have accepted the invitation.`});
+              }
+            }
+
+
+  pr-label-copy:
+    if: github.event_name == 'pull_request_target' && (github.event.action == 'opened' || github.event.action == 'synchronize' || github.event.action == 'reopened' || github.event.action == 'edited')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Copy labels from referenced issue(s)
+        id: pr_sync
+        uses: actions/github-script@v8
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const pr = context.payload.pull_request;
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+
+            // Fetch current PR details to avoid duplicates
+            const {data: currentPr} = await github.rest.pulls.get({owner, repo, pull_number: pr.number});
+            const currentLabels = new Set(currentPr.labels.map(l => l.name));
+
+            const issueNums = [...(pr.body || '').matchAll(/#(\d+)/g)].map(m => parseInt(m[1],10));
+            console.log(`Found referenced issue numbers: ${issueNums.join(', ')}`);
+
+            const allLabels = new Set();
+            for (const num of issueNums) {
+              try {
+                const {data: issue} = await github.rest.issues.get({owner, repo, issue_number: num});
+                issue.labels.forEach(l => allLabels.add(l.name));
+              } catch (e) { console.warn(`Could not fetch issue #${num}: ${e}`); }
+            }
+
+            const newLabels = Array.from(allLabels).filter(l => !currentLabels.has(l));
+            if (newLabels.length > 0) {
+              await github.rest.issues.addLabels({owner, repo, issue_number: pr.number, labels: newLabels});
+              console.log(`Added labels ${newLabels.join(', ')} to PR #${pr.number}`);
+              await github.rest.issues.createComment({owner, repo, issue_number: pr.number, body: `🔖 Copied labels from referenced issue(s): ${newLabels.join(', ')}.`});
+            }
+
+  stale-assignee-check:
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Find stale assignees and comment
+        uses: actions/github-script@v8
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+            const twoDays = 2 * 24 * 60 * 60 * 1000;
+
+            const issues = await github.paginate(github.rest.issues.listForRepo, {owner, repo, state: 'open', per_page: 100});
+
+            for (const issue of issues) {
+              if (issue.pull_request) continue;
+              if (issue.assignees.length === 0) continue;
+              if (issue.labels.some(l => l.name === 'awaiting-response')) continue;
+
+              const events = await github.paginate(github.rest.issues.listEvents, {owner, repo, issue_number: issue.number, per_page: 100});
+              const assignEvent = events.filter(e => e.event === 'assigned').sort((a,b) => new Date(b.created_at) - new Date(a.created_at))[0];
+              const assignedAt = assignEvent ? new Date(assignEvent.created_at) : new Date(issue.created_at);
+              const now = new Date();
+              if (now - assignedAt < twoDays) continue;
+
+              // check for PRs referencing this issue
+              const searchQuery = `repo:${owner}/${repo} is:pr ${issue.number}`;
+              const prs = await github.request('GET /search/issues', {q: searchQuery, per_page: 5});
+              if (prs.data.total_count > 0) continue;
+
+              const commentBody = `⚠️ It has been **2 days** since this issue was assigned to @${issue.assignees[0].login} without an associated pull request. Please respond or show activity within **24 hours** (e.g., submit a PR or comment) or the assignee will be removed.`;
+              await github.rest.issues.createComment({owner, repo, issue_number: issue.number, body: commentBody});
+              await github.rest.issues.addLabels({owner, repo, issue_number: issue.number, labels: ['awaiting-response']});
+            }
+
+  unassign-if-no-response:
+    if: github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Unassign stale issues after no response
+        uses: actions/github-script@v8
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const owner = context.repo.owner;
+            const repo = context.repo.repo;
+                        const twentyFourHours = 24 * 60 * 60 * 1000;
+
+            const issues = await github.paginate(github.rest.issues.listForRepo, {owner, repo, state: 'open', labels: 'awaiting-response', per_page: 100});
+
+            for (const issue of issues) {
+              if (issue.pull_request) continue;
+              const comments = await github.paginate(github.rest.issues.listComments, {owner, repo, issue_number: issue.number, per_page: 100});
+              const botComment = comments.reverse().find(c => (c.user.type === 'Bot' || c.user.login === 'github-actions[bot]') && c.body.includes('It has been') && (c.body.includes('2 days') || c.body.includes('3 days')));
+              if (!botComment) continue;
+              const commentTime = new Date(botComment.created_at);
+              const now = new Date();
+              if (now - commentTime < twentyFourHours) continue;
+
+              const assigneeLogin = issue.assignees[0]?.login;
+              if (!assigneeLogin) {
+                await github.rest.issues.removeLabel({owner, repo, issue_number: issue.number, name: 'awaiting-response'});
+                continue;
+              }
+
+              // 1. Check if the assignee has commented on the issue since the bot's comment
+              const recentAssigneeComment = comments.find(c => c.user.login === assigneeLogin && new Date(c.created_at) > commentTime);
+              if (recentAssigneeComment) {
+                await github.rest.issues.removeLabel({owner, repo, issue_number: issue.number, name: 'awaiting-response'});
+                continue;
+              }
+
+              // 2. Check if there are any PRs referencing this issue authored by the assignee
+              const searchQuery = `repo:${owner}/${repo} is:pr ${issue.number}`;
+              const prsRes = await github.request('GET /search/issues', {q: searchQuery, per_page: 10});
+              const prs = prsRes.data.items || [];
+              const hasAssigneePr = prs.some(pr => pr.user.login === assigneeLogin);
+              if (hasAssigneePr) {
+                await github.rest.issues.removeLabel({owner, repo, issue_number: issue.number, name: 'awaiting-response'});
+                continue;
+              }
+
+              // 3. Check if the assignee has commented on any referencing PRs since the bot's comment
+              let respondedOnPr = false;
+              for (const pr of prs) {
+                const prComments = await github.paginate(github.rest.issues.listComments, {owner, repo, issue_number: pr.number, per_page: 100});
+                const recentPrComment = prComments.find(c => c.user.login === assigneeLogin && new Date(c.created_at) > commentTime);
+                if (recentPrComment) {
+                  respondedOnPr = true;
+                  break;
+                }
+              }
+              if (respondedOnPr) {
+                await github.rest.issues.removeLabel({owner, repo, issue_number: issue.number, name: 'awaiting-response'});
+                continue;
+              }
+
+              await github.rest.issues.removeAssignees({owner, repo, issue_number: issue.number, assignees: [assigneeLogin]});
+              await github.rest.issues.createComment({owner, repo, issue_number: issue.number, body: `⏰ No response from @${assigneeLogin} within 24 hours. The assignee has been removed.`});
+              await github.rest.issues.removeLabel({owner, repo, issue_number: issue.number, name: 'awaiting-response'});
+            }

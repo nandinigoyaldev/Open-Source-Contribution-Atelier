@@ -1,3 +1,4 @@
+from django.conf import settings
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.postgres.indexes import GinIndex
@@ -17,7 +18,12 @@ class SearchDocument(models.Model):
     content_object = GenericForeignKey("content_type", "object_id")
 
     title = models.CharField(max_length=255)
+    description = models.TextField(blank=True, default="")
+    tags = models.CharField(max_length=500, blank=True, default="")
     body_text = models.TextField()
+
+    # Denormalized content type name for fast filtering without a JOIN
+    content_type_name = models.CharField(max_length=100, blank=True, default="")
 
     # Store the pre-computed tsvector
     search_vector = SearchVectorField(null=True, blank=True)
@@ -40,3 +46,26 @@ class SearchDocument(models.Model):
 
     def __str__(self):
         return f"SearchDoc: {self.title} ({self.content_type.name})"
+
+
+class SearchAnalytics(models.Model):
+    query = models.CharField(max_length=500, db_index=True)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+    )
+    result_count = models.IntegerField(default=0)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+
+    class Meta:
+        verbose_name_plural = "search analytics"
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["query", "created_at"]),
+        ]
+
+    def __str__(self):
+        return f"Search: {self.query} ({self.result_count} results)"

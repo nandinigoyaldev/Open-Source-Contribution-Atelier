@@ -1,23 +1,33 @@
+version: '3.8'
+
 services:
-  backend:
-    build:
-      context: ./backend
-      target: production
-    volumes: []
-    environment:
-      DEBUG: "False"
-    command: ["gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8000"]
-
-  celery_worker:
-    build:
-      context: ./services/notifications_worker
-      dockerfile: Dockerfile
-      target: production
-    volumes: []
-
-  frontend:
-    build: ./frontend
-    ports:
+  reverse-proxy:
+    ports: !reset
       - "80:80"
-    volumes: []
-    command: ["nginx", "-g", "daemon off;"]
+    command:
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+
+  db:
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB is required}
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+
+  backend:
+    volumes: !reset []
+    command: >
+      sh -c "python manage.py migrate &&
+             daphne -b 0.0.0.0 -p 8000 config.asgi:application"
+    environment:
+      - DATABASE_URL=postgres://${POSTGRES_USER:?POSTGRES_USER is required}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@db:5432/${POSTGRES_DB:?POSTGRES_DB is required}
+      - SECRET_KEY=${SECRET_KEY:?SECRET_KEY is required}
+      - DEBUG=False
+
+  worker:
+    volumes: !reset []
+    environment:
+      - DATABASE_URL=postgres://${POSTGRES_USER:?POSTGRES_USER is required}:${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}@db:5432/${POSTGRES_DB:?POSTGRES_DB is required}
+      - SECRET_KEY=${SECRET_KEY:?SECRET_KEY is required}
+      - DEBUG=False

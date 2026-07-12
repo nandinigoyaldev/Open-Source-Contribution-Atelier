@@ -6,17 +6,18 @@ export interface HeatmapEntry {
   count: number;
 }
 
-export function useHeatmap() {
+export function useHeatmap(username?: string) {
   return useQuery({
-    queryKey: ["activity-heatmap"],
+    queryKey: ["activity-heatmap", username],
     queryFn: async (): Promise<HeatmapEntry[]> => {
-      const response = await fetchApi("/progress/heatmap/", {
+      const url = username
+        ? `/progress/heatmap/?username=${encodeURIComponent(username)}`
+        : "/progress/heatmap/";
+      const data = await fetchApi(url, {
         suppressErrorToast: true,
+        requireAuth: !username,
       });
-      if (!response.ok) {
-        throw new Error("Failed to fetch activity heatmap data");
-      }
-      return response.json();
+      return data || [];
     },
   });
 }

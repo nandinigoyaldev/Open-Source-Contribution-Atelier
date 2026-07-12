@@ -34,9 +34,9 @@ def mock_badge():
 
 
 @pytest.mark.django_db
-@patch("apps.progress.tasks.current_app.send_task")
+@patch("apps.progress.tasks.async_task")
 def test_send_weekly_progress_summary_active_user(
-    mock_send_task, mock_users, mock_lesson, mock_badge
+    mock_async_task, mock_users, mock_lesson, mock_badge
 ):
     """
     Test that an active user gets an email with correct progress aggregated
@@ -62,20 +62,18 @@ def test_send_weekly_progress_summary_active_user(
     )
 
     # Run the task
-    mock_send_task.reset_mock()
+    mock_async_task.reset_mock()
     send_weekly_progress_summary()
 
-    # Verify the payload
+    # Verify the payload — async_task is called with (task_name, payload_dict)
     bulk_email_calls = [
         call
-        for call in mock_send_task.call_args_list
+        for call in mock_async_task.call_args_list
         if call.args[0] == "apps.notifications.tasks.send_bulk_email"
     ]
     assert len(bulk_email_calls) == 1
 
-    call_kwargs = bulk_email_calls[0].kwargs
-    task_kwargs = call_kwargs.get("kwargs", {})
-    payload = task_kwargs.get("payload")
+    payload = bulk_email_calls[0].args[1]
 
     assert payload is not None
     assert payload["template_id"] == "weekly_progress_summary"
@@ -85,15 +83,16 @@ def test_send_weekly_progress_summary_active_user(
     assert data["username"] == "active_user"
     assert data["lessons_completed"] == 1
     assert data["xp_earned"] == 20
+    # 1 manual test-badge + 1 first-steps badge (from BadgeEvaluator signal)
     assert data["badges_earned"] == 2
     assert "Test Badge" in data["badge_names"]
     assert len(data["badge_names"]) == 2
 
 
 @pytest.mark.django_db
-@patch("apps.progress.tasks.current_app.send_task")
+@patch("apps.progress.tasks.async_task")
 def test_send_weekly_progress_summary_inactive_user(
-    mock_send_task, mock_users, mock_lesson, mock_badge
+    mock_async_task, mock_users, mock_lesson, mock_badge
 ):
     """
     Test that users with no activity (or activity outside 7 days) do not get an email.
@@ -120,13 +119,13 @@ def test_send_weekly_progress_summary_inactive_user(
         UserBadge.objects.filter(pk=ub.pk).update(earned_at=old_date)
 
     # Run the task
-    mock_send_task.reset_mock()
+    mock_async_task.reset_mock()
     send_weekly_progress_summary()
 
     # Should not send any bulk emails since the progress is 10 days old
     bulk_email_calls = [
         call
-        for call in mock_send_task.call_args_list
+        for call in mock_async_task.call_args_list
         if call.args and call.args[0] == "apps.notifications.tasks.send_bulk_email"
     ]
     assert len(bulk_email_calls) == 0
