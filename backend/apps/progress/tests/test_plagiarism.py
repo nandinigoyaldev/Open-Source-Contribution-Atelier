@@ -1,13 +1,14 @@
 from unittest.mock import patch
 
 import pytest
+from django.contrib.auth import get_user_model
+
 from apps.progress.models import CodeSubmission, PlagiarismReport
 from apps.progress.services.plagiarism_detector import (
     calculate_structural_similarity,
     extract_ast_nodes,
 )
 from apps.progress.tasks import analyze_submission_plagiarism
-from django.contrib.auth import get_user_model
 
 User = get_user_model()
 

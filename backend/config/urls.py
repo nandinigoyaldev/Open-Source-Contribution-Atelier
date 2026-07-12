@@ -1,7 +1,11 @@
 from django.contrib import admin
-from django.urls import include, path
+from django.urls import include, path, re_path
 from django.views.decorators.csrf import csrf_exempt
-from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
+from drf_spectacular.views import (
+    SpectacularAPIView,
+    SpectacularRedocView,
+    SpectacularSwaggerView,
+)
 from graphene_django.views import GraphQLView
 
 from apps.dashboard.views import LeaderboardView
@@ -11,6 +15,7 @@ from .version_view import version_view
 
 urlpatterns = [
     path("admin/", admin.site.urls),
+    path("", include("django_prometheus.urls")),
     path("health/", health_view, name="health"),
     path("api/version/", version_view, name="version"),
     path("api/leaderboard/", LeaderboardView.as_view(), name="leaderboard"),
@@ -28,16 +33,44 @@ urlpatterns = [
     path("api/notes/", include("apps.notes.urls")),
     path("api/chat/", include("apps.chat.urls")),
     path("api/recommendations/", include("apps.recommendations.urls")),
-    path("api/rbac/", include("apps.rbac.urls")),
+    path("api/moderation/", include("apps.moderation.urls")),
+    path("api/portfolio/", include("apps.portfolio.urls")),
+    path("api/organizations/", include("apps.organizations.urls")),
+    # ============================================================
+    # WEBHOOKS & UPLOADS
+    # ============================================================
     path("api/uploads/", include("apps.uploads.urls")),
+    # ============================================================
+    # RBAC (Role-Based Access Control)
+    # ============================================================
+    path("api/rbac/", include("apps.rbac.urls")),
+    # ============================================================
+    # DOMAIN EVENTS
+    # ============================================================
+    # path("api/events/", include("apps.events.urls")),
+    # ============================================================
+    # GRAPHQL FEDERATION GATEWAY
+    # ============================================================
+    # path("api/graphql/", include("apps.graphql_gateway.urls")),
+    # ============================================================
+    # LEGACY GRAPHQL (Keep for backward compatibility)
+    # ============================================================
+    path("api/graphql/legacy/", csrf_exempt(GraphQLView.as_view(graphiql=True))),
+    # ============================================================
+    # API DOCUMENTATION
+    # ============================================================
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
     path(
         "api/docs/",
-        SpectacularSwaggerView.as_view(url_name="schema"),
+        SpectacularSwaggerView.as_view(url_name="schema"),  # Fixed here
         name="swagger-ui",
     ),
+    path(
+        "api/redoc/",
+        SpectacularRedocView.as_view(url_name="schema"),
+        name="redoc-ui",
+    ),
     path("api/graphql/", csrf_exempt(GraphQLView.as_view(graphiql=True))),
-    path("", include("django_prometheus.urls")),
 ]
 
 from django.conf import settings
@@ -46,9 +79,26 @@ from django.conf.urls.static import static
 if settings.DEBUG:
     from apps.feature_flags.debug_view import feature_flags_debug_view
 
-    urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
-    urlpatterns.append(
+    urlpatterns += [
+        path("api/organizations/", include("apps.organizations.urls")),
+        path("api/feature-flags/", include("apps.feature_flags.urls")),
         path(
-            "debug/feature-flags/", feature_flags_debug_view, name="debug-feature-flags"
-        )
-    )
+            "api/feature-flags/debug/",
+            feature_flags_debug_view,
+            name="feature-flags-debug",
+        ),
+    ]
+        path("api/feature-flags/", feature_flags_debug_view, name="feature-flags-debug"),
+        path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
+        path(
+            "api/docs/",
+            SpectacularSwaggerView.as_view(url_name="schema"),  # Fixed here as well
+            name="swagger-ui",
+        ),
+        path(
+            "api/redoc/",
+            SpectacularRedocView.as_view(url_name="schema"),
+            name="redoc-ui",
+        ),
+        path("graphql/", csrf_exempt(GraphQLView.as_view(graphiql=True))),
+    ]

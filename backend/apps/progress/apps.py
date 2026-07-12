@@ -11,11 +11,21 @@ class ProgressConfig(AppConfig):
         # Register Django-Q schedule for weekly progress summary
         try:
             from django_q.models import Schedule
+
             Schedule.objects.get_or_create(
                 name="send-weekly-progress-summary",
                 defaults={
                     "func": "apps.progress.tasks.send_weekly_progress_summary",
                     "schedule_type": Schedule.WEEKLY,
+                },
+            )
+            
+            Schedule.objects.get_or_create(
+                name="process-buffered-progress-updates",
+                defaults={
+                    "func": "apps.progress.tasks.process_buffered_progress_updates",
+                    "schedule_type": Schedule.MINUTES,
+                    "minutes": 1,
                 },
             )
         except Exception:

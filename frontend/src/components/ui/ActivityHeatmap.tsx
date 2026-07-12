@@ -20,8 +20,12 @@ const getLevel = (count: number) => {
   return 4;
 };
 
-export function ActivityHeatmap() {
-  const { data: heatmapData, isLoading, isError } = useHeatmap();
+interface ActivityHeatmapProps {
+  username?: string;
+}
+
+export function ActivityHeatmap({ username }: ActivityHeatmapProps = {}) {
+  const { data: heatmapData, isLoading, isError } = useHeatmap(username);
 
   const calendarGrid = useMemo(() => {
     const dataMap = new Map<string, number>();
