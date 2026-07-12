@@ -150,6 +150,7 @@ INSTALLED_APPS = [
     "apps.feature_flags",
     "apps.issues",
     "django_q",
+    "waffle",
 ]
 # Redis Cache
 CACHES = {
@@ -180,6 +181,7 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "apps.core.audit_middleware.AuditLogMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "waffle.middleware.WaffleMiddleware",
     "apps.cache.middleware.RateLimitMiddleware",
     "apps.sandbox.middleware.SandboxExecutionLogMiddleware",
     "allauth.account.middleware.AccountMiddleware",
@@ -625,3 +627,7 @@ CURRICULUM_JSON_PATH = os.getenv(
 
 CELERY_TASK_ALWAYS_EAGER = True
 CELERY_TASK_STORE_EAGER_RESULT = True
+
+# Waffle Feature Flags
+WAFFLE_CREATE_MISSING_FLAGS = True
+WAFFLE_FLAG_DEFAULT = False
