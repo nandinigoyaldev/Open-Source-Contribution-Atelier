@@ -37,14 +37,14 @@ export function ChatContainer() {
   }, [messages, typingUsers]);
 
   return (
-    <section className="dark-card-depth rounded-[24px] border border-outline bg-surface-high/80 p-6 shadow-card backdrop-blur-xl dark:text-[#f0ebe2] flex flex-col h-[500px] min-h-0">
+    <section className="dark-card-depth rounded-[24px] border border-outline bg-surface-high/80 p-6 shadow-card backdrop-blur-xl dark:text-[#f0ebe2] flex flex-col">
       <p className="font-mono text-[11px] font-medium uppercase tracking-[0.24em] text-muted dark:text-[#d7cec0]">
         Real-time Chat
       </p>
       <h2 className="mt-2 text-2xl font-bold tracking-[-0.02em] text-text dark:text-[#fff8ef]">
         Community Chat
       </h2>
-      <div className="flex-1 flex flex-col min-h-0 mt-4">
+      <div className="flex-1 flex flex-col mt-4">
         <div className="flex items-center justify-between mb-4 pb-3 border-b border-black/10 dark:border-[#3a3a45]/30">
           <div className="flex items-center gap-2">
             <span
@@ -84,7 +84,7 @@ export function ChatContainer() {
           )}
         </div>
 
-        <div className="flex-1 overflow-y-auto min-h-0 space-y-3 px-1 mb-2 custom-scrollbar">
+        <div className="flex-1 space-y-3 px-1 mb-2">
           {messages.length === 0 && (
             <p className="text-center text-sm text-muted py-8">
               No messages yet. Start the conversation!
