@@ -1,9 +1,9 @@
 import logging
 from datetime import timedelta
 
-from django_q.tasks import async_task
 from django.contrib.auth import get_user_model
 from django.utils import timezone
+from django_q.tasks import async_task
 
 from apps.progress.models import Badge, ExerciseAttempt, LessonProgress, UserBadge
 
@@ -17,38 +17,26 @@ def send_weekly_progress_summary():
     for each active user, and dispatch an email summary.
     """
     from apps.notifications.tasks import send_bulk_email
+    from apps.progress.services.digest_service import WeeklyDigestService
 
-    seven_days_ago = timezone.now() - timedelta(days=7)
-
-    # Process active users in chunks
-    users = User.objects.filter(is_active=True).iterator(chunk_size=100)
+    # Process active users in chunks who opted in for the digest
+    users = User.objects.filter(
+        is_active=True, user_profile__receive_weekly_digest=True
+    ).iterator(chunk_size=100)
 
     for user in users:
-        # Get progress in the last 7 days
-        recent_progress = LessonProgress.objects.filter(
-            user=user, updated_at__gte=seven_days_ago, completed=True
-        )
+        # Generate context using the new service
+        context = WeeklyDigestService.get_user_digest_context(user)
 
-        recent_badges = UserBadge.objects.filter(
-            user=user, earned_at__gte=seven_days_ago
-        )
-
-        lessons_completed = recent_progress.count()
-        xp_earned = sum(progress.score for progress in recent_progress)
-        badges_earned = recent_badges.count()
-        badge_names = [ub.badge.name for ub in recent_badges]
-
-        if lessons_completed > 0 or badges_earned > 0:
+        if (
+            context["lessons_completed"] > 0
+            or len(context["badges_earned"]) > 0
+            or context["xp_earned"] > 0
+        ):
             payload = {
                 "template_id": "weekly_progress_summary",
                 "recipients": [user.email],
-                "data": {
-                    "username": user.username,
-                    "lessons_completed": lessons_completed,
-                    "xp_earned": xp_earned,
-                    "badges_earned": badges_earned,
-                    "badge_names": badge_names,
-                },
+                "data": context,
             }
             async_task("apps.notifications.tasks.send_bulk_email", payload)
 
@@ -177,3 +165,84 @@ def analyze_submission_plagiarism(submission_id: int):
             )
             # Stop after first match as tests expect a single report
             break
+
+
+def update_leaderboard_task(user_id, username, xp_delta):
+    """
+    Background task to update Redis leaderboard and broadcast WebSocket event.
+    """
+    try:
+        from apps.progress.services.leaderboard_service import LeaderboardService
+
+        LeaderboardService.update_user_xp(user_id, username, xp_delta)
+    except Exception as exc:
+        logger.error("Failed to update leaderboard in background task: %s", exc)
+
+
+def process_buffered_progress_updates():
+    """
+    Periodic task to flush batched progress and XP updates from Redis to the database.
+    Ensures atomic updates and maintains data consistency.
+    """
+    from apps.progress.services.progress_buffer import ProgressBufferService
+    from apps.progress.services.progress_batch_service import (
+        process_bulk_progress_updates,
+    )
+    from django.contrib.auth import get_user_model
+    import time
+
+    User = get_user_model()
+
+    metrics = ProgressBufferService.get_queue_metrics()
+    queue_size = metrics.get("queue_size", 0) + metrics.get("retry_queue_size", 0)
+
+    if queue_size == 0:
+        return
+
+    logger.info(f"Processing up to 500 of {queue_size} buffered progress updates...")
+
+    updates = ProgressBufferService.get_batched_updates(batch_size=500)
+    if not updates:
+        return
+
+    # Group by user
+    user_updates = {}
+    for update in updates:
+        user_id = update["user_id"]
+        if user_id not in user_updates:
+            user_updates[user_id] = []
+        user_updates[user_id].append(update)
+
+    success_count = 0
+    successful_keys = []
+    failed_updates = []
+
+    for user_id, user_data in user_updates.items():
+        try:
+            user = User.objects.get(id=user_id)
+            # Send without the internal _redis_key metadata
+            clean_data = [
+                {k: v for k, v in item.items() if not k.startswith("_")}
+                for item in user_data
+            ]
+
+            success_ids = process_bulk_progress_updates(user, clean_data)
+            success_count += len(success_ids)
+
+            # Record successful keys
+            successful_keys.extend(
+                [item["_redis_key"] for item in user_data if "_redis_key" in item]
+            )
+        except Exception as e:
+            logger.error(f"Failed to process bulk updates for user {user_id}: {str(e)}")
+            failed_updates.extend(user_data)
+
+    if successful_keys:
+        ProgressBufferService.mark_successful(successful_keys)
+
+    if failed_updates:
+        ProgressBufferService.handle_failed_updates(failed_updates)
+
+    logger.info(
+        f"Successfully processed {success_count} progress updates. {len(failed_updates)} failed."
+    )

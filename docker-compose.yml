@@ -1,109 +1,118 @@
+version: '3.8'
+
 services:
-  # ─────────────────────────────────────────────────
-  # PostgreSQL Database
-  # ─────────────────────────────────────────────────
-  postgres:
+  reverse-proxy:
+    image: traefik:v2.10
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker=true"
+      - "--providers.docker.exposedbydefault=false"
+      - "--entrypoints.web.address=:80"
+    ports:
+      - "8000:80"
+      - "8080:8080" # Traefik Dashboard
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+
+  db:
     image: postgres:15-alpine
     environment:
       POSTGRES_DB: atelier
-      POSTGRES_USER: atelier
-      POSTGRES_PASSWORD: atelier
-    ports:
-      - "5432:5432"
+      POSTGRES_USER: atelier_user
+      POSTGRES_PASSWORD: atelier_password
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U atelier"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
+    ports:
+      - "5432:5432"
 
-  # ─────────────────────────────────────────────────
-  # Redis (broker for Celery + Django Channels)
-  # ─────────────────────────────────────────────────
   redis:
     image: redis:7-alpine
     ports:
       - "6379:6379"
+
+  pgbouncer:
+    image: edoburu/pgbouncer:latest
+    environment:
+      - DATABASE_URL=postgres://atelier_user:atelier_password@db:5432/atelier
+      - MAX_CLIENT_CONN=1000
+      - DEFAULT_POOL_SIZE=20
+      - POOL_MODE=transaction
+    ports:
+      - "6432:6432"
+    depends_on:
+      - db
+
+  backend:
+    build:
+      context: ./backend
+    command: >
+      sh -c "python manage.py migrate &&
+             python manage.py runserver 0.0.0.0:8000"
+    volumes:
+      - ./backend:/app
+    environment:
+      - DATABASE_URL=postgres://atelier_user:atelier_password@pgbouncer:6432/atelier
+      - REDIS_URL=redis://redis:6379/0
+      - DEBUG=True
+    depends_on:
+      - db
+      - redis
+      - pgbouncer
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.backend.rule=PathPrefix(`/api`) || PathPrefix(`/admin`) || PathPrefix(`/static`)"
+      - "traefik.http.services.backend.loadbalancer.server.port=8000"
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 5s
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/api/')\" || exit 1"]
+      interval: 10s
       timeout: 5s
       retries: 5
+      start_period: 15s
+    deploy:
+      replicas: 1
+      update_config:
+        order: start-first
+        failure_action: rollback
+        delay: 10s
 
-  # ─────────────────────────────────────────────────
-  # Django Backend API
-  # ─────────────────────────────────────────────────
-  backend:
-    build: ./backend
-    working_dir: /app
-    volumes:
-      # Mount the entire backend directory for hot-reloading
-      - ./backend:/app
-    ports:
-      - "8000:8000"
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    environment:
-      DATABASE_URL: postgres://atelier:atelier@postgres:5432/atelier
-      REDIS_URL: redis://redis:6379/0
-      DEBUG: "True"
-      SECRET_KEY: "docker-dev-key-not-for-production-32bytes!!"
-      ALLOWED_HOSTS: "localhost,127.0.0.1,backend"
-      CORS_ALLOWED_ORIGINS: "http://localhost:5173,http://localhost:3000"
-      EMAIL_BACKEND: django.core.mail.backends.console.EmailBackend
-    command: >
-      sh -c "
-        pip install --no-cache-dir -r requirements.txt &&
-        python manage.py migrate &&
-        python manage.py runserver 0.0.0.0:8000
-      "
-
-  # ─────────────────────────────────────────────────
-  # Celery Worker (notifications & background tasks)
-  # ─────────────────────────────────────────────────
-  celery_worker:
+  worker:
     build:
-      context: ./services/notifications_worker
-      dockerfile: Dockerfile
+      context: ./backend
+    command: python manage.py qcluster
     volumes:
-      # Mount the worker directory so code changes take effect immediately
-      # without needing to rebuild the image during local dev.
-      - ./services/notifications_worker:/app
-    depends_on:
-      redis:
-        condition: service_healthy
-      backend:
-        condition: service_started
+      - ./backend:/app
     environment:
-      REDIS_URL: redis://redis:6379/0
-      # Ensure the worker connects to the same broker as the Django backend
+      - DATABASE_URL=postgres://atelier_user:atelier_password@pgbouncer:6432/atelier
+      - REDIS_URL=redis://redis:6379/0
+      - DEBUG=True
+    depends_on:
+      - db
+      - redis
 
-  # ─────────────────────────────────────────────────
-  # Vite Frontend Dev Server
-  # ─────────────────────────────────────────────────
   frontend:
-    image: node:22-alpine
-    working_dir: /app
-    volumes:
-      - ./frontend:/app
-      # Anonymous volume to persist node_modules across container restarts
-      - /app/node_modules
-    ports:
-      - "5173:5173"
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    environment:
+      - VITE_API_URL=http://localhost:8000
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.frontend.rule=PathPrefix(`/`)"
+      - "traefik.http.services.frontend.loadbalancer.server.port=80"
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:80/ || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    deploy:
+      replicas: 1
+      update_config:
+        order: start-first
+        failure_action: rollback
+        delay: 10s
     depends_on:
       - backend
-    environment:
-      VITE_API_BASE_URL: http://localhost:8000/api
-      VITE_WS_BASE_URL: ws://localhost:8000/ws
-    command: >
-      sh -c "
-        npm install &&
-        npm run dev -- --host 0.0.0.0
-      "
 
 volumes:
   postgres_data:

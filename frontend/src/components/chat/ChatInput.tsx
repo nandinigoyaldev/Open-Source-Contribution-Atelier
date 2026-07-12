@@ -56,7 +56,7 @@ export function ChatInput({
   );
 
   return (
-    <div className="flex items-end gap-2 border-t border-outline bg-surface-low px-4 py-3">
+    <div className="flex items-end gap-2 border-t border-outline bg-[#f5f4f0] px-4 py-3 dark:border-[#3a3a45] dark:bg-[#121218]">
       <div className="flex flex-1 flex-col gap-1">
         <textarea
           value={text}
@@ -67,10 +67,10 @@ export function ChatInput({
           disabled={disabled}
           maxLength={2000}
           rows={1}
-          className="min-h-[40px] w-full resize-none rounded-xl border border-outline bg-surface-high px-3 py-2 text-sm text-text placeholder-muted outline-none focus:border-accent disabled:opacity-50"
+          className="min-h-[40px] w-full resize-none rounded-xl border border-outline bg-white px-3 py-2 text-sm text-text placeholder-muted outline-none focus:border-[#a3a3ad] disabled:opacity-50 dark:border-[#3a3a45] dark:bg-[#1a1a24] dark:text-[#eef2f6] dark:placeholder:text-[#64748b]/75 dark:focus:border-[#5a5a6a]"
         />
         <span
-          className={`text-right text-xs ${text.length >= 1800 ? "text-red-500" : "text-muted"}`}
+          className={`text-right text-xs ${text.length >= 1800 ? "text-red-500" : "text-muted dark:text-[#64748b]"}`}
         >
           {text.length}/2000
         </span>
@@ -78,7 +78,7 @@ export function ChatInput({
       <button
         onClick={handleSend}
         disabled={!text.trim() || disabled}
-        className="flex h-10 w-10 items-center justify-center rounded-xl bg-accent text-black transition-opacity hover:opacity-80 disabled:opacity-40"
+        className="flex h-10 w-10 items-center justify-center rounded-xl bg-[#d4d4d4] text-black transition-opacity hover:opacity-80 disabled:opacity-40 dark:bg-[#2a2a35] dark:text-[#94a3b8] dark:hover:bg-[#3a3a45]"
         aria-label="Send message"
       >
         <Send size={16} />

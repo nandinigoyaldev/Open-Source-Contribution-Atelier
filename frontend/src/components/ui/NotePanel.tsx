@@ -18,7 +18,6 @@ export function NotePanel({ lessonSlug, onClose }: NotePanelProps) {
   // Initialize content from the fetched note
   useEffect(() => {
     if (note && note.content !== undefined) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setContent(note.content);
     }
   }, [note]);

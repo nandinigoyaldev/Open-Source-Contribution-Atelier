@@ -20,6 +20,11 @@ type ChatMessage = {
   created_at?: string;
 };
 
+export type OnlineUser = {
+  user_id: number;
+  username: string;
+};
+
 type UseChatOptions = {
   roomId: string;
   token?: string | null;
@@ -36,6 +41,7 @@ function getWsUrl(roomId: string): string {
 
 export function useChat({ roomId, token }: UseChatOptions) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [onlineUsers, setOnlineUsers] = useState<OnlineUser[]>([]);
   const messageIdRef = useRef(0);
   const localUserIdRef = useRef<number | null>(null);
 
@@ -177,6 +183,21 @@ export function useChat({ roomId, token }: UseChatOptions) {
               user_id: number;
             },
           );
+        } else if (msg.type === "presence_sync") {
+          setOnlineUsers((msg.users as OnlineUser[]) || []);
+        } else if (msg.type === "presence_joined") {
+          const user = {
+            user_id: msg.user_id as number,
+            username: msg.username as string,
+          };
+          setOnlineUsers((prev) => {
+            if (prev.some((u) => u.user_id === user.user_id)) return prev;
+            return [...prev, user];
+          });
+        } else if (msg.type === "presence_left") {
+          setOnlineUsers((prev) =>
+            prev.filter((u) => u.user_id !== msg.user_id),
+          );
         }
       };
 
@@ -219,6 +240,7 @@ export function useChat({ roomId, token }: UseChatOptions) {
   return {
     messages,
     typingUsers: typing.typingUsers,
+    onlineUsers,
     isConnected: ws.isConnected,
     sendMessage,
     onInputChange: typing.onInputChange,

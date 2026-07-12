@@ -20,7 +20,6 @@ export function AvatarUploadDropzone({
 
   useEffect(() => {
     if (currentAvatarUrl && !previewUrl) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setPreviewUrl(currentAvatarUrl);
     }
   }, [currentAvatarUrl, previewUrl]);
@@ -82,14 +81,14 @@ export function AvatarUploadDropzone({
 
   return (
     <div className="w-full mb-8">
-      <label className="block text-sm font-medium text-gray-700 mb-2">
+      <label className="block text-sm font-bold text-text dark:text-[#f0ebe2] mb-2">
         Profile Picture
       </label>
       <div
-        className={`relative w-full h-48 border-2 border-dashed rounded-2xl flex flex-col items-center justify-center cursor-pointer transition-all duration-200 ${
+        className={`relative w-full h-48 border-2 border-dashed rounded-2xl flex flex-col items-center justify-center cursor-pointer transition-all duration-200 bg-white/50 dark:bg-[linear-gradient(145deg,#181f2c,#12110f)] dark:shadow-[0_12px_26px_rgba(0,0,0,0.28)_inset] ${
           dragActive
-            ? "border-indigo-500 bg-indigo-500/10 scale-[1.02]"
-            : "border-gray-700 hover:border-gray-500 hover:bg-gray-800/50"
+            ? "border-primary bg-primary/10 scale-[1.02]"
+            : "border-black/50 hover:border-primary dark:border-[#5d5247] dark:hover:border-accent"
         }`}
         onDragEnter={handleDrag}
         onDragLeave={handleDrag}
@@ -129,14 +128,14 @@ export function AvatarUploadDropzone({
             </button>
           </div>
         ) : (
-          <div className="flex flex-col items-center text-gray-400 p-6 text-center">
-            <div className="w-16 h-16 rounded-full bg-gray-800 flex items-center justify-center mb-4 shadow-inner">
-              <UploadCloud size={32} className="text-indigo-400" />
+          <div className="flex flex-col items-center text-muted dark:text-[#c4bbae] p-6 text-center">
+            <div className="w-16 h-16 rounded-full bg-[#1f2937] dark:bg-[#2e2924] flex items-center justify-center mb-4 shadow-inner">
+              <UploadCloud size={32} className="text-[#8a8fff]" />
             </div>
-            <p className="text-base font-semibold text-gray-600">
+            <p className="text-base font-bold text-text dark:text-[#f0ebe2]">
               Click or drag image to upload
             </p>
-            <p className="text-sm text-gray-600 mt-2">
+            <p className="text-sm text-muted dark:text-[#c4bbae] mt-2">
               Supports JPG, PNG, and WebP (max. 5MB)
             </p>
           </div>

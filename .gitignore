@@ -1,44 +1,34 @@
-.DS_Store
-Thumbs.db
-
+# General
 .env
-.env.*
-!.env.example
+*.log
+.DS_Store
 
-__pycache__/
-*.py[cod]
-*.sqlite3
-.pytest_cache/
-.mypy_cache/
-.coverage
-htmlcov/
-.venv/
-venv/
+# Python
+**/__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.egg-info/
+*.egg
 
+# Virtual environment
+backend/.venv/
+
+# SQLite DB
+backend/db.sqlite3
+
+# Node
 node_modules/
-dist/
-coverage/
-*.tsbuildinfo
+frontend/node_modules/
+frontend/dev-dist/
+frontend/.vite/
 
+# Build artifacts
+frontend/dist/
+
+# Vercel
+.vercel/
+
+# Misc
 .idea/
 .vscode/
-
-*.log
-
-# Playwright test artifacts (baselines in __screenshots__ are tracked)
-e2e/test-results/
-playwright-report/
-blob-report/
-
-package.json
-package-lock.json
-
-OpenSource/gittuf/
-
-.env
-
-frontend/playwright-report/
-frontend/e2e/test-results/
-
-frontend/dev-dist/
-frontend/dev-dist/registerSW.js
