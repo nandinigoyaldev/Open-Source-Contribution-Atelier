@@ -1,6 +1,6 @@
 /**
  * Manages WebWorker sandbox for secure code execution.
- * 
+ *
  * @file sandboxManager.js
  * @location frontend/src/utils/sandboxManager.js
  */
@@ -31,7 +31,7 @@ class SandboxManager {
       });
       this.workers.push(worker);
     }
-    
+
     console.log(`[Sandbox] Initialized with ${this.maxWorkers} workers`);
     return this;
   }
@@ -44,15 +44,15 @@ class SandboxManager {
     const workerCode = `
       ${this.getWorkerCode()}
     `;
-    
-    const blob = new Blob([workerCode], { type: 'application/javascript' });
+
+    const blob = new Blob([workerCode], { type: "application/javascript" });
     const workerUrl = URL.createObjectURL(blob);
     const worker = new Worker(workerUrl);
-    
+
     // Setup event listeners
     worker.onmessage = this.handleWorkerMessage.bind(this);
     worker.onerror = this.handleWorkerError.bind(this);
-    
+
     return worker;
   }
 
@@ -114,15 +114,19 @@ class SandboxManager {
   handleWorkerMessage(event) {
     const data = event.data;
     const executionId = data.executionId;
-    
+
     // Find the execution context
     const context = this.activeExecutions.get(executionId);
     if (context && context.onMessage) {
       context.onMessage(data);
     }
-    
+
     // Handle completion
-    if (data.type === 'result' || data.type === 'error' || data.type === 'timeout') {
+    if (
+      data.type === "result" ||
+      data.type === "error" ||
+      data.type === "timeout"
+    ) {
       this.releaseWorker(executionId);
     }
   }
@@ -131,14 +135,14 @@ class SandboxManager {
    * Handle worker errors.
    */
   handleWorkerError(error) {
-    console.error('[Sandbox] Worker error:', error);
+    console.error("[Sandbox] Worker error:", error);
     // Try to find which execution this worker was handling
     for (const [executionId, context] of this.activeExecutions) {
       if (context.worker === error.target) {
         if (context.onMessage) {
           context.onMessage({
-            type: 'error',
-            error: error.message || 'Worker crashed',
+            type: "error",
+            error: error.message || "Worker crashed",
             executionId,
           });
         }
@@ -150,7 +154,7 @@ class SandboxManager {
 
   /**
    * Execute code in the sandbox.
-   * 
+   *
    * @param {string} code - Code to execute
    * @param {Object} context - Variables to inject
    * @param {number} timeout - Timeout in milliseconds
@@ -162,7 +166,7 @@ class SandboxManager {
       // Get an available worker
       const workerEntry = this.getAvailableWorker();
       if (!workerEntry) {
-        reject(new Error('No workers available. Please try again later.'));
+        reject(new Error("No workers available. Please try again later."));
         return;
       }
 
@@ -184,7 +188,7 @@ class SandboxManager {
 
       // Send execution message
       worker.postMessage({
-        type: 'execute',
+        type: "execute",
         executionId,
         code,
         context,
@@ -224,7 +228,9 @@ class SandboxManager {
         clearTimeout(context.timeoutId);
       }
 
-      const workerEntry = this.workerPool.find((entry) => entry.id === context.workerId);
+      const workerEntry = this.workerPool.find(
+        (entry) => entry.id === context.workerId,
+      );
       if (workerEntry) {
         workerEntry.busy = false;
       }
@@ -240,8 +246,10 @@ class SandboxManager {
     const context = this.activeExecutions.get(executionId);
     if (context) {
       context.worker.terminate();
-      
-      const index = this.workerPool.findIndex((entry) => entry.id === context.workerId);
+
+      const index = this.workerPool.findIndex(
+        (entry) => entry.id === context.workerId,
+      );
       if (index !== -1) {
         this.workerPool.splice(index, 1);
       }

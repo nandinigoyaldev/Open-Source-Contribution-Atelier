@@ -63,7 +63,7 @@ export function JSSandbox({ exercise, onSuccess }: JSSandboxProps) {
 
     const fullCode = `${code}\n\n${exercise.testCode || ""}`;
     const traceEvents = await traceJSCode(fullCode);
-    
+
     timelineEngine.loadTrace(traceEvents);
     setIsTracing(false);
   };
@@ -117,9 +117,13 @@ export function JSSandbox({ exercise, onSuccess }: JSSandboxProps) {
       )}
 
       {/* Main Content Area */}
-      <div className={`grid ${timelineEngine.traceEvents.length > 0 ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1'} gap-0`}>
+      <div
+        className={`grid ${timelineEngine.traceEvents.length > 0 ? "grid-cols-1 md:grid-cols-2" : "grid-cols-1"} gap-0`}
+      >
         {/* Editor */}
-        <div className={`p-4 font-mono text-sm bg-white dark:bg-[#151411] min-h-[300px] ${timelineEngine.traceEvents.length > 0 ? 'border-b md:border-b-0 md:border-r border-black dark:border-[#2e2924]' : ''}`}>
+        <div
+          className={`p-4 font-mono text-sm bg-white dark:bg-[#151411] min-h-[300px] ${timelineEngine.traceEvents.length > 0 ? "border-b md:border-b-0 md:border-r border-black dark:border-[#2e2924]" : ""}`}
+        >
           <Editor
             value={code}
             onValueChange={(code) => setCode(code)}
@@ -129,13 +133,17 @@ export function JSSandbox({ exercise, onSuccess }: JSSandboxProps) {
                 Prism.languages.typescript || Prism.languages.javascript,
                 "typescript",
               );
-              if (timelineEngine.traceEvents.length > 0 && timelineEngine.currentEvent) {
+              if (
+                timelineEngine.traceEvents.length > 0 &&
+                timelineEngine.currentEvent
+              ) {
                 const activeLine = timelineEngine.currentEvent.line;
-                const lines = highlighted.split('\n');
+                const lines = highlighted.split("\n");
                 if (activeLine > 0 && activeLine <= lines.length) {
-                  lines[activeLine - 1] = `<span class="bg-yellow-500/30 block w-full">${lines[activeLine - 1]}</span>`;
+                  lines[activeLine - 1] =
+                    `<span class="bg-yellow-500/30 block w-full">${lines[activeLine - 1]}</span>`;
                 }
-                return lines.join('\n');
+                return lines.join("\n");
               }
               return highlighted;
             }}
@@ -175,35 +183,35 @@ export function JSSandbox({ exercise, onSuccess }: JSSandboxProps) {
       {timelineEngine.traceEvents.length === 0 && (
         <div className="p-4 border-t-4 border-black dark:border-[#2e2924] bg-[#1e1e1e] text-white min-h-[120px] max-h-[300px] overflow-y-auto font-mono text-sm">
           <div className="text-gray-400 mb-2 text-xs uppercase font-bold tracking-wider">
-          Console Output
-        </div>
-        {output ? (
-          <pre className="whitespace-pre-wrap">{output}</pre>
-        ) : (
-          <div className="text-gray-500 italic">No output...</div>
-        )}
+            Console Output
+          </div>
+          {output ? (
+            <pre className="whitespace-pre-wrap">{output}</pre>
+          ) : (
+            <div className="text-gray-500 italic">No output...</div>
+          )}
 
-        {error && (
-          <div className="mt-4 pt-4 border-t border-red-900/50">
-            <div className="flex items-center gap-2 text-red-400 font-bold mb-2">
-              <XCircle className="w-4 h-4" /> Runtime Error
-            </div>
-            <pre className="text-red-300 whitespace-pre-wrap">{error}</pre>
-            {exercise.hint && (
-              <div className="mt-2 text-yellow-300 text-xs flex gap-2 p-2 bg-yellow-900/20 rounded">
-                <span className="font-bold">Hint:</span> {exercise.hint}
+          {error && (
+            <div className="mt-4 pt-4 border-t border-red-900/50">
+              <div className="flex items-center gap-2 text-red-400 font-bold mb-2">
+                <XCircle className="w-4 h-4" /> Runtime Error
               </div>
-            )}
-          </div>
-        )}
-
-        {isSuccess && (
-          <div className="mt-4 pt-4 border-t border-green-900/50">
-            <div className="flex items-center gap-2 text-green-400 font-bold">
-              <CheckCircle2 className="w-5 h-5" /> Execution completed! You
-              earned points.
+              <pre className="text-red-300 whitespace-pre-wrap">{error}</pre>
+              {exercise.hint && (
+                <div className="mt-2 text-yellow-300 text-xs flex gap-2 p-2 bg-yellow-900/20 rounded">
+                  <span className="font-bold">Hint:</span> {exercise.hint}
+                </div>
+              )}
             </div>
-          </div>
+          )}
+
+          {isSuccess && (
+            <div className="mt-4 pt-4 border-t border-green-900/50">
+              <div className="flex items-center gap-2 text-green-400 font-bold">
+                <CheckCircle2 className="w-5 h-5" /> Execution completed! You
+                earned points.
+              </div>
+            </div>
           )}
         </div>
       )}

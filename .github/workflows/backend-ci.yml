@@ -1,0 +1,56 @@
+name: Backend CI
+
+on:
+  workflow_call:
+
+jobs:
+  backend-lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          cd backend
+          pip install -r requirements.txt
+          pip install black flake8 isort
+      
+      - name: Run Black check
+        run: |
+          cd backend
+          black --check .
+      
+      - name: Run Flake8
+        run: |
+          cd backend
+          flake8 .
+      
+      - name: Run isort check
+        run: |
+          cd backend
+          isort --check-only .
+
+  backend-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          cd backend
+          pip install -r requirements.txt
+      
+      - name: Run Django tests
+        run: |
+          cd backend
+          python manage.py test

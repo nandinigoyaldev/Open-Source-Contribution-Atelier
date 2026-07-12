@@ -13,7 +13,7 @@ type UseTypingIndicatorOptions = {
 
 export function useTypingIndicator({
   send,
-  debounceMs = 1500,
+  debounceMs = 800,
   stopTimeoutMs = 3000,
 }: UseTypingIndicatorOptions) {
   const [typingUsers, setTypingUsers] = useState<TypingUser[]>([]);

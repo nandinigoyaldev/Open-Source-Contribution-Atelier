@@ -411,3 +411,5 @@ export function VerifyCertificatePage() {
     </div>
   );
 }
+
+export default VerifyCertificatePage;

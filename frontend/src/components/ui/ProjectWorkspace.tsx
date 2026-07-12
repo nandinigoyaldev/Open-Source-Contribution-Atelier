@@ -7,13 +7,15 @@ import {
   createProjectFile,
   updateProjectFile,
   deleteProjectFile,
+  exportWorkspaceZip,
 } from "../../lib/api";
 import { ProjectExplorer } from "./ProjectExplorer";
 import { CodeEditor } from "./CodeEditor";
 import { SnippetLibraryModal } from "./SnippetLibraryModal";
 import { SnapshotManagerModal } from "./SnapshotManagerModal";
-import { Library, Camera } from "lucide-react";
-import { SearchPanel } from './SearchPanel';
+import { Library, Camera, Download } from "lucide-react";
+import { SearchPanel } from "./SearchPanel";
+import { TerminalWorkspace } from "./Terminal";
 
 export function ProjectWorkspace() {
   const [project, setProject] = useState<Project | null>(null);
@@ -144,86 +146,26 @@ export function ProjectWorkspace() {
     );
   }
 
-  const explorerContent = (
-    <ProjectExplorer 
-      files={files} 
-      activeFileId={activeFileId} 
-      onSelectFile={setActiveFileId}
-      onCreateFile={handleCreateFile}
-      onDeleteFile={handleDeleteFile}
-    />
-  );
-
-  const consoleContent = (
-    <div className="p-4 h-full flex flex-col">
-      <div className="flex items-center justify-between mb-2">
-        <h3 className="text-sm font-semibold text-gray-300">Terminal Output</h3>
-        <button 
-          onClick={() => setIsLibraryOpen(true)}
-          className="flex items-center gap-1 px-2 py-1 text-xs text-gray-300 border border-gray-600 rounded hover:bg-gray-700 transition-colors"
-        >
-          <Library className="w-3 h-3" /> Snippets
-        </button>
-      </div>
-      <div className="flex-1 bg-[#0d0d0d] rounded border border-gray-800 p-2 font-mono text-xs text-green-400 overflow-y-auto">
-        $ sandbox runtime initialized...<br/>
-        $ waiting for commands...
-      </div>
-    </div>
-  );
-
-  const editorContent = (tabId: string) => {
-    // For a multi-tab system, tabId could map to file IDs. For now we use the active file.
-    if (!activeFile) {
-      return (
-        <div className="h-full flex items-center justify-center text-gray-500">
-          Select a file to edit
-        </div>
-      );
-    }
-    return (
-      <div className="flex-1 flex flex-col h-full bg-[#1e1e1e]">
-        <div className="flex items-center justify-between px-4 py-2 border-b border-gray-800 bg-[#252525]">
-          <span className="text-sm text-gray-300 font-mono">{activeFile.path}</span>
-        </div>
-        <div className="flex-1 overflow-auto bg-[#151411]">
-          <CodeEditor 
-            code={activeFile.content} 
-            onChange={handleCodeChange}
-            language={activeFile.language}
-            minHeight="100%"
-          />
-        </div>
-      </div>
-    );
-  };
-
-  const handleSaveLayout = async (modelData: any) => {
-    try {
-      if (activeLayout) {
-        const updated = await saveWorkspaceLayout({ ...activeLayout, layout_data: modelData });
-        setActiveLayout(updated);
-      } else {
-        const newLayout = await saveWorkspaceLayout({ name: "Custom Layout", layout_data: modelData, is_active: true });
-        setActiveLayout(newLayout);
-      }
-    } catch (err) {
-      console.error("Failed to save layout", err);
-    }
-  };
-
   return (
     <div className="flex h-full border border-gray-200 dark:border-gray-800 rounded-lg overflow-hidden bg-white dark:bg-[#1a1a1a]">
-      <ProjectExplorer
-        files={files}
-        activeFileId={activeFileId}
-        onSelectFile={setActiveFileId}
-        onCreateFile={handleCreateFile}
-        onDeleteFile={handleDeleteFile}
-      />
-      <div className="w-[300px] border-r border-gray-800">
-        <SearchPanel 
-          project={project} 
+      <div
+        id="tour-sandbox-explorer"
+        className="h-full border-r border-gray-800"
+      >
+        <ProjectExplorer
+          files={files}
+          activeFileId={activeFileId}
+          onSelectFile={setActiveFileId}
+          onCreateFile={handleCreateFile}
+          onDeleteFile={handleDeleteFile}
+        />
+      </div>
+      <div
+        id="tour-sandbox-search"
+        className="w-[300px] border-r border-gray-800"
+      >
+        <SearchPanel
+          project={project}
           onMatchClick={(fileId) => {
             setActiveFileId(fileId);
           }}
@@ -237,7 +179,21 @@ export function ProjectWorkspace() {
               <span className="text-sm text-gray-300 font-mono">
                 {activeFile.path}
               </span>
-              <div className="flex items-center gap-2">
+              <div id="tour-sandbox-tools" className="flex items-center gap-2">
+                <button
+                  onClick={async () => {
+                    if (project) {
+                      try {
+                        await exportWorkspaceZip(project.id);
+                      } catch (err) {
+                        console.error("Failed to export workspace", err);
+                      }
+                    }
+                  }}
+                  className="flex items-center gap-2 px-2 py-1 text-xs font-bold text-gray-300 border border-gray-600 rounded hover:bg-gray-700 transition-colors"
+                >
+                  <Download className="w-3 h-3" /> Export
+                </button>
                 <button
                   onClick={() => setIsSnapshotManagerOpen(true)}
                   className="flex items-center gap-2 px-2 py-1 text-xs font-bold text-gray-300 border border-gray-600 rounded hover:bg-gray-700 transition-colors"
@@ -252,7 +208,10 @@ export function ProjectWorkspace() {
                 </button>
               </div>
             </div>
-            <div className="flex-1 overflow-auto bg-[#151411]">
+            <div
+              id="tour-sandbox-editor"
+              className="flex-1 overflow-auto bg-[#151411]"
+            >
               <CodeEditor
                 code={activeFile.content}
                 onChange={handleCodeChange}
@@ -266,7 +225,10 @@ export function ProjectWorkspace() {
             Select a file to edit
           </div>
         )}
-        <div className="h-1/3 min-h-[250px] max-h-[50%] flex flex-col border-t border-gray-800">
+        <div
+          id="tour-sandbox-terminal"
+          className="h-1/3 min-h-[250px] max-h-[50%] flex flex-col border-t border-gray-800"
+        >
           <TerminalWorkspace projectId={project?.id} />
         </div>
       </div>
