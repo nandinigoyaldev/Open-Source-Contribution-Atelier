@@ -65,10 +65,12 @@ class PasswordResetToken(models.Model):
         timeout = getattr(settings, "PASSWORD_RESET_TIMEOUT_MINUTES", 15)
         return timezone.now() > self.created_at + timedelta(minutes=timeout)
 
-
 class OTPToken(models.Model):
     """
     Secure OTP token sent to a user's email for verification.
+
+    Tokens expire after settings.OTP_TIMEOUT_MINUTES (default 10).
+    Once used, `is_used` is set to True and the token cannot be reused.
     """
 
     user = models.ForeignKey(
@@ -85,6 +87,15 @@ class OTPToken(models.Model):
 
     def __str__(self) -> str:
         return f"OTPToken(user={self.user.username}, used={self.is_used})"
+
+    def is_expired(self) -> bool:
+        """Return True if the token is older than OTP_TIMEOUT_MINUTES."""
+        from datetime import timedelta
+
+        from django.utils import timezone
+
+        timeout = getattr(settings, "OTP_TIMEOUT_MINUTES", 10)
+        return timezone.now() > self.created_at + timedelta(minutes=timeout)
 
 
     def is_expired(self) -> bool:

@@ -19,6 +19,7 @@ from .throttles import SandboxAnonRateThrottle, SandboxUserRateThrottle
 logger = logging.getLogger(__name__)
 
 
+
 class ChallengeViewSet(viewsets.ModelViewSet):
     """Existing view — untouched."""
 

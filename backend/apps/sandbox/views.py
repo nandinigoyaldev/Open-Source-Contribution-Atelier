@@ -308,7 +308,6 @@ class SnippetCollectionViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         return SnippetCollection.objects.filter(user=self.request.user)
 
-
 class CodeSnippetViewSet(viewsets.ModelViewSet):
     """
     ViewSet for CodeSnippet model with filtering.
@@ -421,4 +420,31 @@ class ClearExecutionView(APIView):
             queryset = queryset.filter(title__icontains=search)
 
         return queryset
+
+
+from django.db.models import Q
+
+from .models import WorkspaceSnapshot
+from .serializers import WorkspaceSnapshotSerializer
+
+
+class WorkspaceSnapshotViewSet(viewsets.ModelViewSet):
+    serializer_class = WorkspaceSnapshotSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        # A user can see snapshots of their own projects, plus any snapshot
+        # marked is_public (matching the field's documented purpose: "whether
+        # this snapshot can be forked by anyone").
+        return WorkspaceSnapshot.objects.filter(
+            Q(project__user=self.request.user) | Q(is_public=True)
+        ).select_related("project")
+
+    def perform_create(self, serializer):
+        project = serializer.validated_data.get("project")
+        if project is not None and project.user_id != self.request.user.id:
+            raise serializers.ValidationError(
+                {"project": "You do not own this project."}
+            )
+        serializer.save()
  

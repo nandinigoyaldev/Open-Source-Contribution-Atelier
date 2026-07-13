@@ -35,6 +35,7 @@ from .views import (
     ProjectViewSet,
     SandboxVerifyView,
     SnippetCollectionViewSet,
+    WorkspaceSnapshotViewSet,
 )
 
 

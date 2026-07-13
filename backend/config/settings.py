@@ -6,6 +6,7 @@ from pathlib import Path
 from config.auth import TOKEN_BLACKLIST_ENABLED
 
 import dj_database_url
+from django.core.exceptions import ImproperlyConfigured
 
 # pyrefly: ignore [missing-import]
 from django.core.exceptions import ImproperlyConfigured
@@ -29,6 +30,10 @@ if not SECRET_KEY:
     raise ImproperlyConfigured("SECRET_KEY environment variable is not set")
 DEBUG = os.getenv("DEBUG", "False") == "True"
 
+# Explicit environment designation, independent of DEBUG. Used below to make
+# sure DEBUG=True (and the wildcard CORS it enables) can never silently reach
+# a production deployment.
+DJANGO_ENV = os.getenv("DJANGO_ENV", "development")
 # ──────────────────────────────────────────
 # Security Headers
 # ──────────────────────────────────────────
@@ -111,6 +116,20 @@ if not DEBUG and not TESTING and not CORS_ALLOWED_ORIGINS:
     raise ImproperlyConfigured("CORS_ALLOWED_ORIGINS cannot be empty in production.")
 
 CORS_ALLOW_CREDENTIALS = True
+if DEBUG:
+    if DJANGO_ENV == "production":
+        # CORS_ALLOW_ALL_ORIGINS + CORS_ALLOW_CREDENTIALS together let any
+        # website make authenticated, cookie/credential-bearing requests to
+        # this API. That's fine for local development, but must never reach
+        # production silently just because DEBUG was left on by mistake.
+        raise ImproperlyConfigured(
+            "Refusing to start: DEBUG=True while DJANGO_ENV=production. "
+            "This would also silently enable CORS_ALLOW_ALL_ORIGINS together "
+            "with CORS_ALLOW_CREDENTIALS, letting any website make "
+            "authenticated requests to this API. Set DEBUG=False (or "
+            "DJANGO_ENV to something other than 'production') to continue."
+        )
+    CORS_ALLOW_ALL_ORIGINS = True
 # CORS_ALLOW_ALL_ORIGINS defaults to False; rely on CORS_ALLOWED_ORIGINS allowlist.
 
 INSTALLED_APPS = [
@@ -301,6 +320,10 @@ TRUSTED_PROXY_COUNT = int(os.getenv("TRUSTED_PROXY_COUNT", "0"))
 # ── Password Reset ─────────────────────────────────────────────────────────────
 # How many minutes a password reset token remains valid.
 PASSWORD_RESET_TIMEOUT_MINUTES = int(os.getenv("PASSWORD_RESET_TIMEOUT_MINUTES", "15"))
+
+# ── OTP Email Verification ───────────────────────────────────────────────────
+# How many minutes an OTP verification code remains valid.
+OTP_TIMEOUT_MINUTES = int(os.getenv("OTP_TIMEOUT_MINUTES", "10"))
 
 REST_FRAMEWORK = {
     # ── Default Throttle Classes ─────────────────────────────────────────────
