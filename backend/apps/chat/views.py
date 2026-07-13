@@ -2,6 +2,7 @@ from django.db.models import Count, Max
 from drf_spectacular.utils import OpenApiResponse, extend_schema, extend_schema_view
 from rest_framework import generics, pagination, permissions, status
 from rest_framework.response import Response
+from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
 from .models import Message
@@ -61,6 +62,8 @@ class MessageListView(generics.ListAPIView):
 )
 class MessageCreateView(APIView):
     permission_classes = [permissions.IsAuthenticated]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "chat_message"
 
     def post(self, request, room_id):
         serializer = MessageCreateSerializer(data=request.data)

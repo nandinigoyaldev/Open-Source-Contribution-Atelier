@@ -1,15 +1,15 @@
+import logging
 import os
 import sys
-import logging
 from datetime import timedelta
 from pathlib import Path
-from config.auth import TOKEN_BLACKLIST_ENABLED
 
 import dj_database_url
-from django.core.exceptions import ImproperlyConfigured
 
 # pyrefly: ignore [missing-import]
 from django.core.exceptions import ImproperlyConfigured
+
+from config.auth import TOKEN_BLACKLIST_ENABLED
 
 logger = logging.getLogger(__name__)
 
@@ -17,6 +17,7 @@ TESTING = "test" in sys.argv or "pytest" in sys.modules
 
 # Patch Django template context copy for Python 3.14 compatibility
 import copy
+
 from django.template.context import BaseContext
 
 
@@ -374,6 +375,8 @@ REST_FRAMEWORK = {
             "RATE_AUTH_MAGIC_LINK_REQUEST", "3/minute"
         ),
         "auth_magic_link_verify": os.getenv("RATE_AUTH_MAGIC_LINK_VERIFY", "5/minute"),
+        # ── Chat ─────────────────────────────────────────────────────────────
+        "chat_message": "30/minute",
     },
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework_simplejwt.authentication.JWTAuthentication",
