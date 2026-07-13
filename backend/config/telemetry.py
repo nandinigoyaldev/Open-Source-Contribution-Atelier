@@ -1,15 +1,20 @@
 import os
 
-from opentelemetry import trace
-from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
-from opentelemetry.instrumentation.django import DjangoInstrumentor
-from opentelemetry.sdk.trace import TracerProvider
-from opentelemetry.sdk.trace.export import BatchSpanProcessor
-
 
 def setup_telemetry():
     # Only setup telemetry if configured to do so (e.g. in prod or staging)
     if not os.getenv("ENABLE_OPENTELEMETRY", "False").lower() in ("true", "1", "yes"):
+        return
+
+    try:
+        from opentelemetry import trace
+        from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
+        from opentelemetry.instrumentation.django import DjangoInstrumentor
+        from opentelemetry.sdk.trace import TracerProvider
+        from opentelemetry.sdk.trace.export import BatchSpanProcessor
+    except ImportError:
+        # If open-telemetry is not installed even though the flag is enabled, log or return safely
+        print("Opentelemetry packages not installed. Skipping telemetry setup.")
         return
 
     # Create a TracerProvider

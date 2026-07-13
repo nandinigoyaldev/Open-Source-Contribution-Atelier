@@ -2,7 +2,7 @@ import React, { useState, useEffect } from "react";
 import { ProfileSettingsForm } from "../features/auth/ProfileSettingsForm";
 import { useAuth } from "../features/auth/AuthContext";
 import { getMediaUrl } from "../lib/api";
-import { Github, Linkedin, Twitter, Award, BookOpen, Calendar, MapPin, Copy, Check, Eye } from "lucide-react";
+import { Github, Linkedin, Twitter, Calendar, MapPin, Copy, Check, Eye } from "lucide-react";
 
 export function ProfileSettingsPage() {
   const { user } = useAuth();
