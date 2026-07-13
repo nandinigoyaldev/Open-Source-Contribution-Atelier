@@ -4,6 +4,84 @@ import { LRUCache } from "../utils/cache";
 
 const snippetsCache = new LRUCache<any[]>(50, 300000);
 
+let isRefreshing = false;
+let refreshPromise: Promise<boolean> | null = null;
+let refreshSubscribers: Array<(token: string) => void> = [];
+
+function onRefreshed(token: string) {
+  refreshSubscribers.forEach((cb) => cb(token));
+  refreshSubscribers = [];
+}
+
+function safeGetItem(key: string): string | null {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+}
+
+function safeSetItem(key: string, value: string) {
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    /* localStorage unavailable */
+  }
+}
+
+function safeRemoveItem(key: string) {
+  try {
+    localStorage.removeItem(key);
+  } catch {
+    /* localStorage unavailable */
+  }
+}
+
+async function attemptTokenRefresh(): Promise<boolean> {
+  if (isRefreshing && refreshPromise) {
+    return new Promise<boolean>((resolve) => {
+      refreshSubscribers.push((token: string) => resolve(!!token));
+    });
+  }
+
+  const refreshToken = safeGetItem("refreshToken");
+  if (!refreshToken) return false;
+
+  isRefreshing = true;
+  refreshPromise = (async () => {
+    try {
+      const response = await fetch(`${API_BASE}/auth/refresh/`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ refresh: refreshToken }),
+      });
+
+      if (!response.ok) {
+        safeRemoveItem("accessToken");
+        safeRemoveItem("refreshToken");
+        onRefreshed("");
+        return false;
+      }
+
+      const data = await response.json();
+      safeSetItem("accessToken", data.access);
+      if (data.refresh) {
+        safeSetItem("refreshToken", data.refresh);
+      }
+      onRefreshed(data.access);
+      return true;
+    } catch {
+      onRefreshed("");
+      return false;
+    } finally {
+      isRefreshing = false;
+      refreshPromise = null;
+    }
+  })();
+
+  return refreshPromise;
+}
+
 // 1. Defend the environment variable retrieval against server-side execution crashes
 const getSafeEnvVar = (key: string): string => {
   if (typeof process !== "undefined" && process.env && process.env[key]) {
@@ -73,12 +151,7 @@ export async function fetchApi(endpoint: string, options: RequestOptions = {}) {
   }
 
   if (requireAuth) {
-    let token: string | null = null;
-    try {
-      token = localStorage.getItem("accessToken");
-    } catch {
-      // localStorage unavailable (e.g. Safari private mode, SSR)
-    }
+    const token = safeGetItem("accessToken");
     if (token) {
       headers.set("Authorization", `Bearer ${token}`);
     }
@@ -106,6 +179,14 @@ export async function fetchApi(endpoint: string, options: RequestOptions = {}) {
       }
 
       if (!response.ok) {
+        if (response.status === 401 && requireAuth && !endpoint.includes("/auth/refresh/")) {
+          const refreshed = await attemptTokenRefresh();
+          if (refreshed) {
+            headers.set("Authorization", `Bearer ${safeGetItem("accessToken")}`);
+            continue;
+          }
+        }
+
         const errorBody = await response.json().catch(() => ({}));
         const errorMessage =
           errorBody.detail ||
@@ -121,7 +202,7 @@ export async function fetchApi(endpoint: string, options: RequestOptions = {}) {
               );
               break;
             case 401:
-              toast.error("Session expired. Please log in again.");
+              // Suppressed as per user request to avoid "Session expired" toasts in the frontend
               break;
             case 403:
               toast.error("You do not have permission to perform this action.");

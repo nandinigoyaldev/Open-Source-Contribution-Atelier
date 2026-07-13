@@ -231,7 +231,12 @@ class GoogleLoginView(APIView):
         return unique_username_from_value(email)
 
     def post(self, request):
-        token = request.data.get("access_token") or request.data.get("access")
+        token = (
+            request.data.get("access_token")
+            or request.data.get("access")
+            or request.data.get("credential")
+            or request.data.get("id_token")
+        )
         if not token:
             return Response(
                 {"detail": "No access token provided"},
@@ -239,21 +244,38 @@ class GoogleLoginView(APIView):
             )
 
         try:
-            # Use OAuth2 userinfo endpoint with Bearer auth for better compatibility.
-            user_info_resp = http_requests.get(
-                "https://www.googleapis.com/oauth2/v3/userinfo",
-                headers={"Authorization": f"Bearer {token}"},
-                timeout=10,
-            )
+            from google.oauth2 import id_token as google_id_token
+            from google.auth.transport import requests as google_requests
 
-            if not user_info_resp.ok:
-                return Response(
-                    {"detail": "Failed to verify Google token"},
-                    status=status.HTTP_401_UNAUTHORIZED,
+            google_client_id = os.getenv("GOOGLE_CLIENT_ID", "")
+            email = None
+            id_info = None
+
+            if google_client_id:
+                try:
+                    id_info = google_id_token.verify_oauth2_token(
+                        token,
+                        google_requests.Request(),
+                        google_client_id,
+                    )
+                    email = id_info.get("email")
+                except Exception:
+                    id_info = None
+
+            if not id_info:
+                user_info_resp = http_requests.get(
+                    "https://www.googleapis.com/oauth2/v3/userinfo",
+                    headers={"Authorization": f"Bearer {token}"},
+                    timeout=3,
                 )
+                if not user_info_resp.ok:
+                    return Response(
+                        {"detail": "Failed to verify Google token"},
+                        status=status.HTTP_401_UNAUTHORIZED,
+                    )
+                id_info = user_info_resp.json()
+                email = id_info.get("email")
 
-            idinfo = user_info_resp.json()
-            email = idinfo.get("email")
             if not email:
                 return Response(
                     {"detail": "Google account has no email"},
@@ -268,6 +290,8 @@ class GoogleLoginView(APIView):
                     email=email,
                     password=secrets.token_urlsafe(24),
                 )
+                from apps.progress.models import StreakProfile
+                StreakProfile.objects.get_or_create(user=user)
 
             refresh = RefreshToken.for_user(user)
             return Response(
@@ -473,7 +497,6 @@ class UserSuggestionsView(APIView):
         return Response(data, status=status.HTTP_200_OK)
 
 
->>>>>>> main
 # ─────────────────────────────────────────────────────────────────────────────
 # Password Reset Views (UPDATED with Custom Token Model & JWT Invalidation)
 # ─────────────────────────────────────────────────────────────────────────────
@@ -654,7 +677,6 @@ class PasswordResetValidateTokenView(APIView):
                 'error': 'Token has expired'
             })
 
-<<<<<<< HEAD
         return Response({
             'valid': True,
             'message': 'Token is valid',
@@ -784,9 +806,6 @@ class ChangePasswordView(APIView):
             },
 
             status=status.HTTP_200_OK
-        )
-
-            status=status.HTTP_400_BAD_REQUEST,
         )
 
 
@@ -1107,4 +1126,3 @@ class PublicProfileView(APIView):
                 "completed_lessons": completed_lessons,
             }
         )
->>>>>>> main

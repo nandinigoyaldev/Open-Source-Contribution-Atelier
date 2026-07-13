@@ -206,7 +206,7 @@ export function CommunityPage() {
   ];
 
   return (
-    <div className="space-y-10 pt-24 max-w-7xl mx-auto px-4 pb-12 overflow-x-hidden">
+    <div className="space-y-10 pb-12 overflow-x-hidden">
       {/* Page Header */}
       <SectionCard
         eyebrow="Atelier Cohort"
@@ -217,23 +217,6 @@ export function CommunityPage() {
           open source contributors across the cohort.
         </p>
       </SectionCard>
-
-      {/* Stats row */}
-      {isLoading ? (
-        <div aria-busy="true">
-          <SkeletonStatGrid />
-        </div>
-      ) : (
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          {displayStats.map((item) => (
-            <SectionCard key={item.label} title={item.value.toString()}>
-              <p className="text-sm font-bold text-muted dark:text-[#c4bbae]">
-                {item.label}
-              </p>
-            </SectionCard>
-          ))}
-        </div>
-      )}
 
       {/* Leaderboard Table Grid */}
       <div className="grid gap-6 lg:grid-cols-[1.3fr_0.7fr]">
@@ -339,8 +322,7 @@ export function CommunityPage() {
               <Award size={22} /> Your Standings
             </h3>
             <p className="text-xs font-bold leading-relaxed text-black/75 dark:text-[#c4bbae]">
-              Solve more terminal exercises and answer theoretical quizzes to
-              climb up the Atelier rank. Re-sync your streak daily!
+              Solve exercises and quizzes to climb ranks.
             </p>
 
             <div className="bg-white p-4 rounded-2xl border-4 border-black shadow-card-sm dark:bg-[#151411] dark:border-[#2e2924]">

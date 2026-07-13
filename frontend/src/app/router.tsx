@@ -20,6 +20,12 @@ const ChallengePage = lazy(() =>
   })),
 );
 
+const A11yLinterSandbox = lazy(() =>
+  import("../components/ui/A11yLinterSandbox").then((module) => ({
+    default: module.A11yLinterSandbox,
+  })),
+);
+
 const ChatPage = lazy(() =>
   import("../pages/ChatPage").then((module) => ({
     default: module.ChatPage,
@@ -146,6 +152,10 @@ const TemplateMarketplacePage = lazy(
   () => import("../pages/TemplateMarketplacePage"),
 );
 
+const PortfolioPage = lazy(
+  () => import("../pages/PortfolioPage"),
+);
+
 function RouteLoadingFallback() {
   return (
     <div
@@ -162,6 +172,18 @@ function RouteLoadingFallback() {
 }
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated, isLoading } = useAuth();
+
+  if (isLoading) {
+    return <RouteLoadingFallback />;
+  }
+
+  if (!isAuthenticated) {
+    const wasLoggedOut = sessionStorage.getItem("userLoggedOut") === "true";
+    sessionStorage.removeItem("userLoggedOut");
+    return <Navigate to={wasLoggedOut ? "/login" : "/login?expired=true"} replace />;
+  }
+
   return <>{children}</>;
 }
 
@@ -275,6 +297,15 @@ export function AppRouter() {
             element={
               <ProtectedRoute>
                 <ChatPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/a11y-sandbox"
+            element={
+              <ProtectedRoute>
+                <A11yLinterSandbox />
               </ProtectedRoute>
             }
           />
@@ -401,6 +432,15 @@ export function AppRouter() {
             element={
               <ProtectedRoute>
                 <ModerationDashboard />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/portfolio"
+            element={
+              <ProtectedRoute>
+                <PortfolioPage />
               </ProtectedRoute>
             }
           />

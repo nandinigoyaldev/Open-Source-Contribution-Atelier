@@ -40,6 +40,8 @@ export const WebSocketStatusIndicator: React.FC<WebSocketStatusIndicatorProps> =
 
   // Handle status changes with toasts
   useEffect(() => {
+    if (!url) return;
+
     if (toastId) {
       toast.dismiss(toastId);
       setToastId(null);
@@ -60,7 +62,7 @@ export const WebSocketStatusIndicator: React.FC<WebSocketStatusIndicatorProps> =
     if (id) {
       setToastId(id);
     }
-  }, [status, retryCount]);
+  }, [status, retryCount, url]);
 
   // Listen for messages
   useEffect(() => {
@@ -93,6 +95,8 @@ export const WebSocketStatusIndicator: React.FC<WebSocketStatusIndicatorProps> =
       default: return 'Unknown';
     }
   };
+
+  if (!url || status === 'connecting') return null;
 
   return (
     <div className={`fixed bottom-4 left-4 z-50 ${className}`}>

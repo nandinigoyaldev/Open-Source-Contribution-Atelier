@@ -48,6 +48,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = async () => {
+    try {
+      sessionStorage.setItem("userLoggedOut", "true");
+    } catch (e) {}
     dispatch(logoutAction());
   };
 

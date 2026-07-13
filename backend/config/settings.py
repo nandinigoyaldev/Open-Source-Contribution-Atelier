@@ -3,7 +3,7 @@ import sys
 import logging
 from datetime import timedelta
 from pathlib import Path
-from config.auth import JWT_CONFIG, TOKEN_BLACKLIST_ENABLED
+from config.auth import TOKEN_BLACKLIST_ENABLED
 
 import dj_database_url
 
@@ -99,6 +99,11 @@ CORS_ALLOWED_ORIGINS = [
     for origin in os.getenv("CORS_ALLOWED_ORIGINS", "").split(",")
     if origin.strip()
 ]
+
+# Auto-include FRONTEND_URL if set and not already in the list
+_frontend_url = os.getenv("FRONTEND_URL", "").strip().rstrip("/")
+if _frontend_url and _frontend_url not in CORS_ALLOWED_ORIGINS:
+    CORS_ALLOWED_ORIGINS.append(_frontend_url)
 
 if not DEBUG and not TESTING and not CORS_ALLOWED_ORIGINS:
     from django.core.exceptions import ImproperlyConfigured
@@ -256,9 +261,6 @@ STATICFILES_STORAGE = "whitenoise.storage.CompressedManifestStaticFilesStorage"
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
-
-# Update JWT settings
-SIMPLE_JWT = JWT_CONFIG
 
 # Github App Configuration
 GITHUB_APP = {
@@ -428,9 +430,17 @@ INSTALLED_APPS += [
 ]
 
 CSRF_TRUSTED_ORIGINS = [
+    origin.strip()
+    for origin in os.getenv("CSRF_TRUSTED_ORIGINS", "").split(",")
+    if origin.strip()
+] or [
     "http://localhost:8000",
     "http://localhost:5173",
 ]
+
+# Auto-include FRONTEND_URL if set and not already in the list
+if _frontend_url and _frontend_url not in CSRF_TRUSTED_ORIGINS:
+    CSRF_TRUSTED_ORIGINS.append(_frontend_url)
 
 # ──────────────────────────────────────────
 # Redis Availability and Configuration (Dynamic Fallbacks)

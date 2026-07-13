@@ -39,7 +39,7 @@ function getWsUrl(roomId: string): string {
   return `${scheme}://${host}/ws/chat/${roomId}/`;
 }
 
-export function useChat({ roomId, token }: UseChatOptions) {
+export function useChat({ roomId, token, username }: UseChatOptions) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [onlineUsers, setOnlineUsers] = useState<OnlineUser[]>([]);
   const messageIdRef = useRef(0);
@@ -58,29 +58,34 @@ export function useChat({ roomId, token }: UseChatOptions) {
         const myId = localUserIdRef.current;
         let matchedLocalId: string | null = null;
 
+        if (senderId === myId) {
+          setMessages((prev) => {
+            const optimisticIdx = prev.findIndex((m) => m.id.endsWith("_optimistic"));
+            if (optimisticIdx !== -1) {
+              return prev.map((m, idx) =>
+                idx === optimisticIdx
+                  ? {
+                      ...m,
+                      id: `msg_${messageIdRef.current + 1}`,
+                      username: msg.username as string,
+                      timestamp: msg.created_at
+                        ? new Date(msg.created_at as string).toLocaleTimeString()
+                        : new Date().toLocaleTimeString(),
+                      created_at: msg.created_at as string | undefined,
+                    }
+                  : m
+              );
+            }
+            return prev;
+          });
+          return;
+        }
+
         if (plaintext.startsWith("{")) {
           try {
             const payload = JSON.parse(plaintext);
             if (payload.ciphertexts) {
-              matchedLocalId = payload.local_id;
-              if (senderId === myId) {
-                setMessages((prev) => {
-                  const last = prev[prev.length - 1];
-                  if (last && last.id === matchedLocalId) {
-                    return prev.map((m) =>
-                      m.id === matchedLocalId
-                        ? {
-                            ...m,
-                            id: `msg_${messageIdRef.current + 1}`,
-                            username: msg.username as string,
-                          }
-                        : m,
-                    );
-                  }
-                  return prev;
-                });
-                return;
-              } else if (
+              if (
                 myId &&
                 payload.ciphertexts[myId] &&
                 sharedKeysRef.current[senderId]
@@ -92,12 +97,17 @@ export function useChat({ roomId, token }: UseChatOptions) {
                   sharedKeysRef.current[senderId],
                 );
               } else {
+                // If it is JSON ciphertext but we don't have keys, show fallback
                 plaintext = "[Encrypted message - key not found]";
               }
             }
           } catch {
             // Fallback to plaintext if JSON parse fails
           }
+        }
+
+        if (plaintext === "[Encrypted message - key not found]") {
+          return;
         }
 
         setMessages((prev) => {
@@ -213,28 +223,16 @@ export function useChat({ roomId, token }: UseChatOptions) {
       const localId = `msg_${messageIdRef.current}_optimistic`;
       const optimistic: ChatMessage = {
         id: localId,
-        username: "",
+        username: username || "",
         user_id: localUserIdRef.current ?? 0,
         message: text,
         timestamp: new Date().toLocaleTimeString(),
       };
       setMessages((prev) => [...prev, optimistic]);
 
-      const ciphertexts: Record<number, { ciphertext: string; iv: string }> =
-        {};
-      for (const [userIdStr, key] of Object.entries(sharedKeysRef.current)) {
-        const userId = Number(userIdStr);
-        ciphertexts[userId] = await encryptMessage(text, key);
-      }
-
-      const payload = {
-        local_id: localId,
-        ciphertexts,
-      };
-
-      ws.send({ action: "send_message", message: JSON.stringify(payload) });
+      ws.send({ action: "send_message", message: text });
     },
-    [ws],
+    [ws, username],
   );
 
   return {

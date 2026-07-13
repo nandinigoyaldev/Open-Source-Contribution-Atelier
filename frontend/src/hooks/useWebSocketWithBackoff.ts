@@ -107,6 +107,10 @@ export function useWebSocketWithBackoff(
 
   const connectWebSocket = useCallback(() => {
     if (!isMountedRef.current || isManualDisconnectRef.current) return;
+    if (!url) {
+      setStatus('disconnected');
+      return;
+    }
 
     setStatus('connecting');
     setLastError(null);

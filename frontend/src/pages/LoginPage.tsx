@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { GitBranch, LogIn, ArrowRight } from "lucide-react";
+import { useGoogleLogin } from "@react-oauth/google";
 import { AuthPageShell } from "../features/auth/AuthPageShell";
 import { fetchApi } from "../lib/api";
 import { useAuth } from "../features/auth/AuthContext";
@@ -44,9 +45,25 @@ export function LoginPage() {
     window.location.href = githubAuthUrl;
   };
 
-  const handleGoogleSignIn = () => {
-    window.location.href = "/api/auth/google/";
-  };
+  const googleLogin = useGoogleLogin({
+    onSuccess: async (tokenResponse) => {
+      try {
+        const tokens = await fetchApi("/auth/google/", {
+          method: "POST",
+          requireAuth: false,
+          body: JSON.stringify({ access_token: tokenResponse.access_token }),
+        });
+        login(tokens);
+        sessionStorage.setItem("justLoggedIn", "true");
+        window.location.href = "/dashboard";
+      } catch (err: unknown) {
+        setError(getErrorMessage(err, "Google Auth Failed. Check Backend."));
+      }
+    },
+    onError: () => {
+      setError("Google Login Failed / Cancelled.");
+    },
+  });
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -68,13 +85,10 @@ export function LoginPage() {
         position: 'bottom-center',
       });
       
-      // ✅ Redirect to dashboard or previous page
+      sessionStorage.setItem("justLoggedIn", "true");
       const redirect = sessionStorage.getItem('login_redirect') || '/dashboard';
       sessionStorage.removeItem('login_redirect');
       window.location.href = redirect;
-
-      sessionStorage.setItem("justLoggedIn", "true");
-      window.location.href = "/dashboard";
 
     } catch (err: unknown) {
       setError(getErrorMessage(err, "Failed to login"));
@@ -103,10 +117,10 @@ export function LoginPage() {
         {/* Google Login Button */}
         <button
           type="button"
-          onClick={handleGoogleSignIn}
-          className="flex items-center justify-center gap-3 w-full px-4 py-3 border border-slate-200 dark:border-slate-800 rounded-xl font-semibold shadow-sm hover:bg-slate-50 dark:hover:bg-slate-800/50 hover:scale-[1.01] active:scale-[0.99] transition-all text-sm text-slate-700 dark:text-slate-200 bg-white dark:bg-[#12121a]"
+          onClick={() => googleLogin()}
+          className="flex items-center justify-center gap-3 w-full px-4 py-3 border-2 border-black rounded-xl font-bold hover:-translate-y-0.5 hover:shadow-card-sm active:translate-y-0 active:shadow-none transition-all text-xs uppercase tracking-wider text-slate-700 dark:text-slate-200 bg-white dark:bg-[#12121a] cursor-pointer"
         >
-          <svg className="w-5 h-5" viewBox="0 0 24 24">
+          <svg className="w-4 h-4" viewBox="0 0 24 24">
             <path
               fill="#4285F4"
               d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z"
@@ -131,32 +145,32 @@ export function LoginPage() {
         <button
           type="button"
           onClick={handleGithubSignIn}
-          className="flex items-center justify-center gap-3 w-full px-4 py-3 border border-transparent bg-slate-900 text-white rounded-xl font-semibold shadow-sm hover:bg-slate-800 hover:scale-[1.01] active:scale-[0.99] transition-all text-sm dark:bg-slate-100 dark:text-slate-900 dark:hover:bg-white"
+          className="flex items-center justify-center gap-3 w-full px-4 py-3 border-2 border-black bg-slate-900 text-white rounded-xl font-bold hover:-translate-y-0.5 hover:shadow-card-sm active:translate-y-0 active:shadow-none transition-all text-xs uppercase tracking-wider dark:bg-[#C3C0FF] dark:text-black cursor-pointer"
           aria-label="Sign in with GitHub"
         >
           <GitBranch
             className="transition-transform duration-300 rotate-[-8deg]"
-            size={18}
-            strokeWidth={2.25}
+            size={14}
+            strokeWidth={2.5}
             aria-hidden="true"
           />
           <span>Sign in with GitHub</span>
         </button>
 
-        <div className="flex items-center gap-3 py-2">
-          <div className="h-[1px] flex-1 bg-slate-200 dark:bg-slate-800"></div>
-          <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
+        <div className="flex items-center gap-3 py-1">
+          <div className="h-[2px] flex-1 bg-black/10 dark:bg-white/10"></div>
+          <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
             OR
           </span>
-          <div className="h-[1px] flex-1 bg-slate-200 dark:bg-slate-800"></div>
+          <div className="h-[2px] flex-1 bg-black/10 dark:bg-white/10"></div>
         </div>
 
         <div className="space-y-1.5">
-          <label className="font-bold text-slate-500 dark:text-slate-400 ml-1 text-xs uppercase tracking-wider">
+          <label className="font-black text-slate-500 dark:text-slate-400 ml-1 text-[10px] uppercase tracking-wider">
             Username or Email
           </label>
           <input
-            className="w-full rounded-xl border border-slate-200 bg-white dark:bg-[#12121a] dark:border-slate-800 px-4 py-3 text-slate-900 dark:text-white font-medium outline-none placeholder:text-slate-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all text-sm"
+            className="w-full rounded-xl border-2 border-black bg-white dark:bg-[#12121a] px-4 py-2.5 text-slate-900 dark:text-white font-bold outline-none placeholder:text-slate-400 focus:shadow-[2px_2px_0px_0px_#000000] transition-all text-sm"
             placeholder="username or email"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
@@ -165,11 +179,11 @@ export function LoginPage() {
         </div>
 
         <div className="space-y-1.5">
-          <label className="font-bold text-slate-500 dark:text-slate-400 ml-1 text-xs uppercase tracking-wider">
+          <label className="font-black text-slate-500 dark:text-slate-400 ml-1 text-[10px] uppercase tracking-wider">
             Password
           </label>
           <input
-            className="w-full rounded-xl border border-slate-200 bg-white dark:bg-[#12121a] dark:border-slate-800 px-4 py-3 text-slate-900 dark:text-white font-medium outline-none placeholder:text-slate-400 focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all text-sm"
+            className="w-full rounded-xl border-2 border-black bg-white dark:bg-[#12121a] px-4 py-2.5 text-slate-900 dark:text-white font-bold outline-none placeholder:text-slate-400 focus:shadow-[2px_2px_0px_0px_#000000] transition-all text-sm"
             type="password"
             placeholder="••••••••"
             value={password}
@@ -181,22 +195,16 @@ export function LoginPage() {
         <button
           type="submit"
           disabled={isLoading}
-          className="w-full rounded-2xl border-4 border-black bg-primary px-5 py-5 font-black text-black text-xl shadow-card hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-card-sm transition-all cursor-pointer mt-4 uppercase disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full rounded-xl border-2 border-black bg-[#C3C0FF] px-4 py-3.5 font-black text-black text-sm shadow-card-sm hover:-translate-y-0.5 active:translate-y-0 active:shadow-none transition-all cursor-pointer mt-4 uppercase disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isLoading ? 'Logging in...' : 'Let Me In!'}
         </button>
 
-        <button className="w-full rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-4 py-3.5 font-bold text-sm hover:scale-[1.01] active:scale-[0.99] transition-all cursor-pointer mt-4 uppercase flex items-center justify-center gap-2 shadow-md hover:shadow-lg">
-          <LogIn size={16} />
-          <span>Sign In</span>
-          <ArrowRight size={16} />
-        </button>
-
-        <p className="text-center text-xs font-bold mt-4 text-slate-500 dark:text-slate-400">
+        <p className="text-center text-xs font-bold mt-5 text-slate-500 dark:text-slate-400">
           New here?{" "}
           <a
             href="/signup"
-            className="text-blue-600 hover:text-blue-500 dark:text-blue-400 dark:hover:text-blue-300 underline font-black ml-1"
+            className="text-primary hover:opacity-80 underline font-black ml-1"
           >
             Create an account
           </a>
