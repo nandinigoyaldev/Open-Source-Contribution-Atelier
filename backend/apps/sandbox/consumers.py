@@ -281,6 +281,7 @@ class CollabConsumer(AsyncWebsocketConsumer):
     async def connect(self):
         """
         Accepts the WebSocket connection and adds the client to the collaboration room's group.
+        Sends the initial Yjs document state stored in DB or cache to the connecting client.
         """
         self.room_id = self.scope["url_route"]["kwargs"]["room_id"]
         self.room_group_name = f"collab_{self.room_id}"
@@ -288,14 +289,78 @@ class CollabConsumer(AsyncWebsocketConsumer):
         await self.channel_layer.group_add(self.room_group_name, self.channel_name)
         await self.accept()
 
+        # Send initial Yjs state from cache or DB to client
+        from .models import CollabSession
+        
+        cache_key = f"collab_doc_state_{self.room_id}"
+        state = cache.get(cache_key)
+        
+        if state is None:
+            @database_sync_to_async
+            def get_db_state():
+                session = CollabSession.objects.filter(id=self.room_id).first()
+                return bytes(session.document_state) if session and session.document_state else None
+            state = await get_db_state()
+            if state:
+                cache.set(cache_key, state, timeout=86400)
+                
+        if state:
+            await self.send(bytes_data=state)
+
     async def disconnect(self, close_code):
         """
         Removes the client from the collaboration room's group upon disconnection.
+        Saves the final document state to the database.
         """
         await self.channel_layer.group_discard(self.room_group_name, self.channel_name)
+        
+        # Save final state to database
+        cache_key = f"collab_doc_state_{self.room_id}"
+        final_state = cache.get(cache_key)
+        if final_state:
+            from .models import CollabSession
+            @database_sync_to_async
+            def save_db_state(state):
+                session, _ = CollabSession.objects.get_or_create(id=self.room_id)
+                session.document_state = state
+                session.save(update_fields=["document_state"])
+            await save_db_state(final_state)
+
+    async def _save_update(self, update_bytes):
+        """
+        Helper to append update bytes to the room state in cache, and save to DB
+        using a debounced interval lock.
+        """
+        from .models import CollabSession
+        
+        cache_key = f"collab_doc_state_{self.room_id}"
+        current_state = cache.get(cache_key)
+        
+        if current_state is None:
+            @database_sync_to_async
+            def get_db_state():
+                session = CollabSession.objects.filter(id=self.room_id).first()
+                return bytes(session.document_state) if session and session.document_state else b""
+            current_state = await get_db_state()
+            
+        new_state = current_state + update_bytes
+        cache.set(cache_key, new_state, timeout=86400)
+        
+        # Debounce DB writes: save at most once every 10 seconds per room
+        lock_key = f"collab_db_lock_{self.room_id}"
+        if not cache.get(lock_key):
+            cache.set(lock_key, True, timeout=10)
+            
+            @database_sync_to_async
+            def save_db_state(state):
+                session, _ = CollabSession.objects.get_or_create(id=self.room_id)
+                session.document_state = state
+                session.save(update_fields=["document_state"])
+            await save_db_state(new_state)
 
     async def receive(self, text_data=None, bytes_data=None):
         if bytes_data:
+            # Broadcast binary Yjs updates (sync, updates, cursor awareness) to the group
             await self.channel_layer.group_send(
                 self.room_group_name,
                 {
@@ -304,6 +369,8 @@ class CollabConsumer(AsyncWebsocketConsumer):
                     "sender_channel_name": self.channel_name,
                 },
             )
+            # Sync the update bytes to cache and DB
+            await self._save_update(bytes_data)
         elif text_data:
             try:
                 data = json.loads(text_data)
@@ -401,3 +468,4 @@ class CollabConsumer(AsyncWebsocketConsumer):
     async def collab_text_message(self, event):
         text_data = event.get("text_data")
         await self.send(text_data=text_data)
+

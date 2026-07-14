@@ -86,3 +86,64 @@ def test_sandbox_security_ast_violations():
     # Test normal code works
     ResourceManagementEngine.analyze_ast("x = 10\nprint(x)")
 
+
+@pytest.mark.django_db
+@pytest.mark.asyncio
+async def test_collab_websocket_consumer():
+    import uuid
+    room_id = str(uuid.uuid4())
+    headers = [(b"origin", b"http://localhost"), (b"host", b"localhost")]
+    
+    communicator1 = WebsocketCommunicator(application, f"/ws/collab/{room_id}/", headers=headers)
+    connected1, _ = await communicator1.connect()
+    assert connected1
+
+    # Send binary update from communicator1
+    test_update = b"yjs-test-update-bytes"
+    await communicator1.send_to(bytes_data=test_update)
+
+    # Disconnect to trigger save
+    await communicator1.disconnect()
+
+    # Reconnect and connect a second client
+    communicator1 = WebsocketCommunicator(application, f"/ws/collab/{room_id}/", headers=headers)
+    connected1, _ = await communicator1.connect()
+    assert connected1
+
+    # Handshake: communicator1 should receive the stored state
+    response_handshake = await communicator1.receive_from()
+    assert response_handshake == test_update
+
+    communicator2 = WebsocketCommunicator(application, f"/ws/collab/{room_id}/", headers=headers)
+    connected2, _ = await communicator2.connect()
+    assert connected2
+
+    # Late joiner handshake: communicator2 should also receive the stored state
+    response_handshake2 = await communicator2.receive_from()
+    assert response_handshake2 == test_update
+
+    # communicator2 sends additional update
+    test_update2 = b"more-yjs-bytes"
+    await communicator2.send_to(bytes_data=test_update2)
+
+    # communicator1 should receive the broadcasted update
+    response_broadcast = await communicator1.receive_from()
+    assert response_broadcast == test_update2
+
+    # Disconnect both to finalize persistence
+    await communicator1.disconnect()
+    await communicator2.disconnect()
+
+    # Verify document_state in the database
+    from apps.sandbox.models import CollabSession
+    from channels.db import database_sync_to_async
+    
+    @database_sync_to_async
+    def check_db():
+        session = CollabSession.objects.filter(id=room_id).first()
+        return bytes(session.document_state) if session and session.document_state else None
+        
+    db_state = await check_db()
+    assert db_state == test_update + test_update2
+
+
