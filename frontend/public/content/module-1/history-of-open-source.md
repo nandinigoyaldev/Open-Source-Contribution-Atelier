@@ -1,6 +1,4 @@
-# 📜 History of Open Source
-
-### The open source movement did not start overnight. It grew from an intense cultural clash between corporate proprietary licensing and a hacker culture of sharing code.
+## 📜 The open source movement did not start overnight. It grew from an intense cultural clash between corporate proprietary licensing and a hacker culture of sharing code.
 
 ---
 
