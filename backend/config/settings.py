@@ -691,3 +691,11 @@ CELERY_TASK_STORE_EAGER_RESULT = True
 # Waffle Feature Flags
 WAFFLE_CREATE_MISSING_FLAGS = True
 WAFFLE_FLAG_DEFAULT = False
+
+# ──────────────────────────────────────────
+# Meilisearch Configurations
+# ──────────────────────────────────────────
+MEILI_URL = os.getenv("MEILI_URL", "http://localhost:7700")
+MEILI_MASTER_KEY = os.getenv("MEILI_MASTER_KEY", "masterKey123")
+MEILI_INDEX_NAME = os.getenv("MEILI_INDEX_NAME", "search_documents")
+

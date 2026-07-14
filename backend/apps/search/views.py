@@ -1,3 +1,4 @@
+import logging
 from django.conf import settings
 from django.core.cache import cache
 from django.contrib.postgres.search import (
@@ -14,6 +15,9 @@ from rest_framework.response import Response
 from .models import SearchAnalytics, SearchDocument
 from .serializers import SearchAnalyticsSerializer, SearchDocumentSerializer
 from .utils import get_search_cache_version
+from .meili_client import get_meili_index
+
+logger = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Pagination
@@ -71,14 +75,10 @@ class UnifiedSearchView(generics.ListAPIView):
       page_size — optional — results per page (default 20, max 100)
 
     Strategy:
-      1. Try PostgreSQL Full-Text Search with 'websearch' mode (handles partial
-         words, phrases, negation).  Results are ranked by SearchRank.
-      2. If FTS returns nothing, fall back to Trigram similarity on the title
-         for typo tolerance (threshold > 0.3).
-
-    Highlights:
-      Matched keywords are wrapped in <mark>…</mark> for title, description,
-      and body_text via Postgres SearchHeadline.
+      1. Try Meilisearch for typo-tolerant, relevant full-text search.
+      2. If Meilisearch fails or is not available, fall back to Postgres
+         Full-Text Search with 'websearch' mode.
+      3. If FTS returns nothing, fall back to Trigram similarity on the title.
     """
 
     serializer_class = SearchDocumentSerializer
@@ -124,19 +124,51 @@ class UnifiedSearchView(generics.ListAPIView):
 
     def _build_queryset(self, q: str, content_type_filter: str):
         """
-        Build an annotated, ordered queryset.
-
-        Uses 'websearch' SearchQuery mode which supports:
-          - Partial word matching  (postgres `:*` prefix is used internally)
-          - AND / OR / NOT operators
-          - Phrase matching ("quoted strings")
+        Build an annotated, ordered queryset or list of SearchDocument objects.
         """
-        # websearch mode mirrors Google-style query parsing — no need to escape
-        search_query = SearchQuery(q, search_type="websearch")
+        # 1. Try Meilisearch path
+        index = get_meili_index()
+        if index:
+            try:
+                search_options = {
+                    "attributesToHighlight": ["title", "description", "body_text"],
+                    "highlightStartTag": "<mark>",
+                    "highlightEndTag": "</mark>",
+                    "limit": 200,
+                }
+                if content_type_filter:
+                    search_options["filter"] = [f"content_type_name = '{content_type_filter}'"]
 
+                res = index.search(q, search_options)
+                hits = res.get("hits", [])
+                
+                if hits:
+                    doc_ids = [int(hit["id"]) for hit in hits]
+                    docs = {
+                        doc.id: doc for doc in SearchDocument.objects.filter(
+                            id__in=doc_ids
+                        ).select_related("content_type")
+                    }
+                    
+                    ordered_docs = []
+                    for hit in hits:
+                        doc_id = int(hit["id"])
+                        if doc_id in docs:
+                            doc = docs[doc_id]
+                            formatted = hit.get("_formatted", {})
+                            doc.headline_title = formatted.get("title", doc.title)
+                            doc.headline_description = formatted.get("description", doc.description)
+                            doc.headline_body = formatted.get("body_text", doc.body_text)
+                            ordered_docs.append(doc)
+                            
+                    return ordered_docs
+            except Exception as exc:
+                logger.warning("Meilisearch search failed, falling back to Postgres: %s", exc)
+
+        # 2. Postgres FTS / Trigram fallback paths
+        search_query = SearchQuery(q, search_type="websearch")
         base_qs = SearchDocument.objects.all()
 
-        # Apply content-type filter (fast: uses the denormalized char field)
         if content_type_filter:
             base_qs = base_qs.filter(content_type_name=content_type_filter)
 
@@ -185,3 +217,4 @@ class UnifiedSearchView(generics.ListAPIView):
             .distinct()
             .order_by("-similarity")
         )
+

@@ -38,3 +38,5 @@ whitenoise[brotli]>=6.5.0
 pydantic>=2.0
 email-validator
 django-waffle>=4.1.0
+meilisearch>=0.31.0
+
