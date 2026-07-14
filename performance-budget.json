@@ -1,0 +1,27 @@
+{
+  "comment": "Performance budget thresholds. CI will fail if any metric exceeds these values.",
+  "bundle": {
+    "totalJsGzipKB": 500,
+    "singleChunkMaxKB": 200,
+    "totalCssGzipKB": 100
+  },
+  "lighthouse": {
+    "performance": 90,
+    "accessibility": 90,
+    "bestPractices": 90,
+    "seo": 90
+  },
+  "api": {
+    "endpoints": [
+      { "path": "/api/content/lessons/", "p95Ms": 500, "maxDegradationPct": 20 },
+      { "path": "/api/dashboard/", "p95Ms": 500, "maxDegradationPct": 20 },
+      { "path": "/api/leaderboard/", "p95Ms": 500, "maxDegradationPct": 20 },
+      { "path": "/api/auth/me/", "p95Ms": 200, "maxDegradationPct": 20 },
+      { "path": "/api/progress/", "p95Ms": 500, "maxDegradationPct": 20 }
+    ]
+  },
+  "database": {
+    "maxQueriesPerPageLoad": 50,
+    "nPlusOneDetection": true
+  }
+}

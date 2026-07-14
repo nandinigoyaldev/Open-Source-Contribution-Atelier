@@ -5,14 +5,7 @@ import { ChatMessage } from "./ChatMessage";
 import { ChatInput } from "./ChatInput";
 import { TypingIndicator } from "./TypingIndicator";
 import { SectionCard } from "../ui/SectionCard";
-
-function getAccessToken(): string | null {
-  try {
-    return localStorage.getItem("accessToken");
-  } catch {
-    return null;
-  }
-}
+import { getAccessToken } from "../../lib/authToken";
 
 export function ChatContainer() {
   const { user } = useAuth();

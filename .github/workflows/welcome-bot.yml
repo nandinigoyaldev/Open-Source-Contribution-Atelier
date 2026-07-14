@@ -1,4 +1,13 @@
 
+name: Welcome Bot
+
+on:
+  issues:
+    types: [opened]
+  pull_request:
+    types: [opened]
+
+
 name: Welcome First-Time Contributor
 
 name: Welcome Bot
@@ -67,6 +76,9 @@ jobs:
             | ⏰ [3-Day Stale Rule](https://github.com/nandinigoyaldev/Open-Source-Contribution-Atelier/blob/main/CONTRIBUTING.md#stale-issues) | Submit a PR or update within 3 days |
 
             ### 📚 Helpful Resources
+
+
+
             - [Contribution Guide](https://github.com/nandinigoyaldev/Open-Source-Contribution-Atelier/blob/main/CONTRIBUTING.md)
             - [Code of Conduct](https://github.com/nandinigoyaldev/Open-Source-Contribution-Atelier/blob/main/CODE_OF_CONDUCT.md)
             - [Security Policy](https://github.com/nandinigoyaldev/Open-Source-Contribution-Atelier/blob/main/SECURITY.md)

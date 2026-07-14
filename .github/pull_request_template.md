@@ -1,46 +1,56 @@
-<!-- 
-  IMPORTANT: Please review the guidelines below. 
-  PRs that do not contain proof of manual testing or do not link to a valid issue will be closed automatically.
--->
+## Description
 
-> Please checkmark if you are contributing under SSoC 2026:
-- [ ] I am a SSoC26 contributor
+<!-- Provide a clear and concise summary of your changes -->
 
-## 🏷 Required ECSOC Label
-- [ ] Add the `ECSoC26` label to this PR before merging.
+Fixes #<!-- issue number -->
 
-## 📋 Description of Changes
+## Type of Change
 
-- 
-- 
+- [ ] 🐛 Bug fix (non-breaking change which fixes an issue)
+- [ ] ✨ New feature (non-breaking change which adds functionality)
+- [ ] 💥 Breaking change (fix or feature that would cause existing functionality to not work as expected)
+- [ ] 📝 Documentation update (no code changes)
+- [ ] ⚙️ CI/CD or build pipeline change
+- [ ] ⚡ Performance optimization
+- [ ] 🛠️ Refactoring (no functional changes)
 
-## 🔗 Related Issue
-Closes #
+## Screenshots / Recordings
 
-## 🧪 Proof of Manual Testing (MANDATORY)
-<details>
-<summary><b>Click to expand and paste screenshots / logs</b></summary>
+<!-- For UI changes, paste before/after screenshots or screen recordings here. Delete this section if not applicable. -->
 
-### Visual Changes (UI/Frontend)
-<!-- Paste images/gifs here -->
+| Before | After |
+|---|---|
+| <!-- paste screenshot --> | <!-- paste screenshot --> |
 
-### API / Terminal / Test Logs
-```bash
-# Paste command output here showing the changes run successfully
-```
-</details>
+## How Has This Been Tested?
 
-## ⚙️ Verification Logs (Automated Tests)
-```bash
-# Paste verification command output here
-```
+<!-- Describe the tests that you ran to verify your changes -->
 
-## 📝 Pre-Submission Checklist
-- [ ] My PR title follows the Conventional Commits format (e.g. `feat: ...`, `fix: ...`, `docs: ...`, `refactor: ...`).
-- [ ] My branch name starts with a standard prefix (`feat/`, `fix/`, `docs/`, `refactor/`).
-- [ ] I have linked a related issue in the "Related Issue" section above.
-- [ ] I have verified that all existing tests pass and added new tests if applicable.
-- [ ] I have formatted my changes locally (`cd frontend && npm run format` and `cd backend && black . && isort .`).
-- [ ] No API keys, credentials, or sensitive configurations are committed.
+### Automated Tests
+- [ ] Backend tests pass: `cd backend && pytest`
+- [ ] Frontend tests pass: `cd frontend && npm run test`
+- [ ] Frontend builds successfully: `cd frontend && npm run build`
 
+### Manual Verification
+<!-- Describe any manual testing performed (e.g. user flow verification, edge case testing) -->
 
+## Pre-Push Checklist
+
+> [!IMPORTANT]
+> **All items below must be checked before requesting a review.** Our CI bot will automatically run the frontend build and backend tests on your PR. If CI fails, you will receive a comment explaining what went wrong.
+
+- [ ] My code follows the style guidelines of this project
+- [ ] I have performed a self-review of my own code
+- [ ] I have commented my code, particularly in hard-to-understand areas
+- [ ] I have made corresponding changes to the documentation
+- [ ] My changes generate no new warnings or console errors
+- [ ] I have run `npm run build` in `frontend/` and it completes with **0 errors**
+- [ ] I have run `pytest` in `backend/` and all tests pass
+- [ ] I have run `git diff` locally and verified my changes
+
+## Deployment Notes
+
+> [!NOTE]
+> This project is deployed on **Vercel** (Frontend) and **Hugging Face** (Backend). The CI workflow simulates both deployment environments. If your PR passes CI, it is safe to merge.
+
+<!-- Add any notes about deployment considerations, environment variables, or migration steps needed -->

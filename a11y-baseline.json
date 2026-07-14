@@ -1,0 +1,4 @@
+{
+  "comment": "This file tracks known pre-existing accessibility violations to prevent CI from failing on legacy code. Add new entries here ONLY if a violation already existed before this PR.",
+  "violations": []
+}

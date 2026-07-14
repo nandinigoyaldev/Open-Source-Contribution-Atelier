@@ -1,0 +1,262 @@
+# GraphQL Federation Schema
+# Gateway Schema - Defines the unified API
+
+type Query {
+  # Content Service
+  content(id: ID!): Content
+  contents(limit: Int, offset: Int): [Content!]!
+  modules(limit: Int, offset: Int): [Module!]!
+  module(id: ID!): Module
+  
+  # Progress Service
+  progress(userId: ID!): Progress
+  userProgress(userId: ID!, moduleId: ID!): ModuleProgress
+  
+  # User Service
+  user(id: ID!): User
+  users(limit: Int, offset: Int): [User!]!
+  me: User
+  
+  # Chat Service
+  conversations(userId: ID!): [Conversation!]!
+  messages(conversationId: ID!): [Message!]!
+  
+  # Notifications Service
+  notifications(userId: ID!): [Notification!]!
+  unreadCount(userId: ID!): Int!
+}
+
+type Mutation {
+  # Content Service
+  createContent(input: CreateContentInput!): Content!
+  updateContent(id: ID!, input: UpdateContentInput!): Content!
+  deleteContent(id: ID!): Boolean!
+  
+  # Progress Service
+  updateProgress(input: UpdateProgressInput!): ModuleProgress!
+  completeModule(input: CompleteModuleInput!): ModuleProgress!
+  
+  # Chat Service
+  sendMessage(input: SendMessageInput!): Message!
+  createConversation(input: CreateConversationInput!): Conversation!
+  
+  # Notifications Service
+  markAsRead(id: ID!): Notification!
+  markAllRead: Int!
+}
+
+# ============================================================
+# Content Service Types
+# ============================================================
+
+type Content @key(fields: "id") {
+  id: ID!
+  title: String!
+  description: String!
+  type: ContentType!
+  modules: [Module!]!
+  createdAt: String!
+  updatedAt: String!
+}
+
+type Module @key(fields: "id") {
+  id: ID!
+  title: String!
+  description: String!
+  contentId: ID!
+  content: Content
+  lessons: [Lesson!]!
+  order: Int!
+  duration: Int!
+  createdAt: String!
+  updatedAt: String!
+}
+
+type Lesson @key(fields: "id") {
+  id: ID!
+  title: String!
+  content: String!
+  moduleId: ID!
+  module: Module
+  order: Int!
+  duration: Int!
+  type: LessonType!
+  createdAt: String!
+  updatedAt: String!
+}
+
+enum ContentType {
+  COURSE
+  TUTORIAL
+  ARTICLE
+  VIDEO
+}
+
+enum LessonType {
+  TEXT
+  VIDEO
+  QUIZ
+  CODING
+  ASSIGNMENT
+}
+
+# ============================================================
+# Progress Service Types
+# ============================================================
+
+type Progress @key(fields: "userId") {
+  userId: ID!
+  user: User
+  modules: [ModuleProgress!]!
+  overallProgress: Float!
+  streak: Int!
+  totalPoints: Int!
+  completedModules: Int!
+  inProgressModules: Int!
+  badges: [Badge!]!
+  lastActivity: String!
+  createdAt: String!
+  updatedAt: String!
+}
+
+type ModuleProgress @key(fields: "userId moduleId") {
+  userId: ID!
+  moduleId: ID!
+  module: Module
+  completed: Boolean!
+  progress: Float!
+  lessonsCompleted: Int!
+  totalLessons: Int!
+  startedAt: String!
+  completedAt: String
+  lastAttemptAt: String!
+  score: Float
+}
+
+type Badge @key(fields: "id") {
+  id: ID!
+  name: String!
+  description: String!
+  icon: String!
+  unlocked: Boolean!
+  unlockedAt: String
+}
+
+# ============================================================
+# User Service Types
+# ============================================================
+
+type User @key(fields: "id") {
+  id: ID!
+  username: String!
+  email: String!
+  firstName: String!
+  lastName: String!
+  avatar: String
+  role: UserRole!
+  isActive: Boolean!
+  joinedAt: String!
+  lastLogin: String
+  progress: Progress
+}
+
+enum UserRole {
+  ADMIN
+  MODERATOR
+  MENTOR
+  CONTRIBUTOR
+  VIEWER
+}
+
+# ============================================================
+# Chat Service Types
+# ============================================================
+
+type Conversation @key(fields: "id") {
+  id: ID!
+  participants: [User!]!
+  lastMessage: Message
+  unreadCount: Int!
+  createdAt: String!
+  updatedAt: String!
+}
+
+type Message @key(fields: "id") {
+  id: ID!
+  conversationId: ID!
+  conversation: Conversation
+  senderId: ID!
+  sender: User
+  content: String!
+  read: Boolean!
+  readAt: String
+  createdAt: String!
+}
+
+# ============================================================
+# Notifications Service Types
+# ============================================================
+
+type Notification @key(fields: "id") {
+  id: ID!
+  userId: ID!
+  user: User
+  type: NotificationType!
+  title: String!
+  message: String!
+  read: Boolean!
+  data: JSON
+  createdAt: String!
+  readAt: String
+}
+
+enum NotificationType {
+  BADGE_UNLOCKED
+  LESSON_COMPLETED
+  MODULE_COMPLETED
+  CERTIFICATE_GENERATED
+  MENTOR_MESSAGE
+  SYSTEM
+}
+
+# ============================================================
+# Input Types
+# ============================================================
+
+input CreateContentInput {
+  title: String!
+  description: String!
+  type: ContentType!
+}
+
+input UpdateContentInput {
+  title: String
+  description: String
+}
+
+input UpdateProgressInput {
+  moduleId: ID!
+  lessonId: ID!
+  completed: Boolean!
+  score: Float
+}
+
+input CompleteModuleInput {
+  moduleId: ID!
+}
+
+input SendMessageInput {
+  conversationId: ID!
+  content: String!
+}
+
+input CreateConversationInput {
+  participantIds: [ID!]!
+  initialMessage: String!
+}
+
+# ============================================================
+# Scalars
+# ============================================================
+
+scalar JSON

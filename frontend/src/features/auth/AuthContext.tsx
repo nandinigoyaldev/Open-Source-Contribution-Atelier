@@ -1,12 +1,13 @@
+// @refresh reset
 /* eslint-disable react-refresh/only-export-components */
 import React, {
   createContext,
   useContext,
-  useState,
   useEffect,
   useCallback,
 } from "react";
-import { fetchApi } from "../../lib/api";
+import { useAppDispatch, useAppSelector } from "../../store/hooks";
+import { checkUser, loginTokens, logoutAction } from "./authSlice";
 
 type User = {
   id: number;
@@ -21,6 +22,7 @@ type User = {
   twitter_url?: string;
   linkedin_url?: string;
   github_url?: string;
+  receive_weekly_digest?: boolean;
 };
 
 type AuthContextType = {
@@ -35,108 +37,40 @@ type AuthContextType = {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 export function AuthProvider({ children }: { children: React.ReactNode }) {
-  const [user, setUser] = useState<User | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-
-  function safeGetItem(key: string): string | null {
-    try {
-      return localStorage.getItem(key);
-    } catch {
-      return null;
-    }
-  }
-  function sanitizeStorageData(value: string): string {
-    if (!value) return value;
-    return value
-      .replace(/&/g, "&amp;")
-      .replace(/</g, "&lt;")
-      .replace(/>/g, "&gt;")
-      .replace(/"/g, "&quot;")
-      .replace(/'/g, "&#x27;");
-  }
-
-  function safeSetItem(key: string, value: string) {
-    try {
-      localStorage.setItem(key, sanitizeStorageData(value));
-    } catch {
-      /* localStorage unavailable */
-    }
-  }
-  function safeRemoveItem(key: string) {
-    try {
-      localStorage.removeItem(key);
-    } catch {
-      /* localStorage unavailable */
-    }
-  }
+  const dispatch = useAppDispatch();
+  const { user, isAuthenticated, isLoading } = useAppSelector(
+    (state) => state.auth,
+  );
 
   const login = (tokens: { access: string; refresh: string }) => {
-    safeSetItem("accessToken", tokens.access);
-    safeSetItem("refreshToken", tokens.refresh);
-    checkUser();
+    dispatch(loginTokens(tokens));
+    dispatch(checkUser());
   };
 
   const logout = async () => {
     try {
-      if ("serviceWorker" in navigator && "PushManager" in window) {
-        const reg = await navigator.serviceWorker.ready;
-        const sub = await reg.pushManager.getSubscription();
-        if (sub) {
-          const endpoint = sub.endpoint;
-          await sub.unsubscribe();
-          try {
-            await fetchApi("/notifications/push/unsubscribe/", {
-              method: "POST",
-              requireAuth: true,
-              body: JSON.stringify({ endpoint }),
-            });
-          } catch (e) {
-            console.error("Failed to notify backend of push unsubscribe", e);
-          }
-        }
-      }
-    } catch (e) {
-      console.error("Error unsubscribing push on logout", e);
-    }
-
-    safeRemoveItem("accessToken");
-    safeRemoveItem("refreshToken");
-    setUser(null);
+      sessionStorage.setItem("userLoggedOut", "true");
+    } catch (e) {}
+    dispatch(logoutAction());
   };
 
-  const checkUser = useCallback(async () => {
-    try {
-      const token = safeGetItem("accessToken");
-      if (!token) {
-        setUser(null);
-        return;
-      }
-
-      try {
-        const data = await fetchApi("/auth/me/");
-        setUser(data);
-      } catch {
-        setUser(null);
-      }
-    } catch {
-      setUser(null);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+  const performCheckUser = useCallback(async () => {
+    dispatch(checkUser());
+  }, [dispatch]);
 
   useEffect(() => {
-    checkUser();
-  }, [checkUser]);
+    performCheckUser();
+  }, [performCheckUser]);
+
   return (
     <AuthContext.Provider
       value={{
         user,
-        isAuthenticated: !!user,
+        isAuthenticated,
         isLoading,
         login,
         logout,
-        checkUser,
+        checkUser: performCheckUser,
       }}
     >
       {children}

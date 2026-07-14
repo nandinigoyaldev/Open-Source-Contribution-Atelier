@@ -1,9 +1,11 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { RotateCcw, Terminal, ChevronRight } from "lucide-react";
+import { RotateCcw, Terminal, ChevronRight, BookOpen } from "lucide-react";
 import { useGitShell } from "../../hooks/useGitShell";
 import type { TerminalLine } from "../../hooks/useGitShell";
+import { useTerminalAutocomplete } from "../../hooks/useTerminalAutocomplete";
 import { useFailureAnimation } from "../../hooks/useFailureAnimation";
 import { Textarea } from "./Textarea";
+import { GitCheatSheet } from "./GitCheatSheet";
 
 interface GitTerminalProps {
   /** Called when a lesson-objective command succeeds */
@@ -57,6 +59,8 @@ export function GitTerminal({
   const [inputVal, setInputVal] = useState("");
   const [editorVal, setEditorVal] = useState("");
   const [completed, setCompleted] = useState(false);
+  const [showCheatSheet, setShowCheatSheet] = useState(false);
+  const [liveMsg, setLiveMsg] = useState("");
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -77,9 +81,20 @@ export function GitTerminal({
     closeEditor,
   } = useGitShell({ onObjectiveComplete: handleComplete });
 
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const { suggestions, selectedIndex, setSelectedIndex } =
+    useTerminalAutocomplete(inputVal, shellState);
+
+  useEffect(() => {
+    if (suggestions.length > 0 && inputVal.trim().length > 0) {
+      setShowSuggestions(true);
+    } else {
+      setShowSuggestions(false);
+    }
+  }, [suggestions, inputVal]);
+
   useEffect(() => {
     if (shellState.editorState) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       setEditorVal(shellState.editorState.content);
     }
   }, [shellState.editorState]);
@@ -107,13 +122,99 @@ export function GitTerminal({
     e.preventDefault();
     if (!inputVal.trim() || isExecuting) return;
     setIsExecuting(true);
+    setShowSuggestions(false);
     await new Promise((resolve) => setTimeout(resolve, 800));
     runCmd(inputVal);
     setInputVal("");
     setIsExecuting(false);
   };
 
+  const clearTerminal = useCallback(() => {
+    resetShell();
+    setCompleted(false);
+    setInputVal("");
+    setShowSuggestions(false);
+    setLiveMsg("Terminal cleared.");
+    inputRef.current?.focus();
+  }, [resetShell]);
+
+  const copyTerminalText = useCallback(async () => {
+    // Best-effort: copy rendered terminal lines (excluding nano editor UI).
+    const text = lines
+      .map((l) =>
+        l.kind === "command" ? `${l.prompt ?? "~"}$ ${l.text}` : l.text,
+      )
+      .join("\n");
+    try {
+      await navigator.clipboard.writeText(text);
+      setLiveMsg("Terminal output copied to clipboard.");
+    } catch {
+      // Clipboard may be blocked; do not fail hard for screen reader users.
+      setLiveMsg("Unable to copy terminal output to clipboard.");
+    }
+  }, [lines]);
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // Allow standard Tab/keyboard traversal when no suggestions are being displayed.
+
+    // Ctrl+L clears the terminal (override browser "clear URL bar" behavior)
+    if (e.ctrlKey && e.key.toLowerCase() === "l") {
+      e.preventDefault();
+      clearTerminal();
+      return;
+    }
+
+    // Ctrl+Shift+C copies terminal text
+    if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === "c") {
+      e.preventDefault();
+      void copyTerminalText();
+      return;
+    }
+
+    // Ctrl+R resets the shell
+    if (e.ctrlKey && e.key.toLowerCase() === "r") {
+      e.preventDefault();
+      clearTerminal();
+      return;
+    }
+
+    // Ctrl+/ focuses the input (defensive; input already has focus)
+    if (e.ctrlKey && e.key === "/") {
+      e.preventDefault();
+      inputRef.current?.focus();
+      return;
+    }
+
+    if (showSuggestions && suggestions.length > 0) {
+      if (e.key === "ArrowUp") {
+        e.preventDefault();
+        setSelectedIndex((prev) =>
+          prev > 0 ? prev - 1 : suggestions.length - 1,
+        );
+        return;
+      }
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        setSelectedIndex((prev) =>
+          prev < suggestions.length - 1 ? prev + 1 : 0,
+        );
+        return;
+      }
+      if (e.key === "Tab") {
+        e.preventDefault();
+        setInputVal(suggestions[selectedIndex].completionText);
+        return;
+      }
+      if (e.key === "Escape") {
+        e.preventDefault();
+        setShowSuggestions(false);
+        return;
+      }
+    } else if (e.key === "Tab") {
+      // If suggestions are not open, keep default Tab behavior.
+      return;
+    }
+
     if (e.key === "ArrowUp") {
       e.preventDefault();
       navigateHistory("up");
@@ -135,7 +236,40 @@ export function GitTerminal({
   return (
     <div
       ref={termRef}
-      className="flex flex-col bg-[#0f0f1d] rounded-lg shadow-card-lg border-2 border-black"
+      tabIndex={0}
+      role="application"
+      aria-label={title}
+      className="flex flex-col bg-[#0f0f1d] rounded-lg shadow-card-lg border-2 border-black outline-none"
+      onFocus={() => {
+        if (!shellState.editorState) inputRef.current?.focus();
+      }}
+      onKeyDownCapture={(e) => {
+        // Ctrl+/ focuses the terminal input even when focus is on other elements
+        if (e.ctrlKey && e.key === "/" && !shellState.editorState) {
+          e.preventDefault();
+          inputRef.current?.focus();
+          return;
+        }
+
+        // Terminal-level shortcuts (work even if wrapper has focus)
+        if (!shellState.editorState) {
+          if (e.ctrlKey && e.key.toLowerCase() === "l") {
+            e.preventDefault();
+            clearTerminal();
+            return;
+          }
+          if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === "c") {
+            e.preventDefault();
+            void copyTerminalText();
+            return;
+          }
+          if (e.ctrlKey && e.key.toLowerCase() === "r") {
+            e.preventDefault();
+            clearTerminal();
+            return;
+          }
+        }
+      }}
     >
       {/* ── Title bar ─────────────────────────────────────────────── */}
       <div className="flex items-center justify-between px-4 py-2 bg-[#1a1a2e] border-b-4 border-black dark:border-[#2e2924]">
@@ -154,6 +288,14 @@ export function GitTerminal({
             {xp} XP
           </span>
           <button
+            onClick={() => setShowCheatSheet(true)}
+            title="Git Cheat Sheet"
+            className="text-gray-400 hover:text-white transition-colors p-1 rounded flex items-center gap-1 text-xs"
+          >
+            <BookOpen size={13} />
+            <span className="hidden sm:inline">Cheat Sheet</span>
+          </button>
+          <button
             onClick={handleReset}
             title="Reset terminal"
             className="text-gray-400 hover:text-white transition-colors p-1 rounded"
@@ -163,7 +305,13 @@ export function GitTerminal({
         </div>
       </div>
 
+      {/* ARIA live announcements for assistive tech */}
+      <div aria-live="assertive" className="sr-only">
+        {liveMsg}
+      </div>
+
       {/* ── Output area / Editor Overlay ───────────────────────────── */}
+
       {shellState.editorState ? (
         <div className="bg-[#1e1e1e] min-h-[260px] max-h-[380px] p-0 flex flex-col relative">
           <div className="bg-gray-800 text-gray-300 text-xs px-3 py-1 font-mono flex justify-between items-center border-b border-gray-700">
@@ -248,14 +396,48 @@ export function GitTerminal({
       {!shellState.editorState && (
         <form
           onSubmit={handleSubmit}
-          className="flex items-center gap-2 bg-[#0f0f1d] border-t-4 border-black dark:border-[#2e2924] px-4 py-3"
+          className="flex items-center gap-2 bg-[#0f0f1d] border-t-4 border-black dark:border-[#2e2924] px-4 py-3 relative"
         >
+          {showSuggestions && suggestions.length > 0 && (
+            <div className="absolute bottom-full left-10 mb-2 w-72 max-h-48 overflow-y-auto bg-[#1a1a2e] border border-gray-700/50 rounded-lg shadow-2xl z-50 flex flex-col custom-scrollbar">
+              {suggestions.map((s, i) => (
+                <div
+                  key={s.text}
+                  className={`px-3 py-2 flex justify-between items-center text-sm font-mono cursor-pointer transition-all duration-200 ${
+                    i === selectedIndex
+                      ? "bg-emerald-500/20 text-emerald-300 border-l-2 border-emerald-400"
+                      : "text-gray-400 hover:bg-white/5 border-l-2 border-transparent"
+                  }`}
+                  onClick={() => {
+                    setInputVal(s.completionText);
+                    inputRef.current?.focus();
+                  }}
+                >
+                  <div className="flex items-center gap-2">
+                    {s.type === "dir" ? (
+                      <span className="text-blue-400">📁</span>
+                    ) : s.type === "file" ? (
+                      <span className="text-gray-400">📄</span>
+                    ) : (
+                      <span className="text-emerald-400">⚡</span>
+                    )}
+                    <span>{s.text}</span>
+                  </div>
+                  {s.description && (
+                    <span className="text-xs text-gray-500 opacity-70">
+                      {s.description}
+                    </span>
+                  )}
+                </div>
+              ))}
+            </div>
+          )}
           <ChevronRight size={14} className="text-emerald-400 shrink-0" />
           <input
             ref={inputRef}
             id="git-terminal-input"
-            aria-label="Enter git command"
-            className="flex-1 bg-transparent font-mono text-sm text-white outline-none placeholder:text-gray-600 caret-emerald-400"
+            aria-label="Git terminal input"
+            className="flex-1 bg-transparent font-mono text-sm text-white outline-none placeholder:text-gray-600 caret-emerald-400 focus-visible:ring-2 focus-visible:ring-emerald-400 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0f0f1d] focus-visible:outline-none"
             placeholder={
               completed
                 ? "✅ Objective done – try more commands freely!"
@@ -289,6 +471,13 @@ export function GitTerminal({
           </button>
         </form>
       )}
+
+      {/* ── Git Cheat Sheet Modal ─────────────────────────────────── */}
+      <GitCheatSheet
+        isOpen={showCheatSheet}
+        onClose={() => setShowCheatSheet(false)}
+        onInsertCommand={(command) => setInputVal(command)}
+      />
     </div>
   );
 }

@@ -33,6 +33,13 @@ class SignupSerializer(serializers.ModelSerializer):
         model = User
         fields = ("id", "username", "email", "password")
 
+    def validate_username(self, value):
+        """Reject duplicate usernames using a case-insensitive comparison."""
+        normalized = value.strip()
+        if User.objects.filter(username__iexact=normalized).exists():
+            raise serializers.ValidationError("Username is already taken.")
+        return normalized
+
     def validate_email(self, value):
         """Reject signup if the email address is already registered (case-insensitive)."""
         normalized = value.strip().lower()
@@ -58,6 +65,7 @@ class UserUpdateSerializer(serializers.ModelSerializer):
     twitter_url = serializers.URLField(required=False, allow_blank=True)
     linkedin_url = serializers.URLField(required=False, allow_blank=True)
     github_url = serializers.URLField(required=False, allow_blank=True)
+    bio = serializers.CharField(required=False, allow_blank=True)
 
     class Meta:
         model = User
@@ -70,6 +78,7 @@ class UserUpdateSerializer(serializers.ModelSerializer):
             "twitter_url",
             "linkedin_url",
             "github_url",
+            "bio",
         )
         extra_kwargs = {
             "email": {"required": False},
@@ -93,14 +102,15 @@ class UserUpdateSerializer(serializers.ModelSerializer):
         twitter_url = validated_data.pop("twitter_url", None)
         linkedin_url = validated_data.pop("linkedin_url", None)
         github_url = validated_data.pop("github_url", None)
+        bio = validated_data.pop("bio", None)
 
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         if password:
             instance.set_password(password)
-            if hasattr(instance, "profile"):
-                instance.profile.last_password_change = timezone.now()
-                instance.profile.save(update_fields=["last_password_change"])
+            if hasattr(instance, "user_profile"):
+                instance.user_profile.last_password_change = timezone.now()
+                instance.user_profile.save(update_fields=["last_password_change"])
         instance.save()
 
         if (
@@ -110,6 +120,7 @@ class UserUpdateSerializer(serializers.ModelSerializer):
             or twitter_url is not None
             or linkedin_url is not None
             or github_url is not None
+            or bio is not None
         ):
             from apps.accounts.models import UserProfile
 
@@ -126,6 +137,8 @@ class UserUpdateSerializer(serializers.ModelSerializer):
                 profile.linkedin_url = linkedin_url
             if github_url is not None:
                 profile.github_url = github_url
+            if bio is not None:
+                profile.bio = bio
             profile.save()
 
         return instance
@@ -155,39 +168,39 @@ class UserListSerializer(serializers.ModelSerializer):
         )
 
     def get_avatar_url(self, obj):
-        if hasattr(obj, "profile") and obj.profile.avatar:
+        if hasattr(obj, "user_profile") and obj.user_profile.avatar:
             request = self.context.get("request")
             if request:
-                return request.build_absolute_uri(obj.profile.avatar.url)
-            return obj.profile.avatar.url
+                return request.build_absolute_uri(obj.user_profile.avatar.url)
+            return obj.user_profile.avatar.url
         return None
 
     def get_cover_image_url(self, obj):
-        if hasattr(obj, "profile") and obj.profile.cover_image:
+        if hasattr(obj, "user_profile") and obj.user_profile.cover_image:
             request = self.context.get("request")
             if request:
-                return request.build_absolute_uri(obj.profile.cover_image.url)
-            return obj.profile.cover_image.url
+                return request.build_absolute_uri(obj.user_profile.cover_image.url)
+            return obj.user_profile.cover_image.url
         return None
 
     def get_timezone(self, obj):
-        if hasattr(obj, "profile"):
-            return obj.profile.timezone
+        if hasattr(obj, "user_profile"):
+            return obj.user_profile.timezone
         return "UTC"
 
     def get_twitter_url(self, obj):
-        if hasattr(obj, "profile") and obj.profile.twitter_url:
-            return obj.profile.twitter_url
+        if hasattr(obj, "user_profile") and obj.user_profile.twitter_url:
+            return obj.user_profile.twitter_url
         return ""
 
     def get_linkedin_url(self, obj):
-        if hasattr(obj, "profile") and obj.profile.linkedin_url:
-            return obj.profile.linkedin_url
+        if hasattr(obj, "user_profile") and obj.user_profile.linkedin_url:
+            return obj.user_profile.linkedin_url
         return ""
 
     def get_github_url(self, obj):
-        if hasattr(obj, "profile") and obj.profile.github_url:
-            return obj.profile.github_url
+        if hasattr(obj, "user_profile") and obj.user_profile.github_url:
+            return obj.user_profile.github_url
         return ""
 
 
@@ -205,8 +218,8 @@ class EmailOrUsernameTokenObtainPairSerializer(TokenObtainPairSerializer):
 
         result = super().validate(attrs)
 
-        if hasattr(self.user, "profile") and self.user.profile.last_password_change:
-            if timezone.now() > self.user.profile.last_password_change + timedelta(
+        if hasattr(self.user, "user_profile") and self.user.user_profile.last_password_change:
+            if timezone.now() > self.user.user_profile.last_password_change + timedelta(
                 days=90
             ):
                 raise AuthenticationFailed(

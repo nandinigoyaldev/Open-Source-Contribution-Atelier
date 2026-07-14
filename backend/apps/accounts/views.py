@@ -1,5 +1,6 @@
 import os
 import secrets
+from pathlib import Path
 from typing import Optional
 from urllib.parse import urlencode
 
@@ -12,7 +13,15 @@ from django.shortcuts import redirect
 from django.utils import timezone
 from django.utils.text import slugify
 from django_filters.rest_framework import DjangoFilterBackend
-from drf_spectacular.utils import OpenApiResponse, extend_schema, extend_schema_view
+from django_q.tasks import async_task
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import (
+    OpenApiExample,
+    OpenApiParameter,
+    OpenApiResponse,
+    extend_schema,
+    extend_schema_view,
+)
 from rest_framework import filters, generics, permissions, status
 from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.permissions import IsAuthenticated
@@ -42,7 +51,6 @@ from .tasks import (
     send_otp_email_task,
     send_password_reset_email_task,
 )
-from django_q.tasks import async_task
 from .throttles import (
     LoginThrottle,
     MagicLinkRequestThrottle,
@@ -59,15 +67,16 @@ from .throttles import (
 )
 
 
+def username_from_value(value: str) -> str:
+    """Return a normalized username candidate from a GitHub login or email."""
+    return slugify(value.split("@")[0]) or "user"
+
+
 def unique_username_from_value(value: str) -> str:
-    base = slugify(value.split("@")[0]) or "user"
-    candidate = base
-    suffix = 1
-
-    while User.objects.filter(username=candidate).exists():
-        candidate = f"{base}{suffix}"
-        suffix += 1
-
+    """Return a username candidate, raising when it is already in use."""
+    candidate = username_from_value(value)
+    if User.objects.filter(username__iexact=candidate).exists():
+        raise ValueError("Username is already taken.")
     return candidate
 
 
@@ -91,6 +100,56 @@ class SignupView(generics.CreateAPIView):
     throttle_classes = [SignupThrottle]
 
 
+@extend_schema(
+    summary="Register a new user",
+    description="Create a new user account with username, email, and password",
+    request=UserCreateSchema,
+    responses={
+        201: OpenApiResponse(description="User created successfully"),
+        400: OpenApiResponse(description="Validation error"),
+    },
+    examples=[
+        OpenApiExample(
+            name="Valid Registration",
+            value={
+                "username": "johndoe",
+                "email": "john@example.com",
+                "password": "SecurePass123",
+            },
+        )
+    ],
+)
+def register(request):
+    pass
+
+
+@extend_schema(
+    summary="Login user",
+    description="Authenticate user and return JWT token",
+    request=UserLoginSchema,
+    responses={
+        200: OpenApiResponse(
+            description="Login successful", response=LoginResponseSchema
+        ),
+        401: OpenApiResponse(description="Invalid credentials"),
+    },
+)
+def login(request):
+    pass
+
+
+@extend_schema(
+    summary="Get user profile",
+    description="Returns current user profile information",
+    responses={
+        200: UserProfileSchema,
+        401: OpenApiResponse(description="Unauthorized"),
+    },
+)
+def get_profile(request):
+    pass
+
+
 class MeView(APIView):
     permission_classes = [IsAuthenticated]  # check jwt authentication
 
@@ -107,8 +166,8 @@ class MeView(APIView):
         serializer.is_valid(raise_exception=True)
         instance = serializer.save()
         instance.refresh_from_db()
-        if hasattr(instance, "profile"):
-            instance.profile.refresh_from_db()
+        if hasattr(instance, "user_profile"):
+            instance.user_profile.refresh_from_db()
         response_serializer = UserListSerializer(instance, context={"request": request})
         return Response(response_serializer.data)
 
@@ -351,10 +410,24 @@ class GitHubOAuthCallbackView(APIView):
                 )
 
             user = User.objects.filter(email__iexact=email).first()
+            username_source = github_user.get("login") or email
+            github_username = username_from_value(username_source)
+
+            username_conflict = User.objects.filter(
+                username__iexact=github_username
+            )
+            if user is not None:
+                username_conflict = username_conflict.exclude(pk=user.pk)
+
+            if username_conflict.exists():
+                return Response(
+                    {"detail": "Username is already taken."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
             if not user:
-                username_source = github_user.get("login") or email
                 user = User.objects.create_user(
-                    username=unique_username_from_value(username_source),
+                    username=github_username,
                     email=email,
                     password=secrets.token_urlsafe(24),
                 )
@@ -380,7 +453,7 @@ from .permissions import IsAdminOrModeratorRole
 
 @extend_schema(responses=UserListSerializer(many=True))
 class UserListView(generics.ListAPIView):
-    queryset = User.objects.all().order_by("id")
+    queryset = User.objects.select_related("profile").order_by("id")
     permission_classes = [permissions.IsAuthenticated, IsAdminOrModeratorRole]
     serializer_class = UserListSerializer
     pagination_class = LimitOffsetPagination
@@ -499,9 +572,9 @@ class PasswordResetConfirmView(APIView):
 
         user = reset_token.user
         user.set_password(new_password)
-        if hasattr(user, "profile"):
-            user.profile.last_password_change = timezone.now()
-            user.profile.save(update_fields=["last_password_change"])
+        if hasattr(user, "user_profile"):
+            user.user_profile.last_password_change = timezone.now()
+            user.user_profile.save(update_fields=["last_password_change"])
         user.save()
 
         reset_token.is_used = True
@@ -884,22 +957,26 @@ class LearningPathView(APIView):
         BadgeEvaluator.evaluate(user)
 
         # 2. Load curriculum modules
-        curriculum_path = os.path.join(
-            settings.BASE_DIR, "..", "frontend", "public", "content", "curriculum.json"
-        )
+        curriculum_path = Path(getattr(settings, "CURRICULUM_JSON_PATH", "")).resolve()
 
-        if not os.path.exists(curriculum_path):
+        if not curriculum_path.exists():
             return Response(
-                {"error": f"Curriculum file not found at {curriculum_path}"},
+                {
+                    "error": "Curriculum configuration file not found.",
+                    "detail": f"Expected at {curriculum_path}",
+                },
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
 
         with open(curriculum_path, "r", encoding="utf-8") as f:
             try:
                 curriculum_data = json.load(f)
-            except json.JSONDecodeError:
+            except json.JSONDecodeError as e:
                 return Response(
-                    {"error": "Failed to parse curriculum content"},
+                    {
+                        "error": "Failed to parse curriculum content.",
+                        "detail": str(e),
+                    },
                     status=status.HTTP_500_INTERNAL_SERVER_ERROR,
                 )
 

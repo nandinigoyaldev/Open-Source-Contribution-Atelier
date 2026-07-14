@@ -2,7 +2,7 @@ import json
 import logging
 
 from django.conf import settings
-from django.core.mail import send_mail
+from django.core.mail import EmailMultiAlternatives
 from pywebpush import WebPushException, webpush  # type: ignore
 
 from .models import PushSubscription
@@ -53,7 +53,9 @@ def send_web_push_notification(user_id, title, message, url=None):
             else:
                 logger.warning("Web push failed for subscription %s: %s", sub.id, ex)
         except Exception as exc:
-            logger.warning("Unexpected error sending web push to user %s: %s", user_id, exc)
+            logger.warning(
+                "Unexpected error sending web push to user %s: %s", user_id, exc
+            )
 
 
 def send_bulk_email(payload):
@@ -69,21 +71,33 @@ def send_bulk_email(payload):
 
     subject = "Open Source Contribution Atelier Update"
     message = "You have an update from OSCA."
+    html_message = None
+    pdf_attachment = None
 
     if template_id == "weekly_progress_summary":
-        subject = "Your Weekly Progress Summary"
-        message = (
-            f"Hi {data.get('username')},\n\n"
-            f"Here is your progress over the last 7 days:\n"
-            f"- Lessons completed: {data.get('lessons_completed', 0)}\n"
-            f"- XP earned: {data.get('xp_earned', 0)}\n"
-            f"- Badges earned: {data.get('badges_earned', 0)}\n"
-        )
-        if data.get("badge_names"):
-            badges_str = ", ".join(data["badge_names"])
-            message += f"- New badges: {badges_str}\n"
+        subject = f"Your Weekly Progress Summary, {data.get('username')} 📊"
+        if data.get('xp_earned', 0) > 0:
+            subject = f"Wow, {data['xp_earned']} XP this week, {data['username']}! 🚀"
+        elif data.get('current_streak', 0) > 0:
+            subject = f"Don't lose your {data['current_streak']}-day streak, {data['username']}! 🔥"
+            
+        from django.template.loader import render_to_string
+        from django.utils.html import strip_tags
+        from apps.progress.services.pdf_report_service import PDFReportGenerator
+        from django.contrib.auth import get_user_model
 
-        message += "\nKeep up the great work!\n"
+        User = get_user_model()
+        user_email = recipients[0] if recipients else None
+        
+        html_message = render_to_string('notifications/weekly_digest.html', data)
+        message = strip_tags(html_message)
+        
+        # Generate PDF attachment if a single user is matched
+        if user_email:
+            user = User.objects.filter(email=user_email).first()
+            if user:
+                pdf_gen = PDFReportGenerator(user)
+                pdf_attachment = pdf_gen.generate()
 
     elif template_id == "badge_earned_email":
         badge_name = data.get("badge_name", "")
@@ -95,10 +109,17 @@ def send_bulk_email(payload):
             "Keep up the great work!"
         )
 
-    send_mail(
+    from_email = getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@atelier.dev")
+    email = EmailMultiAlternatives(
         subject=subject,
-        message=message,
-        from_email=getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@atelier.dev"),
-        recipient_list=recipients,
-        fail_silently=False,
+        body=message,
+        from_email=from_email,
+        to=recipients
     )
+    if html_message:
+        email.attach_alternative(html_message, "text/html")
+    
+    if pdf_attachment:
+        email.attach("OSCA_Progress_Report.pdf", pdf_attachment, "application/pdf")
+
+    email.send(fail_silently=False)

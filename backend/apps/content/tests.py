@@ -1,7 +1,7 @@
 import pytest
 from rest_framework.test import APIClient
 
-from apps.content.models import Lesson
+from apps.content.models import Lesson, LessonFeedback
 
 
 @pytest.mark.django_db
@@ -163,3 +163,499 @@ def test_cascade_user_deletion_hard_deletes_comments():
     # it would update and hit IntegrityError due to missing user.
     # We must ensure it's deleted.
     assert Comment.all_objects.count() == 0
+
+
+from apps.content.utils import calculate_reading_time, strip_markdown
+
+
+def test_strip_markdown():
+    # Headers and basics
+    assert strip_markdown("# Header 1\n## Header 2\nBody text").split() == [
+        "Header",
+        "1",
+        "Header",
+        "2",
+        "Body",
+        "text",
+    ]
+
+    # Links and images
+    assert strip_markdown(
+        "Check out [Google](https://google.com) and ![alt](img.jpg)"
+    ).split() == ["Check", "out", "Google", "and", "alt"]
+
+    # Code blocks and inline code
+    assert strip_markdown(
+        "Here is `inline code` and:\n```python\nprint('hello')\n```"
+    ).split() == ["Here", "is", "inline", "code", "and:", "print('hello')"]
+
+
+@pytest.mark.django_db
+def test_reading_time_calculation():
+    # Empty content
+    lesson_empty = Lesson.objects.create(
+        title="Empty", slug="empty", content="", difficulty="beginner"
+    )
+    assert lesson_empty.reading_time == 1
+
+    # None content check (safeguard)
+    assert calculate_reading_time(None) == 1
+
+    # Short content (< 200 words)
+    lesson_short = Lesson.objects.create(
+        title="Short", slug="short", content="Word " * 100, difficulty="beginner"
+    )
+    assert lesson_short.reading_time == 1
+
+    # Exactly 200 words
+    lesson_200 = Lesson.objects.create(
+        title="200 Words", slug="w-200", content="Word " * 200, difficulty="beginner"
+    )
+    assert lesson_200.reading_time == 1
+
+    # 201 words
+    lesson_201 = Lesson.objects.create(
+        title="201 Words", slug="w-201", content="Word " * 201, difficulty="beginner"
+    )
+    assert lesson_201.reading_time == 2
+
+    # Long content (e.g. 500 words)
+    lesson_long = Lesson.objects.create(
+        title="Long", slug="long", content="Word " * 500, difficulty="beginner"
+    )
+    assert lesson_long.reading_time == 3  # ceil(500/200) = 3
+
+
+@pytest.mark.django_db
+def test_lesson_api_includes_reading_time():
+    lesson = Lesson.objects.create(
+        title="API Test Lesson",
+        slug="api-test",
+        content="Word " * 250,  # 250 words -> 2 mins
+        difficulty="beginner",
+        estimated_minutes=10,
+    )
+    client = APIClient()
+
+    # Verify GET lesson detail contains readingTime (due to CamelCaseModelSerializer)
+    response = client.get(f"/api/content/lessons/{lesson.id}/")
+    assert response.status_code == 200
+    assert "readingTime" in response.data
+    assert response.data["readingTime"] == 2
+
+    # Verify GET lesson list contains readingTime
+    response_list = client.get("/api/content/lessons/")
+    assert response_list.status_code == 200
+    assert len(response_list.data) > 0
+    # Find our lesson in list response
+    found = False
+    for l in response_list.data:
+        if l["slug"] == "api-test":
+            assert l["readingTime"] == 2
+            found = True
+    assert found
+
+
+# ---------------------- Lesson Feedback Tests ----------------------
+
+
+@pytest.mark.django_db
+def test_feedback_soft_delete():
+    from apps.content.models import LessonFeedback
+
+    User = get_user_model()
+    user = User.objects.create(username="feedback_user")
+    lesson = Lesson.objects.create(
+        title="Feedback Test",
+        slug="feedback-test",
+        content="Content",
+        difficulty="beginner",
+    )
+    feedback = LessonFeedback.objects.create(
+        user=user,
+        lesson=lesson,
+        rating=5,
+        comment="Great lesson!",
+    )
+
+    # Soft delete
+    feedback.delete()
+
+    # Should disappear from standard objects
+    assert LessonFeedback.objects.count() == 0
+    # Should still exist in all_objects
+    assert LessonFeedback.all_objects.count() == 1
+
+    # Verify is_deleted flag
+    feedback.refresh_from_db()
+    assert feedback.is_deleted is True
+
+
+@pytest.mark.django_db
+def test_feedback_restore():
+    from apps.content.models import LessonFeedback
+
+    User = get_user_model()
+    user = User.objects.create(username="feedback_restore_user")
+    lesson = Lesson.objects.create(
+        title="Restore Test",
+        slug="restore-test",
+        content="Content",
+        difficulty="beginner",
+    )
+    feedback = LessonFeedback.objects.create(
+        user=user,
+        lesson=lesson,
+        rating=4,
+    )
+
+    feedback.delete()
+    assert LessonFeedback.objects.count() == 0
+
+    # Restore
+    feedback.restore()
+    assert LessonFeedback.objects.count() == 1
+    assert LessonFeedback.objects.first().is_deleted is False
+
+
+@pytest.mark.django_db
+def test_feedback_api_create():
+    from apps.content.models import LessonFeedback
+
+    User = get_user_model()
+    user = User.objects.create(username="feedback_api_user")
+    lesson = Lesson.objects.create(
+        title="API Create Test",
+        slug="api-create-test",
+        content="Content",
+        difficulty="beginner",
+    )
+
+    client = APIClient()
+    client.force_authenticate(user=user)
+
+    response = client.post(
+        f"/api/content/lessons/{lesson.slug}/feedback/",
+        {"rating": 5, "comment": "Excellent!"},
+        format="json",
+    )
+
+    assert response.status_code == 201
+    assert LessonFeedback.objects.count() == 1
+    assert LessonFeedback.objects.first().rating == 5
+    assert LessonFeedback.objects.first().comment == "Excellent!"
+
+
+@pytest.mark.django_db
+def test_feedback_api_requires_authentication():
+    User = get_user_model()
+    user = User.objects.create(username="anon_feedback_user")
+    lesson = Lesson.objects.create(
+        title="Auth Test",
+        slug="auth-test",
+        content="Content",
+        difficulty="beginner",
+    )
+
+    client = APIClient()
+    response = client.post(
+        f"/api/content/lessons/{lesson.slug}/feedback/",
+        {"rating": 3},
+        format="json",
+    )
+
+    assert response.status_code == 401 or response.status_code == 403
+
+
+@pytest.mark.django_db
+def test_feedback_api_validation_rating_range():
+    User = get_user_model()
+    user = User.objects.create(username="rating_validation_user")
+    lesson = Lesson.objects.create(
+        title="Validation Test",
+        slug="validation-test",
+        content="Content",
+        difficulty="beginner",
+    )
+
+    client = APIClient()
+    client.force_authenticate(user=user)
+
+    # Test rating too low
+    response = client.post(
+        f"/api/content/lessons/{lesson.slug}/feedback/",
+        {"rating": 0},
+        format="json",
+    )
+    assert response.status_code == 400
+
+    # Test rating too high
+    response = client.post(
+        f"/api/content/lessons/{lesson.slug}/feedback/",
+        {"rating": 6},
+        format="json",
+    )
+    assert response.status_code == 400
+
+
+@pytest.mark.django_db
+def test_feedback_api_duplicate_prevention():
+    User = get_user_model()
+    user = User.objects.create(username="duplicate_user")
+    lesson = Lesson.objects.create(
+        title="Duplicate Test",
+        slug="duplicate-test",
+        content="Content",
+        difficulty="beginner",
+    )
+
+    LessonFeedback.objects.create(
+        user=user,
+        lesson=lesson,
+        rating=4,
+    )
+
+    client = APIClient()
+    client.force_authenticate(user=user)
+
+    response = client.post(
+        f"/api/content/lessons/{lesson.slug}/feedback/",
+        {"rating": 5},
+        format="json",
+    )
+
+    assert response.status_code == 400
+
+
+@pytest.mark.django_db
+def test_feedback_metrics_api():
+    User = get_user_model()
+    user1 = User.objects.create(username="metrics_user1")
+    user2 = User.objects.create(username="metrics_user2")
+    lesson = Lesson.objects.create(
+        title="Metrics Test",
+        slug="metrics-test",
+        content="Content",
+        difficulty="beginner",
+    )
+
+    LessonFeedback.objects.create(user=user1, lesson=lesson, rating=5)
+    LessonFeedback.objects.create(user=user2, lesson=lesson, rating=3)
+
+    client = APIClient()
+    response = client.get(f"/api/content/lessons/{lesson.slug}/feedback/metrics/")
+
+    assert response.status_code == 200
+    assert response.data["totalCount"] == 2
+    assert response.data["averageRating"] == 4.0
+    assert response.data["ratingDistribution"]["5"] == 1
+    assert response.data["ratingDistribution"]["3"] == 1
+
+
+@pytest.mark.django_db
+def test_feedback_metrics_empty_lesson():
+    lesson = Lesson.objects.create(
+        title="Empty Metrics",
+        slug="empty-metrics",
+        content="Content",
+        difficulty="beginner",
+    )
+
+    client = APIClient()
+    response = client.get(f"/api/content/lessons/{lesson.slug}/feedback/metrics/")
+
+    assert response.status_code == 200
+    assert response.data["totalCount"] == 0
+    assert response.data["averageRating"] == 0.0
+
+
+@pytest.mark.django_db
+def test_feedback_user_own_feedback():
+    User = get_user_model()
+    user = User.objects.create(username="own_feedback_user")
+    lesson = Lesson.objects.create(
+        title="Own Feedback Test",
+        slug="own-feedback-test",
+        content="Content",
+        difficulty="beginner",
+    )
+
+    LessonFeedback.objects.create(
+        user=user, lesson=lesson, rating=5, comment="Loved it!"
+    )
+
+    client = APIClient()
+    client.force_authenticate(user=user)
+
+    response = client.get(f"/api/content/lessons/{lesson.slug}/feedback/my/")
+
+    assert response.status_code == 200
+    assert response.data["rating"] == 5
+    assert response.data["comment"] == "Loved it!"
+
+
+@pytest.mark.django_db
+def test_feedback_list_api():
+    User = get_user_model()
+    user = User.objects.create(username="list_user")
+    lesson = Lesson.objects.create(
+        title="List Test",
+        slug="list-test",
+        content="Content",
+        difficulty="beginner",
+    )
+
+    LessonFeedback.objects.create(user=user, lesson=lesson, rating=5)
+
+    client = APIClient()
+    client.force_authenticate(user=user)
+
+    response = client.get(f"/api/content/lessons/{lesson.slug}/feedback/")
+
+    assert response.status_code == 200
+    assert len(response.data) == 1
+
+
+@pytest.mark.django_db
+def test_user_cannot_update_another_users_feedback():
+    User = get_user_model()
+
+    owner = User.objects.create(username="feedback_owner")
+    attacker = User.objects.create(username="other_user")
+
+    lesson = Lesson.objects.create(
+        title="Ownership Test",
+        slug="ownership-test",
+        content="Content",
+        difficulty="beginner",
+    )
+
+    feedback = LessonFeedback.objects.create(
+        user=owner,
+        lesson=lesson,
+        rating=4,
+        comment="Original comment",
+    )
+
+    client = APIClient()
+    client.force_authenticate(user=attacker)
+
+    response = client.patch(
+        f"/api/content/feedback/{feedback.id}/",
+        {
+            "rating": 1,
+            "comment": "Unauthorized update",
+        },
+        format="json",
+    )
+
+    assert response.status_code == 404
+
+    feedback.refresh_from_db()
+
+    assert feedback.rating == 4
+    assert feedback.comment == "Original comment"
+
+
+@pytest.mark.django_db
+def test_search_view_anonymous_user():
+    client = APIClient()
+    response = client.get("/api/content/search/?q=React")
+    # Should not crash (HTTP 500), but return empty results cleanly (HTTP 200)
+    assert response.status_code == 200
+    assert response.data == {"lessons": [], "challenges": []}
+
+
+@pytest.mark.django_db
+def test_semantic_search_view_anonymous_user():
+    client = APIClient()
+    response = client.get("/api/content/semantic-search/?q=React")
+    # Should not crash (HTTP 500), but return empty results cleanly (HTTP 200 or 503 if unavailable)
+    assert response.status_code in [200, 503]
+    if response.status_code == 200:
+        assert response.data == {"query": "React", "results": []}
+
+
+@pytest.mark.django_db
+def test_seed_lessons_json_output_format():
+    """Test that seed_lessons command outputs valid JSON with required fields."""
+    import json
+    from io import StringIO
+    from django.core.management import call_command
+
+    out = StringIO()
+    call_command("seed_lessons", "--format", "json", stdout=out)
+    output = out.getvalue()
+
+    # Parse JSON output
+    result = json.loads(output)
+
+    # Validate structure
+    assert "seeded" in result
+    assert "skipped" in result
+    assert "exercises_seeded" in result
+    assert "exercises_skipped" in result
+    assert "errors" in result
+    assert "total" in result
+
+    # Validate types
+    assert isinstance(result["seeded"], list)
+    assert isinstance(result["skipped"], list)
+    assert isinstance(result["exercises_seeded"], int)
+    assert isinstance(result["exercises_skipped"], int)
+    assert isinstance(result["errors"], list)
+    assert isinstance(result["total"], int)
+
+    # Validate totals
+    assert result["total"] == len(result["seeded"]) + len(result["skipped"])
+
+    # On first run, should seed all lessons and exercises
+    assert len(result["seeded"]) > 0
+    assert len(result["skipped"]) == 0
+    assert result["exercises_seeded"] > 0
+    assert result["exercises_skipped"] == 0
+    assert len(result["errors"]) == 0
+
+
+@pytest.mark.django_db
+def test_seed_lessons_idempotent_with_skip_detection():
+    """Test that running seed_lessons twice produces skipped on second run."""
+    import json
+    from io import StringIO
+    from django.core.management import call_command
+
+    # First run
+    out1 = StringIO()
+    call_command("seed_lessons", "--format", "json", stdout=out1)
+    result1 = json.loads(out1.getvalue())
+
+    first_seeded = set(result1["seeded"])
+    assert len(first_seeded) > 0
+
+    # Second run should skip all
+    out2 = StringIO()
+    call_command("seed_lessons", "--format", "json", stdout=out2)
+    result2 = json.loads(out2.getvalue())
+
+    second_skipped = set(result2["skipped"])
+    assert first_seeded == second_skipped
+    assert len(result2["seeded"]) == 0
+
+
+@pytest.mark.django_db
+def test_seed_lessons_default_format_is_text():
+    """Test that default format is human-readable text (backward compatibility)."""
+    from io import StringIO
+    from django.core.management import call_command
+
+    out = StringIO()
+    call_command("seed_lessons", stdout=out)
+    output = out.getvalue()
+
+    import json
+
+    # Should not be JSON (would fail to parse)
+    with pytest.raises(json.JSONDecodeError):
+        json.loads(output)
+    # Should contain text markers
+    assert "✓" in output or "~" in output or "Seeding complete" in output

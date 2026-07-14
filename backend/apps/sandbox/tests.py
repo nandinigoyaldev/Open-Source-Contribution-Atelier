@@ -6,6 +6,8 @@ from channels.testing import WebsocketCommunicator
 from apps.sandbox.consumers import SandboxConsumer
 from config.asgi import application
 
+
+@pytest.mark.django_db
 @pytest.mark.asyncio
 @pytest.mark.asyncio
 async def test_sandbox_websocket_consumer():
@@ -64,3 +66,23 @@ async def test_sandbox_websocket_consumer():
 
     await communicator1.disconnect()
     await communicator2.disconnect()
+
+
+def test_sandbox_security_ast_violations():
+    from apps.sandbox.resource_manager import ResourceManagementEngine, SecurityViolation
+
+    # Test dynamic lookup / builtin function assignment
+    with pytest.raises(SecurityViolation):
+        ResourceManagementEngine.analyze_ast("my_getattr = getattr")
+
+    # Test magic double underscore attribute access
+    with pytest.raises(SecurityViolation):
+        ResourceManagementEngine.analyze_ast("().__class__.__base__")
+
+    # Test double underscore string literal
+    with pytest.raises(SecurityViolation):
+        ResourceManagementEngine.analyze_ast("x = '__class__'")
+
+    # Test normal code works
+    ResourceManagementEngine.analyze_ast("x = 10\nprint(x)")
+

@@ -1,0 +1,68 @@
+name: Generate TypeScript API Types
+
+on:
+  push:
+    paths:
+      - 'backend/**'
+    branches:
+      - main
+  pull_request:
+    paths:
+      - 'backend/**'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  generate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref }}
+          
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+          
+      - name: Install backend dependencies
+        run: |
+          cd backend
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+          
+      - name: Dump OpenAPI schema
+        run: |
+          cd backend
+          python manage.py spectacular --file schema.yml
+        env:
+          DJANGO_SETTINGS_MODULE: config.settings
+          SECRET_KEY: dummy-key-for-schema-gen
+          DEBUG: 'True'
+          
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+          cache-dependency-path: 'frontend/package-lock.json'
+          
+      - name: Install openapi-typescript
+        run: npm install -g openapi-typescript
+        
+      - name: Generate TypeScript types
+        run: |
+          mkdir -p frontend/src/types
+          openapi-typescript backend/schema.yml -o frontend/src/types/api.d.ts
+          
+      - name: Auto-commit generated types
+        uses: stefanzweifel/git-auto-commit-action@v5
+        with:
+          commit_message: "chore(frontend): auto-generate API TypeScript types"
+          file_pattern: "frontend/src/types/api.d.ts"
+          commit_user_name: "github-actions[bot]"
+          commit_user_email: "github-actions[bot]@users.noreply.github.com"

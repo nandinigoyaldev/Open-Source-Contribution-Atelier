@@ -1,0 +1,41 @@
+name: Documentation Request
+description: Request improvements or additions to documentation
+title: '[DOC]: '
+labels:
+- documentation
+body:
+- type: textarea
+  id: description
+  attributes:
+    label: Description
+    description: What documentation needs to be added, updated, or clarified?
+  validations:
+    required: true
+- type: checkboxes
+  id: program
+  attributes:
+    label: Contributor Program
+    options:
+    - label: SSoC 2026
+    - label: ECSoC 2026
+- type: textarea
+  id: affected_areas
+  attributes:
+    label: Affected Areas
+    description: Specific file(s), section(s), or pages impacted by this request.
+  validations:
+    required: true
+- type: textarea
+  id: reasoning
+  attributes:
+    label: Reasoning
+    description: Why is this documentation update necessary?
+  validations:
+    required: true
+- type: textarea
+  id: context
+  attributes:
+    label: Additional Context
+    description: Add any links, references, or screenshots.
+  validations:
+    required: false

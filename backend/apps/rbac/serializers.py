@@ -4,8 +4,6 @@ from rest_framework import serializers
 from .models import AuditLog, Permission, Role, UserRole
 
 
-
-
 class PermissionSerializer(serializers.ModelSerializer):
     class Meta:
         model = Permission

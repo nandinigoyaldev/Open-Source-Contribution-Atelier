@@ -1,13 +1,24 @@
 import React, { useState, useEffect, useRef } from "react";
-import Editor from "@monaco-editor/react";
+import Editor, { Monaco } from "@monaco-editor/react";
+import type { editor } from "monaco-editor";
 import * as Y from "yjs";
 import { WebsocketProvider } from "y-websocket";
 import { MonacoBinding } from "y-monaco";
 import randomColor from "randomcolor";
-import { Play, RotateCcw, CheckCircle2, XCircle, Share2 } from "lucide-react";
+import {
+  Play,
+  RotateCcw,
+  CheckCircle2,
+  XCircle,
+  Share2,
+  Library,
+} from "lucide-react";
 import { usePythonSandbox } from "../../hooks/usePythonSandbox";
 import { PythonExercise } from "../../lib/lessons";
 import { useAuth } from "../../features/auth/AuthContext";
+import { useCodeReviews } from "../../hooks/useCodeReviews";
+import { CodeReviewPanel } from "./CodeReviewPanel";
+import { SnippetLibraryModal } from "./SnippetLibraryModal";
 
 interface CollabPythonSandboxProps {
   exercise: PythonExercise;
@@ -29,10 +40,16 @@ export function CollabPythonSandbox({
   const { runPythonCode, isExecuting, isReady } = usePythonSandbox();
   const { user } = useAuth();
 
-  const editorRef = useRef<{ getModel: () => unknown }>(null);
+  const [isLibraryOpen, setIsLibraryOpen] = useState(false);
+  const { threads, addComment, resolveThread } = useCodeReviews(roomId);
+  const [activeLine, setActiveLine] = useState<number | null>(null);
+
+  const editorRef = useRef<editor.IStandaloneCodeEditor | null>(null);
+  const monacoRef = useRef<Monaco | null>(null);
   const ydocRef = useRef<Y.Doc | null>(null);
   const providerRef = useRef<WebsocketProvider | null>(null);
   const bindingRef = useRef<MonacoBinding | null>(null);
+  const decorationsRef = useRef<string[]>([]);
 
   useEffect(() => {
     // Setup Yjs
@@ -73,8 +90,8 @@ export function CollabPythonSandbox({
     awareness.on("change", () => {
       const states = Array.from(awareness.getStates().values());
       const users = states
-        .map((state: { user?: { name: string; color: string } }) => state.user)
-        .filter(Boolean);
+        .map((state: any) => state.user)
+        .filter((u): u is { name: string; color: string } => !!u);
       setActiveUsers(users);
     });
 
@@ -86,15 +103,19 @@ export function CollabPythonSandbox({
     };
   }, [roomId, user]);
 
-  const handleEditorDidMount = (editor: { getModel: () => unknown }) => {
+  const handleEditorDidMount = (
+    editor: editor.IStandaloneCodeEditor,
+    monaco: Monaco,
+  ) => {
     editorRef.current = editor;
+    monacoRef.current = monaco;
 
     if (ydocRef.current && providerRef.current) {
       const type = ydocRef.current.getText("monaco");
 
       bindingRef.current = new MonacoBinding(
         type,
-        editor.getModel(),
+        editor.getModel()!,
         new Set([editor]),
         providerRef.current.awareness,
       );
@@ -103,7 +124,40 @@ export function CollabPythonSandbox({
         type.insert(0, exercise.starterCode);
       }
     }
+
+    // Handle glyph margin clicks for comments
+    editor.onMouseDown((e: editor.IEditorMouseEvent) => {
+      if (
+        e.target.type === monaco.editor.MouseTargetType.GUTTER_GLYPH_MARGIN &&
+        e.target.position
+      ) {
+        const lineNumber = e.target.position.lineNumber;
+        setActiveLine(lineNumber);
+      }
+    });
   };
+
+  // Update Monaco decorations for unresolved threads
+  useEffect(() => {
+    const editor = editorRef.current;
+    const monaco = monacoRef.current;
+    if (!editor || !monaco) return;
+
+    const unresolvedThreads = threads.filter((t) => !t.is_resolved);
+    const newDecorations = unresolvedThreads.map((thread) => ({
+      range: new monaco.Range(thread.line_number, 1, thread.line_number, 1),
+      options: {
+        isWholeLine: true,
+        glyphMarginClassName: "review-glyph",
+        glyphMarginHoverMessage: { value: "Code Review Comments" },
+      },
+    }));
+
+    decorationsRef.current = editor.deltaDecorations(
+      decorationsRef.current,
+      newDecorations,
+    );
+  }, [threads]);
 
   const handleRun = async () => {
     if (isExecuting || !isReady || !ydocRef.current) return;
@@ -145,6 +199,14 @@ export function CollabPythonSandbox({
     alert("Collab Session link copied to clipboard!");
   };
 
+  const handleInsertSnippet = (code: string) => {
+    if (ydocRef.current) {
+      const type = ydocRef.current.getText("monaco");
+      // Append to end of document
+      type.insert(type.length, "\n" + code + "\n");
+    }
+  };
+
   return (
     <div className="flex flex-col gap-4 w-full border-4 border-black dark:border-[#2e2924] rounded-xl overflow-hidden bg-surface dark:bg-[#151411]">
       <div className="flex flex-wrap items-center justify-between p-4 border-b-4 border-black dark:border-[#2e2924] bg-white dark:bg-[#1f1c18] gap-4">
@@ -166,6 +228,12 @@ export function CollabPythonSandbox({
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => setIsLibraryOpen(true)}
+            className="flex items-center gap-2 px-3 py-1.5 text-sm font-bold border-2 border-black dark:border-[#2e2924] rounded-lg hover:bg-gray-100 dark:hover:bg-[#2e2924] transition-colors"
+          >
+            <Library className="w-4 h-4" /> Snippets
+          </button>
           <button
             onClick={copyShareLink}
             className="flex items-center gap-2 px-3 py-1.5 text-sm font-bold border-2 border-black dark:border-[#2e2924] rounded-lg hover:bg-black hover:text-white dark:hover:bg-[#f0ebe2] dark:hover:text-black transition-colors"
@@ -195,19 +263,39 @@ export function CollabPythonSandbox({
         </div>
       )}
 
-      <div className="h-[400px] w-full">
-        <Editor
-          height="100%"
-          defaultLanguage="python"
-          theme="vs-dark"
-          options={{
-            minimap: { enabled: false },
-            fontSize: 14,
-            fontFamily: '"Fira Code", "JetBrains Mono", monospace',
-            padding: { top: 16 },
-          }}
-          onMount={handleEditorDidMount}
-        />
+      <style>{`
+        .review-glyph {
+          background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="%233b82f6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>') no-repeat center center;
+          cursor: pointer;
+        }
+      `}</style>
+
+      <div className="h-[400px] w-full flex">
+        <div className="flex-1 min-w-0">
+          <Editor
+            height="100%"
+            defaultLanguage="python"
+            theme="vs-dark"
+            options={{
+              minimap: { enabled: false },
+              fontSize: 14,
+              fontFamily: '"Fira Code", "JetBrains Mono", monospace',
+              padding: { top: 16 },
+              glyphMargin: true,
+            }}
+            onMount={handleEditorDidMount}
+          />
+        </div>
+
+        {activeLine !== null && (
+          <CodeReviewPanel
+            activeLine={activeLine}
+            threads={threads}
+            onAddComment={addComment}
+            onResolveThread={resolveThread}
+            onClose={() => setActiveLine(null)}
+          />
+        )}
       </div>
 
       <div className="p-4 border-t-4 border-black dark:border-[#2e2924] bg-[#1e1e1e] text-white min-h-[120px] max-h-[300px] overflow-y-auto font-mono text-sm">
@@ -243,6 +331,12 @@ export function CollabPythonSandbox({
           </div>
         )}
       </div>
+
+      <SnippetLibraryModal
+        isOpen={isLibraryOpen}
+        onClose={() => setIsLibraryOpen(false)}
+        onInsertCode={handleInsertSnippet}
+      />
     </div>
   );
 }

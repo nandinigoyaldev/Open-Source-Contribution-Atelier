@@ -1,3 +1,4 @@
+// @refresh reset
 /**
  * NetworkStatusContext.tsx
  * Provides a boolean `isOnline` flag across the whole app via React context.
@@ -29,9 +30,28 @@ export function NetworkStatusProvider({ children }: { children: ReactNode }) {
     window.addEventListener("online", handleOnline);
     window.addEventListener("offline", handleOffline);
 
+    // Attempt to ping local server. If reachable, override offline status
+    const checkServerReachable = async () => {
+      try {
+        const response = await fetch("/health/live/");
+        if (response.ok) {
+          setIsOnline(true);
+        }
+      } catch (e) {
+        // If fetch fails and navigator is offline, match offline status
+        if (typeof navigator !== "undefined" && !navigator.onLine) {
+          setIsOnline(false);
+        }
+      }
+    };
+
+    checkServerReachable();
+    const interval = setInterval(checkServerReachable, 10000);
+
     return () => {
       window.removeEventListener("online", handleOnline);
       window.removeEventListener("offline", handleOffline);
+      clearInterval(interval);
     };
   }, []);
 

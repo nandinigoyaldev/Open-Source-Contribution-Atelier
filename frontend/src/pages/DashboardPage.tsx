@@ -1,5 +1,5 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
-import React, { useMemo, useState, useEffect } from "react";
+import { AdminDashboard } from "../components/dashboard/AdminDashboard";
+import { ContributorDashboard } from "../components/dashboard/ContributorDashboard";
 import { useAuth } from "../features/auth/AuthContext";
 import { useQuery } from "@tanstack/react-query";
 import { fetchApi } from "../lib/api";
@@ -7,9 +7,10 @@ import { Link } from "react-router-dom";
 import { SocialShareButtons } from "../components/ui/SocialShareButtons";
 import SkeletonAdminDashboard from "../components/ui/skeletons/SkeletonAdminDashboard";
 import SkeletonContributorDashboard from "../components/ui/skeletons/SkeletonContributorDashboard";
-import { useRef } from "react";
+import { useRef, useState, useEffect, useMemo, useCallback } from "react";
 import { useElementSize } from "../hooks/useElementSize";
-import { fetchLessonsApi, Lesson } from "../lib/lessons";
+import { fetchLessonsApi, Lesson, buildModulesFromLessons } from "../lib/lessons";
+import { ContinueLearning } from '../components/ContinueLearning';
 import { useUserProgress } from "../hooks/useUserProgress";
 import { useBookmarks } from "../hooks/useBookmarks";
 import { BADGES } from "../constants/badges";
@@ -85,147 +86,45 @@ interface AssignedIssue {
 }
 
 export function DashboardPage() {
-  const taskDistRef = useRef<HTMLElement>(null);
-  const { width: taskDistWidth } = useElementSize(taskDistRef);
-  const completionRef = useRef<HTMLElement>(null);
-  const { width: completionWidth } = useElementSize(completionRef);
-
   const { user } = useAuth();
-  const { progress, isLessonCompleted } = useUserProgress();
-  const { bookmarks, isLoading: isLoadingBookmarks } = useBookmarks();
+  const { progress, isLoading: progressLoading, isLessonCompleted } = useUserProgress();
+  const { bookmarks, toggleBookmark } = useBookmarks();
 
-  const [tourKey, setTourKey] = useState(0);
-  const [showScrollTop, setShowScrollTop] = useState(false);
-
-  useEffect(() => {
-    const handleScroll = () => {
-      setShowScrollTop(window.scrollY > 300);
-    };
-
-    window.addEventListener("scroll", handleScroll);
-
-    return () => {
-      window.removeEventListener("scroll", handleScroll);
-    };
-  }, []);
-  // 1. Fetch static modules catalog
-  const [curriculumData, setCurriculumData] = useState<ModuleData[]>([]);
-  useEffect(() => {
-    fetch("/content/curriculum.json")
-      .then((res) => res.json())
-      .then((data) => {
-        if (data && data.modules) {
-          setCurriculumData(data.modules);
-        }
-      })
-      .catch((err) =>
-        console.error("Error loading dashboard curriculum:", err),
-      );
-  }, []);
-
-  // 2. Fetch Admin Dashboard stats (only queries if user is staff)
-  const {
-    data: adminData,
-    isLoading: isAdminLoading,
-    error: adminError,
-  } = useQuery({
-    queryKey: ["adminDashboardStats"],
-    queryFn: () => fetchApi("/dashboard/admin/", { suppressErrorToast: true }),
-    enabled: !!user?.is_staff,
+  const { data: lessonsData = [], isLoading: lessonsLoading } = useQuery({
+    queryKey: ["dashboardLessons"],
+    queryFn: fetchLessonsApi,
   });
+  const lessons = lessonsData;
+  const curriculumData = useMemo(() => buildModulesFromLessons(lessons), [lessons]);
 
-  // 3. Fetch paginated leaderboard for admin chart (only queries if user is staff)
-  const { data: leaderboardData, isLoading: isLeaderboardLoading } = useQuery({
-    queryKey: ["leaderboard", 1],
-    queryFn: () => fetchApi("/leaderboard/", { suppressErrorToast: true }),
-    enabled: !!user?.is_staff,
-  });
-
-  // 4. Fetch Contributor Dashboard stats (only queries if user is NOT staff)
-  const {
-    data: contributorData,
-    isLoading: isContributorLoading,
-    error: contributorError,
-  } = useQuery({
-    queryKey: ["contributorDashboardStats"],
-    queryFn: () =>
-      fetchApi("/dashboard/contributor/", { suppressErrorToast: true }),
+  const { data: contributorData, isLoading: contributorLoading } = useQuery({
+    queryKey: ["contributorStats"],
+    queryFn: () => fetchApi("/dashboard/stats/", { suppressErrorToast: true }),
     enabled: !!user && !user.is_staff,
   });
 
-  // 5. Fetch standard list of lessons via cache
-  const { data: lessons = [], isLoading: isLessonsLoading } = useQuery<
-    Lesson[]
-  >({
-    queryKey: ["lessons"],
-    queryFn: fetchLessonsApi,
-    enabled: !user?.is_staff,
+  const { data: learningPathData } = useQuery({
+    queryKey: ["learningPath"],
+    queryFn: () =>
+      fetchApi("/dashboard/learning-path/", { suppressErrorToast: true }),
+    enabled: !!user && !user.is_staff && !!lessons.length,
   });
 
-  // 6. Fetch personalized learning path
-  const { data: learningPathData, isLoading: isLearningPathLoading } =
-    useQuery<unknown>({
-      queryKey: ["learningPath"],
-      queryFn: () => fetchApi("/users/me/learning-path/"),
-      enabled: !!user && !user.is_staff,
-    });
+  const showSkeleton = progressLoading || lessonsLoading || contributorLoading;
 
-  const isLoading = isAdminLoading || isContributorLoading || isLessonsLoading;
-
-  const [showSkeleton, setShowSkeleton] = useState(isLoading);
-
+  const [factOfDay, setFactOfDay] = useState("");
   useEffect(() => {
-    if (isLoading) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setShowSkeleton(true);
-      return;
-    }
-    const timer = setTimeout(() => setShowSkeleton(false), 400);
-    return () => clearTimeout(timer);
-  }, [isLoading]);
-
-  // Random Fact of the Day
-  const factOfDay = useMemo(() => {
-    const day = new Date().getDate();
-    return FACTS[day % FACTS.length];
+    setFactOfDay(FACTS[Math.floor(Math.random() * FACTS.length)]);
   }, []);
 
-  // GitHub Live Contributors list
-  const [gitHubContributors, setGitHubContributors] = useState<
-    { login: string; avatar_url: string; html_url: string }[]
-  >([]);
+  const [gitHubContributors, setGitHubContributors] = useState<GitHubContributor[]>([]);
+  const fallbackContributors: GitHubContributor[] = [];
+
   useEffect(() => {
-    const fallbackContributors = [
-      {
-        login: "goyaljiiiiii",
-        avatar_url: "https://github.com/goyaljiiiiii.png",
-        html_url: "https://github.com/goyaljiiiiii",
-      },
-      {
-        login: "nandini",
-        avatar_url: "https://github.com/github.png",
-        html_url: "https://github.com",
-      },
-      {
-        login: "antigravity",
-        avatar_url: "https://github.com/google.png",
-        html_url: "https://github.com",
-      },
-    ];
-
-    fetch(
-      "https://api.github.com/repos/goyaljiiiiii/Open-Source-Contribution-Atelier/contributors",
-    )
-      .then((res) => {
-        if (!res.ok) throw new Error("API Limit");
-        return res.json();
-      })
-      .then((data) => {
-        if (Array.isArray(data)) {
-          const contributors = data.slice(0, 8);
-
-          setGitHubContributors(contributors);
-
+    fetch("https://api.github.com/repos/nandinigoyaldev/Open-Source-Contribution-Atelier/contributors")
+      .then((res) => res.json())
+      .then((contributors: GitHubContributor[]) => {
+        if (Array.isArray(contributors)) {
           localStorage.setItem(
             CONTRIBUTORS_CACHE_KEY,
             JSON.stringify({
@@ -233,6 +132,7 @@ export function DashboardPage() {
               timestamp: Date.now(),
             }),
           );
+          setGitHubContributors(contributors);
         }
       })
       .catch(() => {
@@ -268,7 +168,6 @@ export function DashboardPage() {
     if (user && !user.is_staff) {
       const isBoarded = localStorage.getItem("atelier_onboarded");
       if (!isBoarded) {
-        // eslint-disable-next-line react-hooks/set-state-in-effect
         setShowOnboarding(true);
       }
     }
@@ -281,6 +180,8 @@ export function DashboardPage() {
 
   // Certificate Modal state
   const [showCertificate, setShowCertificate] = useState(false);
+  // Progress Report Modal state
+  const [showProgressReport, setShowProgressReport] = useState(false);
 
   // Compute local progress metrics based on frontend curriculum data
   const {
@@ -333,6 +234,15 @@ export function DashboardPage() {
     };
   }, [lessons, curriculumData, isLessonCompleted, user, contributorData]);
 
+  const lastLesson = useMemo(() => {
+    if (!lessons.length) return null;
+    const incomplete = lessons.find((l) => !isLessonCompleted(l.slug));
+    if (incomplete) {
+      return { slug: incomplete.slug, title: incomplete.title, progress: 0 };
+    }
+    return null;
+  }, [lessons, isLessonCompleted]);
+
   // Fetch user certificate if course is completed
   const { data: certificateData } = useQuery({
     queryKey: ["userCertificate"],
@@ -361,297 +271,7 @@ export function DashboardPage() {
 
   // Admin Dashboard Render
   if (user?.is_staff) {
-    if (adminError || !adminData) {
-      return (
-        <div className="pt-24 max-w-7xl mx-auto px-4">
-          <div className="p-8 text-center bg-red-100 rounded-2xl border-4 border-black font-bold">
-            Failed to load Maintainer Dashboard. Please run the backend seed
-            script.
-          </div>
-        </div>
-      );
-    }
-
-    const { system_stats, pending_prs } = adminData;
-    const leaderboardResults = leaderboardData?.results || [];
-    const issueStatusData = [
-      { name: "Open", value: system_stats.open_issues },
-      { name: "In Progress", value: system_stats.in_progress_issues },
-      { name: "Solved", value: system_stats.solved_issues },
-    ];
-    const COLORS = ["#ffcc00", "#ff9500", "#ff3b30"];
-
-    return (
-      <div className="max-w-7xl mx-auto px-4 pt-24 pb-12 space-y-10">
-        {/* Admin Header */}
-        <section className="rounded-[2rem] border-4 border-black bg-primary p-8 sm:p-10 shadow-card relative overflow-hidden dark:border-[#2e2924] dark:shadow-none">
-          <div className="relative z-10">
-            <span className="font-black text-sm bg-white text-black px-4 py-2 rounded-full border-2 border-black rotate-[-2deg] inline-block shadow-card-sm mb-4 dark:bg-[#151411] dark:text-[#f0ebe2] dark:border-[#2e2924]">
-              MAINTAINER CONTROL PANEL 🛠️
-            </span>
-            <h1 className="text-4xl sm:text-5xl font-black text-white drop-shadow-[3px_3px_0_#000] mb-4 dark:drop-shadow-none">
-              Project Health & Cohort Monitor
-            </h1>
-            <p className="text-lg font-bold text-black bg-white/95 p-4 rounded-lg border-4 border-black shadow-card-sm inline-block max-w-lg leading-relaxed dark:bg-[#151411] dark:border-[#2e2924] dark:text-[#f0ebe2]">
-              Track triage tasks, review practice codebases, and approve pending
-              pull requests.
-            </p>
-          </div>
-          <div className="absolute -right-10 -bottom-10 text-[10rem] opacity-25 rotate-12 pointer-events-none">
-            📈
-          </div>
-        </section>
-
-        {/* Stats Blocks */}
-        <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="rounded-[2rem] border-4 border-black bg-white p-6 shadow-card flex flex-col justify-between dark:bg-[#1f1c18] dark:border-[#2e2924] dark:shadow-none">
-            <div className="flex items-center gap-3">
-              <span className="text-4xl">🚨</span>
-              <div>
-                <h3 className=" text-xs uppercase tracking-widest text-muted dark:text-[#c4bbae]">
-                  System Issues
-                </h3>
-                <p className="text-4xl font-black text-primary drop-shadow-[2px_2px_0_#000] dark:drop-shadow-none">
-                  {system_stats.total_issues}
-                </p>
-              </div>
-            </div>
-            <div className="mt-4 pt-4 border-t border-dashed border-muted/20 text-xs font-bold text-muted flex justify-between dark:text-[#c4bbae]">
-              <span>Solved: {system_stats.solved_issues}</span>
-              <span>Open: {system_stats.open_issues}</span>
-            </div>
-          </div>
-
-          <div className="rounded-[2rem] border-4 border-black bg-white p-6 shadow-card flex flex-col justify-between dark:bg-[#1f1c18] dark:border-[#2e2924] dark:shadow-none">
-            <div className="flex items-center gap-3">
-              <span className="text-4xl">💻</span>
-              <div>
-                <h3 className=" text-xs uppercase tracking-widest text-muted dark:text-[#c4bbae]">
-                  Pull Requests
-                </h3>
-                <p className="text-4xl font-black text-tertiary drop-shadow-[2px_2px_0_#000] dark:drop-shadow-none">
-                  {system_stats.total_prs}
-                </p>
-              </div>
-            </div>
-            <div className="mt-4 pt-4 border-t border-dashed border-muted/20 text-xs font-bold text-muted flex justify-between dark:text-[#c4bbae]">
-              <span>Merged: {system_stats.merged_prs}</span>
-              <span>Pending: {system_stats.pending_prs}</span>
-            </div>
-          </div>
-
-          <div className="rounded-[2rem] border-4 border-black bg-white p-6 shadow-card flex flex-col justify-between dark:bg-[#1f1c18] dark:border-[#2e2924] dark:shadow-none">
-            <div className="flex items-center gap-3">
-              <span className="text-4xl">👥</span>
-              <div>
-                <h3 className=" text-xs uppercase tracking-widest text-muted dark:text-[#c4bbae]">
-                  Active Contributors
-                </h3>
-                <p className="text-4xl font-black text-accent drop-shadow-[2px_2px_0_#000] dark:drop-shadow-none">
-                  {system_stats.active_contributors}
-                </p>
-              </div>
-            </div>
-            <div className="mt-4 pt-4 border-t border-dashed border-muted/20 text-xs font-bold text-muted dark:text-[#c4bbae]">
-              Managing guided sandbox profiles
-            </div>
-          </div>
-        </section>
-
-        {/* Charts & Analytics */}
-        <section className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
-          <div className="rounded-2xl border-4 border-black bg-white p-6 shadow-card dark:bg-[#1f1c18] dark:border-[#2e2924] dark:shadow-none">
-            <h2 className="text-2xl font-black mb-6 flex items-center gap-2">
-              <span>📊</span> Active Contributor Activity
-            </h2>
-            <div className="h-[300px] w-full">
-              {isLeaderboardLoading ? (
-                <div className="h-full flex items-center justify-center border-4 border-dashed border-black rounded-2xl p-8 dark:border-[#2e2924]">
-                  <p className="font-bold text-muted dark:text-[#c4bbae]">
-                    Loading contributors...
-                  </p>
-                </div>
-              ) : leaderboardResults.length > 0 ? (
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={leaderboardResults}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
-                    <XAxis
-                      dataKey="username"
-                      tick={{ fontStyle: "bold", fill: "#6b5a49" }}
-                    />
-                    <YAxis tick={{ fontStyle: "bold", fill: "#6b5a49" }} />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: "#ffffff",
-                        border: "4px solid #000000",
-                        borderRadius: "12px",
-                        fontWeight: "bold",
-                      }}
-                    />
-                    <Legend wrapperStyle={{ fontWeight: "bold" }} />
-                    <Bar
-                      dataKey="xp"
-                      name="XP Points"
-                      fill="#ff9500"
-                      stroke="#000000"
-                      strokeWidth={2}
-                    />
-                    <Bar
-                      dataKey="prs_merged"
-                      name="Merged PRs"
-                      fill="#ff3b30"
-                      stroke="#000000"
-                      strokeWidth={2}
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="h-full flex items-center justify-center border-4 border-dashed border-black rounded-2xl p-8 dark:border-[#2e2924]">
-                  <p className="font-bold text-muted dark:text-[#c4bbae]">
-                    No contributor logs registered.
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="rounded-2xl border-4 border-black bg-white p-6 shadow-card dark:bg-[#1f1c18] dark:border-[#2e2924] dark:shadow-none flex flex-col justify-between">
-            <div>
-              <h2 className="text-2xl font-black mb-6 flex items-center gap-2">
-                <span>🎯</span> Task Distribution
-              </h2>
-              <div className="h-[180px] sm:h-[220px] w-full flex justify-center items-center">
-                {system_stats.total_issues > 0 ? (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={issueStatusData}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius="45%"
-                        outerRadius="70%"
-                        paddingAngle={5}
-                        dataKey="value"
-                      >
-                        {issueStatusData.map((_, index) => (
-                          <Cell
-                            key={`cell-${index}`}
-                            fill={COLORS[index % COLORS.length]}
-                            stroke="#000"
-                            strokeWidth={2}
-                          />
-                        ))}
-                      </Pie>
-                      <Tooltip
-                        contentStyle={{
-                          backgroundColor: "#ffffff",
-                          border: "4px solid #000000",
-                          borderRadius: "12px",
-                          fontWeight: "bold",
-                        }}
-                      />
-                    </PieChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <p className="font-bold text-muted dark:text-[#c4bbae]">
-                    No records.
-                  </p>
-                )}
-              </div>
-            </div>
-            <div className="grid grid-cols-3 gap-2 mt-4 text-center">
-              {issueStatusData.map((item, index) => (
-                <div
-                  key={item.name}
-                  className="p-2 rounded-lg border-2 border-black"
-                  style={{ backgroundColor: `${COLORS[index]}15` }}
-                >
-                  <span
-                    className="block font-black text-xs"
-                    style={{ color: COLORS[index] }}
-                  >
-                    ● {item.name}
-                  </span>
-                  <span className="font-black text-lg text-text dark:text-[#f0ebe2]">
-                    {item.value}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* PR Queue */}
-        <section className="rounded-2xl border-4 border-black bg-accent p-6 shadow-card dark:bg-[#1f1c18] dark:border-[#2e2924] dark:shadow-none">
-          <h2 className="text-3xl font-black mb-6 flex items-center gap-2 text-black dark:text-[#f0ebe2]">
-            <span>📬</span> Pending Pull Requests ({pending_prs.length})
-          </h2>
-          <div className="space-y-4">
-            {pending_prs.length > 0 ? (
-              pending_prs.map(
-                (pr: {
-                  id: number;
-                  title: string;
-                  contributor: string;
-                  issue_title: string;
-                  created_at: string;
-                }) => (
-                  <div
-                    key={pr.id}
-                    className="rounded-2xl border-4 border-black bg-white p-5 shadow-card-sm dark:bg-[#151411] dark:border-[#2e2924] flex flex-col md:flex-row justify-between items-start md:items-center gap-4"
-                  >
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-black text-[9px] bg-black text-white px-2 py-0.5 rounded-full">
-                          PENDING REVIEW
-                        </span>
-                        <span className="text-xs font-bold text-muted dark:text-[#c4bbae]">
-                          Opened: {new Date(pr.created_at).toLocaleDateString()}
-                        </span>
-                      </div>
-                      <h3 className="font-black text-xl mt-2 dark:text-[#f0ebe2]">
-                        {pr.title}
-                      </h3>
-                      <p className="text-sm font-bold text-muted mt-1 dark:text-[#c4bbae]">
-                        Submitted by:{" "}
-                        <span className="text-primary">@{pr.contributor}</span>{" "}
-                        · Issue: {pr.issue_title}
-                      </p>
-                    </div>
-                    <div className="flex gap-2 w-full md:w-auto">
-                      <button className="grow md:grow-0 rounded-lg bg-surface-low border-2 border-black px-4 py-2 text-xs font-black hover:-translate-y-0.5 shadow-card-sm transition-all dark:bg-[#0f0e0c] dark:text-[#f0ebe2]">
-                        Comment
-                      </button>
-                      <button className="grow md:grow-0 rounded-lg bg-[#c3c0ff] border-2 border-black px-4 py-2 text-xs font-black hover:-translate-y-0.5 shadow-card-sm transition-all">
-                        Approve & Merge
-                      </button>
-                    </div>
-                  </div>
-                ),
-              )
-            ) : (
-              <div className="p-8 text-center bg-white rounded-2xl border-4 border-dashed border-black dark:bg-[#151411] dark:border-[#2e2924]">
-                <p className="font-bold text-muted dark:text-[#c4bbae]">
-                  No pending reviews. Working tree clean! 🌟
-                </p>
-              </div>
-            )}
-          </div>
-        </section>
-      </div>
-    );
-  }
-
-  // Contributor/Student Dashboard Render
-  if (contributorError || !contributorData) {
-    return (
-      <div className="pt-24 max-w-7xl mx-auto px-4">
-        <div className="p-8 text-center bg-red-100 rounded-2xl border-4 border-black font-bold">
-          Failed to load Contributor stats. Make sure Django backend server is
-          running.
-        </div>
-      </div>
-    );
+    return <AdminDashboard />;
   }
 
   const { personal_stats, assigned_issues } = contributorData;
@@ -801,6 +421,13 @@ export function DashboardPage() {
               🔒 Locked ({completionPercentage}% progress)
             </div>
           )}
+          <button
+            id="tour-progress-report"
+            onClick={() => setShowProgressReport(true)}
+            className="mt-2 w-full flex items-center justify-center gap-2 rounded-lg bg-white text-text font-black py-2.5 border-2 border-black shadow-card-sm hover:-translate-y-0.5 transition-all cursor-pointer uppercase tracking-wider text-[10px] dark:bg-[#151411] dark:text-[#f0ebe2] dark:border-[#2e2924]"
+          >
+            <Download size={12} /> Export Progress as PDF
+          </button>
         </div>
       </section>
 
@@ -830,7 +457,7 @@ export function DashboardPage() {
             </div>
             <Link
               to="/learning-path"
-              className="w-full md:w-auto rounded-lg bg-[#c3c0ff] border-2 border-black px-4 py-2 text-xs font-black hover:-translate-y-0.5 shadow-card-sm transition-all text-center uppercase tracking-wider"
+              className="w-full md:w-auto rounded-lg bg-accent text-black border-2 border-black px-4 py-2 text-xs font-black hover:-translate-y-0.5 shadow-card-sm transition-all text-center uppercase tracking-wider"
             >
               View Full Learning Path 🗺️
             </Link>
@@ -880,7 +507,7 @@ export function DashboardPage() {
               </div>
               <Link
                 to="/learning-path"
-                className="w-full text-center text-[10px] font-black text-white bg-black dark:bg-white dark:text-black py-2 rounded uppercase border-2 border-black shadow-card-sm hover:-translate-y-0.5 transition-transform"
+                className="w-full text-center text-[10px] font-black text-white bg-tertiary dark:bg-[#ff9500] py-2 rounded uppercase border-2 border-black shadow-card-sm hover:-translate-y-0.5 transition-transform"
               >
                 Resume Module 🚀
               </Link>
@@ -967,7 +594,7 @@ export function DashboardPage() {
                     dataKey="value"
                   >
                     <Cell fill="#ff3b30" stroke="#000" strokeWidth={2} />
-                    <Cell fill="#fdfbf7" stroke="#e0e0e0" strokeWidth={2} />
+                    <Cell fill="#FFEBC2" stroke="#000" strokeWidth={2} />
                   </Pie>
                 </PieChart>
               </ResponsiveContainer>
@@ -1019,10 +646,24 @@ export function DashboardPage() {
                   <h3 className="font-black text-lg leading-tight dark:text-[#f0ebe2] pr-4">
                     {bookmark.lesson_title}
                   </h3>
-                  <Bookmark
-                    className="fill-primary text-primary shrink-0"
-                    size={20}
-                  />
+                  <button
+                    type="button"
+                    aria-label="Remove bookmark"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      toggleBookmark.mutate({
+                        slug: bookmark.lesson_slug,
+                        isBookmarked: true,
+                      });
+                    }}
+                    className="shrink-0"
+                  >
+                    <Bookmark
+                      className="fill-primary text-primary hover:opacity-60 transition-opacity"
+                      size={20}
+                    />
+                  </button>
                 </div>
                 <div className="flex justify-between items-center mt-auto pt-4">
                   <span className="font-black text-[10px] bg-black text-white px-2 py-0.5 rounded-full uppercase dark:bg-[#2e2924]">
@@ -1335,15 +976,121 @@ export function DashboardPage() {
           </div>
         </div>
       )}
-      {showScrollTop && (
-        <button
-          onClick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
-          aria-label="Scroll to top"
-          className="fixed bottom-6 right-6 z-50 rounded-lg bg-primary text-white border-4 border-black px-4 py-3 font-black shadow-card-sm hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-card-sm cursor-pointer"
-        >
-          ↑ Top
-        </button>
+
+      {/* --- MODAL 3: PROGRESS REPORT (A4 Print / Export as PDF) --- */}
+      {showProgressReport && (
+        <div className="fixed inset-0 bg-black/75 z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="certificate-printable w-full max-w-2xl bg-white rounded-[2rem] border-8 border-black p-8 sm:p-10 relative shadow-card print:border-none print:shadow-none print:p-0 dark:bg-[#1f1c18] dark:border-[#2e2924]">
+            <button
+              onClick={() => setShowProgressReport(false)}
+              className="no-print absolute top-4 right-4 bg-white border-2 border-black p-2 rounded-full hover:bg-surface-low transition-colors print:hidden"
+            >
+              <X size={16} />
+            </button>
+
+            <div className="space-y-6">
+              <div className="text-center">
+                <div className="text-5xl mb-2">📊</div>
+                <h2 className="text-3xl font-black uppercase tracking-tight text-text dark:text-[#f0ebe2]">
+                  Progress Report
+                </h2>
+                <p className="font-mono text-xs text-primary uppercase tracking-widest font-black mt-1">
+                  The Open Source Contribution Atelier
+                </p>
+                <h3 className="text-xl font-black text-text mt-3 dark:text-[#f0ebe2]">
+                  {user?.username}
+                </h3>
+                <p className="text-xs text-muted dark:text-[#c4bbae] mt-1">
+                  Generated on {new Date().toLocaleDateString()}
+                </p>
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 border-t border-b border-black/10 py-4">
+                <div className="text-center">
+                  <span className="block text-2xl font-black text-text dark:text-[#f0ebe2]">
+                    {completionPercentage}%
+                  </span>
+                  <span className="block text-[10px] uppercase font-bold text-muted dark:text-[#c4bbae]">
+                    Curriculum
+                  </span>
+                </div>
+                <div className="text-center">
+                  <span className="block text-2xl font-black text-text dark:text-[#f0ebe2]">
+                    {completedLessonsCount}/{totalLessonsCount}
+                  </span>
+                  <span className="block text-[10px] uppercase font-bold text-muted dark:text-[#c4bbae]">
+                    Lessons
+                  </span>
+                </div>
+                <div className="text-center">
+                  <span className="block text-2xl font-black text-text dark:text-[#f0ebe2]">
+                    {personal_stats?.total_xp ?? 0}
+                  </span>
+                  <span className="block text-[10px] uppercase font-bold text-muted dark:text-[#c4bbae]">
+                    XP
+                  </span>
+                </div>
+                <div className="dashboard-content">
+                 <ContinueLearning lastLesson={lastLesson} />
+                </div>
+                <div className="text-center">
+                  <span className="block text-2xl font-black text-text dark:text-[#f0ebe2]">
+                    {personal_stats?.streak_days ?? 0}
+                  </span>
+                  <span className="block text-[10px] uppercase font-bold text-muted dark:text-[#c4bbae]">
+                    Day Streak
+                  </span>
+                </div>
+              </div>
+
+              <div>
+                <h4 className="font-black text-xs uppercase tracking-wider text-muted dark:text-[#c4bbae] mb-3">
+                  Badges Earned ({earnedBadges.length}/{BADGES.length})
+                </h4>
+                {earnedBadges.length > 0 ? (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                    {BADGES.filter((b) => earnedBadges.includes(b.id)).map(
+                      (badge) => (
+                        <div
+                          key={badge.id}
+                          className="flex items-center gap-2 rounded-lg border-2 border-black bg-surface-low p-2 dark:bg-[#151411] dark:border-[#2e2924]"
+                        >
+                          <span className="text-lg">{badge.icon}</span>
+                          <span className="text-xs font-bold text-text dark:text-[#f0ebe2] leading-tight">
+                            {badge.name}
+                          </span>
+                        </div>
+                      ),
+                    )}
+                  </div>
+                ) : (
+                  <p className="text-xs text-muted dark:text-[#c4bbae]">
+                    No badges earned yet — keep going!
+                  </p>
+                )}
+              </div>
+            </div>
+
+            <div className="no-print mt-8 flex gap-3 print:hidden">
+              <button
+                onClick={() => window.print()}
+                className="flex items-center gap-2 rounded-lg bg-primary text-black border-4 border-black px-6 py-3 font-black text-sm shadow-card-sm hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-card-sm cursor-pointer"
+              >
+                <Printer size={16} /> Export as PDF
+              </button>
+              <button
+                onClick={() => setShowProgressReport(false)}
+                className="rounded-lg bg-white border-4 border-black px-6 py-3 font-black text-sm shadow-card-sm hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-card-sm cursor-pointer"
+              >
+                Return to Dashboard
+              </button>
+            </div>
+          </div>
+        </div>
       )}
+
     </div>
   );
 }
+
+export default DashboardPage;
