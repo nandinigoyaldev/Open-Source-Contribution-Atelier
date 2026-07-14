@@ -1,11 +1,22 @@
-from django.db.models import Count, Max
+from django.contrib.auth import get_user_model
+from django.db.models import Count, Max, Q
 from drf_spectacular.utils import OpenApiResponse, extend_schema, extend_schema_view
 from rest_framework import generics, pagination, permissions, status
 from rest_framework.response import Response
+from rest_framework.throttling import ScopedRateThrottle
 from rest_framework.views import APIView
 
-from .models import Message
-from .serializers import ChatRoomSerializer, MessageCreateSerializer, MessageSerializer
+from .models import DirectMessage, Message, UserPublicKey
+from .serializers import (
+    ChatRoomSerializer,
+    DirectMessageCreateSerializer,
+    DirectMessageSerializer,
+    MessageCreateSerializer,
+    MessageSerializer,
+    UserPublicKeySerializer,
+)
+
+User = get_user_model()
 
 
 class MessagePagination(pagination.PageNumberPagination):
@@ -61,6 +72,8 @@ class MessageListView(generics.ListAPIView):
 )
 class MessageCreateView(APIView):
     permission_classes = [permissions.IsAuthenticated]
+    throttle_classes = [ScopedRateThrottle]
+    throttle_scope = "chat_message"
 
     def post(self, request, room_id):
         serializer = MessageCreateSerializer(data=request.data)
@@ -116,3 +129,88 @@ class ChatRoomListView(APIView):
 
         serializer = ChatRoomSerializer(rooms, many=True)
         return Response(serializer.data)
+
+
+class UserPublicKeyView(APIView):
+    """
+    GET  /api/chat/public-keys/<username>/  — retrieve a user's public key
+    POST /api/chat/public-keys/             — publish the authenticated user's public key
+    """
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, username):
+        try:
+            key = UserPublicKey.objects.select_related("user").get(
+                user__username=username
+            )
+        except UserPublicKey.DoesNotExist:
+            return Response(
+                {"detail": "Public key not found for this user."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+        return Response(UserPublicKeySerializer(key).data)
+
+    def post(self, request):
+        serializer = UserPublicKeySerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        obj, _ = UserPublicKey.objects.update_or_create(
+            user=request.user,
+            defaults={"public_key": serializer.validated_data["public_key"]},
+        )
+        return Response(UserPublicKeySerializer(obj).data, status=status.HTTP_200_OK)
+
+
+class DirectMessageListView(generics.ListAPIView):
+    """
+    Lists all DMs in the conversation between the authenticated user
+    and the specified peer (by username).
+    """
+
+    serializer_class = DirectMessageSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        peer_username = self.kwargs["username"]
+        me = self.request.user
+        return DirectMessage.objects.filter(
+            Q(sender=me, recipient__username=peer_username)
+            | Q(sender__username=peer_username, recipient=me)
+        ).order_by("created_at")
+
+
+class DirectMessageCreateView(APIView):
+    """
+    Send an E2E encrypted direct message to another user.
+    The client must encrypt the content before calling this endpoint.
+    The server never sees plaintext.
+    """
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        serializer = DirectMessageCreateSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        data = serializer.validated_data
+        try:
+            recipient = User.objects.get(username=data["recipient_username"])
+        except User.DoesNotExist:
+            return Response(
+                {"detail": "Recipient not found."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        if recipient == request.user:
+            return Response(
+                {"detail": "Cannot send a DM to yourself."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        dm = DirectMessage.objects.create(
+            sender=request.user,
+            recipient=recipient,
+            encrypted_content=data["encrypted_content"],
+            nonce=data["nonce"],
+        )
+        return Response(DirectMessageSerializer(dm).data, status=status.HTTP_201_CREATED)

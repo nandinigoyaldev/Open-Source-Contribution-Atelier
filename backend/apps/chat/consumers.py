@@ -86,7 +86,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     "type": "presence_joined",
                     "username": self.user.username,
                     "user_id": self.user.id,
-                }
+                },
             )
 
     @database_sync_to_async
@@ -119,7 +119,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
                         "type": "presence_left",
                         "username": self.user.username,
                         "user_id": self.user.id,
-                    }
+                    },
                 )
             # Automatically clear typing state on disconnect
             await self.channel_layer.group_send(
@@ -171,7 +171,24 @@ class ChatConsumer(AsyncWebsocketConsumer):
     def get_online_users(self):
         key = f"chat_presence_{self.room_id}"
         users = cache.get(key, {})
-        return [{"user_id": int(uid), "username": info["username"]} for uid, info in users.items()]
+        return [
+            {"user_id": int(uid), "username": info["username"]}
+            for uid, info in users.items()
+        ]
+
+    @database_sync_to_async
+    def check_rate_limit(self, key, limit, period):
+        count = cache.get(key, 0)
+        if count >= limit:
+            return False
+        if count == 0:
+            cache.set(key, 1, timeout=period)
+        else:
+            try:
+                cache.incr(key)
+            except ValueError:
+                cache.set(key, count + 1, timeout=period)
+        return True
 
     async def clear_typing_state(self):
         try:
@@ -247,6 +264,20 @@ class ChatConsumer(AsyncWebsocketConsumer):
         elif action == "send_message":
             content = data.get("message", "")
             if content:
+                is_allowed = await self.check_rate_limit(
+                    f"throttle_chat_ws_{self.user.id}", 30, 60
+                )
+                if not is_allowed:
+                    await self.send(
+                        text_data=json.dumps(
+                            {
+                                "type": "error",
+                                "message": "Rate limit exceeded. Please wait before sending more messages.",
+                            }
+                        )
+                    )
+                    return
+
                 msg = await self.save_message(self.user, self.room_id, content)
                 await self.channel_layer.group_send(
                     self.group_name,
@@ -302,15 +333,23 @@ class ChatConsumer(AsyncWebsocketConsumer):
         )
 
     async def presence_joined(self, event):
-        await self.send(text_data=json.dumps({
-            "type": "presence_joined",
-            "username": event["username"],
-            "user_id": event["user_id"],
-        }))
+        await self.send(
+            text_data=json.dumps(
+                {
+                    "type": "presence_joined",
+                    "username": event["username"],
+                    "user_id": event["user_id"],
+                }
+            )
+        )
 
     async def presence_left(self, event):
-        await self.send(text_data=json.dumps({
-            "type": "presence_left",
-            "username": event["username"],
-            "user_id": event["user_id"],
-        }))
+        await self.send(
+            text_data=json.dumps(
+                {
+                    "type": "presence_left",
+                    "username": event["username"],
+                    "user_id": event["user_id"],
+                }
+            )
+        )

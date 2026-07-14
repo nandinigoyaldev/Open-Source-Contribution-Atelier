@@ -143,6 +143,7 @@ export function LessonPage() {
   // For Interactive Terminal Lessons
   const [terminalOutput, setTerminalOutput] = useState("");
   const [repoState, setRepoState] = useState<RepoState>(createInitialRepo());
+  const [conflictContent, setConflictContent] = useState<string>("");
 
   // Quiz-based exercises
   const [currentQuizIndex, setCurrentQuizIndex] = useState(0);
@@ -436,14 +437,17 @@ export function LessonPage() {
     await new Promise((resolve) => setTimeout(resolve, 800));
 
     const result = parseGitCommand(input, repoState);
-    if (result.error) {
+    if (result.error && result.newState.conflicts.length === 0) {
       setTerminalOutput(result.error);
       setFeedback("error");
       setShowHint(true);
       return;
     } else {
-      setTerminalOutput(result.output || "");
+      setTerminalOutput(result.error || result.output || "");
       setRepoState(result.newState);
+      if (result.newState.conflicts.length > 0 && lesson.conflictScenario) {
+        setConflictContent(lesson.conflictScenario.fileContent || "");
+      }
     }
 
     const expected = lesson.expected;
@@ -1017,29 +1021,50 @@ export function LessonPage() {
                           Submit Answer
                         </button>
                       )}
-                    </div>
                   </div>
-                ) : hasConflict ? (
-                  <div className="mt-8">
-                    {feedback === "correct" && (
-                      <div
-                        role="status"
-                        className="mt-6 text-green-700 font-bold bg-green-50 p-4 rounded-lg border-4 border-green-600 animate-bounce"
+                ) : repoState.conflicts.length !== 0 ? (
+                  <div className="rounded-2xl border-4 bg-surface-low p-6 shadow-card dark:bg-[#1f1c18] dark:border-[#2e2924] border-black mt-8">
+                    <h3 className="text-xl font-black mb-4 flex items-center gap-2 text-text dark:text-[#f0ebe2]">
+                      <span>📝</span> Resolve Merge Conflict
+                    </h3>
+                    <p className="text-sm text-muted mb-4 dark:text-[#c4bbae]">
+                      Edit the file below to resolve the conflict markers, then save your changes.
+                    </p>
+                    <textarea
+                      value={conflictContent}
+                      onChange={(e) => setConflictContent(e.target.value)}
+                      className="w-full h-64 p-4 font-mono text-sm bg-surface-lowest text-text border-2 border-black rounded-lg outline-none mb-4 whitespace-pre"
+                      spellCheck={false}
+                    />
+                    <div className="flex justify-end">
+                      <button
+                        onClick={() => {
+                          if (conflictContent.includes("<<<<<<<") || conflictContent.includes("=======") || conflictContent.includes(">>>>>>>")) {
+                            setFeedback("error");
+                            return;
+                          }
+                          setRepoState((prev) => ({ ...prev, conflicts: [] }));
+                          setFeedback("correct");
+                        }}
+                        className="px-5 py-2.5 bg-primary text-black font-black text-sm rounded-lg border-4 border-black shadow-card-sm hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-card-sm transition-all cursor-pointer"
                       >
-                        ✅ Correct! You successfully resolved the merge
-                        conflict.
-                      </div>
-                    )}
+                        Save & Mark Resolved
+                      </button>
+                    </div>
                     {feedback === "error" && (
-                      <div
-                        role="alert"
-                        aria-live="assertive"
-                        className="mt-6 text-red-700 font-bold bg-red-50 p-4 rounded-lg border-4 border-red-600"
-                      >
-                        ❌ The resolved output doesn't quite match what was
-                        expected. Try reviewing your selections.
+                      <div className="mt-4 text-red-700 font-bold bg-red-50 p-3 rounded-lg border-2 border-red-600">
+                        ❌ Please remove all conflict markers (&lt;&lt;&lt;&lt;&lt;&lt;&lt;, =======, &gt;&gt;&gt;&gt;&gt;&gt;&gt;).
                       </div>
                     )}
+                  </div>
+                ) : hasConflict && feedback === "correct" ? (
+                  <div className="mt-8">
+                    <div
+                      role="status"
+                      className="mt-6 text-green-700 font-bold bg-green-50 p-4 rounded-lg border-4 border-green-600 animate-bounce"
+                    >
+                      ✅ Correct! You successfully resolved the merge conflict.
+                    </div>
                   </div>
                 ) : (
                   <div

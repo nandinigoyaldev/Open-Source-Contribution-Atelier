@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk, PayloadAction } from "@reduxjs/toolkit";
 import { fetchApi } from "../../lib/api";
+import { clearAccessToken, getAccessToken, setAccessToken } from "../../lib/authToken";
 
 type User = {
   id: number;
@@ -14,7 +15,6 @@ type User = {
   twitter_url?: string;
   linkedin_url?: string;
   github_url?: string;
-  receive_weekly_digest?: boolean;
 };
 
 interface AuthState {
@@ -41,17 +41,9 @@ function sanitizeStorageData(value: string): string {
 
 function safeSetItem(key: string, value: string) {
   try {
-    localStorage.setItem(key, value);
+    localStorage.setItem(key, sanitizeStorageData(value));
   } catch {
     /* localStorage unavailable */
-  }
-}
-
-function safeGetItem(key: string): string | null {
-  try {
-    return localStorage.getItem(key);
-  } catch {
-    return null;
   }
 }
 
@@ -66,7 +58,7 @@ function safeRemoveItem(key: string) {
 export const checkUser = createAsyncThunk(
   "auth/checkUser",
   async (_, { rejectWithValue }) => {
-    const token = safeGetItem("accessToken");
+    const token = getAccessToken();
     if (!token) {
       return rejectWithValue("No token");
     }
@@ -74,39 +66,42 @@ export const checkUser = createAsyncThunk(
       const data = await fetchApi("/auth/me/", { requireAuth: true });
       return data as User;
     } catch {
-      safeRemoveItem("accessToken");
+      clearAccessToken();
       safeRemoveItem("refreshToken");
       return rejectWithValue("Failed to fetch user");
     }
-  },
+  }
 );
 
-export const logoutAction = createAsyncThunk("auth/logout", async () => {
-  try {
-    if ("serviceWorker" in navigator && "PushManager" in window) {
-      const reg = await navigator.serviceWorker.ready;
-      const sub = await reg.pushManager.getSubscription();
-      if (sub) {
-        const endpoint = sub.endpoint;
-        await sub.unsubscribe();
-        try {
-          await fetchApi("/notifications/push/unsubscribe/", {
-            method: "POST",
-            requireAuth: true,
-            body: JSON.stringify({ endpoint }),
-          });
-        } catch (e) {
-          console.error("Failed to notify backend of push unsubscribe", e);
+export const logoutAction = createAsyncThunk(
+  "auth/logout",
+  async () => {
+    try {
+      if ("serviceWorker" in navigator && "PushManager" in window) {
+        const reg = await navigator.serviceWorker.ready;
+        const sub = await reg.pushManager.getSubscription();
+        if (sub) {
+          const endpoint = sub.endpoint;
+          await sub.unsubscribe();
+          try {
+            await fetchApi("/notifications/push/unsubscribe/", {
+              method: "POST",
+              requireAuth: true,
+              body: JSON.stringify({ endpoint }),
+            });
+          } catch (e) {
+            console.error("Failed to notify backend of push unsubscribe", e);
+          }
         }
       }
+    } catch (e) {
+      console.error("Error unsubscribing push on logout", e);
     }
-  } catch (e) {
-    console.error("Error unsubscribing push on logout", e);
-  }
 
-  safeRemoveItem("accessToken");
-  safeRemoveItem("refreshToken");
-});
+    clearAccessToken();
+    safeRemoveItem("refreshToken");
+  }
+);
 
 export const authSlice = createSlice({
   name: "auth",
@@ -114,9 +109,9 @@ export const authSlice = createSlice({
   reducers: {
     loginTokens: (
       state,
-      action: PayloadAction<{ access: string; refresh: string }>,
+      action: PayloadAction<{ access: string; refresh: string }>
     ) => {
-      safeSetItem("accessToken", action.payload.access);
+      setAccessToken(action.payload.access);
       safeSetItem("refreshToken", action.payload.refresh);
     },
   },

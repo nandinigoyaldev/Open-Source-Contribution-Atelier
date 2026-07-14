@@ -29,6 +29,7 @@ from apps.sandbox.routing import websocket_urlpatterns as sandbox_ws  # noqa: E4
 # Including dashboard_ws which handles real-time metric distributions
 combined_websocket_urlpatterns = notifications_ws + dashboard_ws + chat_ws + sandbox_ws
 
+from apps.chat.middleware import ProfanityFilterMiddleware
 from apps.core.middleware import WebSocketRateLimitMiddleware
 
 application = ProtocolTypeRouter(
@@ -36,7 +37,9 @@ application = ProtocolTypeRouter(
         "http": django_asgi_app,
         "websocket": AllowedHostsOriginValidator(
             WebSocketRateLimitMiddleware(
-                JWTAuthMiddleware(URLRouter(combined_websocket_urlpatterns))
+                ProfanityFilterMiddleware(
+                    JWTAuthMiddleware(URLRouter(combined_websocket_urlpatterns))
+                )
             )
         ),
     }

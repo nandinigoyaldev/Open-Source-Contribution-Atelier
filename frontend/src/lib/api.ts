@@ -1,106 +1,20 @@
-import toast from "react-hot-toast";
 import { enqueueOfflineAction } from "./offlineQueue";
-import { LRUCache } from "../utils/cache";
+import { getAccessToken } from "./authToken";
+import toast from "react-hot-toast"; // <-- YEH HUMNE ADD KIYA HAI
 
-const snippetsCache = new LRUCache<any[]>(50, 300000);
-
-let isRefreshing = false;
-let refreshPromise: Promise<boolean> | null = null;
-let refreshSubscribers: Array<(token: string) => void> = [];
-
-function onRefreshed(token: string) {
-  refreshSubscribers.forEach((cb) => cb(token));
-  refreshSubscribers = [];
-}
-
-function safeGetItem(key: string): string | null {
-  try {
-    return localStorage.getItem(key);
-  } catch {
-    return null;
+const getApiBaseUrl = () => {
+  if (typeof import.meta !== "undefined" && import.meta.env) {
+    return import.meta.env.VITE_API_BASE_URL;
   }
-}
-
-function safeSetItem(key: string, value: string) {
-  try {
-    localStorage.setItem(key, value);
-  } catch {
-    /* localStorage unavailable */
+  if (typeof process !== "undefined" && process.env) {
+    return process.env.NEXT_PUBLIC_API_URL || process.env.VITE_API_BASE_URL;
   }
-}
-
-function safeRemoveItem(key: string) {
-  try {
-    localStorage.removeItem(key);
-  } catch {
-    /* localStorage unavailable */
-  }
-}
-
-async function attemptTokenRefresh(): Promise<boolean> {
-  if (isRefreshing && refreshPromise) {
-    return new Promise<boolean>((resolve) => {
-      refreshSubscribers.push((token: string) => resolve(!!token));
-    });
-  }
-
-  const refreshToken = safeGetItem("refreshToken");
-  if (!refreshToken) return false;
-
-  isRefreshing = true;
-  refreshPromise = (async () => {
-    try {
-      const response = await fetch(`${API_BASE}/auth/refresh/`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ refresh: refreshToken }),
-      });
-
-      if (!response.ok) {
-        safeRemoveItem("accessToken");
-        safeRemoveItem("refreshToken");
-        onRefreshed("");
-        return false;
-      }
-
-      const data = await response.json();
-      safeSetItem("accessToken", data.access);
-      if (data.refresh) {
-        safeSetItem("refreshToken", data.refresh);
-      }
-      onRefreshed(data.access);
-      return true;
-    } catch {
-      onRefreshed("");
-      return false;
-    } finally {
-      isRefreshing = false;
-      refreshPromise = null;
-    }
-  })();
-
-  return refreshPromise;
-}
-
-// 1. Defend the environment variable retrieval against server-side execution crashes
-const getSafeEnvVar = (key: string): string => {
-  if (typeof process !== "undefined" && process.env && process.env[key]) {
-    return process.env[key] as string;
-  }
-  try {
-    if (typeof import.meta !== "undefined" && import.meta.env?.[key]) {
-      return import.meta.env[key] as string;
-    }
-  } catch (e) {}
-  return "";
+  return undefined;
 };
 
-// 2. Safely resolve the base URL
 const API_BASE =
-  getSafeEnvVar("VITE_API_BASE_URL").trim() ||
-  (typeof window !== "undefined"
-    ? `${window.location.origin}/api`
-    : "http://127.0.0.1:8000/api");
+  getApiBaseUrl()?.trim() ||
+  (typeof window !== "undefined" ? `${window.location.origin}/api` : "http://127.0.0.1:8000/api");
 
 type RequestOptions = RequestInit & {
   requireAuth?: boolean;
@@ -146,12 +60,10 @@ export async function fetchApi(endpoint: string, options: RequestOptions = {}) {
   } = options;
 
   const headers = new Headers(customHeaders);
-  if (!(config.body instanceof FormData)) {
-    headers.set("Content-Type", "application/json");
-  }
+  headers.set("Content-Type", "application/json");
 
   if (requireAuth) {
-    const token = safeGetItem("accessToken");
+    const token = getAccessToken();
     if (token) {
       headers.set("Authorization", `Bearer ${token}`);
     }
@@ -179,21 +91,6 @@ export async function fetchApi(endpoint: string, options: RequestOptions = {}) {
       }
 
       if (!response.ok) {
-        if (
-          response.status === 401 &&
-          requireAuth &&
-          !endpoint.includes("/auth/refresh/")
-        ) {
-          const refreshed = await attemptTokenRefresh();
-          if (refreshed) {
-            headers.set(
-              "Authorization",
-              `Bearer ${safeGetItem("accessToken")}`,
-            );
-            continue;
-          }
-        }
-
         const errorBody = await response.json().catch(() => ({}));
         const errorMessage =
           errorBody.detail ||
@@ -209,15 +106,13 @@ export async function fetchApi(endpoint: string, options: RequestOptions = {}) {
               );
               break;
             case 401:
-              // Suppressed as per user request to avoid "Session expired" toasts in the frontend
+              toast.error("Session expired. Please log in again.");
               break;
             case 403:
               toast.error("You do not have permission to perform this action.");
               break;
             case 429:
-              toast.error(
-                errorMessage || "Too many requests. Please slow down!",
-              );
+              toast.error(errorMessage || "Too many requests. Please slow down!");
               break;
             case 500:
               toast.error("Server error. Our team has been notified.");
@@ -256,9 +151,6 @@ export async function fetchApi(endpoint: string, options: RequestOptions = {}) {
         const isOfflineOrNetworkError =
           !navigator.onLine || error instanceof TypeError;
         if (isOfflineOrNetworkError) {
-          if (config.body instanceof FormData) {
-            throw error;
-          }
           const bodyStr = config.body as string;
           try {
             const bodyObj = JSON.parse(bodyStr || "{}");
@@ -362,6 +254,7 @@ export async function saveSandboxSnapshot(
     body: JSON.stringify({ code, label, is_auto }),
   });
 }
+
 
 export interface ProjectFile {
   id: string;
@@ -498,16 +391,7 @@ export async function fetchSnippets(filters?: {
   if (filters?.search) url += `search=${filters.search}&`;
   if (filters?.is_favorite !== undefined)
     url += `is_favorite=${filters.is_favorite}&`;
-
-  // Try to return from cache
-  const cachedData = snippetsCache.get(url);
-  if (cachedData) {
-    return cachedData as CodeSnippet[];
-  }
-
-  const result = await fetchApi(url, { method: "GET" });
-  snippetsCache.set(url, result);
-  return result;
+  return fetchApi(url, { method: "GET" });
 }
 
 export async function createSnippet(
@@ -645,16 +529,13 @@ export async function executeTerminalCommand(
 }
 
 export async function exportWorkspaceZip(projectId: string): Promise<void> {
-  const token = localStorage.getItem("accessToken");
-  const response = await fetch(
-    `${API_BASE}/sandbox/projects/${projectId}/export_zip/`,
-    {
-      method: "GET",
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+  const token = getAccessToken();
+  const response = await fetch(`${API_BASE}/sandbox/projects/${projectId}/export_zip/`, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
     },
-  );
+  });
 
   if (!response.ok) {
     throw new Error("Failed to export workspace");
@@ -662,12 +543,8 @@ export async function exportWorkspaceZip(projectId: string): Promise<void> {
 
   // Get filename from Content-Disposition header
   const contentDisposition = response.headers.get("Content-Disposition") || "";
-  const filenameMatch = contentDisposition.match(
-    /filename(?:\*)?=(?:"([^"]+)"|UTF-8''([^;]+))/i,
-  );
-  const filename = filenameMatch
-    ? filenameMatch[1] || filenameMatch[2]
-    : "workspace-export.zip";
+  const filenameMatch = contentDisposition.match(/filename="(.+)"/);
+  const filename = filenameMatch ? filenameMatch[1] : "workspace-export.zip";
 
   // Create blob and download
   const blob = await response.blob();
@@ -679,18 +556,4 @@ export async function exportWorkspaceZip(projectId: string): Promise<void> {
   a.click();
   window.URL.revokeObjectURL(url);
   document.body.removeChild(a);
-}
-
-export function getMediaUrl(path: string | null | undefined): string | null {
-  if (!path) return null;
-  if (path.startsWith("http://") || path.startsWith("https://")) {
-    return path;
-  }
-  const API_BASE =
-    import.meta.env.VITE_API_BASE_URL?.trim() ||
-    `${window.location.origin}/api`;
-  const BACKEND_BASE = API_BASE.endsWith("/api")
-    ? API_BASE.substring(0, API_BASE.length - 4)
-    : API_BASE;
-  return `${BACKEND_BASE}${path.startsWith("/") ? "" : "/"}${path}`;
 }

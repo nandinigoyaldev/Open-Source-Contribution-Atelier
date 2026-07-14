@@ -1,6 +1,7 @@
 import React, { useState, useRef } from "react";
 import { Upload, X, Play, Pause, CheckCircle } from "lucide-react";
 import { fetchApi } from "../../lib/api";
+import { getAccessToken } from "../../lib/authToken";
 
 const CHUNK_SIZE = 5 * 1024 * 1024; // 5MB
 
@@ -72,14 +73,14 @@ export function ChunkedUploader() {
         formData.append("chunk_index", i.toString());
 
         // We use fetch directly for FormData
-        const token = localStorage.getItem("accessToken");
+        const token = getAccessToken();
         const chunkRes = await fetch(
           `/api/uploads/chunk/${currentSessionId}/`,
           {
             method: "POST",
-            headers: {
-              Authorization: `Bearer ${token}`,
-            },
+            headers: token
+              ? { Authorization: `Bearer ${token}` }
+              : undefined,
             body: formData,
           },
         );
