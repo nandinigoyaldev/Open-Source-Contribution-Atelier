@@ -1,12 +1,16 @@
 /**
  * WebSocket Context Provider with backoff reconnection.
- * 
+ *
  * @file WebSocketContext.tsx
  * @location frontend/src/context/WebSocketContext.tsx
  */
 
-import React, { createContext, useContext, ReactNode } from 'react';
-import { useWebSocketWithBackoff, WebSocketState, WebSocketActions } from '../hooks/useWebSocketWithBackoff';
+import React, { createContext, useContext, ReactNode } from "react";
+import {
+  useWebSocketWithBackoff,
+  WebSocketState,
+  WebSocketActions,
+} from "../hooks/useWebSocketWithBackoff";
 
 interface WebSocketContextValue extends WebSocketState, WebSocketActions {
   sendMessage: (type: string, payload?: any) => void;
@@ -42,17 +46,23 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
       if (data?.type && onMessage) onMessage(data);
     };
 
-    window.addEventListener('ws-message', handleMessage as EventListener);
-    return () => window.removeEventListener('ws-message', handleMessage as EventListener);
+    window.addEventListener("ws-message", handleMessage as EventListener);
+    return () =>
+      window.removeEventListener("ws-message", handleMessage as EventListener);
   }, [onMessage]);
 
   const value: WebSocketContextValue = { ...ws, sendMessage };
 
-  return <WebSocketContext.Provider value={value}>{children}</WebSocketContext.Provider>;
+  return (
+    <WebSocketContext.Provider value={value}>
+      {children}
+    </WebSocketContext.Provider>
+  );
 };
 
 export const useWebSocket = (): WebSocketContextValue => {
   const context = useContext(WebSocketContext);
-  if (!context) throw new Error('useWebSocket must be used within a WebSocketProvider');
+  if (!context)
+    throw new Error("useWebSocket must be used within a WebSocketProvider");
   return context;
 };

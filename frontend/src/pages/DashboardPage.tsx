@@ -5,15 +5,12 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchApi } from "../lib/api";
 import { Link } from "react-router-dom";
 import { SocialShareButtons } from "../components/ui/SocialShareButtons";
-import { ProgressRing } from '../components/ProgressRing';
 import SkeletonAdminDashboard from "../components/ui/skeletons/SkeletonAdminDashboard";
 import SkeletonContributorDashboard from "../components/ui/skeletons/SkeletonContributorDashboard";
 import { useRef } from "react";
 import { useElementSize } from "../hooks/useElementSize";
 import { fetchLessonsApi, Lesson } from "../lib/lessons";
-import { LessonsChart } from '../components/LessonsChart';
-import { useQuery } from '@tanstack/react-query';
-import { fetchApi } from '../lib/api';
+import { ContinueLearning } from '../components/ContinueLearning';
 import { useUserProgress } from "../hooks/useUserProgress";
 import { useBookmarks } from "../hooks/useBookmarks";
 import { BADGES } from "../constants/badges";
@@ -90,278 +87,154 @@ interface AssignedIssue {
 
 export function DashboardPage() {
   const { user } = useAuth();
+  const [gitHubContributors, setGitHubContributors] = useState<GitHubContributor[]>([]);
+  const fallbackContributors: GitHubContributor[] = [];
 
+  useEffect(() => {
+    fetch("https://api.github.com/repos/nandinigoyaldev/Open-Source-Contribution-Atelier/contributors")
+      .then((res) => res.json())
+      .then((contributors: GitHubContributor[]) => {
+        if (Array.isArray(contributors)) {
+          localStorage.setItem(
+            CONTRIBUTORS_CACHE_KEY,
+            JSON.stringify({
+              data: contributors,
+              timestamp: Date.now(),
+            }),
+          );
+          setGitHubContributors(contributors);
+        }
+      })
+      .catch(() => {
+        const cachedData = localStorage.getItem(CONTRIBUTORS_CACHE_KEY);
+
+        if (cachedData) {
+          try {
+            const parsedCache = JSON.parse(cachedData);
+
+            const isCacheValid =
+              Date.now() - parsedCache.timestamp < CACHE_EXPIRY;
+
+            if (isCacheValid) {
+              setGitHubContributors(parsedCache.data);
+              return;
+            }
+
+            localStorage.removeItem(CONTRIBUTORS_CACHE_KEY);
+          } catch {
+            localStorage.removeItem(CONTRIBUTORS_CACHE_KEY);
+          }
+        }
+
+        setGitHubContributors(fallbackContributors);
+      });
+  }, []);
+
+  // Onboarding Tour state
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [onboardingStep, setOnboardingStep] = useState(0);
+
+  useEffect(() => {
+    if (user && !user.is_staff) {
+      const isBoarded = localStorage.getItem("atelier_onboarded");
+      if (!isBoarded) {
+        setShowOnboarding(true);
+      }
+    }
+  }, [user]);
+
+  const handleFinishOnboarding = () => {
+    localStorage.setItem("atelier_onboarded", "true");
+    setShowOnboarding(false);
+  };
+
+  // Certificate Modal state
+  const [showCertificate, setShowCertificate] = useState(false);
+  // Progress Report Modal state
+  const [showProgressReport, setShowProgressReport] = useState(false);
+
+  // Compute local progress metrics based on frontend curriculum data
+  const {
+    completedLessonsCount,
+    totalLessonsCount,
+    completionPercentage,
+    activeLessonsQueue,
+    earnedBadges,
+  } = useMemo(() => {
+    if (user?.is_staff || !lessons.length || !curriculumData.length) {
+      return {
+        completedLessonsCount: 0,
+        totalLessonsCount: 0,
+        completionPercentage: 0,
+        activeLessonsQueue: [],
+        earnedBadges: [],
+      };
+    }
+
+    const total = lessons.length;
+    const completed = lessons.filter((l) => isLessonCompleted(l.slug)).length;
+    const percentage = total > 0 ? Math.round((completed / total) * 100) : 0;
+
+    // Build the lessons queue (uncompleted ones first, up to 3)
+    const queue = lessons.filter((l) => !isLessonCompleted(l.slug)).slice(0, 3);
+
+    const [lastLesson, setLastLesson] = useState(null);
+
+    // Calculate which badges are earned
+    const earned = new Set<string>(
+      contributorData?.personal_stats?.earned_badges || [],
+    );
+    curriculumData.forEach((mod, index) => {
+      const allCompleted = mod.lessons.every((les: { slug: string }) =>
+        isLessonCompleted(les.slug),
+      );
+      if (allCompleted) {
+        earned.add(`mod-${index + 1}`);
+      }
+    });
+
+    if (percentage === 100) {
+      earned.add("grad");
+    }
+
+    return {
+      completedLessonsCount: completed,
+      totalLessonsCount: total,
+      completionPercentage: percentage,
+      activeLessonsQueue: queue,
+      earnedBadges: Array.from(earned),
+    };
+  }, [lessons, curriculumData, isLessonCompleted, user, contributorData]);
+
+  // Fetch user certificate if course is completed
+  const { data: certificateData } = useQuery({
+    queryKey: ["userCertificate"],
+    queryFn: () =>
+      fetchApi("/progress/certificate/", { suppressErrorToast: true }),
+    enabled: !!user && !user.is_staff && completionPercentage === 100,
+    retry: false,
+  });
+
+  if (showSkeleton) {
+    if (user?.is_staff) {
+      return (
+        <div aria-busy="true" role="status">
+          <SkeletonAdminDashboard />
+          <span className="sr-only">Loading admin dashboard...</span>
+        </div>
+      );
+    }
     return (
-      <div className="max-w-7xl mx-auto px-4 pt-24 pb-12 space-y-10">
-        {/* Admin Header */}
-        <section className="rounded-[2rem] border-4 border-black bg-primary p-8 sm:p-10 shadow-card relative overflow-hidden dark:border-[#2e2924] dark:shadow-none">
-          <div className="relative z-10">
-            <span className="font-black text-sm bg-white text-black px-4 py-2 rounded-full border-2 border-black rotate-[-2deg] inline-block shadow-card-sm mb-4 dark:bg-[#151411] dark:text-[#f0ebe2] dark:border-[#2e2924]">
-              MAINTAINER CONTROL PANEL 🛠️
-            </span>
-            <h1 className="text-4xl sm:text-5xl font-black text-white drop-shadow-[3px_3px_0_#000] mb-4 dark:drop-shadow-none">
-              Project Health & Cohort Monitor
-            </h1>
-            <p className="text-lg font-bold text-black bg-white/95 p-4 rounded-lg border-4 border-black shadow-card-sm inline-block max-w-lg leading-relaxed dark:bg-[#151411] dark:border-[#2e2924] dark:text-[#f0ebe2]">
-              Track triage tasks, review practice codebases, and approve pending
-              pull requests.
-            </p>
-          </div>
-          <div className="absolute -right-10 -bottom-10 text-[10rem] opacity-25 rotate-12 pointer-events-none">
-            📈
-          </div>
-        </section>
-
-        {/* Stats Blocks */}
-        <section className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          <div className="rounded-[2rem] border-4 border-black bg-white p-6 shadow-card flex flex-col justify-between dark:bg-[#1f1c18] dark:border-[#2e2924] dark:shadow-none">
-            <div className="flex items-center gap-3">
-              <span className="text-4xl">🚨</span>
-              <div>
-                <h3 className=" text-xs uppercase tracking-widest text-muted dark:text-[#c4bbae]">
-                  System Issues
-                </h3>
-                <p className="text-4xl font-black text-primary drop-shadow-[2px_2px_0_#000] dark:drop-shadow-none">
-                  {system_stats.total_issues}
-                </p>
-              </div>
-            </div>
-            <div className="mt-4 pt-4 border-t border-dashed border-muted/20 text-xs font-bold text-muted flex justify-between dark:text-[#c4bbae]">
-              <span>Solved: {system_stats.solved_issues}</span>
-              <span>Open: {system_stats.open_issues}</span>
-            </div>
-          </div>
-
-          <div className="rounded-[2rem] border-4 border-black bg-white p-6 shadow-card flex flex-col justify-between dark:bg-[#1f1c18] dark:border-[#2e2924] dark:shadow-none">
-            <div className="flex items-center gap-3">
-              <span className="text-4xl">💻</span>
-              <div>
-                <h3 className=" text-xs uppercase tracking-widest text-muted dark:text-[#c4bbae]">
-                  Pull Requests
-                </h3>
-                <p className="text-4xl font-black text-tertiary drop-shadow-[2px_2px_0_#000] dark:drop-shadow-none">
-                  {system_stats.total_prs}
-                </p>
-              </div>
-            </div>
-            <div className="mt-4 pt-4 border-t border-dashed border-muted/20 text-xs font-bold text-muted flex justify-between dark:text-[#c4bbae]">
-              <span>Merged: {system_stats.merged_prs}</span>
-              <span>Pending: {system_stats.pending_prs}</span>
-            </div>
-          </div>
-
-          <div className="rounded-[2rem] border-4 border-black bg-white p-6 shadow-card flex flex-col justify-between dark:bg-[#1f1c18] dark:border-[#2e2924] dark:shadow-none">
-            <div className="flex items-center gap-3">
-              <span className="text-4xl">👥</span>
-              <div>
-                <h3 className=" text-xs uppercase tracking-widest text-muted dark:text-[#c4bbae]">
-                  Active Contributors
-                </h3>
-                <p className="text-4xl font-black text-accent drop-shadow-[2px_2px_0_#000] dark:drop-shadow-none">
-                  {system_stats.active_contributors}
-                </p>
-              </div>
-            </div>
-            <div className="mt-4 pt-4 border-t border-dashed border-muted/20 text-xs font-bold text-muted dark:text-[#c4bbae]">
-              Managing guided sandbox profiles
-            </div>
-          </div>
-        </section>
-
-        {/* Charts & Analytics */}
-        <section className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
-          <div className="rounded-2xl border-4 border-black bg-white p-6 shadow-card dark:bg-[#1f1c18] dark:border-[#2e2924] dark:shadow-none">
-            <h2 className="text-2xl font-black mb-6 flex items-center gap-2">
-              <span>📊</span> Active Contributor Activity
-            </h2>
-            <div className="h-[300px] w-full">
-              {isLeaderboardLoading ? (
-                <div className="h-full flex items-center justify-center border-4 border-dashed border-black rounded-2xl p-8 dark:border-[#2e2924]">
-                  <p className="font-bold text-muted dark:text-[#c4bbae]">
-                    Loading contributors...
-                  </p>
-                </div>
-              ) : leaderboardResults.length > 0 ? (
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={leaderboardResults}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e0e0e0" />
-                    <XAxis
-                      dataKey="username"
-                      tick={{ fontStyle: "bold", fill: "#6b5a49" }}
-                    />
-                    <YAxis tick={{ fontStyle: "bold", fill: "#6b5a49" }} />
-                    <Tooltip
-                      contentStyle={{
-                        backgroundColor: "#ffffff",
-                        border: "4px solid #000000",
-                        borderRadius: "12px",
-                        fontWeight: "bold",
-                      }}
-                    />
-                    <Legend wrapperStyle={{ fontWeight: "bold" }} />
-                    <Bar
-                      dataKey="xp"
-                      name="XP Points"
-                      fill="#ff9500"
-                      stroke="#000000"
-                      strokeWidth={2}
-                    />
-                    <Bar
-                      dataKey="prs_merged"
-                      name="Merged PRs"
-                      fill="#ff3b30"
-                      stroke="#000000"
-                      strokeWidth={2}
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
-              ) : (
-                <div className="h-full flex items-center justify-center border-4 border-dashed border-black rounded-2xl p-8 dark:border-[#2e2924]">
-                  <p className="font-bold text-muted dark:text-[#c4bbae]">
-                    No contributor logs registered.
-                  </p>
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div className="rounded-2xl border-4 border-black bg-white p-6 shadow-card dark:bg-[#1f1c18] dark:border-[#2e2924] dark:shadow-none flex flex-col justify-between">
-            <div>
-              <h2 className="text-2xl font-black mb-6 flex items-center gap-2">
-                <span>🎯</span> Task Distribution
-              </h2>
-              <div className="h-[180px] sm:h-[220px] w-full flex justify-center items-center">
-                {system_stats.total_issues > 0 ? (
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={issueStatusData}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius="45%"
-                        outerRadius="70%"
-                        paddingAngle={5}
-                        dataKey="value"
-                      >
-                        {issueStatusData.map((_, index) => (
-                          <Cell
-                            key={`cell-${index}`}
-                            fill={COLORS[index % COLORS.length]}
-                            stroke="#000"
-                            strokeWidth={2}
-                          />
-                        ))}
-                      </Pie>
-                      <Tooltip
-                        contentStyle={{
-                          backgroundColor: "#ffffff",
-                          border: "4px solid #000000",
-                          borderRadius: "12px",
-                          fontWeight: "bold",
-                        }}
-                      />
-                    </PieChart>
-                  </ResponsiveContainer>
-                ) : (
-                  <p className="font-bold text-muted dark:text-[#c4bbae]">
-                    No records.
-                  </p>
-                )}
-              </div>
-            </div>
-            <div className="grid grid-cols-3 gap-2 mt-4 text-center">
-              {issueStatusData.map((item, index) => (
-                <div
-                  key={item.name}
-                  className="p-2 rounded-lg border-2 border-black"
-                  style={{ backgroundColor: `${COLORS[index]}15` }}
-                >
-                  <span
-                    className="block font-black text-xs"
-                    style={{ color: COLORS[index] }}
-                  >
-                    ● {item.name}
-                  </span>
-                  <span className="font-black text-lg text-text dark:text-[#f0ebe2]">
-                    {item.value}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </section>
-
-        {/* PR Queue */}
-        <section className="rounded-2xl border-4 border-black bg-accent p-6 shadow-card dark:bg-[#1f1c18] dark:border-[#2e2924] dark:shadow-none">
-          <h2 className="text-3xl font-black mb-6 flex items-center gap-2 text-black dark:text-[#f0ebe2]">
-            <span>📬</span> Pending Pull Requests ({pending_prs.length})
-          </h2>
-          <div className="space-y-4">
-            {pending_prs.length > 0 ? (
-              pending_prs.map(
-                (pr: {
-                  id: number;
-                  title: string;
-                  contributor: string;
-                  issue_title: string;
-                  created_at: string;
-                }) => (
-                  <div
-                    key={pr.id}
-                    className="rounded-2xl border-4 border-black bg-white p-5 shadow-card-sm dark:bg-[#151411] dark:border-[#2e2924] flex flex-col md:flex-row justify-between items-start md:items-center gap-4"
-                  >
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span className="font-black text-[9px] bg-black text-white px-2 py-0.5 rounded-full">
-                          PENDING REVIEW
-                        </span>
-                        <span className="text-xs font-bold text-muted dark:text-[#c4bbae]">
-                          Opened: {new Date(pr.created_at).toLocaleDateString()}
-                        </span>
-                      </div>
-                      <h3 className="font-black text-xl mt-2 dark:text-[#f0ebe2]">
-                        {pr.title}
-                      </h3>
-                      <p className="text-sm font-bold text-muted mt-1 dark:text-[#c4bbae]">
-                        Submitted by:{" "}
-                        <span className="text-primary">@{pr.contributor}</span>{" "}
-                        · Issue: {pr.issue_title}
-                      </p>
-                    </div>
-                    <div className="flex gap-2 w-full md:w-auto">
-                      <button className="grow md:grow-0 rounded-lg bg-surface-low border-2 border-black px-4 py-2 text-xs font-black hover:-translate-y-0.5 shadow-card-sm transition-all dark:bg-[#0f0e0c] dark:text-[#f0ebe2]">
-                        Comment
-                      </button>
-                      <button className="grow md:grow-0 rounded-lg bg-[#c3c0ff] border-2 border-black px-4 py-2 text-xs font-black hover:-translate-y-0.5 shadow-card-sm transition-all">
-                        Approve & Merge
-                      </button>
-                    </div>
-                  </div>
-                ),
-              )
-            ) : (
-              <div className="p-8 text-center bg-white rounded-2xl border-4 border-dashed border-black dark:bg-[#151411] dark:border-[#2e2924]">
-                <p className="font-bold text-muted dark:text-[#c4bbae]">
-                  No pending reviews. Working tree clean! 🌟
-                </p>
-              </div>
-            )}
-          </div>
-        </section>
+      <div aria-busy="true" role="status">
+        <SkeletonContributorDashboard />
+        <span className="sr-only">Loading dashboard...</span>
       </div>
     );
   }
 
-  // Contributor/Student Dashboard Render
-  if (contributorError || !contributorData) {
-    return (
-      <div className="pt-24 max-w-7xl mx-auto px-4">
-        <div className="p-8 text-center bg-red-100 rounded-2xl border-4 border-black font-bold">
-          Failed to load Contributor stats. Make sure Django backend server is
-          running.
-        </div>
-      </div>
-    );
+  // Admin Dashboard Render
+  if (user?.is_staff) {
+    return <AdminDashboard />;
   }
 
   const { personal_stats, assigned_issues } = contributorData;
@@ -551,11 +424,6 @@ export function DashboardPage() {
             >
               View Full Learning Path 🗺️
             </Link>
-          </div>
-
-          <div className="module-card">
-            <h4>Git Basics</h4>
-            <ProgressRing percentage={75} label="3/4 lessons" />
           </div>
 
           <div className="grid gap-6 md:grid-cols-[1.5fr_1fr] pt-4 border-t-2 border-dashed border-black/10 dark:border-white/10">
@@ -1125,6 +993,9 @@ export function DashboardPage() {
                     XP
                   </span>
                 </div>
+                <div className="dashboard-content">
+                 <ContinueLearning lastLesson={lastLesson} />
+                </div>
                 <div className="text-center">
                   <span className="block text-2xl font-black text-text dark:text-[#f0ebe2]">
                     {personal_stats?.streak_days ?? 0}
@@ -1180,6 +1051,7 @@ export function DashboardPage() {
           </div>
         </div>
       )}
+
     </div>
   );
 }

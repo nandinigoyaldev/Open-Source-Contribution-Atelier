@@ -64,7 +64,6 @@ export function GitTerminal({
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
-
   const handleComplete = useCallback(() => {
     setCompleted(true);
     onComplete?.();
@@ -142,7 +141,9 @@ export function GitTerminal({
   const copyTerminalText = useCallback(async () => {
     // Best-effort: copy rendered terminal lines (excluding nano editor UI).
     const text = lines
-      .map((l) => (l.kind === "command" ? `${l.prompt ?? "~"}$ ${l.text}` : l.text))
+      .map((l) =>
+        l.kind === "command" ? `${l.prompt ?? "~"}$ ${l.text}` : l.text,
+      )
       .join("\n");
     try {
       await navigator.clipboard.writeText(text);
@@ -176,7 +177,6 @@ export function GitTerminal({
       clearTerminal();
       return;
     }
-
 
     // Ctrl+/ focuses the input (defensive; input already has focus)
     if (e.ctrlKey && e.key === "/") {
@@ -214,7 +214,6 @@ export function GitTerminal({
       // If suggestions are not open, keep default Tab behavior.
       return;
     }
-
 
     if (e.key === "ArrowUp") {
       e.preventDefault();
@@ -272,7 +271,6 @@ export function GitTerminal({
         }
       }}
     >
-
       {/* ── Title bar ─────────────────────────────────────────────── */}
       <div className="flex items-center justify-between px-4 py-2 bg-[#1a1a2e] border-b-4 border-black dark:border-[#2e2924]">
         <div className="flex items-center gap-3">

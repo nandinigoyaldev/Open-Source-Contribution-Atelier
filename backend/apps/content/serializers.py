@@ -30,6 +30,14 @@ class ExerciseSerializer(CamelCaseModelSerializer):
         fields = "__all__"
 
 
+class LessonVersionSerializer(CamelCaseModelSerializer):
+    class Meta:
+        from .models import LessonVersion
+
+        model = LessonVersion
+        fields = ["id", "content", "summary", "created_at"]
+
+
 class LessonSerializer(CamelCaseModelSerializer):
     exercises = ExerciseSerializer(many=True, read_only=True)
     prerequisites = serializers.SlugRelatedField(

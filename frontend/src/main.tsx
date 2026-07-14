@@ -13,6 +13,11 @@ import i18n from "./lib/i18n";
 import { I18nextProvider } from "react-i18next";
 import "./styles.css";
 import "./plugins/coreLessonPlugins";
+import { NetworkStatusProvider } from "./context/NetworkStatusContext";
+import { initializeTracing } from "./tracing";
+
+// Initialize OpenTelemetry tracing before rendering
+initializeTracing();
 
 const GOOGLE_CLIENT_ID =
   import.meta.env.VITE_GOOGLE_CLIENT_ID ||
@@ -51,7 +56,9 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
           <AuthProvider>
             <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
               <ToastProvider>
-                <App />
+                <NetworkStatusProvider>
+                  <App />
+                </NetworkStatusProvider>
               </ToastProvider>
             </GoogleOAuthProvider>
           </AuthProvider>

@@ -83,6 +83,7 @@ class XPEvent(models.Model):
         ("issue", "Issue"),
         ("review", "Review"),
         ("badge", "Badge"),
+        ("shop", "Shop Purchase"),
     ]
 
     user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="xp_events")
@@ -410,6 +411,7 @@ class StreakProfile(models.Model):
     current_streak = models.PositiveIntegerField(default=0)
     longest_streak = models.PositiveIntegerField(default=0)
     last_activity_date = models.DateField(null=True, blank=True)
+    streak_freezes = models.PositiveIntegerField(default=0)
     updated_at = models.DateTimeField(auto_now=True)
 
     @property
@@ -486,9 +488,20 @@ class DailyActivity(models.Model):
                 ).exists()
 
                 if yesterday_exists:
-                    streak_profile.current_streak = streak_profile.current_streak + 1
+                    streak_profile.current_streak += 1
                 else:
-                    streak_profile.current_streak = 1
+                    last = streak_profile.last_activity_date
+                    if last and date > last:
+                        missed_days = (date - last).days - 1
+                        if missed_days == 0:
+                            streak_profile.current_streak += 1
+                        elif missed_days > 0 and streak_profile.streak_freezes >= missed_days:
+                            streak_profile.streak_freezes -= missed_days
+                            streak_profile.current_streak += 1
+                        else:
+                            streak_profile.current_streak = 1
+                    else:
+                        streak_profile.current_streak = 1
 
                 streak_profile.last_activity_date = date
                 streak_profile.longest_streak = max(
@@ -499,6 +512,7 @@ class DailyActivity(models.Model):
                         "current_streak",
                         "longest_streak",
                         "last_activity_date",
+                        "streak_freezes",
                         "updated_at",
                     ]
                 )
@@ -519,3 +533,18 @@ class LessonBookmark(models.Model):
 
     def __str__(self):
         return f"{self.user.username} - {self.lesson.slug}"
+
+
+class UserNote(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="lesson_notes")
+    lesson = models.ForeignKey("content.Lesson", on_delete=models.CASCADE, related_name="lesson_notes")
+    content = models.TextField()
+    tags = models.JSONField(default=list, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"Note by {self.user.username} for {self.lesson.slug}"

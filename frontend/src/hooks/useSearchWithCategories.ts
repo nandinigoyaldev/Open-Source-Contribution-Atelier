@@ -1,12 +1,12 @@
 /**
  * Hook for search with category filtering.
- * 
+ *
  * @file useSearchWithCategories.ts
  * @location frontend/src/hooks/useSearchWithCategories.ts
  */
 
-import { useState, useEffect, useCallback } from 'react';
-import axios from 'axios';
+import { useState, useEffect, useCallback } from "react";
+import axios from "axios";
 
 interface SearchResult {
   id: string;
@@ -37,14 +37,23 @@ export function useSearchWithCategories(): UseSearchWithCategoriesResult {
     const fetchCategories = async () => {
       try {
         // Fetch from curriculum or API
-        const response = await axios.get('/api/content/categories/');
+        const response = await axios.get("/api/content/categories/");
         setCategories(response.data.categories || []);
       } catch (err) {
         // Fallback categories
         setCategories([
-          'Git', 'GitHub', 'Security', 'Workflows',
-          'Documentation', 'Testing', 'API', 'Database',
-          'Frontend', 'Backend', 'DevOps', 'Cloud'
+          "Git",
+          "GitHub",
+          "Security",
+          "Workflows",
+          "Documentation",
+          "Testing",
+          "API",
+          "Database",
+          "Frontend",
+          "Backend",
+          "DevOps",
+          "Cloud",
         ]);
       }
     };
@@ -60,10 +69,10 @@ export function useSearchWithCategories(): UseSearchWithCategoriesResult {
       if (query) params.q = query;
       if (category) params.category = category;
 
-      const response = await axios.get('/api/search/', { params });
+      const response = await axios.get("/api/search/", { params });
       setResults(response.data.results || []);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Search failed');
+      setError(err instanceof Error ? err.message : "Search failed");
       setResults([]);
     } finally {
       setIsLoading(false);

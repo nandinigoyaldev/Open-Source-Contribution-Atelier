@@ -11,6 +11,7 @@ import {
   CheckCircle2,
   Lock,
   Bookmark,
+  History,
 } from "lucide-react";
 
 import SkeletonLesson from "../components/ui/skeletons/SkeletonLesson";
@@ -18,6 +19,34 @@ import { useUserProgress } from "../hooks/useUserProgress";
 import { useBookmarks } from "../hooks/useBookmarks";
 import { fetchApi } from "../lib/api";
 import { Lesson, fetchLessonsApi, fetchLessonContent } from "../lib/lessons";
+import { RecentlyViewedLessonsWidget } from "../components/ui/RecentlyViewedLessonsWidget";
+import Confetti from "react-confetti";
+
+const SESSION_KEY_RECENT = "recentlyViewedLessonsV1";
+const MAX_RECENT_ITEMS = 3;
+
+function safeParseRecentlyViewedLessons(
+  raw: string | null,
+): { slug: string; title: string }[] {
+  if (!raw) return [];
+  try {
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter(
+        (x) =>
+          x &&
+          typeof x === "object" &&
+          typeof (x as any).slug === "string" &&
+          typeof (x as any).title === "string",
+      )
+      .map((x) => ({ slug: (x as any).slug, title: (x as any).title }))
+      .slice(0, MAX_RECENT_ITEMS);
+  } catch {
+    return [];
+  }
+}
+
 const RichTextEditor = React.lazy(() =>
   import("../components/ui/RichTextEditor").then((mod) => ({
     default: mod.RichTextEditor,
@@ -29,6 +58,7 @@ const MarkdownRenderer = React.lazy(() =>
     default: module.MarkdownRenderer,
   })),
 );
+import { LessonHistoryModal } from "../components/LessonHistoryModal";
 import { GitGraph } from "../components/ui/GitGraph";
 import { NotePanel } from "../components/ui/NotePanel";
 import { LessonFeedbackWidget } from "../components/ui/LessonFeedbackWidget";
@@ -46,6 +76,7 @@ const InteractiveDebugger = React.lazy(() =>
 );
 import { TextToSpeechControls } from "../components/ui/TextToSpeechControls";
 import { ReadingProgressTracker } from "../components/ui/ReadingProgressTracker";
+import { NotesWidget } from "../components/ui/NotesWidget";
 import { lessonPluginRegistry } from "../plugins/LessonPluginRegistry";
 
 import {
@@ -69,6 +100,7 @@ export function LessonPage() {
   const [lessonsList, setLessonsList] = useState<Lesson[]>([]);
   const [markdownContent, setMarkdownContent] = useState("");
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   // Curriculum modules list for sidebar
   const [modules, setModules] = useState<
@@ -105,8 +137,13 @@ export function LessonPage() {
   const [input, setInput] = useState("");
   const [feedback, setFeedback] = useState<string>("");
   const [showHint, setShowHint] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
+  const [showConfetti, setShowConfetti] = useState(false);
+
+  // For Interactive Terminal Lessons
   const [terminalOutput, setTerminalOutput] = useState("");
   const [repoState, setRepoState] = useState<RepoState>(createInitialRepo());
+  const [conflictContent, setConflictContent] = useState<string>("");
 
   // Quiz-based exercises
   const [currentQuizIndex, setCurrentQuizIndex] = useState(0);
@@ -179,6 +216,7 @@ export function LessonPage() {
   // 1. Fetch modules catalog & lessons
   useEffect(() => {
     setIsLoading(true);
+    setError(null);
 
     const curriculumPromise = fetch("/content/curriculum.json")
       .then((res) => {
@@ -210,6 +248,7 @@ export function LessonPage() {
             );
             if (curriculumLesson) {
               found = {
+                id: 0,
                 slug: curriculumLesson.slug,
                 title: curriculumLesson.title,
                 description: curriculumLesson.description || "",
@@ -234,7 +273,8 @@ export function LessonPage() {
         }
 
         if (!found) {
-          navigate("/dashboard", { replace: true });
+          setError("Lesson not found. Please check the lesson URL.");
+          setIsLoading(false);
           return;
         }
 
@@ -242,7 +282,9 @@ export function LessonPage() {
       })
       .catch((err) => {
         console.error("[LessonPage] Unexpected error loading lesson:", err);
-        navigate("/dashboard", { replace: true });
+        setError(
+          "Failed to load lesson. Please check your connection and try again.",
+        );
       })
       .finally(() => {
         setIsLoading(false);
@@ -252,6 +294,23 @@ export function LessonPage() {
   // 2. Fetch markdown content and reset interactive state when lesson changes
   useEffect(() => {
     if (!lesson) return;
+
+    // Update session-based "Recently Viewed Lessons".
+    try {
+      const nextItem = { slug: lesson.slug, title: lesson.title };
+      const raw = window.sessionStorage.getItem(SESSION_KEY_RECENT);
+      const current = safeParseRecentlyViewedLessons(raw);
+
+      const deduped = current.filter((x) => x.slug !== nextItem.slug);
+      const updated = [nextItem, ...deduped].slice(0, MAX_RECENT_ITEMS);
+
+      window.sessionStorage.setItem(
+        SESSION_KEY_RECENT,
+        JSON.stringify(updated),
+      );
+    } catch {
+      // Ignore storage errors (private mode / quota / unsupported browsers)
+    }
 
     setFeedback("");
     setInput("");
@@ -322,9 +381,10 @@ export function LessonPage() {
   }, [timeLeft, quizFeedback]);
 
   const handleTimeout = useCallback(() => {
-    if (!lesson || !lesson.quizzes || !quizNonce || quizFeedback !== null) return;
+    if (!lesson || !lesson.quizzes || !quizNonce || quizFeedback !== null)
+      return;
     const currentQuiz = lesson.quizzes[currentQuizIndex];
-    
+
     quizAttemptMutation.mutate({
       question_id: `${lesson.slug}-q${currentQuizIndex}`,
       question_text: currentQuiz.question,
@@ -377,14 +437,17 @@ export function LessonPage() {
     await new Promise((resolve) => setTimeout(resolve, 800));
 
     const result = parseGitCommand(input, repoState);
-    if (result.error) {
+    if (result.error && result.newState.conflicts.length === 0) {
       setTerminalOutput(result.error);
       setFeedback("error");
       setShowHint(true);
       return;
     } else {
-      setTerminalOutput(result.output || "");
+      setTerminalOutput(result.error || result.output || "");
       setRepoState(result.newState);
+      if (result.newState.conflicts.length > 0 && lesson.conflictScenario) {
+        setConflictContent(lesson.conflictScenario.fileContent || "");
+      }
     }
 
     const expected = lesson.expected;
@@ -442,14 +505,6 @@ export function LessonPage() {
 
     if (isCorrect) {
       setQuizFeedback("correct");
-      if (currentQuizIndex === lesson.quizzes.length - 1) {
-        setFeedback("correct");
-        syncProgress({
-          lesson_slug: lesson.slug,
-          score: lesson.points || 15,
-          completed: true,
-        });
-      }
     } else {
       setQuizFeedback("incorrect");
     }
@@ -478,6 +533,46 @@ export function LessonPage() {
       >
         <div className="w-full max-w-3xl">
           <SkeletonLesson />
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div
+        className="pt-20 h-screen w-full flex items-center justify-center px-4"
+        role="alert"
+        aria-live="assertive"
+      >
+        <div className="w-full max-w-2xl">
+          <div className="rounded-2xl border-4 border-red-600 bg-red-50 p-8 shadow-card dark:bg-red-950 dark:border-red-700">
+            <h2 className="text-2xl font-black mb-4 text-red-900 dark:text-red-200">
+              ⚠️ Error Loading Lesson
+            </h2>
+            <p className="text-red-800 dark:text-red-300 mb-6 font-semibold">
+              {error}
+            </p>
+            <div className="flex flex-col sm:flex-row gap-4">
+              <button
+                onClick={() => {
+                  setError(null);
+                  setIsLoading(true);
+                  // Re-trigger the fetch by resetting the effect
+                  window.location.reload();
+                }}
+                className="flex-1 px-6 py-3 bg-red-600 hover:bg-red-700 text-white font-black rounded-lg border-2 border-red-800 transition-colors"
+              >
+                🔄 Retry
+              </button>
+              <Link
+                to="/dashboard"
+                className="flex-1 px-6 py-3 bg-black dark:bg-[#2e2924] hover:bg-gray-800 text-white font-black rounded-lg border-2 border-black dark:border-[#2e2924] transition-colors text-center"
+              >
+                ← Go Back to Dashboard
+              </Link>
+            </div>
+          </div>
         </div>
       </div>
     );
@@ -547,6 +642,10 @@ export function LessonPage() {
         </div>
 
         <div className="space-y-6">
+          <div className="pt-2">
+            <RecentlyViewedLessonsWidget />
+          </div>
+
           {modules.map((mod, modIdx) => (
             <div key={mod.id} className="space-y-2">
               <h3
@@ -636,30 +735,38 @@ export function LessonPage() {
                   COMPLETED ✅
                 </div>
               )}
-              <button
-                onClick={() =>
-                  toggleBookmark.mutate({
-                    slug: lesson.slug,
-                    isBookmarked: isBookmarked(lesson.slug),
-                  })
-                }
-                disabled={toggleBookmark.isPending}
-                className="self-start sm:self-center ml-auto flex items-center justify-center p-2 rounded-xl border-4 border-black bg-surface-low hover:-translate-y-1 hover:shadow-card-sm transition-all"
-                title={
-                  isBookmarked(lesson.slug)
-                    ? "Remove from Read Later"
-                    : "Save for later"
-                }
-              >
-                <Bookmark
-                  className={
-                    isBookmarked(lesson.slug)
-                      ? "fill-primary text-primary"
-                      : "text-black dark:text-[#f0ebe2]"
+              <div className="self-start sm:self-center ml-auto flex gap-2">
+                <button
+                  onClick={() => setShowHistory(true)}
+                  className="flex items-center justify-center p-2 rounded-xl border-4 border-black bg-surface-low hover:-translate-y-1 hover:shadow-card-sm transition-all"
+                  title="View History"
+                >
+                  <History className="text-text h-6 w-6" />
+                </button>
+                <button
+                  onClick={() =>
+                    toggleBookmark.mutate({
+                      slug: lesson.slug,
+                      isBookmarked: isBookmarked(lesson.slug),
+                    })
                   }
-                  size={24}
-                />
-              </button>
+                  disabled={toggleBookmark.isPending}
+                  className="flex items-center justify-center p-2 rounded-xl border-4 border-black bg-surface-low hover:-translate-y-1 hover:shadow-card-sm transition-all"
+                  title={
+                    isBookmarked(lesson.slug)
+                      ? "Remove from Read Later"
+                      : "Save for later"
+                  }
+                >
+                  <Bookmark
+                    className={
+                      isBookmarked(lesson.slug)
+                        ? "fill-accent text-accent h-6 w-6"
+                        : "text-text h-6 w-6"
+                    }
+                  />
+                </button>
+              </div>
             </div>
 
             <p className="text-xl font-bold text-muted dark:text-[#c4bbae]">
@@ -777,10 +884,18 @@ export function LessonPage() {
                       </span>
                       <div className="flex items-center gap-3">
                         {timeLeft !== null && (
-                          <div className={`text-xs font-black px-2 py-0.5 rounded-full border-2 ${
-                            timeLeft <= 5 ? "bg-red-100 text-red-600 border-red-600 animate-pulse" : "bg-surface text-text border-black dark:border-[#2e2924] dark:text-[#f0ebe2]"
-                          }`}>
-                            ⏱ {Math.floor(timeLeft / 60).toString().padStart(2, "0")}:{(timeLeft % 60).toString().padStart(2, "0")}
+                          <div
+                            className={`text-xs font-black px-2 py-0.5 rounded-full border-2 ${
+                              timeLeft <= 5
+                                ? "bg-red-100 text-red-600 border-red-600 animate-pulse"
+                                : "bg-surface text-text border-black dark:border-[#2e2924] dark:text-[#f0ebe2]"
+                            }`}
+                          >
+                            ⏱{" "}
+                            {Math.floor(timeLeft / 60)
+                              .toString()
+                              .padStart(2, "0")}
+                            :{(timeLeft % 60).toString().padStart(2, "0")}
                           </div>
                         )}
                         <span className="text-xs font-black text-accent bg-black text-white px-2 py-0.5 rounded-full dark:bg-[#2e2924]">
@@ -906,29 +1021,50 @@ export function LessonPage() {
                           Submit Answer
                         </button>
                       )}
-                    </div>
                   </div>
-                ) : hasConflict ? (
-                  <div className="mt-8">
-                    {feedback === "correct" && (
-                      <div
-                        role="status"
-                        className="mt-6 text-green-700 font-bold bg-green-50 p-4 rounded-lg border-4 border-green-600 animate-bounce"
+                ) : repoState.conflicts.length !== 0 ? (
+                  <div className="rounded-2xl border-4 bg-surface-low p-6 shadow-card dark:bg-[#1f1c18] dark:border-[#2e2924] border-black mt-8">
+                    <h3 className="text-xl font-black mb-4 flex items-center gap-2 text-text dark:text-[#f0ebe2]">
+                      <span>📝</span> Resolve Merge Conflict
+                    </h3>
+                    <p className="text-sm text-muted mb-4 dark:text-[#c4bbae]">
+                      Edit the file below to resolve the conflict markers, then save your changes.
+                    </p>
+                    <textarea
+                      value={conflictContent}
+                      onChange={(e) => setConflictContent(e.target.value)}
+                      className="w-full h-64 p-4 font-mono text-sm bg-surface-lowest text-text border-2 border-black rounded-lg outline-none mb-4 whitespace-pre"
+                      spellCheck={false}
+                    />
+                    <div className="flex justify-end">
+                      <button
+                        onClick={() => {
+                          if (conflictContent.includes("<<<<<<<") || conflictContent.includes("=======") || conflictContent.includes(">>>>>>>")) {
+                            setFeedback("error");
+                            return;
+                          }
+                          setRepoState((prev) => ({ ...prev, conflicts: [] }));
+                          setFeedback("correct");
+                        }}
+                        className="px-5 py-2.5 bg-primary text-black font-black text-sm rounded-lg border-4 border-black shadow-card-sm hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-card-sm transition-all cursor-pointer"
                       >
-                        ✅ Correct! You successfully resolved the merge
-                        conflict.
-                      </div>
-                    )}
+                        Save & Mark Resolved
+                      </button>
+                    </div>
                     {feedback === "error" && (
-                      <div
-                        role="alert"
-                        aria-live="assertive"
-                        className="mt-6 text-red-700 font-bold bg-red-50 p-4 rounded-lg border-4 border-red-600"
-                      >
-                        ❌ The resolved output doesn't quite match what was
-                        expected. Try reviewing your selections.
+                      <div className="mt-4 text-red-700 font-bold bg-red-50 p-3 rounded-lg border-2 border-red-600">
+                        ❌ Please remove all conflict markers (&lt;&lt;&lt;&lt;&lt;&lt;&lt;, =======, &gt;&gt;&gt;&gt;&gt;&gt;&gt;).
                       </div>
                     )}
+                  </div>
+                ) : hasConflict && feedback === "correct" ? (
+                  <div className="mt-8">
+                    <div
+                      role="status"
+                      className="mt-6 text-green-700 font-bold bg-green-50 p-4 rounded-lg border-4 border-green-600 animate-bounce"
+                    >
+                      ✅ Correct! You successfully resolved the merge conflict.
+                    </div>
                   </div>
                 ) : (
                   <div
@@ -1202,6 +1338,18 @@ export function LessonPage() {
       {lesson && isCompleted && (
         <LessonFeedbackWidget lessonSlug={lesson.slug} />
       )}
+      {showConfetti && <Confetti />}
+
+      {showHistory && (
+        <LessonHistoryModal
+          lessonId={lesson.id}
+          currentContent={markdownContent}
+          onClose={() => setShowHistory(false)}
+        />
+      )}
+
+      {/* Private Notes Widget */}
+      <NotesWidget />
     </div>
   );
 }

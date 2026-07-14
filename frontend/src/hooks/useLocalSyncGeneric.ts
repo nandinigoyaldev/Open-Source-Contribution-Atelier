@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from "react";
+import { getAccessToken } from "../lib/authToken";
 
 /**
  * A generic hook for syncing arbitrary data to localStorage
@@ -6,11 +7,8 @@ import { useState, useEffect, useCallback } from "react";
  */
 export function useLocalSyncGeneric<T>(key: string, initialData: T) {
   const [data, setData] = useState<T>(() => {
-    if (typeof window !== "undefined") {
-      const stored = localStorage.getItem(key);
-      return stored ? JSON.parse(stored) : initialData;
-    }
-    return initialData;
+    const stored = localStorage.getItem(key);
+    return stored ? JSON.parse(stored) : initialData;
   });
 
   const [isSyncing, setIsSyncing] = useState(false);
@@ -30,11 +28,12 @@ export function useLocalSyncGeneric<T>(key: string, initialData: T) {
     setIsSyncing(true);
     setError(null);
     try {
+      const token = getAccessToken();
       const res = await fetch(`/api/progress/${key}`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          Authorization: `Bearer ${localStorage.getItem("token")}`,
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
         body: JSON.stringify(data),
       });

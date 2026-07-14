@@ -230,7 +230,6 @@ class MyProgressView(APIView):
             ProgressTrackingService,
         )
         from apps.progress.services.progress_buffer import ProgressBufferService
-        from django.core.exceptions import ObjectDoesNotExist
         from apps.content.models import Lesson
 
         lesson_slug = request.data.get("lesson_slug")

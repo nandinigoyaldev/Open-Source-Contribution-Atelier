@@ -22,19 +22,35 @@ body {
   overflow-x: hidden;
   font-family: "Outfit", "Inter", sans-serif;
   color: #000000;
-  background-color: #fdfbf7;
-  /* Fun dot grid background */
-  background-image: radial-gradient(#dcd3c4 2px, transparent 2px);
-  background-size: 30px 30px;
+  background-color: #ffffff;
+}
+
+.bg-surface {
+  background-color: #ffffff;
+}
+.bg-surface-lowest {
+  background-color: #ffffff;
+}
+.bg-surface-low {
+  background-color: #f9fafb;
+}
+.bg-surface-high {
+  background-color: #f3f4f6;
+}
+.bg-surface-highest {
+  background-color: #e5e7eb;
 }
 
 html.dark body {
   color-scheme: dark;
   color: var(--dark-text);
   background-color: var(--dark-bg);
-  background-image:
-    radial-gradient(#1e1e2a 1.5px, transparent 1.5px),
-    linear-gradient(135deg, #080810 0%, #0c0f1a 48%, #080f0c 100%);
+  background-image: linear-gradient(
+    135deg,
+    #080810 0%,
+    #0c0f1a 48%,
+    #080f0c 100%
+  );
 }
 
 html.dark {

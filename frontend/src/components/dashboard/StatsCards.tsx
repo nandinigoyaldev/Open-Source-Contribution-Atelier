@@ -3,7 +3,6 @@ import type { PersonalStats } from "./types";
 import { StreakFlame } from "./StreakFlame";
 import "./streakFlame.css";
 
-
 interface StatsCardsProps {
   personalStats: PersonalStats;
   completedLessonsCount: number;

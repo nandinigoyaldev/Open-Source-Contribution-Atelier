@@ -51,25 +51,27 @@ const OrganizationsGrid: React.FC = () => {
 
       {activeOrgs.length > 0 && (
         <div className="mb-10">
-          <h4 className="text-lg font-semibold text-gray-700 mb-4">
+          <h4 className="text-lg font-black text-black dark:text-[#f0ebe2] mb-4">
             Active Partners
           </h4>
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {activeOrgs.map((org) => (
               <div
                 key={org.id}
-                className="flex items-start gap-4 p-5 bg-white border border-gray-200 rounded-2xl shadow-sm hover:shadow-md transition duration-200"
+                className="flex items-start gap-4 p-5 bg-white border-4 border-black rounded-2xl shadow-card-sm hover:-translate-y-0.5 transition-all"
               >
-                <span className="text-2xl p-2 bg-blue-50 rounded-xl">🏗️</span>
+                <span className="text-2xl p-2 bg-[#ffebc2] border-2 border-black rounded-xl">
+                  🏗️
+                </span>
                 <div className="flex flex-col flex-1 min-w-0">
-                  <span className="font-bold text-gray-900 truncate">
+                  <span className="font-extrabold text-black dark:text-[#f0ebe2] truncate">
                     {org.name}
                   </span>
-                  <span className="text-sm text-gray-500 mt-0.5 leading-snug">
+                  <span className="text-sm text-muted dark:text-[#9b8f80] mt-0.5 leading-snug">
                     {org.description}
                   </span>
-                  <span className="inline-flex items-center gap-1 text-xs font-semibold text-green-700 bg-green-50 px-2.5 py-1 rounded-full w-fit mt-3">
-                    <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>{" "}
+                  <span className="inline-flex items-center gap-1 text-xs font-bold text-black bg-[#4ade80] border-2 border-black px-2.5 py-0.5 rounded-full w-fit mt-3">
+                    <span className="w-1.5 h-1.5 rounded-full bg-black"></span>{" "}
                     Active
                   </span>
                 </div>
@@ -81,7 +83,7 @@ const OrganizationsGrid: React.FC = () => {
 
       <div>
         {activeOrgs.length > 0 && (
-          <h4 className="text-lg font-semibold text-gray-700 mb-4">
+          <h4 className="text-lg font-black text-black dark:text-[#f0ebe2] mb-4">
             Coming Soon
           </h4>
         )}
@@ -89,18 +91,20 @@ const OrganizationsGrid: React.FC = () => {
           {comingSoonOrgs.map((org) => (
             <div
               key={org.id}
-              className="flex items-start gap-4 p-5 bg-gray-50/50 border border-gray-150 rounded-2xl shadow-sm hover:shadow-md transition duration-200"
+              className="flex items-start gap-4 p-5 bg-surface-low border-4 border-black dark:border-[#4a4238] rounded-2xl shadow-card-sm hover:-translate-y-0.5 transition-all"
             >
-              <span className="text-2xl p-2 bg-amber-50 rounded-xl">🚀</span>
+              <span className="text-2xl p-2 bg-[#ffb5e8] border-2 border-black dark:border-[#4a4238] rounded-xl">
+                🚀
+              </span>
               <div className="flex flex-col flex-1 min-w-0">
-                <span className="font-bold text-gray-800 truncate">
+                <span className="font-extrabold text-black dark:text-[#f0ebe2] truncate">
                   {org.name}
                 </span>
-                <span className="text-sm text-gray-500 mt-0.5 leading-snug">
+                <span className="text-sm text-muted dark:text-[#9b8f80] mt-0.5 leading-snug">
                   {org.description}
                 </span>
-                <span className="inline-flex items-center gap-1 text-xs font-semibold text-amber-700 bg-amber-50 px-2.5 py-1 rounded-full w-fit mt-3">
-                  <span className="w-1.5 h-1.5 rounded-full bg-amber-500"></span>{" "}
+                <span className="inline-flex items-center gap-1 text-xs font-bold text-black bg-[#ffcc00] border-2 border-black px-2.5 py-0.5 rounded-full w-fit mt-3">
+                  <span className="w-1.5 h-1.5 rounded-full bg-black"></span>{" "}
                   Coming Soon
                 </span>
               </div>
@@ -109,13 +113,13 @@ const OrganizationsGrid: React.FC = () => {
         </div>
       </div>
 
-      <div className="mt-10 p-5 bg-blue-50/40 border border-blue-100 rounded-2xl flex items-start gap-3.5 max-w-2xl mx-auto">
+      <div className="mt-10 p-5 bg-[#C3C0FF] text-black border-4 border-black rounded-2xl flex items-start gap-3.5 max-w-2xl mx-auto shadow-card-sm">
         <span className="text-xl">💡</span>
-        <p className="text-sm text-gray-600 leading-relaxed m-0">
+        <p className="text-sm font-bold leading-relaxed m-0 text-black">
           Interested in featuring your organization? Contact us at{" "}
           <a
             href="mailto:partners@atelier.dev"
-            className="text-blue-600 hover:text-blue-700 font-medium underline transition"
+            className="text-black hover:underline transition font-black"
           >
             partners@atelier.dev
           </a>

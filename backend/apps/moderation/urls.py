@@ -1,5 +1,7 @@
 from django.urls import path
-from apps.moderation.views import ContentReportListCreateView, ContentReportActionView
+
+from apps.moderation.audit_views import ModerationAuditTrailListView
+from apps.moderation.views import ContentReportActionView, ContentReportListCreateView
 
 app_name = "moderation"
 
@@ -10,4 +12,6 @@ urlpatterns = [
         ContentReportActionView.as_view(),
         name="report-action",
     ),
+    path("audit/", ModerationAuditTrailListView.as_view(), name="audit-trail"),
 ]
+

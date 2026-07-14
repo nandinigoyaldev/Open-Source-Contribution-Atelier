@@ -184,11 +184,11 @@ export function GitTerminal() {
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && input.trim()) {
       const cleanInput = input.trim();
-      
+
       // Log to output and history session array
       addOutput(`$ ${cleanInput}`);
       setHistory((prev) => [...prev, cleanInput]);
-      
+
       handleCommand(cleanInput);
     }
   };
@@ -197,18 +197,31 @@ export function GitTerminal() {
   const handleHistoryItemClick = (cmd: string) => {
     setInput(cmd);
     // Auto-focus back onto the terminal input field
-    const inputEl = document.querySelector(".terminal-input") as HTMLInputElement;
+    const inputEl = document.querySelector(
+      ".terminal-input",
+    ) as HTMLInputElement;
     if (inputEl) inputEl.focus();
   };
 
   return (
-    <div className="git-workspace-wrapper" style={{ display: "flex", width: "100%", position: "relative", overflow: "hidden" }}>
+    <div
+      className="git-workspace-wrapper"
+      style={{
+        display: "flex",
+        width: "100%",
+        position: "relative",
+        overflow: "hidden",
+      }}
+    >
       {/* Main Git Terminal Layout */}
-      <div className="git-terminal" style={{ flex: 1, transition: "margin 0.3s ease" }}>
+      <div
+        className="git-terminal"
+        style={{ flex: 1, transition: "margin 0.3s ease" }}
+      >
         <div className="terminal-header">
           <span>💻 Git Sandbox</span>
           <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-            <button 
+            <button
               onClick={() => setIsDrawerOpen(!isDrawerOpen)}
               className="history-toggle-btn"
               style={{
@@ -218,7 +231,7 @@ export function GitTerminal() {
                 padding: "4px 8px",
                 borderRadius: "4px",
                 cursor: "pointer",
-                fontSize: "12px"
+                fontSize: "12px",
               }}
             >
               📜 History ({history.length})
@@ -250,7 +263,7 @@ export function GitTerminal() {
       </div>
 
       {/* Collapsible History Drawer Sidebar */}
-      <div 
+      <div
         className={`history-drawer ${isDrawerOpen ? "open" : ""}`}
         style={{
           width: isDrawerOpen ? "260px" : "0px",
@@ -260,16 +273,34 @@ export function GitTerminal() {
           display: "flex",
           flexDirection: "column",
           height: "auto",
-          overflow: "hidden"
+          overflow: "hidden",
         }}
       >
-        <div style={{ padding: "12px", borderBottom: "1px solid #2d3748", display: "flex", justifyContent: "between", alignItems: "center", color: "#e2e8f0" }}>
-          <span style={{ fontWeight: "bold", fontSize: "14px" }}>Command History</span>
+        <div
+          style={{
+            padding: "12px",
+            borderBottom: "1px solid #2d3748",
+            display: "flex",
+            justifyContent: "between",
+            alignItems: "center",
+            color: "#e2e8f0",
+          }}
+        >
+          <span style={{ fontWeight: "bold", fontSize: "14px" }}>
+            Command History
+          </span>
         </div>
-        
+
         <div style={{ flex: 1, overflowY: "auto", padding: "8px" }}>
           {history.length === 0 ? (
-            <div style={{ color: "#718096", fontSize: "12px", padding: "8px", textAlign: "center" }}>
+            <div
+              style={{
+                color: "#718096",
+                fontSize: "12px",
+                padding: "8px",
+                textAlign: "center",
+              }}
+            >
               No commands run yet.
             </div>
           ) : (
@@ -293,9 +324,11 @@ export function GitTerminal() {
                   textOverflow: "ellipsis",
                   display: "block",
                   marginBottom: "4px",
-                  transition: "background 0.2s"
+                  transition: "background 0.2s",
                 }}
-                onMouseOver={(e) => (e.currentTarget.style.background = "#2d3748")}
+                onMouseOver={(e) =>
+                  (e.currentTarget.style.background = "#2d3748")
+                }
                 onMouseOut={(e) => (e.currentTarget.style.background = "none")}
                 title="Click to auto-fill"
               >

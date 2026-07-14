@@ -4,10 +4,60 @@ from datetime import timedelta
 from apps.core.models import PurgeLog
 from apps.dashboard.models import Issue
 from django.contrib.auth import get_user_model
+from django.core.cache import caches
 
 from unittest.mock import patch
 
 User = get_user_model()
+
+
+@override_settings(
+    CACHES={
+        "default": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            "LOCATION": "test-default",
+        },
+        "l1_memory": {
+            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+            "LOCATION": "test-l1",
+        },
+    }
+)
+class MultiLevelCacheTests(TestCase):
+    def setUp(self):
+        from apps.core.cache import MultiLevelCache
+        self.cache = MultiLevelCache()
+        caches["default"].clear()
+        caches["l1_memory"].clear()
+
+    def test_cache_miss_returns_default(self):
+        result = self.cache.get("nonexistent", default="fallback")
+        self.assertEqual(result, "fallback")
+
+    def test_l2_hit_backfills_l1(self):
+        caches["default"].set("key1", "from-redis", timeout=300)
+        result = self.cache.get("key1")
+        self.assertEqual(result, "from-redis")
+        self.assertEqual(caches["l1_memory"].get("key1"), "from-redis")
+
+    def test_l1_hit_avoids_l2(self):
+        caches["l1_memory"].set("key2", "from-memory", timeout=300)
+        caches["default"].set("key2", "should-not-be-returned", timeout=300)
+        result = self.cache.get("key2")
+        self.assertEqual(result, "from-memory")
+
+    def test_set_populates_both_levels(self):
+        self.cache.set("key3", "value3", timeout=300)
+        self.assertEqual(caches["l1_memory"].get("key3"), "value3")
+        self.assertEqual(caches["default"].get("key3"), "value3")
+
+    def test_l1_ttl_capped_at_60(self):
+        self.cache.set("key4", "value4", timeout=999)
+        self.assertIsNotNone(caches["l1_memory"].get("key4"))
+
+    def test_l1_ttl_respects_short_timeout(self):
+        self.cache.set("key5", "value5", timeout=30)
+        self.assertIsNotNone(caches["l1_memory"].get("key5"))
 
 
 class SoftDeleteFrameworkTests(TestCase):

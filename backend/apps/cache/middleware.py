@@ -16,6 +16,7 @@ class RateLimiter:
     A simple Redis/Cache-backed Rate Limiter.
     Limits to 100 requests per minute per key.
     """
+
     def __init__(self, limit=100, window=60):
         self.limit = limit
         self.window = window
@@ -76,18 +77,18 @@ class RateLimitMiddleware(MiddlewareMixin):
     """Rate limiting middleware with Redis."""
 
     def __init__(self, get_response):
-        self.get_response = get_response
+        super().__init__(get_response)
         self.limiter = RateLimiter()
 
-    def __call__(self, request):
+    def process_request(self, request):
         # Skip for admin, static, health
-        skip_paths = ['/admin/', '/static/', '/health/', '/media/']
+        skip_paths = ["/admin/", "/static/", "/health/", "/media/"]
         if any(request.path.startswith(path) for path in skip_paths):
-            return self.get_response(request)
+            return None
 
         # Get client identifier
-        ip = request.META.get('REMOTE_ADDR')
-        if request.user.is_authenticated:
+        ip = request.META.get("REMOTE_ADDR")
+        if hasattr(request, "user") and request.user.is_authenticated:
             key = f"{ip}:{request.user.id}"
         else:
             key = ip
@@ -95,12 +96,25 @@ class RateLimitMiddleware(MiddlewareMixin):
         # Check rate limit
         if not self.limiter.is_allowed(key):
             remaining = self.limiter.get_remaining(key)
-            return JsonResponse({
-                'error': 'Rate limit exceeded',
-                'message': 'Too many requests. Please try again later.',
-                'remaining': remaining
-            }, status=429)
+            return JsonResponse(
+                {
+                    "error": "Rate limit exceeded",
+                    "message": "Too many requests. Please try again later.",
+                    "remaining": remaining,
+                },
+                status=429,
+            )
 
-        response = self.get_response(request)
-        response['X-RateLimit-Remaining'] = str(self.limiter.get_remaining(key))
+        # Store key on request for process_response
+        request._rate_limit_key = key
+        return None
+
+    def process_response(self, request, response):
+        if hasattr(request, "_rate_limit_key"):
+            try:
+                response["X-RateLimit-Remaining"] = str(
+                    self.limiter.get_remaining(request._rate_limit_key)
+                )
+            except Exception:
+                pass
         return response

@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useParams, Link } from "react-router-dom";
 import { fetchApi, getMediaUrl } from "../lib/api";
-import { ActivityHeatmap } from "../components/ui/ActivityHeatmap";
 import {
   Github,
   Linkedin,
@@ -131,7 +130,11 @@ export function UserProfilePage() {
           className="flex items-center gap-1.5 px-4 py-2 text-sm font-black border-4 border-black rounded-xl bg-surface hover:bg-black hover:text-white transition-all dark:bg-[#1c1c24] dark:border-[#3a3a45] shadow-card-sm active:translate-y-0 hover:-translate-y-0.5"
           title="Copy profile link"
         >
-          {copied ? <Check size={16} className="text-green-500" /> : <Copy size={16} />}
+          {copied ? (
+            <Check size={16} className="text-green-500" />
+          ) : (
+            <Copy size={16} />
+          )}
           <span>{copied ? "Copied Link!" : "Share Profile"}</span>
         </button>
       </div>
@@ -141,6 +144,21 @@ export function UserProfilePage() {
         {/* Left Column: Stats & Socials */}
         <div className="space-y-6 md:col-span-1">
           <div className="rounded-3xl border-4 border-black bg-white p-6 shadow-card dark:bg-[#121218] dark:border-[#3a3a45]">
+            {/* COVER IMAGE */}
+            <div className="h-28 w-full border-4 border-black rounded-xl overflow-hidden bg-slate-100 mb-6 relative">
+              {user.cover_image_url ? (
+                <img
+                  src={getMediaUrl(user.cover_image_url) || ""}
+                  alt="User cover"
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="w-full h-full bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500 opacity-60 flex items-center justify-center font-bold text-white text-xs uppercase tracking-wider">
+                  No Cover Image
+                </div>
+              )}
+            </div>
+
             {/* AVATAR */}
             <div className="flex justify-center mb-6">
               <div className="h-32 w-32 rounded-2xl border-4 border-black bg-slate-50 overflow-hidden shadow-card dark:border-[#3a3a45] dark:bg-[#1c1c24] flex items-center justify-center">
@@ -308,11 +326,6 @@ export function UserProfilePage() {
             )}
           </div>
         </div>
-      </div>
-
-      {/* ACTIVITY HEATMAP SECTION */}
-      <div className="mt-8 rounded-3xl border-4 border-black bg-white dark:bg-[#121218] dark:border-[#3a3a45] p-8 shadow-card overflow-hidden">
-        <ActivityHeatmap username={user.username} />
       </div>
     </div>
   );

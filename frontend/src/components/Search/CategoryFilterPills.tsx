@@ -1,12 +1,12 @@
 /**
  * Category filter tag pills for search UI.
- * 
+ *
  * @file CategoryFilterPills.tsx
  * @location frontend/src/components/Search/CategoryFilterPills.tsx
  */
 
-import React, { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import React, { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 
 interface CategoryFilterPillsProps {
   categories?: string[];
@@ -17,37 +17,37 @@ interface CategoryFilterPillsProps {
 
 // Default categories (will be overridden by curriculum data)
 const DEFAULT_CATEGORIES = [
-  'Git',
-  'GitHub',
-  'Security',
-  'Workflows',
-  'Documentation',
-  'Testing',
-  'API',
-  'Database',
-  'Frontend',
-  'Backend',
-  'DevOps',
-  'Cloud',
+  "Git",
+  "GitHub",
+  "Security",
+  "Workflows",
+  "Documentation",
+  "Testing",
+  "API",
+  "Database",
+  "Frontend",
+  "Backend",
+  "DevOps",
+  "Cloud",
 ];
 
 export const CategoryFilterPills: React.FC<CategoryFilterPillsProps> = ({
   categories = DEFAULT_CATEGORIES,
   onCategorySelect,
   selectedCategory: externalSelectedCategory,
-  className = '',
+  className = "",
 }) => {
   const [searchParams, setSearchParams] = useSearchParams();
   const [selectedCategory, setSelectedCategory] = useState<string | null>(
-    externalSelectedCategory || searchParams.get('category') || null
+    externalSelectedCategory || searchParams.get("category") || null,
   );
 
   // Update URL when category changes
   useEffect(() => {
     if (selectedCategory) {
-      searchParams.set('category', selectedCategory);
+      searchParams.set("category", selectedCategory);
     } else {
-      searchParams.delete('category');
+      searchParams.delete("category");
     }
     setSearchParams(searchParams, { replace: true });
   }, [selectedCategory, searchParams, setSearchParams]);
@@ -85,7 +85,7 @@ export const CategoryFilterPills: React.FC<CategoryFilterPillsProps> = ({
             <button
               key={category}
               onClick={() => handleCategoryClick(category)}
-              className={`category-pill ${isSelected ? 'selected' : ''}`}
+              className={`category-pill ${isSelected ? "selected" : ""}`}
               aria-pressed={isSelected}
               aria-label={`Filter by ${category}`}
             >

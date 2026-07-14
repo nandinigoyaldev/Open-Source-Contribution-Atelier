@@ -82,21 +82,4 @@ class PullRequest(models.Model):
         ]
 
 
-class StreakFreeze(models.Model):
-    objects = models.Manager()
-    user = models.ForeignKey(
-        User, on_delete=models.CASCADE, related_name="streak_freezes"
-    )
-    purchased_at = models.DateTimeField(auto_now_add=True)
-    used_on_date = models.DateField(null=True, blank=True)
-    cost = models.PositiveIntegerField(default=100)
 
-    class Meta:
-        indexes = [
-            models.Index(
-                fields=["user", "used_on_date"], name="idx_streak_freeze_user_date"
-            ),
-        ]
-
-    def __str__(self):
-        return f"StreakFreeze({self.user.username}, used={self.used_on_date})"

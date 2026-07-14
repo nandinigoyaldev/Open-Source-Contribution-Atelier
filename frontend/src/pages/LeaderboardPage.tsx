@@ -16,7 +16,7 @@ import { useAuth } from "../features/auth/AuthContext";
 import { ResponsiveTable } from "../components/ui/ResponsiveTable";
 import { motion, AnimatePresence } from "framer-motion";
 
-type TimePeriod = "all_time" | "weekly" | "monthly" | "seasonal";
+type TimePeriod = "all_time" | "weekly" | "monthly" | "seasonal" | string;
 
 export function LeaderboardPage() {
   const { user } = useAuth();
@@ -149,6 +149,7 @@ export function LeaderboardPage() {
 
   const timePeriods: { id: TimePeriod; label: string; icon: any }[] = [
     { id: "all_time", label: "All Time", icon: Crown },
+    { id: "cohort_summer_2026", label: "Summer '26 Cohort", icon: Sparkles },
     { id: "seasonal", label: "Season 1", icon: Sparkles },
     { id: "monthly", label: "Monthly", icon: Star },
     { id: "weekly", label: "Weekly", icon: Flame },

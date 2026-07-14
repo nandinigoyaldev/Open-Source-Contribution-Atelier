@@ -5,7 +5,10 @@ interface StreakFlameProps {
   className?: string;
 }
 
-export function StreakFlame({ animate = false, className = "" }: StreakFlameProps) {
+export function StreakFlame({
+  animate = false,
+  className = "",
+}: StreakFlameProps) {
   return (
     <div
       className={[
@@ -71,4 +74,3 @@ export function StreakFlame({ animate = false, className = "" }: StreakFlameProp
     </div>
   );
 }
-

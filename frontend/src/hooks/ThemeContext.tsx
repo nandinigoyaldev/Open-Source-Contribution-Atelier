@@ -127,7 +127,14 @@ function useThemeValue(): ThemeContextValue {
     [soundEnabled],
   );
 
-  return { theme, toggleTheme, setTheme, soundEnabled, toggleSound, playAudioCue };
+  return {
+    theme,
+    toggleTheme,
+    setTheme,
+    soundEnabled,
+    toggleSound,
+    playAudioCue,
+  };
 }
 
 export function ThemeProvider({ children }: { children: ReactNode }) {

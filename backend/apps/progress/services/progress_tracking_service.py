@@ -4,6 +4,7 @@ from django.utils import timezone
 from django_q.tasks import async_task
 
 from apps.progress.models import (
+    DailyActivity,
     LessonProgress,
     LessonProgressSync,
     XPEvent,
@@ -135,6 +136,13 @@ class ProgressTrackingService:
                     "apps.progress.tasks.evaluate_user_badges_task", user.id
                 )
             )
+
+            if completed:
+                DailyActivity.log_and_update_streak(
+                    user=user,
+                    date=timezone.now().date(),
+                    activity_type="lesson",
+                )
 
         return progress, created, False
 

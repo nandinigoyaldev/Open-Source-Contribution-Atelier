@@ -1,14 +1,14 @@
 /**
  * Search component with category filter pills integration.
- * 
+ *
  * @file SearchWithFilters.tsx
  * @location frontend/src/components/Search/SearchWithFilters.tsx
  */
 
-import React, { useState, useEffect, useCallback } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import CategoryFilterPills from './CategoryFilterPills';
-import './SearchWithFilters.css';
+import React, { useState, useEffect, useCallback } from "react";
+import { useSearchParams } from "react-router-dom";
+import CategoryFilterPills from "./CategoryFilterPills";
+import "./SearchWithFilters.css";
 
 interface SearchResult {
   id: string;
@@ -32,12 +32,12 @@ export const SearchWithFilters: React.FC<SearchWithFiltersProps> = ({
   results = [],
   isLoading = false,
   categories = [],
-  placeholder = 'Search lessons, modules, and more...',
+  placeholder = "Search lessons, modules, and more...",
 }) => {
   const [searchParams, setSearchParams] = useSearchParams();
-  const [query, setQuery] = useState(searchParams.get('q') || '');
+  const [query, setQuery] = useState(searchParams.get("q") || "");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(
-    searchParams.get('category') || null
+    searchParams.get("category") || null,
   );
   const [debouncedQuery, setDebouncedQuery] = useState(query);
 
@@ -58,8 +58,8 @@ export const SearchWithFilters: React.FC<SearchWithFiltersProps> = ({
 
     // Update URL
     const params = new URLSearchParams();
-    if (debouncedQuery) params.set('q', debouncedQuery);
-    if (selectedCategory) params.set('category', selectedCategory);
+    if (debouncedQuery) params.set("q", debouncedQuery);
+    if (selectedCategory) params.set("category", selectedCategory);
     setSearchParams(params, { replace: true });
   }, [debouncedQuery, selectedCategory, onSearch, setSearchParams]);
 
@@ -73,14 +73,17 @@ export const SearchWithFilters: React.FC<SearchWithFiltersProps> = ({
   };
 
   const handleClearSearch = () => {
-    setQuery('');
+    setQuery("");
     setSelectedCategory(null);
-    setDebouncedQuery('');
+    setDebouncedQuery("");
   };
 
   // Get filtered results count
   const filteredResults = selectedCategory
-    ? results.filter(r => r.category === selectedCategory || r.tags?.includes(selectedCategory))
+    ? results.filter(
+        (r) =>
+          r.category === selectedCategory || r.tags?.includes(selectedCategory),
+      )
     : results;
 
   return (
@@ -159,7 +162,9 @@ export const SearchWithFilters: React.FC<SearchWithFiltersProps> = ({
                   {result.tags && (
                     <div className="result-tags">
                       {result.tags.map((tag) => (
-                        <span key={tag} className="result-tag">#{tag}</span>
+                        <span key={tag} className="result-tag">
+                          #{tag}
+                        </span>
                       ))}
                     </div>
                   )}

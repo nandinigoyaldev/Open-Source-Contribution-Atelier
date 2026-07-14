@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from apps.moderation.models import ContentReport
+from apps.moderation.models import ContentReport, ModerationAuditEvent
 from django.contrib.contenttypes.models import ContentType
 
 
@@ -45,7 +45,9 @@ class ContentReportSerializer(serializers.ModelSerializer):
         try:
             ct = ContentType.objects.get(app_label=app, model=model)
         except ContentType.DoesNotExist:
-            raise serializers.ValidationError({"content_type": "Invalid app or model"})
+            raise serializers.ValidationError(
+                {"content_type": "Invalid app or model"}
+            )
         validated_data["content_type"] = ct
         return super().create(validated_data)
 
@@ -60,3 +62,29 @@ class ContentReportSerializer(serializers.ModelSerializer):
 
 class ModerationActionSerializer(serializers.Serializer):
     status = serializers.ChoiceField(choices=ContentReport.Status.choices)
+    reason = serializers.CharField(required=False, allow_blank=True)
+
+
+class ModerationAuditEventSerializer(serializers.ModelSerializer):
+    moderator_username = serializers.CharField(
+        source="moderator.username", read_only=True
+    )
+    content_report_id = serializers.IntegerField(
+        source="content_report.id", read_only=True
+    )
+
+    class Meta:
+        model = ModerationAuditEvent
+        fields = [
+            "id",
+            "event_type",
+            "status_before",
+            "status_after",
+            "action_taken",
+            "reason",
+            "created_at",
+            "moderator_username",
+            "content_report_id",
+        ]
+        read_only_fields = fields
+

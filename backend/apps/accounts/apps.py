@@ -7,6 +7,7 @@ class AccountsConfig(AppConfig):
 
     def ready(self):
         import apps.accounts.receivers  # noqa: F401
+        import apps.accounts.signals  # noqa: F401
 
         try:
             from django_q.models import Schedule

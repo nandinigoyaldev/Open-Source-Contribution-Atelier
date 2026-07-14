@@ -132,14 +132,24 @@ class StreakEngine:
                 # Consecutive day — extend streak
                 profile.current_streak += 1
             else:
-                # Gap detected — reset streak
-                logger.info(
-                    "Streak reset for user %s (gap from %s to %s)",
-                    user.username,
-                    last,
-                    activity_date,
-                )
-                profile.current_streak = 1
+                # Gap detected
+                missed_days = (activity_date - last).days - 1
+                if profile.streak_freezes >= missed_days:
+                    profile.streak_freezes -= missed_days
+                    profile.current_streak += 1
+                    logger.info(
+                        "Streak preserved for user %s using %d streak freeze(s)",
+                        user.username,
+                        missed_days,
+                    )
+                else:
+                    logger.info(
+                        "Streak reset for user %s (gap from %s to %s)",
+                        user.username,
+                        last,
+                        activity_date,
+                    )
+                    profile.current_streak = 1
 
             profile.last_activity_date = activity_date
 
@@ -178,6 +188,7 @@ class StreakEngine:
             "current_streak": profile.current_streak,
             "longest_streak": profile.longest_streak,
             "current_multiplier": profile.current_multiplier,
+            "streak_freezes": profile.streak_freezes,
             "next_milestone": (
                 {
                     "days": next_ms["days"],
@@ -204,6 +215,7 @@ class StreakEngine:
             "current_streak": profile.current_streak,
             "longest_streak": profile.longest_streak,
             "current_multiplier": profile.current_multiplier,
+            "streak_freezes": profile.streak_freezes,
             "multiplier_unlocked": multiplier_unlocked,
             "next_milestone": next_ms,
             "milestone_progress_pct": StreakEngine.compute_milestone_progress(

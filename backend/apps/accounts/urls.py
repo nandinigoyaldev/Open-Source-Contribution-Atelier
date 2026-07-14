@@ -27,6 +27,7 @@ from .views import (
     UserStatisticsView,
     UserSuggestionsView,
     PublicProfileView,
+    ShopStreakFreezeView,
 )
 
 urlpatterns = [
@@ -82,4 +83,5 @@ urlpatterns = [
     ),
     path("magic-link/verify/", MagicLinkVerifyView.as_view(), name="magic-link-verify"),
     path("profile/<str:username>/", PublicProfileView.as_view(), name="public-profile"),
+    path("shop/streak-freeze/", ShopStreakFreezeView.as_view(), name="shop-streak-freeze"),
 ]
