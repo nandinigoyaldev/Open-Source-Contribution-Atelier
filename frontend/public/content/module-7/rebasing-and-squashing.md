@@ -1,6 +1,4 @@
-# 🏗️ Rebasing & Squashing
-
-### In large open source projects, commit histories can quickly become messy. Maintainers prefer clean, linear histories using **rebase** and **squash**.
+## 🏗️ In large open source projects, commit histories can quickly become messy. Maintainers prefer clean, linear histories using **rebase** and **squash**.
 
 ---
 
