@@ -6,8 +6,6 @@ from django.utils import timezone
 from rest_framework import serializers
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
-from rest_framework import serializers
-from .models import UserProfile
 
 
 def validate_strong_password(value):
@@ -35,6 +33,13 @@ class SignupSerializer(serializers.ModelSerializer):
         model = User
         fields = ("id", "username", "email", "password")
 
+    def validate_username(self, value):
+        """Reject duplicate usernames using a case-insensitive comparison."""
+        normalized = value.strip()
+        if User.objects.filter(username__iexact=normalized).exists():
+            raise serializers.ValidationError("Username is already taken.")
+        return normalized
+
     def validate_email(self, value):
         """Reject signup if the email address is already registered (case-insensitive)."""
         normalized = value.strip().lower()
@@ -60,8 +65,6 @@ class UserUpdateSerializer(serializers.ModelSerializer):
     twitter_url = serializers.URLField(required=False, allow_blank=True)
     linkedin_url = serializers.URLField(required=False, allow_blank=True)
     github_url = serializers.URLField(required=False, allow_blank=True)
-    bio = serializers.CharField(required=False, allow_blank=True)
-    receive_weekly_digest = serializers.BooleanField(required=False)
 
     class Meta:
         model = User
@@ -74,8 +77,6 @@ class UserUpdateSerializer(serializers.ModelSerializer):
             "twitter_url",
             "linkedin_url",
             "github_url",
-            "bio",
-            "receive_weekly_digest",
         )
         extra_kwargs = {
             "email": {"required": False},
@@ -99,25 +100,14 @@ class UserUpdateSerializer(serializers.ModelSerializer):
         twitter_url = validated_data.pop("twitter_url", None)
         linkedin_url = validated_data.pop("linkedin_url", None)
         github_url = validated_data.pop("github_url", None)
-        bio = validated_data.pop("bio", None)
-        receive_weekly_digest = validated_data.pop("receive_weekly_digest", None)
 
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
-        
         if password:
             instance.set_password(password)
-
             if hasattr(instance, "profile"):
-                # ✅ Increment JWT token version on password change
-                instance.profile.jwt_token_version += 1
                 instance.profile.last_password_change = timezone.now()
-                instance.profile.save(update_fields=["jwt_token_version", "last_password_change"])
-
-            if hasattr(instance, "user_profile"):
-                instance.user_profile.last_password_change = timezone.now()
-                instance.user_profile.save(update_fields=["last_password_change"])
-
+                instance.profile.save(update_fields=["last_password_change"])
         instance.save()
 
         if (
@@ -127,14 +117,10 @@ class UserUpdateSerializer(serializers.ModelSerializer):
             or twitter_url is not None
             or linkedin_url is not None
             or github_url is not None
-            or bio is not None
-            or receive_weekly_digest is not None
         ):
-            if hasattr(instance, "user_profile"):
-                profile = instance.user_profile
-            else:
-                profile, _ = UserProfile.objects.get_or_create(user=instance)
+            from apps.accounts.models import UserProfile
 
+            profile, _ = UserProfile.objects.get_or_create(user=instance)
             if avatar is not None:
                 profile.avatar = avatar
             if cover_image is not None:
@@ -147,12 +133,7 @@ class UserUpdateSerializer(serializers.ModelSerializer):
                 profile.linkedin_url = linkedin_url
             if github_url is not None:
                 profile.github_url = github_url
-            if bio is not None:
-                profile.bio = bio
-            if receive_weekly_digest is not None:
-                profile.receive_weekly_digest = receive_weekly_digest
             profile.save()
-            instance.user_profile = profile
 
         return instance
 
@@ -164,8 +145,6 @@ class UserListSerializer(serializers.ModelSerializer):
     twitter_url = serializers.SerializerMethodField()
     linkedin_url = serializers.SerializerMethodField()
     github_url = serializers.SerializerMethodField()
-    bio = serializers.SerializerMethodField()
-    receive_weekly_digest = serializers.SerializerMethodField()
 
     class Meta:
         model = User
@@ -180,55 +159,43 @@ class UserListSerializer(serializers.ModelSerializer):
             "twitter_url",
             "linkedin_url",
             "github_url",
-            "bio",
-            "receive_weekly_digest",
         )
 
     def get_avatar_url(self, obj):
-        if hasattr(obj, "user_profile") and obj.user_profile.avatar:
+        if hasattr(obj, "profile") and obj.profile.avatar:
             request = self.context.get("request")
             if request:
-                return request.build_absolute_uri(obj.user_profile.avatar.url)
-            return obj.user_profile.avatar.url
+                return request.build_absolute_uri(obj.profile.avatar.url)
+            return obj.profile.avatar.url
         return None
 
     def get_cover_image_url(self, obj):
-        if hasattr(obj, "user_profile") and obj.user_profile.cover_image:
+        if hasattr(obj, "profile") and obj.profile.cover_image:
             request = self.context.get("request")
             if request:
-                return request.build_absolute_uri(obj.user_profile.cover_image.url)
-            return obj.user_profile.cover_image.url
+                return request.build_absolute_uri(obj.profile.cover_image.url)
+            return obj.profile.cover_image.url
         return None
 
     def get_timezone(self, obj):
-        if hasattr(obj, "user_profile"):
-            return obj.user_profile.timezone
+        if hasattr(obj, "profile"):
+            return obj.profile.timezone
         return "UTC"
 
     def get_twitter_url(self, obj):
-        if hasattr(obj, "user_profile") and obj.user_profile.twitter_url:
-            return obj.user_profile.twitter_url
+        if hasattr(obj, "profile") and obj.profile.twitter_url:
+            return obj.profile.twitter_url
         return ""
 
     def get_linkedin_url(self, obj):
-        if hasattr(obj, "user_profile") and obj.user_profile.linkedin_url:
-            return obj.user_profile.linkedin_url
+        if hasattr(obj, "profile") and obj.profile.linkedin_url:
+            return obj.profile.linkedin_url
         return ""
 
     def get_github_url(self, obj):
-        if hasattr(obj, "user_profile") and obj.user_profile.github_url:
-            return obj.user_profile.github_url
+        if hasattr(obj, "profile") and obj.profile.github_url:
+            return obj.profile.github_url
         return ""
-
-    def get_bio(self, obj):
-        if hasattr(obj, "user_profile"):
-            return obj.user_profile.bio
-        return ""
-
-    def get_receive_weekly_digest(self, obj):
-        if hasattr(obj, "user_profile"):
-            return obj.user_profile.receive_weekly_digest
-        return True
 
 
 class EmailOrUsernameTokenObtainPairSerializer(TokenObtainPairSerializer):
@@ -245,11 +212,8 @@ class EmailOrUsernameTokenObtainPairSerializer(TokenObtainPairSerializer):
 
         result = super().validate(attrs)
 
-        if (
-            hasattr(self.user, "user_profile")
-            and self.user.user_profile.last_password_change
-        ):
-            if timezone.now() > self.user.user_profile.last_password_change + timedelta(
+        if hasattr(self.user, "profile") and self.user.profile.last_password_change:
+            if timezone.now() > self.user.profile.last_password_change + timedelta(
                 days=90
             ):
                 raise AuthenticationFailed(
@@ -279,40 +243,6 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
 
     def validate_new_password(self, value):
         return validate_strong_password(value)
-
-
-class AvatarUploadSerializer(serializers.Serializer):
-    avatar = serializers.ImageField(
-        max_length=255, allow_empty_file=False, use_url=True
-    )
-
-    def validate_avatar(self, value):
-        # Check file size (max 5MB)
-        if value.size > 5 * 1024 * 1024:
-            raise serializers.ValidationError("Image size must be under 5MB")
-
-        # Check file extension
-        allowed_extensions = ["jpg", "jpeg", "png", "gif", "webp"]
-        ext = value.name.split(".")[-1].lower()
-        if ext not in allowed_extensions:
-            raise serializers.ValidationError(
-                f"File type not supported. Use: {', '.join(allowed_extensions)}"
-            )
-
-        return value
-
-
-class UserProfileSerializer(serializers.ModelSerializer):
-    avatar_url = serializers.SerializerMethodField()
-
-    class Meta:
-        model = UserProfile
-        fields = ["avatar", "avatar_url"]
-
-    def get_avatar_url(self, obj):
-        if obj.avatar:
-            return obj.avatar.url
-        return None
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -348,53 +278,3 @@ class MagicLinkVerifySerializer(serializers.Serializer):
     """Accept a magic link token to verify and login the user."""
 
     token = serializers.UUIDField()
-
-
-# ============================================================
-# ✅ ADDED: Change Password Serializer (with JWT Invalidation)
-# ============================================================
-
-
-class ChangePasswordSerializer(serializers.Serializer):
-    """
-    Serializer for password change with JWT invalidation.
-    """
-    current_password = serializers.CharField(required=True, write_only=True)
-    new_password = serializers.CharField(required=True, write_only=True, min_length=8)
-
-    def validate_current_password(self, value):
-        """Validate current password (checks against user)."""
-        user = self.context.get('user')
-        if not user:
-            raise serializers.ValidationError("User not found")
-        if not user.check_password(value):
-            raise serializers.ValidationError("Current password is incorrect")
-        return value
-
-    def validate_new_password(self, value):
-        """Validate new password strength."""
-        return validate_strong_password(value)
-
-    def save(self, **kwargs):
-        """Change password and invalidate JWT tokens."""
-        user = self.context.get('user')
-        new_password = self.validated_data['new_password']
-        
-        # Set new password (this will trigger JWT invalidation via signal)
-        user.set_password(new_password)
-        
-        # Increment JWT token version
-        if hasattr(user, "profile") and user.profile:
-            user.profile.jwt_token_version += 1
-            user.profile.last_password_change = timezone.now()
-            user.profile.save(update_fields=["jwt_token_version", "last_password_change"])
-        else:
-            from apps.accounts.models import UserProfile
-            UserProfile.objects.create(
-                user=user,
-                last_password_change=timezone.now(),
-                jwt_token_version=2
-            )
-        
-        user.save()
-        return user
