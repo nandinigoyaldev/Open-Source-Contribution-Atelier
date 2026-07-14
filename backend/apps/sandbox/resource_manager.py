@@ -29,8 +29,26 @@ class ResourceManagementEngine:
         "pathlib",
         "shutil",
         "pty",
+        "builtins",
+        "importlib",
+        "ctypes",
+        "platform",
     }
-    FORBIDDEN_FUNCTIONS = {"open", "eval", "exec", "__import__"}
+    FORBIDDEN_FUNCTIONS = {
+        "open",
+        "eval",
+        "exec",
+        "__import__",
+        "getattr",
+        "setattr",
+        "delattr",
+        "hasattr",
+        "compile",
+        "dir",
+        "globals",
+        "locals",
+        "vars",
+    }
 
     @classmethod
     def log_violation(
@@ -73,13 +91,21 @@ class ResourceManagementEngine:
                     raise SecurityViolation(
                         f"Importing from '{node.module}' is forbidden."
                     )
-            elif isinstance(node, ast.Call):
-                if (
-                    isinstance(node.func, ast.Name)
-                    and node.func.id in cls.FORBIDDEN_FUNCTIONS
-                ):
+            elif isinstance(node, ast.Name):
+                if node.id in cls.FORBIDDEN_FUNCTIONS:
                     raise SecurityViolation(
-                        f"Function call '{node.func.id}()' is disabled in the sandbox."
+                        f"Access to function '{node.id}' is disabled in the sandbox."
+                    )
+            elif isinstance(node, ast.Attribute):
+                if node.attr.startswith("__"):
+                    raise SecurityViolation(
+                        f"Access to magic attributes ('{node.attr}') is disabled."
+                    )
+            # Support ast.Constant (Python 3.8+) for double underscores
+            elif isinstance(node, ast.Constant) and isinstance(node.value, str):
+                if "__" in node.value:
+                    raise SecurityViolation(
+                        "Double underscores in string literals are forbidden to prevent sandbox escape."
                     )
 
     @classmethod
@@ -117,7 +143,13 @@ except ImportError:
     pass
 
 code = {repr(code)}
-safe_globals = {{"__builtins__": {{k: v for k, v in __builtins__.items() if k not in {cls.FORBIDDEN_FUNCTIONS}}}}}
+
+# NOTE: __builtins__ is the *builtins module* here (not a dict), because this
+# script runs as the top-level `__main__` module (via `python -c`). Importing
+# the module explicitly and using vars() works in both contexts.
+import builtins
+safe_builtins = {{k: v for k, v in vars(builtins).items() if k not in {cls.FORBIDDEN_FUNCTIONS}}}
+safe_globals = {{"__builtins__": safe_builtins}}
 
 try:
     exec(code, safe_globals)

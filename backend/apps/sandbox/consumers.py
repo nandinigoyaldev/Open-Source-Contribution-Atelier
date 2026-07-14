@@ -1,6 +1,8 @@
 import json
 
+from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
+from django.core.cache import cache
 
 
 class SandboxConsumer(AsyncWebsocketConsumer):
@@ -16,6 +18,20 @@ class SandboxConsumer(AsyncWebsocketConsumer):
     async def disconnect(self, close_code):
         await self.channel_layer.group_discard(self.room_group_name, self.channel_name)
         await self._cleanup_debug_session()
+
+    @database_sync_to_async
+    def check_rate_limit(self, key, limit, period):
+        count = cache.get(key, 0)
+        if count >= limit:
+            return False
+        if count == 0:
+            cache.set(key, 1, timeout=period)
+        else:
+            try:
+                cache.incr(key)
+            except ValueError:
+                cache.set(key, count + 1, timeout=period)
+        return True
 
     async def receive(self, text_data):
         try:
@@ -43,6 +59,21 @@ class SandboxConsumer(AsyncWebsocketConsumer):
                     user_id = str(self.scope["user"].id)
                 else:
                     user_id = self.channel_name
+
+                # Rate limiting (10 per minute)
+                is_allowed = await self.check_rate_limit(
+                    f"throttle_sandbox_ws_{user_id}", 10, 60
+                )
+                if not is_allowed:
+                    await self.send(
+                        text_data=json.dumps(
+                            {
+                                "type": "error",
+                                "message": "Rate limit exceeded. You can only execute 10 sandbox requests per minute.",
+                            }
+                        )
+                    )
+                    return
 
                 async def send_callback(message_data):
                     await self.send(text_data=json.dumps(message_data))

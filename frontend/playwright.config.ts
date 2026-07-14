@@ -1,7 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 
 /**
- * Playwright configuration for visual regression testing.
+ * Playwright configuration for visual regression and accessibility testing.
  *
  * Uses the Vite dev server (started via `npm run dev`) as the base URL.
  * Screenshots are stored alongside each test in `.spec.ts-snapshots/` dirs.
@@ -22,7 +22,16 @@ export default defineConfig({
   workers: process.env.CI ? 1 : undefined,
 
   /* Reporter: HTML locally, GitHub-friendly list on CI */
-  reporter: process.env.CI ? "list" : "html",
+  reporter: process.env.CI
+    ? [
+        ["list"],
+        ["json", { outputFile: "playwright-report/results.json" }],
+        ["junit", { outputFile: "playwright-report/junit.xml" }],
+      ]
+    : [
+        ["html", { outputFolder: "playwright-report" }],
+        ["json", { outputFile: "playwright-report/results.json" }],
+      ],
 
   /* Shared settings for all projects */
   use: {
@@ -74,5 +83,13 @@ export default defineConfig({
       /* Allow a small pixel diff to account for anti-aliasing across OS */
       maxDiffPixelRatio: 0.01,
     },
+    /* ✅ Added: Timeout for accessibility checks */
+    timeout: 10000,
   },
+
+  /* ✅ Added: Global setup for accessibility testing */
+  globalSetup: require.resolve("./e2e/global-setup.ts"),
+
+  /* ✅ Added: Test directory for accessibility tests */
+  testMatch: ["**/*.spec.ts", "**/accessibility/**/*.spec.ts"],
 });

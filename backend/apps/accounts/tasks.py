@@ -76,3 +76,15 @@ def send_notification_email_task(user_email, subject, message_body):
         fail_silently=False,
     )
     return f"Email sent successfully to {user_email}"
+
+
+def purge_expired_sessions_task():
+    """
+    Daily background task to purge expired JWT tokens, database sessions, and stale transient tokens.
+    """
+    from django.core.management import call_command
+
+    logger.info("Starting scheduled session purge...")
+    call_command("purge_sessions")
+    logger.info("Scheduled session purge complete.")
+

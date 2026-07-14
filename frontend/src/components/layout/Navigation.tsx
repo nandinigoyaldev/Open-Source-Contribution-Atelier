@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
+import { Menu } from "lucide-react";
 import {
-  Bell,
   BookOpen,
   BriefcaseBusiness,
   LayoutGrid,
@@ -15,6 +15,7 @@ import {
   Moon,
   Settings,
   Eye,
+  FileText,
 } from "lucide-react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import { useTheme } from "../../hooks/useTheme";
@@ -25,15 +26,41 @@ import LogoutButtonWithConfirm from "./LogoutButtonWithConfirm";
 import { SyncStatusIndicator } from "../ui/SyncStatusIndicator";
 import { NotificationMenu } from "../ui/NotificationMenu";
 
-const navItems = [
-  { to: "/dashboard", label: "Dashboard", icon: LayoutGrid },
-  { to: "/lessons/what-is-open-source", label: "Lessons", icon: BookOpen },
-  { to: "/challenges", label: "Challenges", icon: Trophy },
-  { to: "/leaderboard", label: "Leaderboard", icon: TrendingUp },
-  { to: "/community", label: "Community", icon: BriefcaseBusiness },
-  { to: "/chat", label: "Chat", icon: MessageSquare },
-  { to: "/peer-review", label: "Peer Review", icon: Shield },
-  { to: "/profile", label: "Profile Settings", icon: Settings },
+const navGroups = [
+  {
+    title: "Curriculum",
+    items: [
+      { to: "/dashboard", label: "Dashboard", icon: LayoutGrid },
+      { to: "/learning-path", label: "Lessons", icon: BookOpen },
+      { to: "/challenges", label: "Challenges", icon: Trophy },
+    ],
+  },
+  {
+    title: "Practice",
+    items: [
+      { to: "/contributor-sandbox", label: "Playground", icon: TerminalSquare },
+      { to: "/a11y-sandbox", label: "A11y Sandbox", icon: Eye },
+    ],
+  },
+  {
+    title: "Progress",
+    items: [
+      { to: "/portfolio", label: "Portfolio", icon: FileText },
+      { to: "/leaderboard", label: "Leaderboard", icon: TrendingUp },
+    ],
+  },
+  {
+    title: "Collaboration",
+    items: [
+      { to: "/community", label: "Community", icon: BriefcaseBusiness },
+      { to: "/chat", label: "Chat", icon: MessageSquare },
+      { to: "/peer-review", label: "Peer Review", icon: Shield },
+    ],
+  },
+  {
+    title: "Account",
+    items: [{ to: "/profile", label: "Settings", icon: Settings }],
+  },
 ];
 
 export function Navigation() {
@@ -54,14 +81,7 @@ export function Navigation() {
   const [lessonsCatalog, setLessonsCatalog] = useState<
     { slug: string; title: string; description: string }[]
   >([]);
-  const [isStarting, setIsStarting] = useState(false);
-  const handleStartSandbox = () => {
-    setIsStarting(true);
-    setTimeout(() => {
-      setIsStarting(false);
-      navigate("/sandbox");
-    }, 500);
-  };
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
     fetchLessonsApi().then((data) => setLessonsCatalog(data));
@@ -125,91 +145,77 @@ export function Navigation() {
     <>
       <aside
         aria-label="Main sidebar"
-        className="fixed inset-y-0 left-0 z-40 hidden w-[280px] border-r border-outline bg-surface-lowest/95 backdrop-blur-xl lg:flex lg:flex-col dark:bg-[#0f0e0c]/95 dark:border-[#2e2924]"
+        className="fixed inset-y-0 left-0 z-40 hidden w-[240px] border-r-4 border-black bg-surface-lowest/95 backdrop-blur-xl lg:flex lg:flex-col dark:bg-[#0f0e0c]/95 dark:border-[#2e2924]"
       >
-        <div className="border-b border-outline px-6 py-5">
+        <div className="flex h-[72px] flex-col justify-center border-b-4 border-black px-6 dark:border-[#2e2924]">
           <Link
             to="/"
-            className="block font-display text-lg font-bold tracking-[-0.02em] text-text dark:text-[#f0ebe2]"
+            className="block font-display text-xl font-black tracking-tight text-black dark:text-white uppercase"
           >
-            The Maintainer Atelier
+            Atelier
           </Link>
-          <p className="mt-3 rounded-2xl bg-surface-low px-4 py-3 text-sm text-muted shadow-card dark:bg-[#151411] dark:text-[#c4bbae]">
-            <span className="font-mono text-[11px] uppercase tracking-[0.24em] text-primary">
-              Open Source Programs
-            </span>
-            <span className="mt-2 block font-semibold text-text dark:text-[#f0ebe2]">
-              Admin console for contributor journeys
-            </span>
-          </p>
+          <span className="text-[10px] font-mono uppercase tracking-[0.1em] text-muted dark:text-[#9b8f80]">
+            Contribution Console
+          </span>
         </div>
-        <nav aria-label="Sidebar navigation" className="flex-1 px-4 py-6">
-          <div className="space-y-2">
-            {navItems.map((item) => {
-              const Icon = item.icon;
-              return (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  title={item.label}
-                  className={({ isActive }) =>
-                    [
-                      "flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-all duration-200 ease-in-out hover:scale-102 hover:shadow-card",
-                      isActive
-                        ? "bg-[linear-gradient(135deg,rgba(79,70,229,0.28),rgba(195,192,255,0.16))] text-text shadow-card dark:text-[#f0ebe2]"
-                        : "text-muted hover:bg-surface-low hover:text-text dark:text-[#c4bbae] dark:hover:bg-[#151411] dark:hover:text-[#f0ebe2]",
-                    ].join(" ")
-                  }
-                >
-                  <Icon size={16} />
-                  {item.label}
-                </NavLink>
-              );
-            })}
-          </div>
-          <div className="mt-8 rounded-2xl bg-[linear-gradient(135deg,rgba(79,70,229,0.9),rgba(195,192,255,0.45))] p-[1px] shadow-card">
-            <div className="rounded-2xl bg-surface-low px-4 py-4 dark:bg-[#151411]">
-              <p className="font-mono text-[11px] uppercase tracking-[0.24em] text-tertiary">
-                Safe sandbox
-              </p>
-              <p className="mt-2 text-sm text-muted dark:text-[#c4bbae]">
-                Run guided Git practice without exposing the real shell.
-              </p>
-              <button
-                onClick={handleStartSandbox}
-                className="w-full mt-4 flex items-center justify-center gap-2 rounded-lg bg-primary text-white border-4 border-black dark:border-[#2e2924] px-4 py-3 text-sm font-black shadow-card hover:-translate-y-0.5 active:translate-y-0 transition-all cursor-pointer disabled:opacity-50"
-              >
-                {isStarting ? (
-                  <span
-                    className="flex items-center gap-1.5 inline-flex"
-                    aria-hidden="true"
-                  >
-                    <span className="w-2 h-2 bg-current rounded-full animate-bounce [animation-delay:-0.3s]" />
-                    <span className="w-2 h-2 bg-current rounded-full animate-bounce [animation-delay:-0.15s]" />
-                    <span className="w-2 h-2 bg-current rounded-full animate-bounce" />
-                  </span>
-                ) : (
-                  <>
-                    <TerminalSquare size={15} />
-                    Start sandbox
-                  </>
-                )}
-              </button>
+
+        <nav
+          aria-label="Sidebar navigation"
+          className="flex-1 px-3 py-4 overflow-y-auto space-y-4"
+        >
+          {navGroups.map((group) => (
+            <div key={group.title} className="space-y-1">
+              <h3 className="px-3 text-[10px] font-mono uppercase tracking-[0.2em] text-muted/65 dark:text-[#9b8f80]/65">
+                {group.title}
+              </h3>
+              <div className="space-y-0.5">
+                {group.items.map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <NavLink
+                      key={item.to}
+                      to={item.to}
+                      title={item.label}
+                      className={({ isActive }) =>
+                        [
+                          "flex items-center gap-2.5 rounded-lg px-3 py-1.5 text-xs font-bold transition-all duration-200 border-2",
+                          isActive
+                            ? "bg-[#C3C0FF]/25 border-black dark:border-[#2e2924] text-text shadow-card-sm dark:text-[#f0ebe2]"
+                            : "border-transparent text-muted hover:bg-surface-low hover:text-text dark:text-[#c4bbae] dark:hover:bg-[#151411] dark:hover:text-[#f0ebe2]",
+                        ].join(" ")
+                      }
+                    >
+                      <Icon size={14} />
+                      <span>{item.label}</span>
+                    </NavLink>
+                  );
+                })}
+              </div>
             </div>
-          </div>
+          ))}
         </nav>
-        <div className="border-t border-outline px-4 py-4 text-sm text-muted dark:border-[#2e2924] dark:text-[#c4bbae]">
-          <div className="flex items-center gap-3 rounded-lg px-4 py-3 hover:bg-surface-low dark:hover:bg-[#151411]">
-            <Shield size={16} />
-            Community-safe workflows
+
+        <div className="border-t-4 border-black px-4 py-3 text-xs text-muted dark:border-[#2e2924] dark:text-[#c4bbae]">
+          <div className="flex items-center gap-2 px-2 py-1.5">
+            <Shield size={14} />
+            <span>Community Safe Mode</span>
           </div>
         </div>
       </aside>
 
-      <header className="fixed inset-x-0 top-0 z-30 border-b border-outline bg-white lg:left-[280px] dark:border-[#2e2924] dark:bg-[#0f0e0c]">
-        <div className="flex items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
-            <div className="flex min-w-0 items-center gap-3 relative grow max-w-md">
-            <div className="flex items-center gap-2 rounded-lg bg-surface-low px-3 py-2 text-muted w-full border-2 border-black dark:border-[#2e2924] shadow-card-sm focus-within:bg-white transition-all dark:bg-[#151411] dark:text-[#c4bbae] dark:focus-within:bg-[#0f0e0c]">
+      <header className="fixed inset-x-0 top-0 z-30 h-[72px] border-b-4 border-black bg-white lg:left-[240px] dark:border-[#2e2924] dark:bg-[#0f0e0c]">
+        <div className="flex h-full items-center justify-between space-x-4 px-4 sm:px-6 lg:px-8">
+          <button
+            onClick={() => setMobileOpen(!mobileOpen)}
+            className="lg:hidden rounded-lg border-2 border-black p-2 menu-btn"
+            aria-expanded={mobileOpen}
+            aria-label={mobileOpen ? "Close mobile menu" : "Open mobile menu"}
+            aria-controls="mobile-menu"
+          >
+            <Menu size={22} />
+          </button>
+          <div className="flex min-w-0 items-center space-x-3 relative grow max-w-md">
+            <div className="flex items-center space-x-2 rounded-lg bg-surface-low px-3 py-2 text-muted w-full border-2 border-black dark:border-[#2e2924] shadow-card-sm focus-within:bg-white transition-all dark:bg-[#151411] dark:text-[#c4bbae] dark:focus-within:bg-[#0f0e0c]">
               <Search size={15} className="shrink-0" />
               <input
                 type="text"
@@ -298,7 +304,7 @@ export function Navigation() {
               </div>
             )}
           </div>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center space-x-3">
             <Link
               to="/dashboard"
               className="hidden rounded-lg px-3 py-2 text-sm font-medium text-primary md:inline-flex"
@@ -307,7 +313,7 @@ export function Navigation() {
             </Link>
             <SyncStatusIndicator />
             <button
-              className="rounded-lg bg-surface-low p-2 text-muted hover:text-text border-2 border-black dark:border-[#2e2924] shadow-card-sm hover:-translate-y-0.5 active:translate-y-0 transition-all dark:bg-[#151411] dark:text-[#c4bbae] dark:hover:text-[#f0ebe2]"
+              className="rounded-lg bg-surface-low p-2 text-muted hover:text-text border-2 border-black dark:border-[#2e2924] shadow-card-sm hover:-translate-y-0.5 active:translate-y-0 transition-all dark:bg-[#151411] dark:text-[#c4bbae] dark:hover:text-[#f0ebe2] theme-toggle"
               onClick={toggleTheme}
               aria-label={
                 theme === "light"
@@ -318,7 +324,7 @@ export function Navigation() {
               {theme === "light" ? <Moon size={16} /> : <Sun size={16} />}
             </button>
             <button
-              className={`rounded-lg p-2 border-2 border-black dark:border-[#2e2924] shadow-card-sm hover:-translate-y-0.5 active:translate-y-0 transition-all ${
+              className={`rounded-lg p-2 border-2 border-black dark:border-[#2e2924] shadow-card-sm hover:-translate-y-0.5 active:translate-y-0 transition-all toggle-contrast ${
                 theme === "high-contrast"
                   ? "bg-primary text-white"
                   : "bg-surface-low text-muted hover:text-text dark:bg-[#151411] dark:text-[#c4bbae] dark:hover:text-[#f0ebe2]"
@@ -333,7 +339,7 @@ export function Navigation() {
             </button>
             {user && !user.is_staff && <NotificationMenu />}
             {user ? (
-              <div className="flex items-center gap-2">
+              <div className="flex items-center space-x-2">
                 <Link
                   to="/profile"
                   className="font-bold text-sm text-text bg-white px-3 py-2 rounded-lg border-2 border-black dark:bg-[#151411] dark:text-[#f0ebe2] dark:border-[#2e2924] flex items-center gap-1.5 shadow-card-sm hover:bg-surface-low transition-colors dark:hover:bg-[#1f1c18]"
@@ -350,7 +356,7 @@ export function Navigation() {
                 <LogoutButtonWithConfirm />
               </div>
             ) : (
-              <div className="flex items-center gap-3">
+              <div className="flex items-center space-x-3">
                 <Link
                   to="/login"
                   className="rounded-xl bg-white border-2 border-black px-4 py-2 text-sm font-bold text-text shadow-card-sm hover:-translate-y-0.5 active:translate-y-0 transition-all dark:bg-[#151411] dark:text-[#f0ebe2] dark:border-[#2e2924]"
@@ -368,6 +374,51 @@ export function Navigation() {
           </div>
         </div>
       </header>
+      {mobileOpen && (
+        <div
+          className="fixed inset-0 z-50 bg-black/50 lg:hidden"
+          onClick={() => setMobileOpen(false)}
+          onKeyDown={(e) => e.key === "Escape" && setMobileOpen(false)}
+          aria-hidden="true"
+        >
+          <div
+            id="mobile-menu"
+            className="absolute left-0 top-0 h-full w-72 bg-white dark:bg-[#151411] p-6"
+            onClick={(e) => e.stopPropagation()}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Mobile Navigation"
+          >
+            <div className="space-y-2">
+              {navGroups.map((group) => (
+                <div key={group.title} className="space-y-1">
+                  <h3 className="px-3 text-[10px] font-mono uppercase tracking-[0.2em] text-muted/65 dark:text-[#9b8f80]/65">
+                    {group.title}
+                  </h3>
+                  <div className="space-y-0.5">
+                    {group.items.map((item) => {
+                      const Icon = item.icon;
+                      return (
+                        <NavLink
+                          key={item.to}
+                          to={item.to}
+                          onClick={() => setMobileOpen(false)}
+                          className="flex items-center gap-3 rounded-lg px-4 py-3 hover:bg-gray-100 dark:hover:bg-[#1f1c18]"
+                        >
+                          <Icon size={18} />
+                          {item.label}
+                        </NavLink>
+                      );
+                    })}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }
+
+export default Navigation;

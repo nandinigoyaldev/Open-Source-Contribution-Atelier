@@ -5,13 +5,14 @@ import { useWebSocket } from "../../hooks/useWebSocket";
 import { CodeTimeline } from "./CodeTimeline";
 import { fetchSandboxSnapshots, saveSandboxSnapshot, CodeSnapshot } from "../../lib/api";
 import toast from "react-hot-toast";
+import { getAccessToken } from "../../lib/authToken";
 
 export function CodeSandbox() {
   const [code, setCode] = useState('console.log("Hello, World!");');
   const [output, setOutput] = useState<string[]>([]);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const isRemoteUpdate = useRef(false);
-  const token = localStorage.getItem("accessToken");
+  const token = getAccessToken();
 
   const [snapshots, setSnapshots] = useState<CodeSnapshot[]>([]);
   const [isTimelineOpen, setIsTimelineOpen] = useState(false);

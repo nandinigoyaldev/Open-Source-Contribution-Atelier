@@ -2,8 +2,6 @@
 
 ### In large open source projects, commit histories can quickly become messy. Maintainers prefer clean, linear histories using **rebase** and **squash**.
 
-
-
 ---
 
 ## 🔨 What is Rebasing?
@@ -26,6 +24,7 @@ D---E---F---G (📍 main)
 ```
 
 #### Terminal Example
+
 <img width="690" height="191" alt="image" src="https://github.com/user-attachments/assets/9e7c8b12-d442-4ed5-b0fc-e9bc24226f4d" />
 
 ---
@@ -51,16 +50,17 @@ git rebase origin/main
 
 ## 🆚 Merge vs. Rebase vs. Squash
 
-| Feature | 🔗 Git Merge | 🔨 Git Rebase | 📥 Git Squash |
-| --- | --- | --- | --- |
-| **Core Concept** | Combines branches by creating a new merge commit | Applies commits from one branch onto another | Combines many commits into a single commit |
-| **History Impact** | Keeps the full history of all branches | Gives commits new IDs while applying them on top of another branch | Compresses changes and drops extra commit messages |
-| **Best Practice** | It lets you merge feature branches into the main branch on team projects | It lets you keep a clean and linear history, but never rebase shared branches | It lets you clean up the feature branch before merging, but never squash a shared branch |
-| **Pros** | Safe, easy to undo, simple to understand | Linear history, easier to understand and debug | Clean history and allows one commit per feature |
-| **Cons** | Extra merge commits can clutter history | Risk of confusion and conflicts on shared branches from changed commit IDs | Harder to revert small parts or trace changes as history gets lost |
+| Feature            | 🔗 Git Merge                                                             | 🔨 Git Rebase                                                                 | 📥 Git Squash                                                                            |
+| ------------------ | ------------------------------------------------------------------------ | ----------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| **Core Concept**   | Combines branches by creating a new merge commit                         | Applies commits from one branch onto another                                  | Combines many commits into a single commit                                               |
+| **History Impact** | Keeps the full history of all branches                                   | Gives commits new IDs while applying them on top of another branch            | Compresses changes and drops extra commit messages                                       |
+| **Best Practice**  | It lets you merge feature branches into the main branch on team projects | It lets you keep a clean and linear history, but never rebase shared branches | It lets you clean up the feature branch before merging, but never squash a shared branch |
+| **Pros**           | Safe, easy to undo, simple to understand                                 | Linear history, easier to understand and debug                                | Clean history and allows one commit per feature                                          |
+| **Cons**           | Extra merge commits can clutter history                                  | Risk of confusion and conflicts on shared branches from changed commit IDs    | Harder to revert small parts or trace changes as history gets lost                       |
 
 ---
 
 > [!IMPORTANT]
+>
 > - Rebasing is combining your commits and moving them to a new base commit - it rewrites history by applying your branch's changes one-by-one on top of the other target branch.
 > - Squashing is combining multiple local commits into a single, clean commit before merging. This keeps the repo's main branch log neat.

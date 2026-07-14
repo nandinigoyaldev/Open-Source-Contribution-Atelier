@@ -14,11 +14,13 @@
 ## 🛠️ Working with Remotes
 
 - **List Remotes**:
+
   ```bash
   git remote -v
   ```
 
 - **Add a Remote**:
+
   ```bash
   git remote add upstream <repository-url>
   ```

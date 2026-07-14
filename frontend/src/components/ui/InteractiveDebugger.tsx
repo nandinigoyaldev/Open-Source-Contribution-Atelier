@@ -9,7 +9,10 @@ interface InteractiveDebuggerProps {
   onSuccess?: () => void;
 }
 
-export function InteractiveDebugger({ exercise, onSuccess }: InteractiveDebuggerProps) {
+export function InteractiveDebugger({
+  exercise,
+  onSuccess,
+}: InteractiveDebuggerProps) {
   const monaco = useMonaco();
   const editorRef = useRef<{
     onMouseDown: (
@@ -40,10 +43,7 @@ export function InteractiveDebugger({ exercise, onSuccess }: InteractiveDebugger
     removeBreakpoint,
   } = useDebugger();
 
-  const handleEditorDidMount = (
-    editor: any,
-    m: Monaco,
-  ) => {
+  const handleEditorDidMount = (editor: any, m: Monaco) => {
     editorRef.current = editor;
 
     // Handle clicking on the margin for breakpoints
