@@ -30,13 +30,20 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
-from schemas.user import UserCreateSchema, UserLoginSchema, LoginResponseSchema, UserProfileSchema
-
 from apps.progress.models import LessonProgress, UserBadge
 from apps.progress.serializers import UserBadgeSerializer
-from schemas.user import UserCreateSchema, UserLoginSchema, UserResponseSchema, UserProfileSchema
+from schemas.user import (
+    LoginResponseSchema,
+    UserCreateSchema,
+    UserLoginSchema,
+    UserProfileSchema,
+    UserResponseSchema,
+)
+
+
 class LoginResponseSchema(UserResponseSchema):
     pass
+
 
 from .models import MagicLinkToken, OTPToken, PasswordResetToken
 from .serializers import (
@@ -418,9 +425,7 @@ class GitHubOAuthCallbackView(APIView):
             username_source = github_user.get("login") or email
             github_username = username_from_value(username_source)
 
-            username_conflict = User.objects.filter(
-                username__iexact=github_username
-            )
+            username_conflict = User.objects.filter(username__iexact=github_username)
             if user is not None:
                 username_conflict = username_conflict.exclude(pk=user.pk)
 
@@ -458,7 +463,7 @@ from .permissions import IsAdminOrModeratorRole
 
 @extend_schema(responses=UserListSerializer(many=True))
 class UserListView(generics.ListAPIView):
-    queryset = User.objects.select_related("profile").order_by("id")
+    queryset = User.objects.select_related("user_profile").order_by("id")
     permission_classes = [permissions.IsAuthenticated, IsAdminOrModeratorRole]
     serializer_class = UserListSerializer
     pagination_class = LimitOffsetPagination
@@ -1107,35 +1112,41 @@ class LearningPathView(APIView):
 
 class ChangePasswordView(APIView):
     permission_classes = [IsAuthenticated]
+
     def post(self, request):
         return Response({"status": "password changed stub"})
 
 
 class AvatarUploadView(APIView):
     permission_classes = [IsAuthenticated]
+
     def post(self, request):
         return Response({"status": "avatar uploaded stub"})
 
 
 class ShopStreakFreezeView(APIView):
     permission_classes = [IsAuthenticated]
+
     def post(self, request):
         return Response({"status": "streak freeze purchased stub"})
 
 
 class PasswordResetValidateTokenView(APIView):
     permission_classes = [permissions.AllowAny]
+
     def post(self, request):
         return Response({"status": "password reset token validated stub"})
 
 
 class UserSuggestionsView(APIView):
     permission_classes = [IsAuthenticated]
+
     def get(self, request):
         return Response([])
 
 
 class PublicProfileView(APIView):
     permission_classes = [permissions.AllowAny]
+
     def get(self, request, username):
         return Response({"username": username, "bio": "stub profile"})
