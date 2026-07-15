@@ -1352,7 +1352,7 @@ class HeatmapView(APIView):
         return Response(data, status=status.HTTP_200_OK)
 
 
-<<<<<<< HEAD
+
 class StreakStatusView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
