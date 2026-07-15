@@ -449,7 +449,6 @@ class WorkspaceSnapshotViewSet(viewsets.ModelViewSet):
         serializer.save()
  
 
-
 # ============================================================
 # MAINTAINER ROLEPLAY
 # ============================================================
@@ -468,3 +467,32 @@ class MaintainerEvaluationViewSet(viewsets.ModelViewSet):
     def get_queryset(self):
         return MaintainerEvaluation.objects.filter(user=self.request.user)
 
+from .models import CollabSession
+from .serializers import CollabSessionSerializer
+from django.contrib.auth import get_user_model
+
+class CollabSessionViewSet(viewsets.ModelViewSet):
+    serializer_class = CollabSessionSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return CollabSession.objects.filter(
+            Q(project__user=self.request.user) | Q(allowed_users=self.request.user)
+        ).distinct()
+    
+    @action(detail=True, methods=["post"])
+    def invite_mentor(self, request, pk=None):
+        session = self.get_object()
+        
+        # Only project owner can invite
+        if session.project and session.project.user != request.user:
+            return Response({"error": "Only the project owner can invite mentors."}, status=403)
+            
+        username = request.data.get("username")
+        User = get_user_model()
+        try:
+            mentor = User.objects.get(username=username)
+            session.allowed_users.add(mentor)
+            return Response({"status": "invited", "mentor": username})
+        except User.DoesNotExist:
+            return Response({"error": "Mentor not found"}, status=404)

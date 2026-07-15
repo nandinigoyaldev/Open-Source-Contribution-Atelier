@@ -160,6 +160,7 @@ class WorkspaceSnapshotSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ["id", "created_at"]
 
+
 from .models import MaintainerScenario, MaintainerEvaluation
 
 class MaintainerScenarioSerializer(serializers.ModelSerializer):
@@ -177,3 +178,12 @@ class MaintainerEvaluationSerializer(serializers.ModelSerializer):
     def create(self, validated_data):
         validated_data['user'] = self.context['request'].user
         return super().create(validated_data)
+
+
+from .models import CollabSession, CollabSessionLog
+
+class CollabSessionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = CollabSession
+        fields = ["id", "project", "allowed_users", "created_at", "is_active"]
+        read_only_fields = ["id", "created_at"]

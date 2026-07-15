@@ -38,6 +38,7 @@ from .views import (
     WorkspaceSnapshotViewSet,
     MaintainerScenarioViewSet,
     MaintainerEvaluationViewSet,
+    CollabSessionViewSet,
 )
 
 
@@ -53,6 +54,7 @@ router.register(
 router.register(r"snippets", CodeSnippetViewSet, basename="snippet")
 router.register(r"maintainer-scenarios", MaintainerScenarioViewSet, basename="maintainer-scenario")
 router.register(r"maintainer-evaluations", MaintainerEvaluationViewSet, basename="maintainer-evaluation")
+router.register(r"collab-sessions", CollabSessionViewSet, basename="collab-session")
 # router.register(r"workspace-snapshots", WorkspaceSnapshotViewSet, basename="workspace-snapshot")
 
 # ============================================================

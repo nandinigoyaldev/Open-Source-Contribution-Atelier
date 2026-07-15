@@ -67,6 +67,18 @@ class ExecutionViolationLog(models.Model):
 
 class CollabSession(models.Model):
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    project = models.ForeignKey(
+        "sandbox.Project",
+        on_delete=models.CASCADE,
+        related_name="collab_sessions",
+        null=True,
+        blank=True,
+    )
+    allowed_users = models.ManyToManyField(
+        settings.AUTH_USER_MODEL,
+        related_name="allowed_collab_sessions",
+        blank=True,
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     is_active = models.BooleanField(default=True)
     document_state = models.BinaryField(

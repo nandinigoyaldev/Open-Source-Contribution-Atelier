@@ -290,7 +290,7 @@ class CollabConsumer(AsyncWebsocketConsumer):
         await self.accept()
 
         # Send initial Yjs state from cache or DB to client
-        from .models import CollabSession
+        from .models import CollabSession, CollabSessionLog
         
         cache_key = f"collab_doc_state_{self.room_id}"
         state = cache.get(cache_key)
@@ -306,6 +306,15 @@ class CollabConsumer(AsyncWebsocketConsumer):
                 
         if state:
             await self.send(bytes_data=state)
+
+        from asgiref.sync import sync_to_async
+        user = self.scope.get("user")
+        if user and user.is_authenticated:
+            @sync_to_async
+            def log_join():
+                session, _ = CollabSession.objects.get_or_create(id=self.room_id)
+                CollabSessionLog.objects.create(session=session, user=user, action="joined")
+            await log_join()
 
     async def disconnect(self, close_code):
         """
@@ -357,6 +366,16 @@ class CollabConsumer(AsyncWebsocketConsumer):
                 session.document_state = state
                 session.save(update_fields=["document_state"])
             await save_db_state(new_state)
+
+        from asgiref.sync import sync_to_async
+        from .models import CollabSessionLog
+
+        user = self.scope.get("user")
+        if user and user.is_authenticated:
+            @sync_to_async
+            def log_leave():
+                CollabSessionLog.objects.create(session_id=self.room_id, user=user, action="left")
+            await log_leave()
 
     async def receive(self, text_data=None, bytes_data=None):
         if bytes_data:
