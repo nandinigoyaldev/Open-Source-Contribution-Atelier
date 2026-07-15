@@ -19,10 +19,10 @@ import { useUserProgress } from "../hooks/useUserProgress";
 import { useTerminalAutocomplete } from "../hooks/useTerminalAutocomplete";
 import { ShellState } from "../hooks/useGitShell";
 import { useBookmarks } from "../hooks/useBookmarks";
+import { useNotifications } from "../features/notifications/NotificationContext";
 import { fetchApi } from "../lib/api";
 import { Lesson, fetchLessonsApi, fetchLessonContent } from "../lib/lessons";
 import { RecentlyViewedLessonsWidget } from "../components/ui/RecentlyViewedLessonsWidget";
-import Confetti from "react-confetti";
 
 const SESSION_KEY_RECENT = "recentlyViewedLessonsV1";
 const MAX_RECENT_ITEMS = 3;
@@ -96,6 +96,7 @@ export function LessonPage() {
   const navigate = useNavigate();
   const { isLessonCompleted, syncProgress } = useUserProgress();
   const { isBookmarked, toggleBookmark } = useBookmarks();
+  const { triggerConfetti } = useNotifications();
   const queryClient = useQueryClient();
 
   const [lesson, setLesson] = useState<Lesson | undefined>(undefined);
@@ -165,6 +166,14 @@ export function LessonPage() {
   const [helpMessage, setHelpMessage] = useState("");
   const [helpSuccessMessage, setHelpSuccessMessage] = useState("");
   const MAX_HELP_CHARS = 500;
+
+  // Read Time
+  const calculateReadTime = (content: string) => {
+  const wordsPerMinute = 200;
+  const words = content.split(/\s+/).length;
+  const minutes = Math.ceil(words / wordsPerMinute);
+  return minutes;
+  };
 
   // Note Panel
   const [isNotePanelOpen, setIsNotePanelOpen] = useState(false);
@@ -470,11 +479,18 @@ export function LessonPage() {
 
     if (isCorrect) {
       setFeedback("correct");
+      
+      const wasCompleted = isLessonCompleted(lesson.slug);
+      
       syncProgress({
         lesson_slug: lesson.slug,
         score: lesson.points || 20,
         completed: true,
       });
+
+      if (!wasCompleted) {
+        triggerConfetti();
+      }
     } else {
       setFeedback("error");
       setShowHint(true);
@@ -516,6 +532,14 @@ export function LessonPage() {
           score: lesson.points || 15,
           completed: true,
         });
+      const wasCompleted = isLessonCompleted(lesson.slug);
+      syncProgress({
+        lesson_slug: lesson.slug,
+        score: lesson.points || 20,
+        completed: true,
+      });
+      if (!wasCompleted) {
+        triggerConfetti();
       }
     } else {
       setQuizFeedback("incorrect");
@@ -622,6 +646,11 @@ export function LessonPage() {
         </span>
       </div>
 
+      <span className="updated-date">
+        Updated: {new Date(lesson.updatedAt).toLocaleDateString()}
+      </span>
+
+      {/* Backdrop overlay — closes drawer on click-outside on mobile */}
       {isSidebarOpen && (
         <div
           className="fixed inset-0 z-[90] bg-black/40 lg:hidden"
@@ -817,11 +846,15 @@ export function LessonPage() {
                       <PluginComponent
                         lesson={lesson}
                         onSuccess={(score) => {
+                          const wasCompleted = isCompleted;
                           syncProgress({
                             lesson_slug: lesson.slug,
                             score: score || lesson.points || 20,
                             completed: true,
                           });
+                          if (!wasCompleted) {
+                            triggerConfetti();
+                          }
                         }}
                       />
                     </div>
@@ -841,22 +874,30 @@ export function LessonPage() {
                           )!
                         }
                         onSuccess={() => {
+                          const wasCompleted = isCompleted;
                           syncProgress({
                             lesson_slug: lesson.slug,
                             score: lesson.points || 20,
                             completed: true,
                           });
+                          if (!wasCompleted) {
+                            triggerConfetti();
+                          }
                         }}
                       />
                     ) : (
                       <PythonSandbox
                         exercise={lesson.pythonExercise}
                         onSuccess={() => {
+                          const wasCompleted = isCompleted;
                           syncProgress({
                             lesson_slug: lesson.slug,
                             score: lesson.points || 20,
                             completed: true,
                           });
+                          if (!wasCompleted) {
+                            triggerConfetti();
+                          }
                         }}
                       />
                     )}
@@ -866,11 +907,15 @@ export function LessonPage() {
                     <JSSandbox
                       exercise={lesson.jsExercise}
                       onSuccess={() => {
+                        const wasCompleted = isCompleted;
                         syncProgress({
                           lesson_slug: lesson.slug,
                           score: lesson.points || 20,
                           completed: true,
                         });
+                        if (!wasCompleted) {
+                          triggerConfetti();
+                        }
                       }}
                     />
                   </div>
@@ -879,11 +924,15 @@ export function LessonPage() {
                     <InteractiveDebugger
                       exercise={lesson.debugExercise}
                       onSuccess={() => {
+                        const wasCompleted = isCompleted;
                         syncProgress({
                           lesson_slug: lesson.slug,
                           score: lesson.points || 30,
                           completed: true,
                         });
+                        if (!wasCompleted) {
+                          triggerConfetti();
+                        }
                       }}
                     />
                   </div>
@@ -1013,11 +1062,15 @@ export function LessonPage() {
                         ) : (
                           <button
                             onClick={() => {
+                              const wasCompleted = isCompleted;
                               syncProgress({
                                 lesson_slug: lesson.slug,
                                 score: lesson.points || 15,
                                 completed: true,
                               });
+                              if (!wasCompleted) {
+                                triggerConfetti();
+                              }
                             }}
                             className="px-6 py-2 bg-black text-white font-bold rounded-lg border-2 border-black shadow-brutal transition-transform active:translate-y-0.5"
                           >
@@ -1251,6 +1304,14 @@ export function LessonPage() {
           </div>
         </div>
 
+        <div className="lesson-info">
+         <h1>{lesson.title}</h1>
+          <span className="read-time">
+           ⏱️ {calculateReadTime(lesson.content)} min read
+         </span>
+        </div>
+
+        {/* Mentor Help Trigger Row */}
         <div className="border-t-4 border-black p-4 bg-white dark:bg-[#151411] dark:border-[#2e2924] flex justify-end gap-4 flex-shrink-0">
           <button
             onClick={() => setIsNotePanelOpen(!isNotePanelOpen)}
@@ -1359,7 +1420,6 @@ export function LessonPage() {
       {lesson && isCompleted && (
         <LessonFeedbackWidget lessonSlug={lesson.slug} />
       )}
-      {showConfetti && <Confetti />}
 
       {showHistory && (
         <LessonHistoryModal

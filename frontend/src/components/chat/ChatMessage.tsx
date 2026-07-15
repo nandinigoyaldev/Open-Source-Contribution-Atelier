@@ -1,4 +1,13 @@
 import clsx from "clsx";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
+import Prism from "prismjs";
+import "prismjs/components/prism-javascript";
+import "prismjs/components/prism-typescript";
+import "prismjs/components/prism-python";
+import "prismjs/components/prism-rust";
+import "prismjs/components/prism-bash";
+import "prismjs/themes/prism-tomorrow.css";
 
 import { MessageSquare } from "lucide-react";
 
@@ -74,7 +83,70 @@ export function ChatMessage({
               : "bg-slate-50 text-gray-900 border-black/5 rounded-bl-none dark:bg-slate-800/80 dark:text-gray-100 dark:border-slate-700/60",
           )}
         >
-          <p className="whitespace-pre-wrap break-words">{message}</p>
+          <ReactMarkdown
+            remarkPlugins={[remarkGfm]}
+            className="break-words"
+            components={{
+              p({ children }) {
+                return <p className="mb-2 last:mb-0 whitespace-pre-wrap">{children}</p>;
+              },
+              a({ href, children }) {
+                return (
+                  <a href={href} target="_blank" rel="noopener noreferrer" className="text-indigo-600 dark:text-indigo-400 hover:underline">
+                    {children}
+                  </a>
+                );
+              },
+              ul({ children }) {
+                return <ul className="list-disc pl-4 mb-2">{children}</ul>;
+              },
+              ol({ children }) {
+                return <ol className="list-decimal pl-4 mb-2">{children}</ol>;
+              },
+              code(props) {
+                const { children, className, ...rest } = props;
+                const match = /language-(\w+)/.exec(className || "");
+                const language = match ? match[1] : "";
+
+                if (!match) {
+                  return (
+                    <code className="bg-black/10 dark:bg-white/10 px-1 py-0.5 rounded text-[13px] font-mono" {...rest}>
+                      {children}
+                    </code>
+                  );
+                }
+
+                const grammar = Prism.languages[language];
+                let highlighted = String(children).replace(/\n$/, "");
+                if (grammar) {
+                  try {
+                    highlighted = Prism.highlight(highlighted, grammar, language);
+                  } catch (e) {
+                    // Ignore highlight errors
+                  }
+                }
+
+                return (
+                  <div className="relative group/code mt-2 mb-2">
+                    <div className="absolute right-2 top-2 text-[10px] text-gray-400 select-none uppercase font-bold">
+                      {language}
+                    </div>
+                    <pre className={`language-${language} bg-[#2d2d2d] rounded-md p-3 overflow-x-auto text-[13px]`} style={{ margin: 0 }}>
+                      {grammar ? (
+                        <code dangerouslySetInnerHTML={{ __html: highlighted }} />
+                      ) : (
+                        <code className={className} {...rest}>
+                          {children}
+                        </code>
+                      )}
+                    </pre>
+                  </div>
+                );
+              },
+            }}
+          >
+            {message}
+          </ReactMarkdown>
 
           {onReply && (
             <button

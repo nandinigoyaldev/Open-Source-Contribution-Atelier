@@ -1,6 +1,4 @@
-# 🔁 Merging Branches
-
-### Once you have finished development and tested your changes on a feature branch, you need to bring those changes back into the main/master branch. This is called **merging**.
+## 🔁 Once you have finished development and tested your changes on a feature branch, you need to bring those changes back into the main/master branch. This is called **merging**.
 
 ---
 

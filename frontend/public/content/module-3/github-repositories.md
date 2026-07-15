@@ -1,6 +1,4 @@
-# 🗃️ GitHub Repositories
-
-### GitHub is a cloud platform that hosts Git repositories - collections of code and programs. It layers a powerful social and collaborative interface on top of Git's version control.
+## 🗃️ GitHub is a cloud platform that hosts Git repositories - collections of code and programs. It layers a powerful social and collaborative interface on top of Git's version control.
 
 ---
 

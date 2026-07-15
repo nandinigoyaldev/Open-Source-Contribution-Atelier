@@ -1,6 +1,6 @@
-# 𐂐 Forks on GitHub
+## 𐂐 In open source, you usually do not have direct write permissions to edit the main repository of a project. To make changes, you use a **Fork**.
 
-### In open source, you usually do not have direct write permissions to edit the main repository of a project. To make changes, you use a **Fork**.
+---
 
 <br>
 <div align="center">

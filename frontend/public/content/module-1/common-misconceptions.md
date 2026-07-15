@@ -1,6 +1,4 @@
-# 🔎︎ Common Misconceptions
-
-### Many people are intimidated by open source, believing it's only for "genius" developers. Let's debunk the most common myths.
+## 🔎︎ Many people are intimidated by open source, believing it's only for "genius" developers. Let's debunk the most common myths.
 
 ---
 

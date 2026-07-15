@@ -48,12 +48,8 @@ urlpatterns = [
     
     # Recommendations
     path("recommendations/", RecommendationsView.as_view(), name="recommendations"),
-
-    
-    # Community
-
-    path("daily-stats/", DailyLessonStatsView.as_view(), name="daily-stats"),
-
+    path('certificate/verify/<str:hash>/', CertificateVerifyView.as_view(), name='certificate-verify'),
+    path('daily-stats/', DailyLessonStatsView.as_view(), name='daily-stats'),
     path("feed/", CommunityFeedView.as_view(), name="community-feed"),
     path("community-stats/", CommunityStatsView.as_view(), name="community-stats"),
     

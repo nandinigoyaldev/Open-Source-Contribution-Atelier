@@ -1,6 +1,4 @@
-# ⚖️ Choosing and Understanding Open Source Licenses
-
-### Before you fork, use, or contribute to a project, one question matters more than any line of code: **what does its license actually let you do?**
+## ⚖️ Before you fork, use, or contribute to a project, one question matters more than any line of code: **what does its license actually let you do?**
 
 ---
 

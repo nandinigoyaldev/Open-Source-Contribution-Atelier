@@ -14,7 +14,9 @@ const getApiBaseUrl = () => {
 
 const API_BASE =
   getApiBaseUrl()?.trim() ||
-  (typeof window !== "undefined" ? `${window.location.origin}/api` : "http://127.0.0.1:8000/api");
+  (typeof window !== "undefined"
+    ? `${window.location.origin}/api`
+    : "http://127.0.0.1:8000/api");
 
 type RequestOptions = RequestInit & {
   requireAuth?: boolean;
@@ -114,7 +116,9 @@ export async function fetchApi(endpoint: string, options: RequestOptions = {}) {
               toast.error("You do not have permission to perform this action.");
               break;
             case 429:
-              toast.error(errorMessage || "Too many requests. Please slow down!");
+              toast.error(
+                errorMessage || "Too many requests. Please slow down!",
+              );
               break;
             case 500:
               toast.error("Server error. Our team has been notified.");
@@ -256,7 +260,6 @@ export async function saveSandboxSnapshot(
     body: JSON.stringify({ code, label, is_auto }),
   });
 }
-
 
 export interface ProjectFile {
   id: string;
@@ -532,12 +535,15 @@ export async function executeTerminalCommand(
 
 export async function exportWorkspaceZip(projectId: string): Promise<void> {
   const token = getAccessToken();
-  const response = await fetch(`${API_BASE}/sandbox/projects/${projectId}/export_zip/`, {
-    method: "GET",
-    headers: {
-      Authorization: `Bearer ${token}`,
+  const response = await fetch(
+    `${API_BASE}/sandbox/projects/${projectId}/export_zip/`,
+    {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
     },
-  });
+  );
 
   if (!response.ok) {
     throw new Error("Failed to export workspace");
@@ -564,4 +570,32 @@ export function getMediaUrl(url: string | null | undefined): string | null {
   if (!url) return null;
   if (url.startsWith("http://") || url.startsWith("https://")) return url;
   return url;
+}
+
+// ---------------------- BOUNTIES API ----------------------
+
+export interface Bounty {
+  id: number;
+  title: string;
+  description: string;
+  xp_reward: number;
+  status: "Open" | "Claimed" | "Completed";
+  claimed_by: number | null;
+  claimed_by_username?: string;
+  created_at: string;
+}
+
+export async function fetchBounties(): Promise<Bounty[]> {
+  return fetchApi("/issues/bounties/", { method: "GET" });
+}
+
+export async function claimBounty(id: number): Promise<{ status: string }> {
+  return fetchApi(`/issues/bounties/${id}/claim/`, { method: "POST" });
+}
+
+export async function submitBounty(id: number, codePatch: string): Promise<{ status: string; xp_earned: number }> {
+  return fetchApi(`/issues/bounties/${id}/submit/`, {
+    method: "POST",
+    body: JSON.stringify({ code_patch: codePatch }),
+  });
 }

@@ -1,6 +1,6 @@
-# 🧲 Pull Requests (PRs)
+## 🧲 A **Pull Request** is the bridge between your isolated fork and the main project. It's a formal proposal to merge your code changes into the official codebase.
 
-### A **Pull Request** is the bridge between your isolated fork and the main project. It's a formal proposal to merge your code changes into the official codebase.
+---
 
 <br>
 <div align="center">

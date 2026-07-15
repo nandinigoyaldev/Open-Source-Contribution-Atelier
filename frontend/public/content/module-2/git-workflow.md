@@ -1,6 +1,4 @@
-# 📥 Staging Files & Checking Repository Status
-
-### From time to time, it is crucial to check your repository for file modifications, selecting what changes are ready for a commit, and logging them.
+### 📥 From time to time, it is crucial to check your repository for file modifications, selecting what changes are ready for a commit, and logging them.
 
 ---
 

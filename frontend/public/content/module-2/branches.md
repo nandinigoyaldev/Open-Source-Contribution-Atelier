@@ -1,6 +1,4 @@
-# 🎋 Git Branching
-
-### In open source, multiple developers work on the same codebase simultaneously. To prevent people from overwriting each other's changes, we work in **branches**.
+## 🎋 In open source, multiple developers work on the same codebase simultaneously. To prevent people from overwriting each other's changes, we work in **branches**.
 
 ---
 

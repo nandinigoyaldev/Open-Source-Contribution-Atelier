@@ -1,5 +1,19 @@
-import React, { useState } from "react";
+import React, { useMemo, useCallback } from "react";
+import {
+  ReactFlow,
+  Background,
+  Controls,
+  MarkerType,
+  Node,
+  Edge,
+  Handle,
+  Position,
+  NodeProps,
+} from "@xyflow/react";
+import "@xyflow/react/dist/style.css";
+import dagre from "dagre";
 import { RepoState, GitCommit } from "../../lib/gitSimulator";
+import clsx from "clsx";
 
 interface GitGraphProps {
   state: RepoState;
@@ -7,91 +21,156 @@ interface GitGraphProps {
   highlightedCommits?: string[];
 }
 
-interface ConflictInfo {
-  commitId: string;
-  file: string;
-  oursContent?: string;
-  theirsContent?: string;
-}
+const getBranchColor = (branchName: string): string => {
+  const colors = [
+    "#3B82F6",
+    "#10B981",
+    "#F59E0B",
+    "#EF4444",
+    "#8B5CF6",
+    "#EC4899",
+  ];
+  if (branchName === "main") return "#6B7280";
+  const hash = branchName.split("").reduce((a, b) => a + b.charCodeAt(0), 0);
+  return colors[hash % colors.length];
+};
+
+const CommitNode = ({ data }: NodeProps) => {
+  const isSelected = data.isSelected as boolean;
+  const isHead = data.isHead as boolean;
+  const isConflict = data.isConflict as boolean;
+  const branchColor = data.branchColor as string;
+
+  return (
+    <div
+      className={clsx(
+        "relative flex flex-col items-center justify-center p-2 rounded-lg border-2 bg-white dark:bg-[#2e2924] shadow-sm cursor-pointer transition-transform hover:scale-105 min-w-[120px]",
+        isSelected ? "border-blue-500 shadow-md" : "border-black",
+        isConflict ? "animate-pulse ring-4 ring-red-500/50" : ""
+      )}
+      style={{
+        borderTopColor: branchColor,
+        borderTopWidth: "4px",
+      }}
+    >
+      <Handle type="target" position={Position.Left} className="opacity-0" />
+      
+      {isHead && (
+        <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-yellow-400 text-black text-[10px] font-black px-1.5 rounded border border-black shadow-[1px_1px_0_0_rgba(0,0,0,1)]">
+          HEAD
+        </div>
+      )}
+      {isConflict && (
+        <div className="absolute -bottom-3 left-1/2 -translate-x-1/2 bg-red-500 text-white text-[10px] font-black px-1.5 rounded border border-black shadow-[1px_1px_0_0_rgba(0,0,0,1)]">
+          ⚠️ CONFLICT
+        </div>
+      )}
+
+      <div className="text-xs font-mono font-bold">{String(data.id).substring(0, 7)}</div>
+      <div className="text-[10px] text-gray-500 mt-1 truncate w-full text-center px-1" title={String(data.message)}>
+        {data.message}
+      </div>
+      
+      <Handle type="source" position={Position.Right} className="opacity-0" />
+    </div>
+  );
+};
+
+const nodeTypes = {
+  commit: CommitNode,
+};
+
+const getLayoutedElements = (nodes: Node[], edges: Edge[]) => {
+  const dagreGraph = new dagre.graphlib.Graph();
+  dagreGraph.setDefaultEdgeLabel(() => ({}));
+  
+  // Left to right layout
+  dagreGraph.setGraph({ rankdir: "LR", ranksep: 60, nodesep: 50 });
+
+  nodes.forEach((node) => {
+    dagreGraph.setNode(node.id, { width: 140, height: 70 });
+  });
+
+  edges.forEach((edge) => {
+    dagreGraph.setEdge(edge.source, edge.target);
+  });
+
+  dagre.layout(dagreGraph);
+
+  const newNodes = nodes.map((node) => {
+    const nodeWithPosition = dagreGraph.node(node.id);
+    return {
+      ...node,
+      position: {
+        x: nodeWithPosition.x - 140 / 2,
+        y: nodeWithPosition.y - 70 / 2,
+      },
+    };
+  });
+
+  return { nodes: newNodes, edges };
+};
 
 export const GitGraph: React.FC<GitGraphProps> = ({
   state,
   onSelectCommit,
   highlightedCommits = [],
 }) => {
-  const [hoveredCommit, setHoveredCommit] = useState<string | null>(null);
-  const [selectedCommit, setSelectedCommit] = useState<string | null>(null);
-
-  const branchColumns: Record<string, number> = { main: 0 };
-  let nextCol = 1;
-
-  state.branches.forEach((b) => {
-    if (b.name !== "main" && branchColumns[b.name] === undefined) {
-      branchColumns[b.name] = nextCol++;
-    }
-  });
-
   const hasConflicts = state.conflicts.length > 0;
+  
+  const { nodes, edges } = useMemo(() => {
+    const initialNodes: Node[] = state.commits.map((commit) => {
+      const isHead = state.branches.find((b) => b.name === state.HEAD)?.target === commit.id || state.HEAD === commit.id;
+      const isConflict = commit.parents.length > 1 || highlightedCommits.includes(commit.id) || (hasConflicts && highlightedCommits.includes(commit.id));
 
-  const width = Math.max(state.commits.length * 90 + 150, 600);
-  const height = Math.max(nextCol * 80 + 80, 250);
+      return {
+        id: commit.id,
+        type: "commit",
+        position: { x: 0, y: 0 },
+        data: {
+          id: commit.id,
+          message: commit.message,
+          branchColor: getBranchColor(commit.branch),
+          isHead,
+          isConflict,
+        },
+      };
+    });
 
-  const PADDING_X = 80;
-  const PADDING_Y = 60;
-  const SPACING_X = 90;
-  const SPACING_Y = 80;
+    const initialEdges: Edge[] = [];
+    state.commits.forEach((commit) => {
+      commit.parents.forEach((parentId) => {
+        const isConflict = commit.parents.length > 1 || highlightedCommits.includes(commit.id) || highlightedCommits.includes(parentId);
+        
+        initialEdges.push({
+          id: `e-${parentId}-${commit.id}`,
+          source: parentId,
+          target: commit.id,
+          animated: isConflict,
+          style: { stroke: isConflict ? '#EF4444' : getBranchColor(commit.branch), strokeWidth: 3 },
+          markerEnd: {
+            type: MarkerType.ArrowClosed,
+            color: isConflict ? '#EF4444' : getBranchColor(commit.branch),
+          },
+        });
+      });
+    });
 
-  const nodePositions = new Map<string, { x: number; y: number }>();
+    return getLayoutedElements(initialNodes, initialEdges);
+  }, [state, highlightedCommits, hasConflicts]);
 
-  state.commits.forEach((commit, i) => {
-    const col = branchColumns[commit.branch] || 0;
-    const x = PADDING_X + i * SPACING_X;
-    const y = PADDING_Y + col * SPACING_Y;
-    nodePositions.set(commit.id, { x, y });
-  });
-
-  // Calculate the path string for links
-  const createPath = (sx: number, sy: number, ex: number, ey: number) => {
-    if (sy === ey) {
-      return `M ${sx} ${sy} L ${ex} ${ey}`;
-    }
-    // Curved line for branch/merge
-    return `M ${sx} ${sy} C ${sx + SPACING_X / 2} ${sy}, ${ex - SPACING_X / 2} ${ey}, ${ex} ${ey}`;
-  };
-
-  // Determine branch colors for better visualization
-  const getBranchColor = (branchName: string): string => {
-    const colors = [
-      "#3B82F6",
-      "#10B981",
-      "#F59E0B",
-      "#EF4444",
-      "#8B5CF6",
-      "#EC4899",
-    ];
-    if (branchName === "main") return "#6B7280";
-    const hash = branchName.split("").reduce((a, b) => a + b.charCodeAt(0), 0);
-    return colors[hash % colors.length];
-  };
-
-  // Find commits involved in conflicts
-  const isConflictCommit = (commit: GitCommit): boolean => {
-    // Merge commits with multiple parents are often conflict sources
-    return (
-      commit.parents.length > 1 ||
-      highlightedCommits.includes(commit.id) ||
-      (hasConflicts && selectedCommit === commit.id)
-    );
-  };
-
-  const handleCommitClick = (commitId: string) => {
-    setSelectedCommit(commitId === selectedCommit ? null : commitId);
-    onSelectCommit?.(commitId);
-  };
+  const onNodeClick = useCallback(
+    (_: React.MouseEvent, node: Node) => {
+      if (onSelectCommit) {
+        onSelectCommit(node.id);
+      }
+    },
+    [onSelectCommit]
+  );
 
   return (
-    <div className="w-full overflow-x-auto bg-white dark:bg-[#151411] border-4 border-black rounded-2xl shadow-[4px_4px_0_0_rgba(0,0,0,1)] dark:shadow-[4px_4px_0_0_#2e2924] mb-6">
-      <div className="border-b-4 border-black p-3 bg-surface-low dark:bg-[#1f1c18] dark:border-[#2e2924] flex items-center justify-between">
+    <div className="w-full h-[400px] bg-white dark:bg-[#151411] border-4 border-black rounded-2xl shadow-[4px_4px_0_0_rgba(0,0,0,1)] dark:shadow-[4px_4px_0_0_#2e2924] mb-6 flex flex-col overflow-hidden">
+      <div className="border-b-4 border-black p-3 bg-surface-low dark:bg-[#1f1c18] flex items-center justify-between z-10 shrink-0">
         <h4 className="font-black text-sm uppercase flex items-center gap-2 text-text dark:text-[#f0ebe2]">
           <span>📊</span> Repository State
         </h4>
@@ -112,323 +191,21 @@ export const GitGraph: React.FC<GitGraphProps> = ({
         </div>
       </div>
 
-      {/* Legend */}
-      <div className="px-4 py-2 border-b border-gray-200 dark:border-gray-700 flex flex-wrap gap-3 text-xs">
-        <div className="flex items-center gap-1.5">
-          <div className="w-3 h-3 rounded-full bg-white dark:bg-[#2e2924] border-2 border-black" />
-          <span className="text-gray-600 dark:text-gray-400">Commit</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <div className="w-3 h-3 rounded-full bg-yellow-400 border-2 border-black" />
-          <span className="text-gray-600 dark:text-gray-400">HEAD</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <div className="w-4 h-3 rounded bg-blue-500 border border-black" />
-          <span className="text-gray-600 dark:text-gray-400">Branch</span>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <div className="w-4 h-3 rounded bg-red-500/30 border-2 border-dashed border-red-500" />
-          <span className="text-gray-600 dark:text-gray-400">Conflict</span>
-        </div>
-        {state.branches.map((branch) => (
-          <div key={branch.name} className="flex items-center gap-1.5">
-            <div
-              className="w-4 h-1 rounded"
-              style={{ backgroundColor: getBranchColor(branch.name) }}
-            />
-            <span className="text-gray-600 dark:text-gray-400">
-              {branch.name}
-            </span>
-          </div>
-        ))}
+      <div className="flex-1 w-full h-full relative">
+        <ReactFlow
+          nodes={nodes}
+          edges={edges}
+          nodeTypes={nodeTypes}
+          onNodeClick={onNodeClick}
+          fitView
+          minZoom={0.5}
+          maxZoom={2}
+          attributionPosition="bottom-right"
+        >
+          <Background color="#000" gap={16} size={1} />
+          <Controls />
+        </ReactFlow>
       </div>
-
-      <svg
-        width={width}
-        height={height}
-        className="block min-w-full"
-        role="img"
-        aria-label="Git commit history graph"
-      >
-        {/* Draw Edges with branch colors */}
-        {state.commits.map((commit) => {
-          const pos = nodePositions.get(commit.id);
-          if (!pos) return null;
-
-          return commit.parents.map((parentId, parentIdx) => {
-            const parentPos = nodePositions.get(parentId);
-            if (!parentPos) return null;
-
-            const isHighlighted =
-              isConflictCommit(commit) || highlightedCommits.includes(parentId);
-
-            return (
-              <path
-                key={`edge-${parentId}-${commit.id}-${parentIdx}`}
-                d={createPath(parentPos.x, parentPos.y, pos.x, pos.y)}
-                fill="none"
-                stroke={
-                  isHighlighted ? "#ef4444" : getBranchColor(commit.branch)
-                }
-                strokeWidth={isHighlighted ? "5" : "3"}
-                strokeOpacity={isHighlighted ? 0.8 : 0.6}
-                className={isHighlighted ? "animate-pulse" : ""}
-              />
-            );
-          });
-        })}
-
-        {/* Draw Conflict Zones */}
-        {state.commits.map((commit) => {
-          if (!isConflictCommit(commit)) return null;
-          const pos = nodePositions.get(commit.id);
-          if (!pos) return null;
-
-          return (
-            <g key={`conflict-${commit.id}`}>
-              {/* Conflict zone indicator */}
-              <rect
-                x={pos.x - 35}
-                y={pos.y - 35}
-                width={70}
-                height={70}
-                fill="rgba(239, 68, 68, 0.1)"
-                stroke="#ef4444"
-                strokeWidth="2"
-                strokeDasharray="6 4"
-                rx="8"
-                className="animate-pulse"
-              />
-              {/* Conflict icon */}
-              <text
-                x={pos.x}
-                y={pos.y - 40}
-                textAnchor="middle"
-                className="text-sm pointer-events-none"
-                fill="#ef4444"
-              >
-                ⚠️
-              </text>
-            </g>
-          );
-        })}
-
-        {/* Draw Nodes */}
-        {state.commits.map((commit) => {
-          const pos = nodePositions.get(commit.id);
-          if (!pos) return null;
-
-          const isHead =
-            state.branches.find((b) => b.name === state.HEAD)?.target ===
-              commit.id || state.HEAD === commit.id;
-          const isHovered = hoveredCommit === commit.id;
-          const isSelected = selectedCommit === commit.id;
-          const isConflict = isConflictCommit(commit);
-          const branchColor = getBranchColor(commit.branch);
-
-          return (
-            <g
-              key={`node-${commit.id}`}
-              className="cursor-pointer"
-              onMouseEnter={() => setHoveredCommit(commit.id)}
-              onMouseLeave={() => setHoveredCommit(null)}
-              onClick={() => handleCommitClick(commit.id)}
-            >
-              {/* Selection ring */}
-              {isSelected && (
-                <circle
-                  cx={pos.x}
-                  cy={pos.y}
-                  r="22"
-                  fill="none"
-                  stroke="#3B82F6"
-                  strokeWidth="3"
-                  className="animate-pulse"
-                />
-              )}
-
-              {/* Node circle */}
-              <circle
-                cx={pos.x}
-                cy={pos.y}
-                r={isHovered || isSelected ? "18" : "14"}
-                className={`transition-all duration-200 stroke-black dark:stroke-[#f0ebe2] ${
-                  isConflict
-                    ? "fill-red-400"
-                    : isHead
-                      ? "fill-yellow-400 dark:fill-yellow-500"
-                      : "fill-white dark:fill-[#2e2924]"
-                }`}
-                strokeWidth="4"
-                style={{ stroke: isConflict ? "#dc2626" : undefined }}
-              />
-
-              {/* Branch indicator ring */}
-              <circle
-                cx={pos.x}
-                cy={pos.y}
-                r="10"
-                fill="none"
-                stroke={branchColor}
-                strokeWidth="2"
-                className="opacity-60"
-              />
-
-              {/* Merge indicator (multiple parents) */}
-              {commit.parents.length > 1 && (
-                <g>
-                  <circle
-                    cx={pos.x + 10}
-                    cy={pos.y - 10}
-                    r="6"
-                    fill="#ef4444"
-                    stroke="white"
-                    strokeWidth="1"
-                  />
-                  <text
-                    x={pos.x + 10}
-                    y={pos.y - 7}
-                    textAnchor="middle"
-                    className="text-[8px] font-black fill-white pointer-events-none"
-                  >
-                    M
-                  </text>
-                </g>
-              )}
-
-              {/* Tooltip on hover */}
-              <g
-                className={`transition-opacity duration-150 ${isHovered || isSelected ? "opacity-100" : "opacity-0"}`}
-              >
-                <rect
-                  x={pos.x - 60}
-                  y={pos.y + 22}
-                  width={120}
-                  height={60}
-                  fill="white"
-                  stroke="black"
-                  strokeWidth="2"
-                  rx="6"
-                  className="dark:fill-[#1a1a2e] dark:stroke-[#f0ebe2]"
-                />
-                <text
-                  x={pos.x}
-                  y={pos.y + 38}
-                  textAnchor="middle"
-                  className="text-[10px] font-mono font-black fill-black dark:fill-white"
-                >
-                  {commit.id}
-                </text>
-                <text
-                  x={pos.x}
-                  y={pos.y + 52}
-                  textAnchor="middle"
-                  className="text-[9px] font-mono fill-gray-600 dark:fill-gray-400"
-                >
-                  {commit.message.substring(0, 18)}...
-                </text>
-                <text
-                  x={pos.x}
-                  y={pos.y + 66}
-                  textAnchor="middle"
-                  className="text-[8px] font-mono fill-blue-500"
-                >
-                  {commit.branch}
-                </text>
-              </g>
-            </g>
-          );
-        })}
-
-        {/* Draw Branch Labels */}
-        {state.branches.map((branch) => {
-          const targetPos = nodePositions.get(branch.target);
-          if (!targetPos) return null;
-
-          const isHeadBranch = state.HEAD === branch.name;
-          const branchColor = getBranchColor(branch.name);
-
-          const branchesAtThisNode = state.branches.filter(
-            (b) => b.target === branch.target,
-          );
-          const indexAtNode = branchesAtThisNode.findIndex(
-            (b) => b.name === branch.name,
-          );
-          const yOffset = -45 - indexAtNode * 24;
-
-          return (
-            <g key={`branch-${branch.name}`}>
-              <rect
-                x={targetPos.x - 40}
-                y={targetPos.y + yOffset}
-                width={80}
-                height={20}
-                rx="6"
-                fill={isHeadBranch ? "#FFD700" : branchColor}
-                stroke="black"
-                strokeWidth="2"
-                className="transition-all duration-200"
-              />
-              <text
-                x={targetPos.x}
-                y={targetPos.y + yOffset + 14}
-                textAnchor="middle"
-                className={`text-[10px] font-black font-mono pointer-events-none ${isHeadBranch ? "fill-black" : "fill-white"}`}
-              >
-                {branch.name}
-              </text>
-            </g>
-          );
-        })}
-
-        {/* Commit IDs at bottom */}
-        {state.commits.map((commit, i) => {
-          const x = PADDING_X + i * SPACING_X;
-          return (
-            <text
-              key={`label-${commit.id}`}
-              x={x}
-              y={height - 15}
-              textAnchor="middle"
-              className="text-[9px] font-mono fill-gray-500 dark:fill-gray-600"
-            >
-              {commit.id}
-            </text>
-          );
-        })}
-      </svg>
-
-      {/* Conflict Details Panel */}
-      {hasConflicts && (
-        <div className="border-t-4 border-black dark:border-[#2e2924] p-4 bg-red-50 dark:bg-red-900/20">
-          <h5 className="font-black text-sm text-red-600 dark:text-red-400 mb-3 flex items-center gap-2">
-            <span>⚠️</span> Merge Conflicts
-          </h5>
-          <div className="space-y-2">
-            {state.conflicts.map((file, idx) => (
-              <div
-                key={idx}
-                className="flex items-center justify-between bg-white dark:bg-[#1a1a2e] p-2 rounded border border-red-200 dark:border-red-800"
-              >
-                <div className="flex items-center gap-2">
-                  <span className="text-red-500">📄</span>
-                  <code className="text-xs font-mono">{file}</code>
-                </div>
-                <span className="text-[10px] font-medium text-red-500 bg-red-100 dark:bg-red-900 px-2 py-0.5 rounded">
-                  NEEDS RESOLUTION
-                </span>
-              </div>
-            ))}
-          </div>
-          <p className="text-xs text-red-600 dark:text-red-400 mt-3">
-            💡 Use{" "}
-            <code className="font-mono bg-red-100 dark:bg-red-900 px-1 rounded">
-              git add &lt;file&gt;
-            </code>{" "}
-            to stage resolved files after editing.
-          </p>
-        </div>
-      )}
     </div>
   );
 };

@@ -811,6 +811,31 @@ class CertificateVerificationThrottle(AnonRateThrottle):
     rate = "10/minute"
 
 
+class CertificateVerifyView(APIView):
+    """Public API to verify certificate by hash."""
+    
+    permission_classes = []  # Public endpoint
+    
+    def get(self, request, hash):
+        try:
+            certificate = Certificate.objects.get(
+                verification_hash=hash,
+                is_active=True
+            )
+            return Response({
+                'valid': True,
+                'issued_to': certificate.user.username,
+                'issued_at': certificate.created_at,
+                'course': certificate.lesson.title,
+                'certificate_id': certificate.id
+            })
+        except Certificate.DoesNotExist:
+            return Response({
+                'valid': False,
+                'message': 'Certificate not found or invalid'
+            }, status=status.HTTP_404_NOT_FOUND)
+
+
 @extend_schema(responses=CertificateVerificationSerializer)
 class CertificateVerificationView(APIView):
     permission_classes = [permissions.AllowAny]

@@ -1,6 +1,4 @@
-# 📍 Git Remotes
-
-### A local repository on your machine lives in isolation. To share code with other contributors, you must connect it to a **remote repository** hosted on a server (like GitHub, GitLab, or Bitbucket).
+## 📍 A local repository on your machine lives in isolation. To share code with other contributors, you must connect it to a **remote repository** hosted on a server (like GitHub, GitLab, or Bitbucket).
 
 ---
 

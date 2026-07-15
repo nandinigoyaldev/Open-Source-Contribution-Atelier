@@ -1,6 +1,4 @@
-# 👍 Good First Issues 🏅
-
-### Finding your very first open source project to contribute to can feel overwhelming. Let's look at tools and search queries for you to discover beginner-friendly tasks!
+## 👍 🏅 Finding your very first open source project to contribute to can feel overwhelming. Let's look at tools and search queries for you to discover beginner-friendly tasks!
 
 ---
 

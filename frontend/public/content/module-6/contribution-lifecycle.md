@@ -1,6 +1,4 @@
-# 🧲 The Contribution Lifecycle
-
-### A successful contribution is a result of a structured journey. Let's look at the standard roadmap of a professional and meaningful contribution from beginning to merge.
+## 🧲 A successful contribution is a result of a structured journey. Let's look at the standard roadmap of a professional and meaningful contribution from beginning to merge.
 
 ---
 

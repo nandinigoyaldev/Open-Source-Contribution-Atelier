@@ -1,6 +1,6 @@
-# 🏢 GitHub Organizations
+## 🏢 Large open-source projects are rarely owned by single personal accounts. Instead, they reside inside **GitHub Organizations**.
 
-### Large open-source projects are rarely owned by single personal accounts. Instead, they reside inside **GitHub Organizations**.
+---
 
 <div align="center">
   <img width="595" height="471" alt="image" src="https://github.com/user-attachments/assets/ffbd708c-3d21-4065-bf4a-afa2144c99fb" />

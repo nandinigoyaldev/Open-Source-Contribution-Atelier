@@ -146,6 +146,12 @@ const LearningPathPage = lazy(() =>
   })),
 );
 
+const BountiesPage = lazy(() =>
+  import("../pages/BountiesPage").then((module) => ({
+    default: module.BountiesPage,
+  })),
+);
+
 /*
  * These pages use default exports, so they can be passed directly
  * to React.lazy().
@@ -318,6 +324,15 @@ export function AppRouter() {
             element={
               <ProtectedRoute>
                 <ChallengePage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/bounties"
+            element={
+              <ProtectedRoute>
+                <BountiesPage />
               </ProtectedRoute>
             }
           />

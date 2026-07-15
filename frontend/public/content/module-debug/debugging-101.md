@@ -1,6 +1,4 @@
-# ⚠️ Interactive Step-Through Debugging
-
-### Sometimes code doesn't do what we expect. Instead of just printing variables to the console and guessing where things went wrong, professional developers use **Debuggers**.
+## ⚠️ Sometimes code doesn't do what we expect. Instead of just printing variables to the console and guessing where things went wrong, professional developers use **Debuggers**.
 
 ---
 

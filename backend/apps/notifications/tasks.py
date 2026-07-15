@@ -108,7 +108,17 @@ def send_bulk_email(payload):
             f"Congratulations! You earned the '{badge_name}' badge.\n\n"
             "Keep up the great work!"
         )
-
+    elif template_id == "comment_posted_email":
+        reviewer_name = data.get("reviewer_name", "")
+        username = data.get("username", "")
+        feedback = data.get("feedback", "")
+        subject = "👀 New Peer Review on Your Submission"
+        message = (
+            f"Hi {username},\n\n"
+            f"{reviewer_name} just left a review on your submission:\n\n"
+            f"\"{feedback}\"\n\n"
+            "Log in to the platform to see the full details!"
+        )
     from_email = getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@atelier.dev")
     email = EmailMultiAlternatives(
         subject=subject,

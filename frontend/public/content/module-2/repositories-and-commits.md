@@ -1,6 +1,4 @@
-# 🗂️ Repositories & Commits
-
-### To collaborate in open source, you must understand the terminologies **'repositories'** and **'commits'**.
+## 🗂️ To collaborate in open source, you must understand the terminologies **'repositories'** and **'commits'**.
 
 ---
 

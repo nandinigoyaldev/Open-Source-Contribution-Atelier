@@ -1,6 +1,4 @@
-# 🌐 What is Open Source? 👨‍💻
-
-### At its core, Open Source describes software whose source code is released under a license that grants anyone the right to inspect, modify, distribute, and use it for any purpose.
+## 🌐 👨‍💻 At its core, Open Source describes software whose source code is released under a license that grants anyone the right to inspect, modify, distribute, and use it for any purpose.
 
 Instead of hiding source code inside proprietary boxes, open source projects embrace **transparency** and **collaborative development**.
 

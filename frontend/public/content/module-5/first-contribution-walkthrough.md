@@ -1,6 +1,4 @@
-# 🏅 First Contribution Walkthrough
-
-### In this module, you will complete the entire process of making your first contribution - raising an issue in your target repisitory, cloning the repository, and submitting a pull request.
+## 🏅 In this module, you will complete the entire process of making your first contribution - raising an issue in your target repisitory, cloning the repository, and submitting a pull request.
 
 ---
 

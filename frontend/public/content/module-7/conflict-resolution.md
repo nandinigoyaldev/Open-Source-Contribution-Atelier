@@ -1,6 +1,4 @@
-# ⚠️ Merge Conflict Resolution
-
-### When two branches modify the exact same line of a file, Git doesn't know which version to keep. This triggers a **Merge Conflict**.
+## ⚠️ When two branches modify the exact same line of a file, Git doesn't know which version to keep. This triggers a **Merge Conflict**.
 
 <div align="center">
    <img width="760" height=auto alt="image" src="https://github.com/user-attachments/assets/b9e04891-8876-4496-93c7-439408b4a70e" />

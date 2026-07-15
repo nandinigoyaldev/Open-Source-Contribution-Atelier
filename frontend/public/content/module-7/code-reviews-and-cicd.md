@@ -1,6 +1,4 @@
-# 🧪 CI/CD and Check Lists
-
-### In open source, projects use **Continuous Integration (CI)** pipelines to run automated tests on every single pull request. This ensures that new contributions do not break the existing program.
+## 🧪 In open source, projects use **Continuous Integration (CI)** pipelines to run automated tests on every single pull request. This ensures that new contributions do not break the existing program.
 
 <div align="center">
   <img width="700" height=auto alt="image" src="https://github.com/user-attachments/assets/7a5d90ff-f898-4c2b-9814-aa4f021de0cd" />

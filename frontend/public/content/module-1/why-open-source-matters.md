@@ -1,6 +1,4 @@
-# 💡 Why Open Source Matters
-
-### Modern technology is built on a foundation of open source. From the servers hosting your favorite web apps (Linux) to the browsers you use (Chromium) and the languages you write (Python, JavaScript, Go), open source forms the backbone of the internet.
+## 💡 Modern technology is built on a foundation of open source. From the servers hosting your favorite web apps (Linux) to the browsers you use (Chromium) and the languages you write (Python, JavaScript, Go), open source forms the backbone of the internet.
 
 ---
 

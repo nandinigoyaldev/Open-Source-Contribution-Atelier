@@ -1,6 +1,4 @@
-# 🤝 Benefits of Contributing
-
-### Contributing to open source software (OSS) is one of the most effective ways to grow as a developer and build your career in public!
+## 🤝 Contributing to open source software (OSS) is one of the most effective ways to grow as a developer and build your career in public!
 
 ---
 

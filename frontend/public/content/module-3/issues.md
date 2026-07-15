@@ -1,6 +1,4 @@
-# 📌 Issues
-
-### Before writing any code, work in open source almost always begins inside an **Issue**.
+## 📌 Before writing any code, work in open source almost always begins inside an **Issue**.
 
 ---
 

@@ -1,6 +1,6 @@
-# 🗪 GitHub Discussions
+## 🗪 **GitHub Discussions** act as a community forum for developers and contributors in a repo to interact, share questions and answers, learn things, and grow.
 
-### **GitHub Discussions** act as a community forum for developers and contributors in a repo to interact, share questions and answers, learn things, and grow.
+---
 
 <div align="center">
   <img width="600" height=auto alt="image" src="https://github.com/user-attachments/assets/8d054469-a5c1-4ff0-9e8d-8baf14eddeed" />
