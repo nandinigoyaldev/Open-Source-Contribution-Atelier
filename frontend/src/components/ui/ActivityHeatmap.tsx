@@ -1,5 +1,6 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import { useHeatmap, HeatmapEntry } from "../../hooks/useHeatmap";
+import { exportHeatmapCSV } from "../../lib/api";
 
 const DAYS_IN_YEAR = 365;
 
@@ -25,7 +26,11 @@ interface ActivityHeatmapProps {
 }
 
 export function ActivityHeatmap({ username }: ActivityHeatmapProps = {}) {
-  const { data: heatmapData, isLoading, isError } = useHeatmap(username);
+  const [filterType, setFilterType] = useState<"all" | "reading" | "quizzes" | "code_submissions">("all");
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
+
+  const { data: heatmapData, isLoading, isError } = useHeatmap(username, filterType);
 
   const calendarGrid = useMemo(() => {
     const dataMap = new Map<string, number>();
@@ -94,9 +99,21 @@ export function ActivityHeatmap({ username }: ActivityHeatmapProps = {}) {
     heatmapData?.reduce((sum, item) => sum + item.count, 0) || 0;
   const activeDays = heatmapData?.filter((item) => item.count > 0).length || 0;
 
+  const handleExport = async () => {
+    setIsExporting(true);
+    setExportError(null);
+    try {
+      await exportHeatmapCSV(filterType);
+    } catch (err) {
+      setExportError(err instanceof Error ? err.message : "Export failed");
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   return (
     <div className="flex flex-col">
-      <div className="flex justify-between items-end mb-4">
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4 pb-2 border-b border-gray-100 dark:border-[#38332a]">
         <div>
           <h3 className="text-xl font-bold uppercase text-black dark:text-[#f0ebe2] tracking-tight">
             Activity Graph
@@ -105,10 +122,69 @@ export function ActivityHeatmap({ username }: ActivityHeatmapProps = {}) {
             {totalActivity} contributions in the last year
           </p>
         </div>
-        <div className="text-sm font-bold text-black bg-accent px-3 py-1 rounded-full shadow-card-sm border-2 border-black rotate-[-1deg]">
-          {activeDays} Active Days
+
+        <div className="flex flex-wrap items-center gap-3">
+          {/* Activity Type Filters */}
+          <div className="flex p-1 bg-gray-100 dark:bg-[#25201a] rounded-xl border border-gray-200 dark:border-[#3d372e] shadow-inner">
+            {(["all", "reading", "quizzes", "code_submissions"] as const).map((type) => {
+              const label =
+                type === "all"
+                  ? "All"
+                  : type === "reading"
+                  ? "Reading"
+                  : type === "quizzes"
+                  ? "Quizzes"
+                  : "Code Submissions";
+              const isActive = filterType === type;
+              return (
+                <button
+                  key={type}
+                  onClick={() => setFilterType(type)}
+                  className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all duration-200 cursor-pointer ${
+                    isActive
+                      ? "bg-white dark:bg-[#3d372e] text-black dark:text-white shadow-sm scale-[1.02]"
+                      : "text-gray-500 hover:text-black dark:hover:text-white"
+                  }`}
+                >
+                  {label}
+                </button>
+              );
+            })}
+          </div>
+
+          {/* Export CSV Button */}
+          <button
+            onClick={handleExport}
+            disabled={isExporting}
+            className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-black bg-[#ffdf80] hover:bg-[#ffe79a] disabled:bg-gray-200 dark:disabled:bg-gray-800 disabled:text-gray-400 border-2 border-black rounded-xl shadow-card hover:translate-y-[-1px] active:translate-y-[1px] transition-all cursor-pointer"
+          >
+            <svg
+              className="w-3.5 h-3.5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="2.5"
+                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"
+              />
+            </svg>
+            {isExporting ? "Exporting..." : "Export CSV"}
+          </button>
+
+          <div className="text-sm font-bold text-black bg-accent px-3 py-1.5 rounded-full shadow-card-sm border-2 border-black rotate-[-1deg]">
+            {activeDays} Active Days
+          </div>
         </div>
       </div>
+
+      {exportError && (
+        <div className="mb-4 text-xs font-bold text-red-600 bg-red-50 dark:bg-red-950/20 border border-red-200 dark:border-red-900/50 p-2.5 rounded-xl">
+          {exportError}
+        </div>
+      )}
 
       <div
         className="overflow-x-auto pb-4"

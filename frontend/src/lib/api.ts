@@ -599,3 +599,35 @@ export async function submitBounty(id: number, codePatch: string): Promise<{ sta
     body: JSON.stringify({ code_patch: codePatch }),
   });
 }
+
+export async function exportHeatmapCSV(activityType?: string): Promise<void> {
+  const token = getAccessToken();
+  let url = `${API_BASE}/progress/heatmap/export/`;
+  if (activityType && activityType !== "all") {
+    url += `?activity_type=${activityType}`;
+  }
+  const response = await fetch(url, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to export heatmap CSV");
+  }
+
+  const contentDisposition = response.headers.get("Content-Disposition") || "";
+  const filenameMatch = contentDisposition.match(/filename="(.+)"/);
+  const filename = filenameMatch ? filenameMatch[1] : "activity_export.csv";
+
+  const blob = await response.blob();
+  const downloadUrl = window.URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = downloadUrl;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  window.URL.revokeObjectURL(downloadUrl);
+  document.body.removeChild(a);
+}

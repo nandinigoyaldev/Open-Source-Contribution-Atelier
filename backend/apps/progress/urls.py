@@ -30,6 +30,7 @@ from .views import (
     HeatmapView,
     StreakStatusView,
     StreakRecoveryView,
+    HeatmapCSVExportView,
 )
 
 urlpatterns = [
@@ -39,8 +40,10 @@ urlpatterns = [
     path("leaderboard/", LeaderboardView.as_view(), name="leaderboard"),
     path("buffer-metrics/", BufferMetricsView.as_view(), name="buffer-metrics"),
     path("heatmap/", HeatmapView.as_view(), name="heatmap"),
+<<<<<<< HEAD
     path("streak/", StreakStatusView.as_view(), name="streak-status"),
     path("streak/recovery/", StreakRecoveryView.as_view(), name="streak-recovery"),
+    path("heatmap/export/", HeatmapCSVExportView.as_view(), name="heatmap-export-csv"),
     path("export/pdf/", UserProgressPDFExportView.as_view(), name="export-pdf"),
 
     path("badges/", BadgeListView.as_view(), name="badges"),
