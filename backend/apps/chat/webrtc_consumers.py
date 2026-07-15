@@ -39,6 +39,18 @@ class WebRTCSignalingConsumer(AsyncWebsocketConsumer):
             },
         )
 
+        # Notify admin leaderboard listeners
+        await self.channel_layer.group_send(
+            "leaderboard",
+            {
+                "type": "leaderboard_update",
+                "event": "peer_joined",
+                "user_id": self.user.id,
+                "username": self.user.username,
+                "room_id": self.room_id,
+            },
+        )
+
     async def disconnect(self, close_code):
         if hasattr(self, "group_name"):
             # Notify others
@@ -49,6 +61,17 @@ class WebRTCSignalingConsumer(AsyncWebsocketConsumer):
                     "user_id": self.user.id,
                     "username": self.user.username,
                     "sender_channel": self.channel_name,
+                },
+            )
+            # Notify admin leaderboard listeners
+            await self.channel_layer.group_send(
+                "leaderboard",
+                {
+                    "type": "leaderboard_update",
+                    "event": "peer_left",
+                    "user_id": self.user.id,
+                    "username": self.user.username,
+                    "room_id": self.room_id,
                 },
             )
             await self.channel_layer.group_discard(self.group_name, self.channel_name)

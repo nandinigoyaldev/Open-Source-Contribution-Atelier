@@ -2,13 +2,27 @@
 GraphQL Federation Gateway using Apollo Federation.
 """
 
-import os
-import requests
-from typing import Dict, Any, List, Optional
-from functools import lru_cache
 import logging
+import os
+from functools import lru_cache
+from typing import Any, Dict, List, Optional
+
+import requests
+from graphql import parse
+from graphql.language.ast import FieldNode, OperationDefinitionNode
 
 logger = logging.getLogger(__name__)
+
+
+def get_ast_depth(node, current_depth=1):
+    if not hasattr(node, "selection_set") or not node.selection_set:
+        return current_depth
+    max_depth = current_depth
+    for selection in node.selection_set.selections:
+        depth = get_ast_depth(selection, current_depth + 1)
+        max_depth = max(max_depth, depth)
+    return max_depth
+
 
 # ============================================================
 # Service Registry
@@ -110,6 +124,7 @@ class GraphQLRouter:
 
     def __init__(self):
         self.services = {}
+        self._circuit_breakers = {}
         self._initialize_services()
 
     def _initialize_services(self):
@@ -137,13 +152,24 @@ class GraphQLRouter:
         ServiceDiscovery.discover_services()
 
     def route_query(
-        self, query: str, variables: Optional[Dict] = None
+        self,
+        query: str,
+        variables: Optional[Dict] = None,
+        headers: Optional[Dict] = None,
     ) -> Dict[str, Any]:
         """
         Route a GraphQL query to the appropriate subgraph.
         """
-        # Parse query to determine service(s)
-        services = self._determine_services(query)
+        try:
+            ast = parse(query)
+        except Exception as e:
+            return {"errors": [{"message": f"GraphQL Parsing Error: {str(e)}"}]}
+
+        for definition in ast.definitions:
+            if get_ast_depth(definition) > 10:
+                return {"errors": [{"message": "Query depth exceeds limit of 10"}]}
+
+        services = self._determine_services(ast)
 
         if len(services) == 0:
             return {"errors": [{"message": "No service found for query"}]}
@@ -152,76 +178,110 @@ class GraphQLRouter:
         results = {}
         for service in services:
             try:
-                result = self._execute_on_service(service, query, variables)
+                result = self._execute_on_service(service, query, variables, headers)
                 results[service] = result
             except Exception as e:
                 logger.error(f"Service {service} error: {e}")
                 results[service] = {"errors": [{"message": str(e)}]}
 
-        # Merge results (simple implementation)
-        # For production, use Apollo Federation or schema stitching
         return self._merge_results(results)
 
-    def _determine_services(self, query: str) -> List[str]:
+    def _determine_services(self, ast) -> List[str]:
         """
-        Determine which services are needed for the query.
-
-        This is a simple implementation. In production,
-        use Apollo Federation's query planner.
+        Determine which services are needed for the query using AST.
         """
-        services = []
+        services = set()
+        for definition in ast.definitions:
+            if (
+                isinstance(definition, OperationDefinitionNode)
+                and definition.selection_set
+            ):
+                for selection in definition.selection_set.selections:
+                    if isinstance(selection, FieldNode):
+                        field_name = selection.name.value
 
-        # Content service
-        if any(
-            field in query
-            for field in ["content", "contents", "module", "modules", "lesson"]
-        ):
-            services.append("content")
+                        if field_name in [
+                            "content",
+                            "contents",
+                            "module",
+                            "modules",
+                            "lesson",
+                        ]:
+                            services.add("content")
+                        elif field_name in ["progress", "userProgress", "badge"]:
+                            services.add("progress")
+                        elif field_name in ["user", "users", "me"]:
+                            services.add("users")
+                        elif field_name in [
+                            "conversation",
+                            "conversations",
+                            "message",
+                            "messages",
+                        ]:
+                            services.add("chat")
+                        elif field_name in [
+                            "notification",
+                            "notifications",
+                            "unreadCount",
+                        ]:
+                            services.add("notifications")
 
-        # Progress service
-        if any(field in query for field in ["progress", "userProgress", "badge"]):
-            services.append("progress")
+        if not services:
+            services.add("content")
 
-        # User service
-        if any(field in query for field in ["user", "users", "me"]):
-            services.append("users")
-
-        # Chat service
-        if any(
-            field in query
-            for field in ["conversation", "conversations", "message", "messages"]
-        ):
-            services.append("chat")
-
-        # Notifications service
-        if any(
-            field in query for field in ["notification", "notifications", "unreadCount"]
-        ):
-            services.append("notifications")
-
-        return services or ["content"]  # Default to content
+        return list(services)
 
     def _execute_on_service(
-        self, service: str, query: str, variables: Optional[Dict] = None
+        self,
+        service: str,
+        query: str,
+        variables: Optional[Dict] = None,
+        headers: Optional[Dict] = None,
     ) -> Dict[str, Any]:
         """
-        Execute a query on a specific service.
+        Execute a query on a specific service with circuit breaking.
         """
+        cb_state = self._circuit_breakers.setdefault(
+            service, {"failures": 0, "open": False}
+        )
+        if cb_state["open"]:
+            return {
+                "errors": [
+                    {
+                        "message": f"Service {service} is currently unavailable (circuit open)"
+                    }
+                ]
+            }
+
         url = ServiceRegistry.get_service_url(service)
         if not url:
             return {"errors": [{"message": f"Service {service} not available"}]}
 
         try:
+            req_headers = {"Content-Type": "application/json"}
+            if headers:
+                req_headers.update(headers)
+
             response = requests.post(
                 url,
                 json={"query": query, "variables": variables or {}},
+                headers=req_headers,
                 timeout=10,
             )
             response.raise_for_status()
+
+            cb_state["failures"] = 0
+            cb_state["open"] = False
             return response.json()
         except requests.exceptions.Timeout:
+            cb_state["failures"] += 1
+            if cb_state["failures"] >= 5:
+                cb_state["open"] = True
             return {"errors": [{"message": f"Service {service} timeout"}]}
         except requests.exceptions.RequestException as e:
+            cb_state["failures"] += 1
+            if cb_state["failures"] >= 5:
+                cb_state["open"] = True
             return {"errors": [{"message": f"Service {service} error: {str(e)}"}]}
 
     def _merge_results(self, results: Dict[str, Any]) -> Dict[str, Any]:
@@ -275,21 +335,29 @@ class FederationQueryPlanner:
         self.router = router
 
     def plan(
-        self, query: str, variables: Optional[Dict] = None
+        self,
+        query: str,
+        variables: Optional[Dict] = None,
+        headers: Optional[Dict] = None,
     ) -> List[Dict[str, Any]]:
         """
         Plan the query execution across services.
         """
         return [
             {"service": service, "query": query, "variables": variables}
-            for service in self.router._determine_services(query)
+            for service in self.router._determine_services(parse(query))
         ]
 
-    def execute(self, query: str, variables: Optional[Dict] = None) -> Dict[str, Any]:
+    def execute(
+        self,
+        query: str,
+        variables: Optional[Dict] = None,
+        headers: Optional[Dict] = None,
+    ) -> Dict[str, Any]:
         """
         Execute the planned query.
         """
-        return self.router.route_query(query, variables)
+        return self.router.route_query(query, variables, headers)
 
 
 # ============================================================
@@ -307,9 +375,11 @@ def get_graphql_router() -> GraphQLRouter:
     return _graphql_router
 
 
-def execute_graphql(query: str, variables: Optional[Dict] = None) -> Dict[str, Any]:
+def execute_graphql(
+    query: str, variables: Optional[Dict] = None, headers: Optional[Dict] = None
+) -> Dict[str, Any]:
     """
     Execute a GraphQL query through the federation gateway.
     """
     router = get_graphql_router()
-    return router.route_query(query, variables)
+    return router.route_query(query, variables, headers)

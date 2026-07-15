@@ -377,6 +377,50 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
       continue;
     }
 
+    // 9b. HTML and Markdown Image Blocks
+    const imgHtmlMatch = line.trim().match(/<img\s+[^>]*src="([^"]+)"[^>]*\/?>/i);
+    if (imgHtmlMatch) {
+      const src = imgHtmlMatch[1];
+      const altMatch = line.match(/alt="([^"]*)"/i);
+      const widthMatch = line.match(/width="([^"]*)"/i);
+      const heightMatch = line.match(/height="([^"]*)"/i);
+      
+      const alt = altMatch ? altMatch[1] : "image";
+      const width = widthMatch ? widthMatch[1] : undefined;
+      const height = heightMatch ? heightMatch[1] : undefined;
+
+      blocks.push(
+        <div key={index} className="my-4 flex justify-center">
+          <img 
+            src={src} 
+            alt={alt} 
+            width={width}
+            height={height}
+            className="rounded-2xl border-4 border-black dark:border-[#2e2924] shadow-card-sm max-w-full h-auto"
+          />
+        </div>
+      );
+      index++;
+      continue;
+    }
+
+    const mdImgMatch = line.trim().match(/^!\[(.*?)\]\((.*?)\)$/);
+    if (mdImgMatch) {
+      const alt = mdImgMatch[1];
+      const src = mdImgMatch[2];
+      blocks.push(
+        <div key={index} className="my-4 flex justify-center">
+          <img 
+            src={src} 
+            alt={alt} 
+            className="rounded-2xl border-4 border-black dark:border-[#2e2924] shadow-card-sm max-w-full h-auto"
+          />
+        </div>
+      );
+      index++;
+      continue;
+    }
+
     // 10. Standard Paragraph
     blocks.push(
       <p

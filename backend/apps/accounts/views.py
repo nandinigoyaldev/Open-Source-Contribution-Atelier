@@ -30,13 +30,20 @@ from rest_framework.views import APIView
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
-from schemas.user import UserCreateSchema, UserLoginSchema, LoginResponseSchema, UserProfileSchema
-
 from apps.progress.models import LessonProgress, UserBadge
 from apps.progress.serializers import UserBadgeSerializer
-from schemas.user import UserCreateSchema, UserLoginSchema, UserResponseSchema, UserProfileSchema
+from schemas.user import (
+    LoginResponseSchema,
+    UserCreateSchema,
+    UserLoginSchema,
+    UserProfileSchema,
+    UserResponseSchema,
+)
+
+
 class LoginResponseSchema(UserResponseSchema):
     pass
+
 
 from .models import MagicLinkToken, OTPToken, PasswordResetToken
 from .serializers import (
@@ -418,9 +425,7 @@ class GitHubOAuthCallbackView(APIView):
             username_source = github_user.get("login") or email
             github_username = username_from_value(username_source)
 
-            username_conflict = User.objects.filter(
-                username__iexact=github_username
-            )
+            username_conflict = User.objects.filter(username__iexact=github_username)
             if user is not None:
                 username_conflict = username_conflict.exclude(pk=user.pk)
 
@@ -458,7 +463,7 @@ from .permissions import IsAdminOrModeratorRole
 
 @extend_schema(responses=UserListSerializer(many=True))
 class UserListView(generics.ListAPIView):
-    queryset = User.objects.select_related("profile").order_by("id")
+    queryset = User.objects.select_related("user_profile").order_by("id")
     permission_classes = [permissions.IsAuthenticated, IsAdminOrModeratorRole]
     serializer_class = UserListSerializer
     pagination_class = LimitOffsetPagination
@@ -1105,37 +1110,141 @@ class LearningPathView(APIView):
         return Response({"modules": scored_modules, "next_step": recommended})
 
 
+from .serializers import (
+    AvatarUploadSerializer,
+    ChangePasswordSerializer,
+    PasswordResetValidateTokenSerializer,
+)
+
+
 class ChangePasswordView(APIView):
     permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        request=ChangePasswordSerializer,
+        responses={200: OpenApiResponse(description="Password changed successfully.")},
+    )
     def post(self, request):
-        return Response({"status": "password changed stub"})
+        serializer = ChangePasswordSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        user = request.user
+        if not user.check_password(serializer.validated_data["old_password"]):
+            return Response(
+                {"error": "Incorrect old password."}, status=status.HTTP_400_BAD_REQUEST
+            )
+
+        user.set_password(serializer.validated_data["new_password"])
+        user.save()
+        if hasattr(user, "user_profile"):
+            user.user_profile.increment_jwt_version()
+
+        return Response(
+            {"status": "password changed successfully"}, status=status.HTTP_200_OK
+        )
+
+
+from rest_framework.parsers import MultiPartParser
 
 
 class AvatarUploadView(APIView):
     permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser]
+
+    @extend_schema(
+        request=AvatarUploadSerializer,
+        responses={200: OpenApiResponse(description="Avatar uploaded successfully.")},
+    )
     def post(self, request):
-        return Response({"status": "avatar uploaded stub"})
+        serializer = AvatarUploadSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        user_profile = request.user.user_profile
+        user_profile.avatar = serializer.validated_data["avatar"]
+        user_profile.save()
+
+        return Response(
+            {
+                "status": "avatar uploaded successfully",
+                "avatar_url": request.build_absolute_uri(user_profile.avatar.url),
+            },
+            status=status.HTTP_200_OK,
+        )
 
 
 class ShopStreakFreezeView(APIView):
     permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        responses={200: OpenApiResponse(description="Streak freeze purchased.")}
+    )
     def post(self, request):
-        return Response({"status": "streak freeze purchased stub"})
+        from apps.progress.models import StreakProfile
+
+        streak_profile, _ = StreakProfile.objects.get_or_create(user=request.user)
+        streak_profile.streak_freezes += 1
+        streak_profile.save(update_fields=["streak_freezes"])
+        return Response(
+            {
+                "status": "streak freeze purchased successfully",
+                "streak_freezes": streak_profile.streak_freezes,
+            },
+            status=status.HTTP_200_OK,
+        )
 
 
 class PasswordResetValidateTokenView(APIView):
     permission_classes = [permissions.AllowAny]
+
+    @extend_schema(
+        request=PasswordResetValidateTokenSerializer,
+        responses={200: OpenApiResponse(description="Token is valid.")},
+    )
     def post(self, request):
-        return Response({"status": "password reset token validated stub"})
+        serializer = PasswordResetValidateTokenSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        token_value = serializer.validated_data["token"]
+        try:
+            reset_token = PasswordResetToken.objects.get(
+                token=token_value, is_used=False
+            )
+        except PasswordResetToken.DoesNotExist:
+            return Response(
+                {"error": "invalid_token"}, status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if reset_token.is_expired():
+            return Response(
+                {"error": "expired_token"}, status=status.HTTP_400_BAD_REQUEST
+            )
+
+        return Response(
+            {"status": "password reset token is valid"}, status=status.HTTP_200_OK
+        )
 
 
 class UserSuggestionsView(APIView):
     permission_classes = [IsAuthenticated]
+
+    @extend_schema(responses=UserListSerializer(many=True))
     def get(self, request):
-        return Response([])
+        suggestions = User.objects.exclude(id=request.user.id).order_by("-date_joined")[
+            :5
+        ]
+        serializer = UserListSerializer(
+            suggestions, many=True, context={"request": request}
+        )
+        return Response(serializer.data, status=status.HTTP_200_OK)
 
 
 class PublicProfileView(APIView):
     permission_classes = [permissions.AllowAny]
+
+    @extend_schema(responses=UserListSerializer)
     def get(self, request, username):
-        return Response({"username": username, "bio": "stub profile"})
+        from django.shortcuts import get_object_or_404
+
+        user = get_object_or_404(User, username=username)
+        serializer = UserListSerializer(user, context={"request": request})
+        return Response(serializer.data, status=status.HTTP_200_OK)

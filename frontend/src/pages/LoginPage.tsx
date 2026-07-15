@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { GitBranch } from "lucide-react";
 import { useGoogleLogin } from "@react-oauth/google";
 import { AuthPageShell } from "../features/auth/AuthPageShell";
 import { fetchApi } from "../lib/api";
@@ -8,10 +7,7 @@ import { useAuth } from "../features/auth/AuthContext";
 import { toast } from "react-hot-toast";
 import { useAppDispatch } from "../store/hooks";
 import { setDemoUser } from "../features/auth/authSlice";
-
-const githubAuthUrl =
-  import.meta.env?.VITE_GITHUB_OAUTH_URL ||
-  `${import.meta.env?.VITE_API_BASE_URL || "http://localhost:8000/api"}/auth/github/`;
+import { DraggableSticker } from "../components/ui/DraggableSticker";
 
 function getErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback;
@@ -22,6 +18,8 @@ export function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isPasswordFocused, setIsPasswordFocused] = useState(false);
+  const [isEmailFocused, setIsEmailFocused] = useState(false);
   const navigate = useNavigate();
   const { login } = useAuth();
   const dispatch = useAppDispatch();
@@ -45,10 +43,6 @@ export function LoginPage() {
       sessionStorage.setItem("login_redirect", redirect);
     }
   }, []);
-
-  const handleGithubSignIn = () => {
-    window.location.href = githubAuthUrl;
-  };
 
   const googleLogin = useGoogleLogin({
     onSuccess: async (tokenResponse) => {
@@ -105,6 +99,21 @@ export function LoginPage() {
     }
   };
 
+  const getFeedbackBubble = () => {
+    if (isPasswordFocused) {
+      if (password.length === 0) return { emoji: "🔒", text: "Keep it secret, keep it safe!" };
+      if (password.length < 6) return { emoji: "⚠️", text: "Weak password! (Try adding more characters)" };
+      return { emoji: "😎", text: "Fortress security! Excellent password." };
+    }
+    if (isEmailFocused) {
+      if (username.length === 0) return { emoji: "✍️", text: "Type your legendary username!" };
+      return { emoji: "🚀", text: "Ready to merge some pull requests?" };
+    }
+    return { emoji: "👋", text: "Welcome back, contributor!" };
+  };
+
+  const bubble = getFeedbackBubble();
+
   return (
     <AuthPageShell
       mode="login"
@@ -112,6 +121,33 @@ export function LoginPage() {
       subtitle="Sign in to access your dashboard, complete challenges, and track your progress."
     >
       <form className="space-y-5" onSubmit={handleSubmit}>
+        {/* Draggable Stickers scattered in the background */}
+        <div className="hidden lg:block select-none pointer-events-auto">
+          <DraggableSticker initialX={-280} initialY={-80} className="bg-[#FF6B6B] text-white rotate-[-6deg]">
+            Bug Hunter 🐛
+          </DraggableSticker>
+          <DraggableSticker initialX={-320} initialY={300} className="bg-[#4D96FF] text-white rotate-[8deg]">
+            git commit -m "success" 🚀
+          </DraggableSticker>
+          <DraggableSticker initialX={450} initialY={-120} className="bg-[#6BCB77] text-black rotate-[4deg]">
+            100% Merged ✅
+          </DraggableSticker>
+          <DraggableSticker initialX={470} initialY={320} className="bg-[#FFD93D] text-black rotate-[-10deg]">
+            Git expert 👑
+          </DraggableSticker>
+        </div>
+
+        {/* Playful Interactive Speech Bubble Sticker */}
+        <div className="flex flex-col items-center justify-center mb-6 select-none animate-fade-in">
+          <div className="relative border-4 border-black bg-yellow-300 dark:bg-[#e6c229] px-4 py-3 rounded-2xl shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] text-black font-black text-center text-xs flex items-center gap-2 max-w-[280px]">
+            <span className="text-xl animate-bounce">{bubble.emoji}</span>
+            <span>{bubble.text}</span>
+            {/* Little speech bubble triangle arrow */}
+            <div className="absolute -bottom-2.5 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[10px] border-l-transparent border-r-[10px] border-r-transparent border-t-[10px] border-t-black" />
+            <div className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 w-0 h-0 border-l-[8px] border-l-transparent border-r-[8px] border-r-transparent border-t-[8px] border-t-yellow-300 dark:border-t-[#e6c229]" />
+          </div>
+        </div>
+
         {error && (
           <div
             role="alert"
@@ -125,7 +161,7 @@ export function LoginPage() {
         <button
           type="button"
           onClick={() => googleLogin()}
-          className="flex items-center justify-center gap-3 w-full px-4 py-3 border-2 border-black rounded-xl font-bold hover:-translate-y-0.5 hover:shadow-card-sm active:translate-y-0 active:shadow-none transition-all text-xs uppercase tracking-wider text-slate-700 dark:text-slate-200 bg-white dark:bg-[#12121a] cursor-pointer"
+          className="flex items-center justify-center gap-3 w-full px-4 py-3.5 border-2 border-black rounded-xl font-bold hover:-translate-y-0.5 hover:shadow-card-sm active:translate-y-0 active:shadow-none transition-all text-xs uppercase tracking-wider text-slate-700 dark:text-slate-200 bg-white dark:bg-[#12121a] cursor-pointer"
         >
           <svg className="w-4 h-4" viewBox="0 0 24 24">
             <path
@@ -148,23 +184,7 @@ export function LoginPage() {
           Sign in with Google
         </button>
 
-        {/* GitHub Login Button */}
-        <button
-          type="button"
-          onClick={handleGithubSignIn}
-          className="flex items-center justify-center gap-3 w-full px-4 py-3 border-2 border-black bg-slate-900 text-white rounded-xl font-bold hover:-translate-y-0.5 hover:shadow-card-sm active:translate-y-0 active:shadow-none transition-all text-xs uppercase tracking-wider dark:bg-[#C3C0FF] dark:text-black cursor-pointer"
-          aria-label="Sign in with GitHub"
-        >
-          <GitBranch
-            className="transition-transform duration-300 rotate-[-8deg]"
-            size={14}
-            strokeWidth={2.5}
-            aria-hidden="true"
-          />
-          <span>Sign in with GitHub</span>
-        </button>
-
-        <div className="flex items-center gap-3 py-1">
+        <div className="flex items-center gap-3 py-2">
           <div className="h-[2px] flex-1 bg-black/10 dark:bg-white/10"></div>
           <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
             OR
@@ -172,29 +192,33 @@ export function LoginPage() {
           <div className="h-[2px] flex-1 bg-black/10 dark:bg-white/10"></div>
         </div>
 
-        <div className="space-y-1.5">
+        <div className="space-y-2">
           <label className="font-black text-slate-500 dark:text-slate-400 ml-1 text-[10px] uppercase tracking-wider">
             Username or Email
           </label>
           <input
-            className="w-full rounded-xl border-2 border-black bg-white dark:bg-[#12121a] px-4 py-2.5 text-slate-900 dark:text-white font-bold outline-none placeholder:text-slate-400 focus:shadow-[2px_2px_0px_0px_#000000] transition-all text-sm"
+            className="w-full rounded-xl border-2 border-black bg-white dark:bg-[#12121a] px-4 py-3 text-slate-900 dark:text-white font-bold outline-none placeholder:text-slate-400 focus:shadow-[2px_2px_0px_0px_#000000] transition-all text-sm"
             placeholder="username or email"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
+            onFocus={() => setIsEmailFocused(true)}
+            onBlur={() => setIsEmailFocused(false)}
             required
           />
         </div>
 
-        <div className="space-y-1.5">
+        <div className="space-y-2">
           <label className="font-black text-slate-500 dark:text-slate-400 ml-1 text-[10px] uppercase tracking-wider">
             Password
           </label>
           <input
-            className="w-full rounded-xl border-2 border-black bg-white dark:bg-[#12121a] px-4 py-2.5 text-slate-900 dark:text-white font-bold outline-none placeholder:text-slate-400 focus:shadow-[2px_2px_0px_0px_#000000] transition-all text-sm"
+            className="w-full rounded-xl border-2 border-black bg-white dark:bg-[#12121a] px-4 py-3 text-slate-900 dark:text-white font-bold outline-none placeholder:text-slate-400 focus:shadow-[2px_2px_0px_0px_#000000] transition-all text-sm"
             type="password"
             placeholder="••••••••"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
+            onFocus={() => setIsPasswordFocused(true)}
+            onBlur={() => setIsPasswordFocused(false)}
             required
           />
         </div>
@@ -205,12 +229,12 @@ export function LoginPage() {
             dispatch(setDemoUser());
             navigate("/dashboard");
           }}
-          className="w-full rounded-xl border-2 border-black bg-green-200 px-4 py-3 font-black text-black text-sm shadow-card-sm hover:-translate-y-0.5 transition-all cursor-pointer uppercase"
+          className="w-full rounded-xl border-2 border-black bg-green-200 px-4 py-3.5 font-black text-black text-sm shadow-card-sm hover:-translate-y-0.5 transition-all cursor-pointer uppercase"
         >
           🚀 Demo Mode (No Login Required)
         </button>
 
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-3 py-2">
           <div className="h-[2px] flex-1 bg-black/10 dark:bg-white/10"></div>
           <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
             OR
@@ -221,12 +245,12 @@ export function LoginPage() {
         <button
           type="submit"
           disabled={isLoading}
-          className="w-full rounded-xl border-2 border-black bg-[#C3C0FF] px-4 py-3.5 font-black text-black text-sm shadow-card-sm hover:-translate-y-0.5 active:translate-y-0 active:shadow-none transition-all cursor-pointer uppercase disabled:opacity-50 disabled:cursor-not-allowed"
+          className="w-full rounded-xl border-2 border-black bg-[#C3C0FF] px-4 py-4 font-black text-black text-sm shadow-card-sm hover:-translate-y-0.5 active:translate-y-0 active:shadow-none transition-all cursor-pointer uppercase disabled:opacity-50 disabled:cursor-not-allowed"
         >
           {isLoading ? "Logging in..." : "Let Me In!"}
         </button>
 
-        <p className="text-center text-xs font-bold mt-5 text-slate-500 dark:text-slate-400">
+        <p className="text-center text-xs font-bold mt-6 text-slate-500 dark:text-slate-400">
           New here?{" "}
           <a
             href="/signup"

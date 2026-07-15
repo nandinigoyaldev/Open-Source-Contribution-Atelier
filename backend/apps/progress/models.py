@@ -435,6 +435,36 @@ class StreakProfile(models.Model):
         return f"{self.user.username} - {self.current_streak} day streak"
 
 
+class StreakRecoveryPlan(models.Model):
+    """Tracks a user's progress toward recovering a lost streak on a specific day."""
+    user = models.OneToOneField(
+        User, on_delete=models.CASCADE, related_name="streak_recovery_plan"
+    )
+    target_date = models.DateField()
+    previous_streak = models.PositiveIntegerField(default=0)
+
+    quiz_target = models.PositiveIntegerField(default=1)
+    quiz_progress = models.PositiveIntegerField(default=0)
+
+    reading_target = models.PositiveIntegerField(default=15)
+    reading_progress = models.PositiveIntegerField(default=0)
+
+    code_target = models.PositiveIntegerField(default=1)
+    code_progress = models.PositiveIntegerField(default=0)
+
+    is_completed = models.BooleanField(default=False)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=["user", "target_date"], name="idx_recovery_user_date"),
+        ]
+
+    def __str__(self):
+        return f"StreakRecoveryPlan(user={self.user.username}, date={self.target_date}, completed={self.is_completed})"
+
+
 class DailyActivity(models.Model):
     """Deterministic ledger of meaningful user activity on a local date."""
 

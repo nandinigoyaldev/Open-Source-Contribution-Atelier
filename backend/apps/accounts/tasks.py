@@ -65,7 +65,8 @@ def send_notification_email_task(user_email, subject, message_body):
     user = User.objects.filter(email__iexact=user_email).first()
 
     # Intercept and drop the email if the user profile has DND toggled on
-    if user and hasattr(user, "profile"):
+    # We must use 'user_profile' because models.py defines related_name="user_profile"
+    if user and hasattr(user, "user_profile") and user.user_profile.do_not_disturb:
         return "Email skipped: User has 'Do Not Disturb' enabled."
 
     send_mail(
@@ -87,4 +88,3 @@ def purge_expired_sessions_task():
     logger.info("Starting scheduled session purge...")
     call_command("purge_sessions")
     logger.info("Scheduled session purge complete.")
-

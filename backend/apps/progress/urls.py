@@ -28,6 +28,8 @@ from .views import (
     LeaderboardView,
     BufferMetricsView,
     HeatmapView,
+    StreakStatusView,
+    StreakRecoveryView,
 )
 
 urlpatterns = [
@@ -37,6 +39,8 @@ urlpatterns = [
     path("leaderboard/", LeaderboardView.as_view(), name="leaderboard"),
     path("buffer-metrics/", BufferMetricsView.as_view(), name="buffer-metrics"),
     path("heatmap/", HeatmapView.as_view(), name="heatmap"),
+    path("streak/", StreakStatusView.as_view(), name="streak-status"),
+    path("streak/recovery/", StreakRecoveryView.as_view(), name="streak-recovery"),
     path("export/pdf/", UserProgressPDFExportView.as_view(), name="export-pdf"),
 
     path("badges/", BadgeListView.as_view(), name="badges"),
@@ -48,7 +52,7 @@ urlpatterns = [
     
     # Recommendations
     path("recommendations/", RecommendationsView.as_view(), name="recommendations"),
-    path('certificate/verify/<str:hash>/', CertificateVerifyView.as_view(), name='certificate-verify'),
+    path('certificate/verify/<str:hash>/', CertificateVerificationView.as_view(), name='certificate-verify'),
     path('daily-stats/', DailyLessonStatsView.as_view(), name='daily-stats'),
     path("feed/", CommunityFeedView.as_view(), name="community-feed"),
     path("community-stats/", CommunityStatsView.as_view(), name="community-stats"),

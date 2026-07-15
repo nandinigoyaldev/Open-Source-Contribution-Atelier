@@ -496,3 +496,89 @@ class CollabSessionViewSet(viewsets.ModelViewSet):
             return Response({"status": "invited", "mentor": username})
         except User.DoesNotExist:
             return Response({"error": "Mentor not found"}, status=404)
+
+
+# ============================================================
+# CI/CD PIPELINE SIMULATOR
+# ============================================================
+
+from .models import PipelineExecution, PipelineJob
+from .serializers import PipelineExecutionSerializer
+
+
+class PipelineExecutionViewSet(viewsets.ModelViewSet):
+    serializer_class = PipelineExecutionSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return PipelineExecution.objects.filter(user=self.request.user).prefetch_related("jobs")
+
+    def perform_create(self, serializer):
+        from .services.pipeline_simulator import run_pipeline_simulation
+        pipeline = serializer.save(user=self.request.user)
+
+        code = ""
+        if pipeline.project:
+            first_file = pipeline.project.files.first()
+            if first_file:
+                code = first_file.content
+
+        run_pipeline_simulation(pipeline, code=code)
+
+
+# ============================================================
+# MERGE CONFLICT ARENA
+# ============================================================
+
+from .models import ConflictScenario, ConflictAttempt
+from .serializers import ConflictScenarioSerializer, ConflictAttemptSerializer
+from rest_framework.decorators import action
+from rest_framework.response import Response
+from rest_framework import status
+import re
+
+
+class ConflictScenarioViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = ConflictScenario.objects.all()
+    serializer_class = ConflictScenarioSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    @action(detail=True, methods=["post"])
+    def resolve_conflict(self, request, pk=None):
+        scenario = self.get_object()
+        submitted_code = request.data.get("submitted_code", "")
+
+        if re.search(r"<<<<<<<\s*HEAD", submitted_code) or \
+           re.search(r"=======", submitted_code) or \
+           re.search(r">>>>>>>", submitted_code):
+            error_msg = "Your code still contains unresolved Git conflict markers."
+            ConflictAttempt.objects.create(
+                scenario=scenario,
+                user=request.user,
+                submitted_code=submitted_code,
+                passed=False,
+                error_message=error_msg,
+            )
+            return Response({"error": error_msg}, status=status.HTTP_400_BAD_REQUEST)
+
+        def _normalize(text):
+            return "\n".join(line.rstrip() for line in text.splitlines()).strip()
+
+        passed = _normalize(submitted_code) == _normalize(scenario.expected_resolution)
+        error_msg = "" if passed else "The resolved code does not match the expected correct output."
+
+        attempt = ConflictAttempt.objects.create(
+            scenario=scenario,
+            user=request.user,
+            submitted_code=submitted_code,
+            passed=passed,
+            error_message=error_msg,
+        )
+
+        return Response(
+            {
+                "passed": passed,
+                "message": "Conflict resolved successfully!" if passed else error_msg,
+            },
+            status=status.HTTP_200_OK if passed else status.HTTP_400_BAD_REQUEST,
+        )

@@ -12,6 +12,8 @@ import {
   Lock,
   Bookmark,
   History,
+  ArrowLeft,
+  ArrowRight,
 } from "lucide-react";
 
 import SkeletonLesson from "../components/ui/skeletons/SkeletonLesson";
@@ -631,42 +633,55 @@ export function LessonPage() {
   )?.id;
 
   return (
-    <div className="min-h-screen pt-20 flex flex-col lg:flex-row relative">
-      <div className="lg:hidden bg-white border-b-4 border-black dark:bg-[#151411] dark:border-[#2e2924] p-4 flex items-center justify-between z-[80]">
-        <button
-          onClick={() => setIsSidebarOpen((prev) => !prev)}
-          aria-expanded={isSidebarOpen}
-          aria-controls="course-sidebar"
-          className="flex items-center gap-2 font-black text-sm uppercase px-3 py-2 bg-surface-low border-2 border-black rounded-lg text-black"
+    <div className="w-full h-screen flex flex-col overflow-hidden bg-white dark:bg-[#0a0a0f]">
+      {/* Immersive Lesson Top Header Bar */}
+      <header className="h-[72px] border-b-4 border-black dark:border-[#2e2924] bg-white dark:bg-[#0f0e0c] flex items-center justify-between px-4 sm:px-6 flex-shrink-0 z-40">
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setIsSidebarOpen((prev) => !prev)}
+            className="lg:hidden flex items-center gap-2 font-black text-xs uppercase px-3 py-2 bg-surface-low border-2 border-black rounded-lg text-black"
+          >
+            {isSidebarOpen ? <X size={14} /> : <Menu size={14} />}
+            Outline
+          </button>
+          <Link
+            to="/dashboard"
+            className="flex items-center gap-2 font-black text-xs uppercase px-3 py-2 bg-surface-low border-2 border-black rounded-lg text-black dark:bg-[#151411] dark:border-[#2e2924] dark:text-[#f0ebe2] hover:-translate-y-0.5 shadow-card-sm transition-all"
+          >
+            <ArrowLeft size={14} />
+            <span className="hidden sm:inline">Back to Dashboard</span>
+            <span className="sm:hidden">Exit</span>
+          </Link>
+        </div>
+
+        <div className="flex items-center gap-4">
+          <span className="hidden md:inline-block font-mono text-[10px] uppercase font-bold text-muted dark:text-[#9b8f80]">
+            Lesson Workspace
+          </span>
+          <span className="font-mono text-xs font-black bg-black text-white px-3 py-1.5 rounded-full dark:bg-[#2e2924]">
+            💰 XP Bounties: {lesson.points || 15}
+          </span>
+        </div>
+      </header>
+
+      {/* Main split-screen panel (Sidebar + Content Workspace) */}
+      <div className="flex-1 flex flex-row overflow-hidden relative">
+        {/* Backdrop overlay — closes drawer on click-outside on mobile */}
+        {isSidebarOpen && (
+          <div
+            className="fixed inset-0 z-[90] bg-black/40 lg:hidden"
+            aria-hidden="true"
+            onClick={closeSidebar}
+          />
+        )}
+
+        <aside
+          id="course-sidebar"
+          ref={sidebarRef}
+          className={`fixed top-0 left-0 h-full w-[300px] border-r-4 border-black bg-white dark:bg-[#151411] dark:border-[#2e2924] overflow-y-auto p-6 transition-transform duration-300 ease-in-out z-[100] pt-6
+            ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"}
+            lg:relative lg:top-auto lg:left-auto lg:h-full lg:w-[320px] lg:flex-shrink-0 lg:translate-x-0 lg:block`}
         >
-          {isSidebarOpen ? <X size={16} /> : <Menu size={16} />}
-          {isSidebarOpen ? "Close Outline" : "Course Directory"}
-        </button>
-        <span className="font-mono text-xs font-black bg-black text-white px-3 py-1 rounded-full dark:bg-[#2e2924]">
-          XP Bounties: {lesson.points || 15}
-        </span>
-      </div>
-
-      <span className="updated-date">
-        Updated: {new Date((lesson as any).updatedAt || (lesson as any).updated_at || new Date()).toLocaleDateString()}
-      </span>
-
-      {/* Backdrop overlay — closes drawer on click-outside on mobile */}
-      {isSidebarOpen && (
-        <div
-          className="fixed inset-0 z-[90] bg-black/40 lg:hidden"
-          aria-hidden="true"
-          onClick={closeSidebar}
-        />
-      )}
-
-      <aside
-        id="course-sidebar"
-        ref={sidebarRef}
-        className={`fixed top-0 left-0 h-full w-[300px] border-r-4 border-black bg-white dark:bg-[#151411] dark:border-[#2e2924] overflow-y-auto p-6 transition-transform duration-300 ease-in-out z-[100] pt-20
-          ${isSidebarOpen ? "translate-x-0" : "-translate-x-full"}
-          lg:relative lg:top-auto lg:left-auto lg:h-auto lg:w-[320px] lg:flex-shrink-0 lg:translate-x-0 lg:block lg:max-h-[calc(100vh-80px)]`}
-      >
         <div className="flex justify-between items-center mb-6">
           <h2 className="text-xl font-black uppercase flex items-center gap-2">
             <BookOpen size={18} className="text-primary" />
@@ -746,7 +761,7 @@ export function LessonPage() {
         </div>
       </aside>
 
-      <div className="flex-1 flex flex-col max-h-[calc(100vh-80px)] overflow-hidden">
+      <div className="flex-1 flex flex-col h-full overflow-hidden">
         <div className="h-2 w-full bg-surface-low border-b-2 border-black dark:bg-[#151411] dark:border-[#2e2924] relative flex-shrink-0">
           <div
             className="h-full bg-primary transition-all duration-150"
@@ -765,9 +780,17 @@ export function LessonPage() {
           <div className="max-w-3xl mx-auto space-y-6">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
               <div>
-                <span className="text-[10px] font-mono font-black bg-accent text-black px-3 py-1 rounded-full border-2 border-black rotate-[-1deg] inline-block shadow-card-sm uppercase">
-                  {lesson.difficulty || "beginner"}
-                </span>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-[10px] font-mono font-black bg-accent text-black px-3 py-1 rounded-full border-2 border-black rotate-[-1deg] inline-block shadow-card-sm uppercase">
+                    {lesson.difficulty || "beginner"}
+                  </span>
+                  <span className="text-[10px] font-mono font-black bg-surface-low text-text px-3 py-1 rounded-full border-2 border-black rotate-[1deg] inline-block shadow-card-sm uppercase dark:bg-[#1f1c18] dark:border-[#2e2924] dark:text-[#f0ebe2]">
+                    ⏱️ {calculateReadTime(markdownContent)} min read
+                  </span>
+                  <span className="text-[10px] font-mono font-black bg-surface-low text-muted px-3 py-1 rounded-full border-2 border-black rotate-[-0.5deg] inline-block shadow-card-sm uppercase dark:bg-[#1f1c18] dark:border-[#2e2924] dark:text-[#c4bbae]">
+                    📅 Updated: {new Date((lesson as any).updatedAt || (lesson as any).updated_at || new Date()).toLocaleDateString()}
+                  </span>
+                </div>
                 <h1 className="text-4xl sm:text-5xl font-black text-text dark:text-[#f0ebe2] drop-shadow-[2.5px_2.5px_0_#FF3B30] mt-3">
                   {lesson.title}
                 </h1>
@@ -1305,13 +1328,6 @@ export function LessonPage() {
           </div>
         </div>
 
-        <div className="lesson-info">
-         <h1>{lesson.title}</h1>
-          <span className="read-time">
-           ⏱️ {calculateReadTime((lesson as any).explanation || (lesson as any).content || "")} min read
-         </span>
-        </div>
-
         {/* Mentor Help Trigger Row */}
         <div className="border-t-4 border-black p-4 bg-white dark:bg-[#151411] dark:border-[#2e2924] flex justify-end gap-4 flex-shrink-0">
           <button
@@ -1429,9 +1445,7 @@ export function LessonPage() {
           onClose={() => setShowHistory(false)}
         />
       )}
-
-      {/* Private Notes Widget */}
-      <NotesWidget />
+      </div>
     </div>
   );
 }

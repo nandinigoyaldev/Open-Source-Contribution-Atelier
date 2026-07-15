@@ -1,3 +1,4 @@
+import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { fetchApi } from "../../lib/api";
 import { useTheme } from "../../hooks/useTheme";
@@ -19,6 +20,40 @@ import type { AdminDashboardData, LeaderboardResponse } from "./types";
 
 export function AdminDashboard() {
   const { theme } = useTheme();
+  const [activePeers, setActivePeers] = useState<{ user_id: number; username: string; room_id: string }[]>([]);
+
+  useEffect(() => {
+    const apiBase = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api";
+    const wsHost = apiBase.replace(/^https?:\/\//, "").replace(/\/api$/, "");
+    const wsScheme = apiBase.startsWith("https") ? "wss" : "ws";
+    const wsUrl = `${wsScheme}://${wsHost}/ws/leaderboard/`;
+
+    const socket = new WebSocket(wsUrl);
+
+    socket.onmessage = (event) => {
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === "leaderboard_update") {
+          if (data.event === "peer_joined") {
+            setActivePeers((prev) => {
+              if (prev.some((p) => p.user_id === data.user_id && p.room_id === data.room_id)) return prev;
+              return [...prev, { user_id: data.user_id, username: data.username, room_id: data.room_id }];
+            });
+          } else if (data.event === "peer_left") {
+            setActivePeers((prev) =>
+              prev.filter((p) => !(p.user_id === data.user_id && p.room_id === data.room_id))
+            );
+          }
+        }
+      } catch (err) {
+        console.error("Failed to parse admin dashboard websocket message:", err);
+      }
+    };
+
+    return () => {
+      socket.close();
+    };
+  }, []);
   const {
     data: adminData,
     isLoading: isAdminLoading,
@@ -140,8 +175,29 @@ export function AdminDashboard() {
               </p>
             </div>
           </div>
-          <div className="mt-4 pt-4 border-t border-dashed border-muted/20 text-xs font-bold text-muted dark:text-[#c4bbae]">
-            Managing guided sandbox profiles
+          <div className="mt-4 pt-4 border-t border-dashed border-muted/20 text-xs font-bold text-muted dark:text-[#c4bbae] flex flex-col gap-2">
+            <div className="flex justify-between items-center">
+              <span>Guided sandboxes:</span>
+              <span className="font-mono bg-black text-white px-2 py-0.5 rounded text-[10px]">
+                {system_stats.active_contributors} total
+              </span>
+            </div>
+            <div className="flex justify-between items-center text-green-600 dark:text-green-400 font-bold">
+              <span>● Live Active Peers:</span>
+              <span className="font-mono bg-green-100 text-green-700 px-2 py-0.5 rounded text-[10px] animate-pulse border border-green-300 dark:bg-green-950/20 dark:text-green-400 dark:border-green-800">
+                {activePeers.length} online
+              </span>
+            </div>
+            {activePeers.length > 0 && (
+              <div className="mt-2 p-2 bg-surface-low border-2 border-black rounded-lg max-h-24 overflow-y-auto space-y-1 dark:bg-[#151411] dark:border-[#2e2924]">
+                {activePeers.map((peer, idx) => (
+                  <div key={idx} className="flex justify-between items-center text-[10px] font-mono">
+                    <span className="text-text dark:text-[#f0ebe2]">@{peer.username}</span>
+                    <span className="text-muted text-[8px] uppercase">{peer.room_id.replace("submission_", "Review #")}</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         </div>
       </section>

@@ -19,15 +19,15 @@ from .throttles import SandboxAnonRateThrottle, SandboxUserRateThrottle
 logger = logging.getLogger(__name__)
 
 
-
 class ChallengeViewSet(viewsets.ModelViewSet):
     """Existing view — untouched."""
 
     serializer_class = ChallengeSerializer
 
     def get_permissions(self):
-        from apps.rbac.permissions import HasPermission
         from rest_framework import permissions
+
+        from apps.rbac.permissions import HasPermission
 
         if self.action in ["create"]:
             return [permissions.IsAuthenticated(), HasPermission("create_content")]
@@ -55,6 +55,7 @@ class SandboxExecutionView(APIView):
 
     # Allow both anonymous and authenticated users
     permission_classes = [AllowAny]
+
     def post(self, request, *args, **kwargs):
         """
         Expected body: { "code": "...", "language": "python" }
@@ -126,9 +127,7 @@ class SandboxExecutionView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        end_event = next(
-            (e for e in events if e.get("action") == "execution_end"), {}
-        )
+        end_event = next((e for e in events if e.get("action") == "execution_end"), {})
 
         return Response(
             {
@@ -150,14 +149,15 @@ class BulkChallengeUploadView(APIView):
     """
 
     def get_permissions(self):
-        from apps.rbac.permissions import HasPermission
         from rest_framework import permissions
+
+        from apps.rbac.permissions import HasPermission
 
         return [permissions.IsAuthenticated(), HasPermission("create_content")]
 
     parser_classes = [MultiPartParser]
 
-def post(self, request, *args, **kwargs):
+    def post(self, request, *args, **kwargs):
         file_obj = request.FILES.get("file")
         if not file_obj:
             return Response(
@@ -196,7 +196,9 @@ def post(self, request, *args, **kwargs):
             errors = []
 
             if not isinstance(item, dict):
-                row_errors.append({"index": index, "errors": ["Row is not a JSON object."]})
+                row_errors.append(
+                    {"index": index, "errors": ["Row is not a JSON object."]}
+                )
                 continue
 
             title = item.get("title")

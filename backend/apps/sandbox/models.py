@@ -433,3 +433,150 @@ class MaintainerEvaluation(models.Model):
     def __str__(self):
         return f"{self.user} - {self.scenario.title} ({self.passed})"
 
+
+# ============================================================
+# CI/CD PIPELINE SIMULATOR
+# ============================================================
+
+
+class PipelineExecution(models.Model):
+    """Represents a simulated CI/CD pipeline run triggered from the sandbox."""
+
+    class Status(models.TextChoices):
+        QUEUED = "queued", "Queued"
+        IN_PROGRESS = "in_progress", "In Progress"
+        SUCCESS = "success", "Success"
+        FAILED = "failed", "Failed"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="pipeline_executions",
+    )
+    project = models.ForeignKey(
+        Project,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="pipeline_executions",
+        help_text="The project this pipeline was triggered from.",
+    )
+    trigger_command = models.CharField(
+        max_length=512,
+        blank=True,
+        help_text="The sandbox command that triggered this pipeline.",
+    )
+    status = models.CharField(
+        max_length=20, choices=Status.choices, default=Status.QUEUED
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+# MERGE CONFLICT ARENA
+# ============================================================
+
+
+class ConflictScenario(models.Model):
+    """A pre-configured merge conflict scenario for the Conflict Arena."""
+
+    class Difficulty(models.TextChoices):
+        BEGINNER = "beginner", "Beginner"
+        INTERMEDIATE = "intermediate", "Intermediate"
+        ADVANCED = "advanced", "Advanced"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    title = models.CharField(max_length=255)
+    description = models.TextField(help_text="What the user needs to accomplish.")
+    language = models.CharField(max_length=50, default="python")
+    difficulty = models.CharField(
+        max_length=20, choices=Difficulty.choices, default=Difficulty.BEGINNER
+    )
+    base_code = models.TextField(help_text="The common ancestor (base) code.")
+    current_code = models.TextField(
+        help_text="The current branch version (HEAD) of the file."
+    )
+    incoming_code = models.TextField(
+        help_text="The incoming branch version of the file."
+    )
+    expected_resolution = models.TextField(
+        help_text="The correct/expected resolved file content."
+    )
+    hint = models.TextField(
+        blank=True, help_text="Optional hint shown to struggling users."
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["difficulty", "-created_at"]
+
+    def __str__(self):
+        return f"[{self.difficulty}] {self.title}"
+
+
+class ConflictAttempt(models.Model):
+    """Records a user's attempt at resolving a ConflictScenario."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    scenario = models.ForeignKey(
+        ConflictScenario,
+        on_delete=models.CASCADE,
+        related_name="attempts",
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="conflict_attempts",
+    )
+    submitted_code = models.TextField(
+        help_text="The user's final submitted merged file."
+    )
+    passed = models.BooleanField(
+        default=False,
+        help_text="Whether the submitted code matched the expected resolution.",
+    )
+    error_message = models.TextField(
+        blank=True, help_text="Reason for failure (e.g., unresolved markers)."
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+
+class PipelineJob(models.Model):
+    """Represents a single stage within a PipelineExecution (e.g., Lint, Test, Audit)."""
+
+    class Status(models.TextChoices):
+        QUEUED = "queued", "Queued"
+        IN_PROGRESS = "in_progress", "In Progress"
+        SUCCESS = "success", "Success"
+        FAILED = "failed", "Failed"
+        SKIPPED = "skipped", "Skipped"
+
+    class JobType(models.TextChoices):
+        LINT = "lint", "Linting"
+        TEST = "test", "Unit Tests"
+        SECURITY = "security", "Security Audit"
+        BUILD = "build", "Build"
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    pipeline = models.ForeignKey(
+        PipelineExecution,
+        on_delete=models.CASCADE,
+        related_name="jobs",
+    )
+    job_type = models.CharField(max_length=20, choices=JobType.choices)
+    status = models.CharField(
+        max_length=20, choices=Status.choices, default=Status.QUEUED
+    )
+    log_output = models.TextField(
+        blank=True, help_text="Simulated console log output for this job."
+    )
+    duration_seconds = models.FloatField(
+        null=True, blank=True, help_text="How long this job took in seconds."
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["created_at"]
+
+    def __str__(self):
+        return f"{self.job_type} job in pipeline {self.pipeline_id} [{self.status}]"

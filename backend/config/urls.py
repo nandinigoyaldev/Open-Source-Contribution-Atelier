@@ -72,6 +72,8 @@ urlpatterns = [
     path("api/organizations/", include("apps.organizations.urls")),
     path("api/accessibility/", include("apps.accessibility.urls")),
     path("api/issues/", include("apps.issues.urls")),
+    # ── Project Health Dashboard ───────────────────────────────────────────────
+    path("api/project-health/", include("apps.project_health.urls")),
     # ── Events & GraphQL ──────────────────────────────────────────────────────
     # path("api/events/", include("apps.events.urls")),
     path("api/graphql/", include("apps.graphql_gateway.urls")),

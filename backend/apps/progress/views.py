@@ -1139,6 +1139,11 @@ class ReadingProgressView(APIView):
 
         cache_key = f"reading_progress_{request.user.id}_{lesson_slug}"
         cache.set(cache_key, progress, timeout=60 * 60 * 24 * 30)
+
+        # Record reading minutes for streak recovery if active
+        from apps.progress.services.streak_recovery_service import StreakRecoveryService
+        StreakRecoveryService.record_reading_minute(request.user)
+
         return Response({"status": "success", "progress": progress})
 
 
@@ -1264,4 +1269,48 @@ class HeatmapView(APIView):
             data.append({"date": act.date.isoformat(), "count": 1})
 
         return Response(data, status=status.HTTP_200_OK)
+
+
+class StreakStatusView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        from apps.progress.streak_engine import StreakEngine
+
+        data = StreakEngine.get_streak_data(request.user)
+
+        formatted_data = {
+            "current_streak": data["current_streak"],
+            "highest_streak": data["longest_streak"],
+            "multiplier": data["current_multiplier"],
+            "next_milestone": data["next_milestone"]["days"] if data["next_milestone"] else None
+        }
+        return Response(formatted_data, status=status.HTTP_200_OK)
+
+
+class StreakRecoveryView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        from apps.progress.services.streak_recovery_service import StreakRecoveryService
+
+        plan = StreakRecoveryService.get_or_create_recovery_plan(request.user)
+        if not plan:
+            return Response({"has_recovery_plan": False}, status=status.HTTP_200_OK)
+
+        return Response({
+            "has_recovery_plan": True,
+            "recovery_plan": {
+                "target_date": plan.target_date.isoformat(),
+                "previous_streak": plan.previous_streak,
+                "quiz_target": plan.quiz_target,
+                "quiz_progress": plan.quiz_progress,
+                "reading_target": plan.reading_target,
+                "reading_progress": plan.reading_progress,
+                "code_target": plan.code_target,
+                "code_progress": plan.code_progress,
+                "is_completed": plan.is_completed,
+            }
+        }, status=status.HTTP_200_OK)
+
 

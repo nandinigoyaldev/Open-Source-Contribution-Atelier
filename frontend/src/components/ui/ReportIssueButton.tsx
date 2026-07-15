@@ -5,6 +5,11 @@ import ReportIssueModal from "./ReportIssueModal";
 export default function ReportIssueButton() {
   const [isOpen, setIsOpen] = useState(false);
 
+  const pathname = typeof window !== "undefined" ? window.location.pathname : "";
+  if (pathname === "/" || pathname === "/login" || pathname === "/signup") {
+    return null;
+  }
+
   return createPortal(
     <>
       <button
