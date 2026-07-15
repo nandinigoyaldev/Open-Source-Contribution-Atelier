@@ -90,9 +90,6 @@ export default defineConfig({
     timeout: 10000,
   },
 
-  /* ✅ Added: Global setup for accessibility testing */
-  globalSetup: require.resolve("./e2e/global-setup.ts"),
-
   /* ✅ Added: Test directory for accessibility tests */
   testMatch: [
     "**/*.spec.ts",
