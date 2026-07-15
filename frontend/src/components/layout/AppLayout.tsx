@@ -47,15 +47,19 @@ export function AppLayout() {
         Skip to main content
       </a>
 
-      <div className="min-h-screen bg-surface text-text dark:bg-transparent dark:text-[#f0ebe2]">
-        <Navigation />
-        <main id="main-content" tabIndex={-1} className="lg:pl-[240px]">
-          <div className="px-4 pb-10 pt-24 sm:px-6 lg:px-8">
+      <div className="min-h-screen bg-surface text-text dark:bg-[#0a0a0f] dark:text-[#f0ebe2]">
+        {!location.pathname.startsWith("/lessons/") && <Navigation />}
+        <main
+          id="main-content"
+          tabIndex={-1}
+          className={location.pathname.startsWith("/lessons/") ? "w-full min-h-screen" : "lg:pl-[240px]"}
+        >
+          <div className={location.pathname.startsWith("/lessons/") ? "w-full h-screen overflow-hidden" : "px-4 pb-10 pt-24 sm:px-6 lg:px-8"}>
             <Outlet />
           </div>
         </main>
         <BadgeToastNotifier />
-        <SessionTracker />
+        {!location.pathname.startsWith("/lessons/") && <SessionTracker />}
       </div>
     </>
   );
