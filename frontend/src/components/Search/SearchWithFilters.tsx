@@ -21,16 +21,24 @@ interface SearchResult {
 
 interface SearchWithFiltersProps {
   onSearch?: (query: string, category: string | null) => void;
+  onRetry?: () => void;
   results?: SearchResult[];
   isLoading?: boolean;
+  error?: string | null;
+  isDegraded?: boolean;
   categories?: string[];
   placeholder?: string;
 }
 
+const SKELETON_COUNT = 4;
+
 export const SearchWithFilters: React.FC<SearchWithFiltersProps> = ({
   onSearch,
+  onRetry,
   results = [],
   isLoading = false,
+  error = null,
+  isDegraded = false,
   categories = [],
   placeholder = "Search lessons, modules, and more...",
 }) => {
@@ -78,6 +86,11 @@ export const SearchWithFilters: React.FC<SearchWithFiltersProps> = ({
     setDebouncedQuery("");
   };
 
+  const handleSuggestionClick = (suggestion: string) => {
+    setQuery(suggestion);
+    setDebouncedQuery(suggestion);
+  };
+
   // Get filtered results count
   const filteredResults = selectedCategory
     ? results.filter(
@@ -85,6 +98,8 @@ export const SearchWithFilters: React.FC<SearchWithFiltersProps> = ({
           r.category === selectedCategory || r.tags?.includes(selectedCategory),
       )
     : results;
+
+  const hasQuery = Boolean(debouncedQuery || selectedCategory);
 
   return (
     <div className="search-with-filters">
@@ -125,55 +140,134 @@ export const SearchWithFilters: React.FC<SearchWithFiltersProps> = ({
         />
       )}
 
-      {/* Results */}
-      {isLoading ? (
-        <div className="search-loading">
-          <div className="spinner" />
-          <span>Searching...</span>
-        </div>
-      ) : (
-        <div className="search-results">
-          {/* Results count */}
-          <div className="results-header">
-            <span className="results-count">
-              {filteredResults.length} results found
-              {selectedCategory && (
-                <span className="filter-badge">
-                  Filtered by: #{selectedCategory}
-                </span>
-              )}
-            </span>
-          </div>
-
-          {/* Results list */}
-          {filteredResults.length === 0 ? (
-            <div className="no-results">
-              <p>No results found</p>
-              <p className="no-results-hint">
-                Try adjusting your search or filters
-              </p>
-            </div>
-          ) : (
-            <div className="results-list">
-              {filteredResults.map((result) => (
-                <div key={result.id} className="result-item">
-                  <h3 className="result-title">{result.title}</h3>
-                  <p className="result-description">{result.description}</p>
-                  {result.tags && (
-                    <div className="result-tags">
-                      {result.tags.map((tag) => (
-                        <span key={tag} className="result-tag">
-                          #{tag}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </div>
-              ))}
-            </div>
-          )}
+      {/* Degraded-search notice */}
+      {isDegraded && !isLoading && !error && (
+        <div className="search-degraded-banner" role="status">
+          <span className="search-degraded-icon" aria-hidden="true">
+            ⚠️
+          </span>
+          <span>
+            Fast search is temporarily unavailable — showing results from our
+            backup search index. Results may be less relevant than usual.
+          </span>
         </div>
       )}
+
+      {/* Live region announcing state changes to screen readers */}
+      <div
+        className="search-results"
+        aria-live="polite"
+        aria-busy={isLoading}
+      >
+        {isLoading ? (
+          <div className="search-skeleton-list" aria-label="Loading search results">
+            {Array.from({ length: SKELETON_COUNT }).map((_, i) => (
+              <div className="result-skeleton" key={i}>
+                <div className="skeleton-line skeleton-title" />
+                <div className="skeleton-line skeleton-description" />
+                <div className="skeleton-line skeleton-description short" />
+                <div className="skeleton-tags">
+                  <span className="skeleton-tag" />
+                  <span className="skeleton-tag" />
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : error ? (
+          <div className="search-error-banner" role="alert">
+            <span className="search-error-icon" aria-hidden="true">
+              ⚠️
+            </span>
+            <div className="search-error-body">
+              <p className="search-error-message">{error}</p>
+              {onRetry && (
+                <button
+                  type="button"
+                  className="search-retry-btn"
+                  onClick={onRetry}
+                >
+                  Try again
+                </button>
+              )}
+            </div>
+          </div>
+        ) : (
+          <>
+            {/* Results count */}
+            <div className="results-header">
+              <span className="results-count">
+                {filteredResults.length} results found
+                {selectedCategory && (
+                  <span className="filter-badge">
+                    Filtered by: #{selectedCategory}
+                  </span>
+                )}
+              </span>
+            </div>
+
+            {/* Results list */}
+            {filteredResults.length === 0 ? (
+              <div className="no-results">
+                <p>No results found</p>
+                <p className="no-results-hint">
+                  {hasQuery
+                    ? "Try adjusting your search or filters"
+                    : "Search for lessons, modules, and resources above"}
+                </p>
+                {hasQuery && (
+                  <div className="no-results-suggestions">
+                    <p className="no-results-suggestions-label">Try:</p>
+                    <ul>
+                      <li>Checking your spelling</li>
+                      <li>Using fewer or more general keywords</li>
+                      {selectedCategory && (
+                        <li>
+                          <button
+                            type="button"
+                            className="no-results-suggestion-btn"
+                            onClick={() => handleCategorySelect(null)}
+                          >
+                            Clearing the "{selectedCategory}" filter
+                          </button>
+                        </li>
+                      )}
+                      {categories.slice(0, 4).map((cat) => (
+                        <li key={cat}>
+                          <button
+                            type="button"
+                            className="no-results-suggestion-btn"
+                            onClick={() => handleSuggestionClick(cat)}
+                          >
+                            Browse "{cat}"
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="results-list">
+                {filteredResults.map((result) => (
+                  <div key={result.id} className="result-item">
+                    <h3 className="result-title">{result.title}</h3>
+                    <p className="result-description">{result.description}</p>
+                    {result.tags && (
+                      <div className="result-tags">
+                        {result.tags.map((tag) => (
+                          <span key={tag} className="result-tag">
+                            #{tag}
+                          </span>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+      </div>
     </div>
   );
 };

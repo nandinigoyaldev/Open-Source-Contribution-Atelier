@@ -12,7 +12,7 @@ import { useSearchWithCategories } from "../hooks/useSearchWithCategories";
 
 export const SearchPage: React.FC = () => {
   const [searchParams] = useSearchParams();
-  const { results, isLoading, categories, search, clearSearch } =
+  const { results, isLoading, error, isDegraded, categories, search, retry } =
     useSearchWithCategories();
 
   // Initial search from URL params
@@ -36,7 +36,10 @@ export const SearchPage: React.FC = () => {
           categories={categories}
           results={results}
           isLoading={isLoading}
+          error={error}
+          isDegraded={isDegraded}
           onSearch={search}
+          onRetry={retry}
         />
       </div>
     </div>
