@@ -1,3 +1,5 @@
+
+
 import uuid
 
 from django.conf import settings
@@ -63,10 +65,12 @@ class PasswordResetToken(models.Model):
         timeout = getattr(settings, "PASSWORD_RESET_TIMEOUT_MINUTES", 15)
         return timezone.now() > self.created_at + timedelta(minutes=timeout)
 
-
 class OTPToken(models.Model):
     """
     Secure OTP token sent to a user's email for verification.
+
+    Tokens expire after settings.OTP_TIMEOUT_MINUTES (default 10).
+    Once used, `is_used` is set to True and the token cannot be reused.
     """
 
     user = models.ForeignKey(
@@ -83,6 +87,23 @@ class OTPToken(models.Model):
 
     def __str__(self) -> str:
         return f"OTPToken(user={self.user.username}, used={self.is_used})"
+
+    def is_expired(self) -> bool:
+        """Return True if the token is older than OTP_TIMEOUT_MINUTES."""
+        from datetime import timedelta
+
+        from django.utils import timezone
+
+        timeout = getattr(settings, "OTP_TIMEOUT_MINUTES", 10)
+        return timezone.now() > self.created_at + timedelta(minutes=timeout)
+
+
+    def is_expired(self) -> bool:
+        """Return True if the token is older than OTP_TIMEOUT_MINUTES."""
+        from datetime import timedelta
+        from django.utils import timezone
+        timeout = getattr(settings, "OTP_TIMEOUT_MINUTES", 15)
+        return timezone.now() > self.created_at + timedelta(minutes=timeout)
 
 
 class MagicLinkToken(models.Model):
@@ -125,15 +146,24 @@ def get_timezone_choices():
 
 
 class UserProfile(models.Model):
-    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    """
+    Standard user profile linking to the main User model.
+    Stores the user's avatar image and JWT token version.
+    """
+
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="user_profile",  # Changed from "profile" to "user_profile"
+    )
     avatar = models.ImageField(
-        upload_to='avatars/',
+        upload_to="avatars/",
         null=True,
         blank=True,
-        max_length=255
-    )    avatar = models.ImageField(upload_to="avatars/", null=True, blank=True)
+        max_length=255,
+    )
     cover_image = models.ImageField(upload_to="covers/", null=True, blank=True)
-    last_password_change = models.DateTimeField(auto_now_add=True)
+    last_password_change = models.DateTimeField(auto_now_add=True, null=True, blank=True)
     timezone = models.CharField(
         max_length=64,
         choices=get_timezone_choices(),
@@ -142,6 +172,11 @@ class UserProfile(models.Model):
     twitter_url = models.URLField(max_length=500, blank=True, default="")
     linkedin_url = models.URLField(max_length=500, blank=True, default="")
     github_url = models.URLField(max_length=500, blank=True, default="")
+    bio = models.TextField(max_length=500, blank=True, default="")
+    receive_weekly_digest = models.BooleanField(
+        default=True, 
+        help_text="Receive automated weekly progress digest emails"
+    )
 
     organization = models.ForeignKey(
         "organizations.Organization",
@@ -151,8 +186,28 @@ class UserProfile(models.Model):
         related_name="users",
     )
 
+    # ============================================================
+    # ✅ ADDED: JWT Token Version for Invalidation
+    # ============================================================
+    jwt_token_version = models.IntegerField(
+        default=1,
+        help_text="Incremented on password change to invalidate existing JWT tokens"
+    )
+
+    class Meta:
+        db_table = "accounts_userprofile"
+
     def __str__(self):
         return f"UserProfile({self.user.username})"
+
+    def increment_jwt_version(self):
+        """
+        Increment JWT token version to invalidate all existing tokens.
+        Called when user changes password.
+        """
+        self.jwt_token_version += 1
+        self.last_password_change = timezone.now()
+        self.save(update_fields=['jwt_token_version', 'last_password_change'])
 
     def _convert_to_webp(self, image_field):
         """Helper method to convert an ImageField to WebP format."""

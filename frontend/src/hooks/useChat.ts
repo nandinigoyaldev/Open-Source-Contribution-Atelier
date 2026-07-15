@@ -11,13 +11,19 @@ import {
   KeyPair,
 } from "../lib/crypto";
 
-type ChatMessage = {
-  id: string;
+export type ChatMessage = {
+  id: string | number;
+  parent_id?: number | null;
   username: string;
   user_id: number;
   message: string;
   timestamp: string;
   created_at?: string;
+};
+
+export type OnlineUser = {
+  user_id: number;
+  username: string;
 };
 
 type UseChatOptions = {
@@ -34,8 +40,9 @@ function getWsUrl(roomId: string): string {
   return `${scheme}://${host}/ws/chat/${roomId}/`;
 }
 
-export function useChat({ roomId, token }: UseChatOptions) {
+export function useChat({ roomId, token, username }: UseChatOptions) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [onlineUsers, setOnlineUsers] = useState<OnlineUser[]>([]);
   const messageIdRef = useRef(0);
   const localUserIdRef = useRef<number | null>(null);
 
@@ -52,29 +59,39 @@ export function useChat({ roomId, token }: UseChatOptions) {
         const myId = localUserIdRef.current;
         let matchedLocalId: string | null = null;
 
+        if (senderId === myId) {
+          setMessages((prev) => {
+            const optimisticIdx = prev.findIndex((m) =>
+              m.id.endsWith("_optimistic"),
+            );
+            if (optimisticIdx !== -1) {
+              return prev.map((m, idx) =>
+                idx === optimisticIdx
+                  ? {
+                      ...m,
+                      id: msg.id as number | string,
+                      parent_id: msg.parent_id as number | null,
+                      username: msg.username as string,
+                      timestamp: msg.created_at
+                        ? new Date(
+                            msg.created_at as string,
+                          ).toLocaleTimeString()
+                        : new Date().toLocaleTimeString(),
+                      created_at: msg.created_at as string | undefined,
+                    }
+                  : m,
+              );
+            }
+            return prev;
+          });
+          return;
+        }
+
         if (plaintext.startsWith("{")) {
           try {
             const payload = JSON.parse(plaintext);
             if (payload.ciphertexts) {
-              matchedLocalId = payload.local_id;
-              if (senderId === myId) {
-                setMessages((prev) => {
-                  const last = prev[prev.length - 1];
-                  if (last && last.id === matchedLocalId) {
-                    return prev.map((m) =>
-                      m.id === matchedLocalId
-                        ? {
-                            ...m,
-                            id: `msg_${messageIdRef.current + 1}`,
-                            username: msg.username as string,
-                          }
-                        : m,
-                    );
-                  }
-                  return prev;
-                });
-                return;
-              } else if (
+              if (
                 myId &&
                 payload.ciphertexts[myId] &&
                 sharedKeysRef.current[senderId]
@@ -86,6 +103,7 @@ export function useChat({ roomId, token }: UseChatOptions) {
                   sharedKeysRef.current[senderId],
                 );
               } else {
+                // If it is JSON ciphertext but we don't have keys, show fallback
                 plaintext = "[Encrypted message - key not found]";
               }
             }
@@ -94,12 +112,17 @@ export function useChat({ roomId, token }: UseChatOptions) {
           }
         }
 
+        if (plaintext === "[Encrypted message - key not found]") {
+          return;
+        }
+
         setMessages((prev) => {
           messageIdRef.current += 1;
           return [
             ...prev,
             {
-              id: `msg_${messageIdRef.current}`,
+              id: (msg.id as number) ?? `msg_${messageIdRef.current}`,
+              parent_id: msg.parent_id as number | null,
               username: msg.username as string,
               user_id: msg.user_id as number,
               message: plaintext,
@@ -177,6 +200,21 @@ export function useChat({ roomId, token }: UseChatOptions) {
               user_id: number;
             },
           );
+        } else if (msg.type === "presence_sync") {
+          setOnlineUsers((msg.users as OnlineUser[]) || []);
+        } else if (msg.type === "presence_joined") {
+          const user = {
+            user_id: msg.user_id as number,
+            username: msg.username as string,
+          };
+          setOnlineUsers((prev) => {
+            if (prev.some((u) => u.user_id === user.user_id)) return prev;
+            return [...prev, user];
+          });
+        } else if (msg.type === "presence_left") {
+          setOnlineUsers((prev) =>
+            prev.filter((u) => u.user_id !== msg.user_id),
+          );
         }
       };
 
@@ -187,38 +225,28 @@ export function useChat({ roomId, token }: UseChatOptions) {
   }, [ws.lastMessage, typing, ws]);
 
   const sendMessage = useCallback(
-    async (text: string) => {
+    async (text: string, parentId?: number) => {
       messageIdRef.current += 1;
       const localId = `msg_${messageIdRef.current}_optimistic`;
       const optimistic: ChatMessage = {
         id: localId,
-        username: "",
+        parent_id: parentId,
+        username: username || "",
         user_id: localUserIdRef.current ?? 0,
         message: text,
         timestamp: new Date().toLocaleTimeString(),
       };
       setMessages((prev) => [...prev, optimistic]);
 
-      const ciphertexts: Record<number, { ciphertext: string; iv: string }> =
-        {};
-      for (const [userIdStr, key] of Object.entries(sharedKeysRef.current)) {
-        const userId = Number(userIdStr);
-        ciphertexts[userId] = await encryptMessage(text, key);
-      }
-
-      const payload = {
-        local_id: localId,
-        ciphertexts,
-      };
-
-      ws.send({ action: "send_message", message: JSON.stringify(payload) });
+      ws.send({ action: "send_message", message: text, parent_id: parentId });
     },
-    [ws],
+    [ws, username],
   );
 
   return {
     messages,
     typingUsers: typing.typingUsers,
+    onlineUsers,
     isConnected: ws.isConnected,
     sendMessage,
     onInputChange: typing.onInputChange,

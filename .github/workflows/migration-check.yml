@@ -1,0 +1,44 @@
+name: Migration Safety Check
+
+on:
+  pull_request:
+    paths:
+      - 'backend/**/migrations/*.py'
+
+jobs:
+  migration-check:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: actions/checkout@v3
+      
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+      
+      - name: Install dependencies
+        run: |
+          cd backend
+          pip install -r requirements.txt
+      
+      - name: Check migration safety
+        id: check
+        run: |
+          cd backend
+          python manage.py check_migration_safety
+      
+      - name: Comment PR
+        uses: actions/github-script@v6
+        with:
+          script: |
+            const check = '${{ steps.check.outputs.result }}';
+            const comment = check === 'safe' 
+              ? '✅ Migration safety check passed!' 
+              : '⚠️ Migration safety check found issues. Please review.';
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            })

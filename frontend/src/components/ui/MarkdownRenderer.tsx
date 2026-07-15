@@ -108,8 +108,8 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
       }
       index++; // skip closing ```
       blocks.push(
-        <div key={index} className="relative my-4">
-          <div className="absolute top-2 right-2 z-10">
+        <div key={index} className="relative my-4 group">
+          <div className="absolute top-2 right-2 z-10 opacity-100 md:opacity-0 md:group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
             <CopyButton text={codeContent.trim()} />
           </div>
 

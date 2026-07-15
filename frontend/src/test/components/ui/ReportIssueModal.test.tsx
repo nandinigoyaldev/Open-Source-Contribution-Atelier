@@ -1,4 +1,10 @@
-import { render, screen, fireEvent, waitFor, cleanup } from "@testing-library/react";
+import {
+  render,
+  screen,
+  fireEvent,
+  waitFor,
+  cleanup,
+} from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import ReportIssueModal from "../../../components/ui/ReportIssueModal";
 import api from "../../../api";
@@ -49,13 +55,25 @@ describe("ReportIssueModal", () => {
 
   it("submits the form with provided data", async () => {
     (api.post as any).mockResolvedValueOnce({ data: {} });
-    render(<ReportIssueModal open={true} onClose={mockOnClose} urlPath="/test-url" />);
+    render(
+      <ReportIssueModal
+        open={true}
+        onClose={mockOnClose}
+        urlPath="/test-url"
+      />,
+    );
 
-    // Find inputs by placeholder or role/label since our component uses `label` but the connection isn't explicit via `htmlFor`. 
+    // Find inputs by placeholder or role/label since our component uses `label` but the connection isn't explicit via `htmlFor`.
     // We can find them by placeholder or text.
-    fireEvent.change(screen.getByPlaceholderText("Brief summary of the issue"), { target: { value: "Test Title" } });
-    fireEvent.change(screen.getByPlaceholderText("Detailed steps to reproduce the issue..."), { target: { value: "Test Description" } });
-    
+    fireEvent.change(
+      screen.getByPlaceholderText("Brief summary of the issue"),
+      { target: { value: "Test Title" } },
+    );
+    fireEvent.change(
+      screen.getByPlaceholderText("Detailed steps to reproduce the issue..."),
+      { target: { value: "Test Description" } },
+    );
+
     // Select Issue Type
     fireEvent.change(screen.getByRole("combobox"), { target: { value: "UI" } });
 
@@ -75,13 +93,21 @@ describe("ReportIssueModal", () => {
     (api.post as any).mockRejectedValueOnce(new Error("Network Error"));
     render(<ReportIssueModal open={true} onClose={mockOnClose} />);
 
-    fireEvent.change(screen.getByPlaceholderText("Brief summary of the issue"), { target: { value: "Test Title" } });
-    fireEvent.change(screen.getByPlaceholderText("Detailed steps to reproduce the issue..."), { target: { value: "Test Description" } });
+    fireEvent.change(
+      screen.getByPlaceholderText("Brief summary of the issue"),
+      { target: { value: "Test Title" } },
+    );
+    fireEvent.change(
+      screen.getByPlaceholderText("Detailed steps to reproduce the issue..."),
+      { target: { value: "Test Description" } },
+    );
 
     fireEvent.click(screen.getByText("Submit Report"));
 
     await waitFor(() => {
-      expect(toast.error).toHaveBeenCalledWith("Failed to submit issue. Please try again.");
+      expect(toast.error).toHaveBeenCalledWith(
+        "Failed to submit issue. Please try again.",
+      );
     });
   });
 

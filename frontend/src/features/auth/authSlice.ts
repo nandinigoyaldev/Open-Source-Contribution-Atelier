@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk, PayloadAction } from "@reduxjs/toolkit";
 import { fetchApi } from "../../lib/api";
+import { clearAccessToken, getAccessToken, setAccessToken } from "../../lib/authToken";
 
 type User = {
   id: number;
@@ -46,14 +47,6 @@ function safeSetItem(key: string, value: string) {
   }
 }
 
-function safeGetItem(key: string): string | null {
-  try {
-    return localStorage.getItem(key);
-  } catch {
-    return null;
-  }
-}
-
 function safeRemoveItem(key: string) {
   try {
     localStorage.removeItem(key);
@@ -65,7 +58,7 @@ function safeRemoveItem(key: string) {
 export const checkUser = createAsyncThunk(
   "auth/checkUser",
   async (_, { rejectWithValue }) => {
-    const token = safeGetItem("accessToken");
+    const token = getAccessToken();
     if (!token) {
       return rejectWithValue("No token");
     }
@@ -73,7 +66,7 @@ export const checkUser = createAsyncThunk(
       const data = await fetchApi("/auth/me/", { requireAuth: true });
       return data as User;
     } catch {
-      safeRemoveItem("accessToken");
+      clearAccessToken();
       safeRemoveItem("refreshToken");
       return rejectWithValue("Failed to fetch user");
     }
@@ -105,7 +98,7 @@ export const logoutAction = createAsyncThunk(
       console.error("Error unsubscribing push on logout", e);
     }
 
-    safeRemoveItem("accessToken");
+    clearAccessToken();
     safeRemoveItem("refreshToken");
   }
 );
@@ -118,7 +111,7 @@ export const authSlice = createSlice({
       state,
       action: PayloadAction<{ access: string; refresh: string }>
     ) => {
-      safeSetItem("accessToken", action.payload.access);
+      setAccessToken(action.payload.access);
       safeSetItem("refreshToken", action.payload.refresh);
     },
   },

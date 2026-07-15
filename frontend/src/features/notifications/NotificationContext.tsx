@@ -7,6 +7,7 @@ import { useWebSocket } from "../../hooks/useWebSocket";
 import { useBadgeToast } from "../../hooks/useBadgeToast";
 import { BADGES } from "../../constants/badges";
 import api from "../../api";
+import { getAccessToken } from "../../lib/authToken";
 import {
   fetchNotifications,
   setWsUnreadCount,
@@ -59,12 +60,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   }, [wsUnreadCount, notifications]);
 
   // Auth token for WS
-  let token: string | null = null;
-  try {
-    token = localStorage.getItem("accessToken");
-  } catch {
-    /* localStorage unavailable */
-  }
+  const token = getAccessToken();
 
   const { send: sendMessage } = useWebSocket({
     url: getNotificationsWsUrl(),
