@@ -231,12 +231,19 @@ MIDDLEWARE = [
     "django.contrib.messages.middleware.MessageMiddleware",
     "apps.cache.audit_middleware.AuditLogMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    "apps.core.middleware.AdminAuditMiddleware",
     "waffle.middleware.WaffleMiddleware",
     "apps.cache.middleware.RateLimitMiddleware",
     "apps.sandbox.middleware.SandboxExecutionLogMiddleware",
     "allauth.account.middleware.AccountMiddleware",
     "django_prometheus.middleware.PrometheusAfterMiddleware",
 ]
+
+if TESTING:
+    INSTALLED_APPS.append("nplusone.ext.django")
+    MIDDLEWARE.insert(0, "nplusone.ext.django.NPlusOneMiddleware")
+    NPLUSONE_RAISE = True
+    SILENCED_SYSTEM_CHECKS = ["perf.E001"]
 
 ROOT_URLCONF = "config.urls"
 
@@ -365,8 +372,8 @@ REST_FRAMEWORK = {
     # ── Default Throttle Classes ─────────────────────────────────────────────
     "DATETIME_FORMAT": "%Y-%m-%dT%H:%M:%SZ",
     "DEFAULT_THROTTLE_CLASSES": [
-        "rest_framework.throttling.AnonRateThrottle",
-        "rest_framework.throttling.UserRateThrottle",
+        "apps.core.throttling.SlidingWindowAnonThrottle",
+        "apps.core.throttling.SlidingWindowUserThrottle",
     ],
     # ── Throttle Rates ───────────────────────────────────────────────────────
     # Sandbox endpoints
@@ -393,6 +400,8 @@ REST_FRAMEWORK = {
         "auth_magic_link_verify": os.getenv("RATE_AUTH_MAGIC_LINK_VERIFY", "5/minute"),
         # ── Chat ─────────────────────────────────────────────────────────────
         "chat_message": "30/minute",
+        # ── Events ───────────────────────────────────────────────────────────
+        "events_list": os.getenv("RATE_EVENTS_LIST", "60/minute"),
     },
     "DEFAULT_AUTHENTICATION_CLASSES": (
         "rest_framework_simplejwt.authentication.JWTAuthentication",
@@ -499,9 +508,15 @@ CSRF_TRUSTED_ORIGINS = [
     "http://localhost:5173",
 ]
 
-# Auto-include FRONTEND_URL if set and not already in the list
-if _frontend_url and _frontend_url not in CSRF_TRUSTED_ORIGINS:
-    CSRF_TRUSTED_ORIGINS.append(_frontend_url)
+CONTENT_SECURITY_POLICY = {
+    "img-src": [
+        "'self'",
+        "blob:",                    
+        "http://localhost:8000",   
+        "https://*.amazonaws.com",  
+        "data:",                    
+    ],
+}
 
 # ──────────────────────────────────────────
 # Redis Availability and Configuration (Dynamic Fallbacks)
@@ -576,6 +591,16 @@ else:
             "LOCATION": "atelier-l1-cache",
         },
     }
+
+CELERY_BEAT_SCHEDULE = {
+    'sync-oss-issues-hourly': {
+        'task': 'apps.recommendations.tasks.sync_oss_issues',
+        'schedule': 3600.0,  # Every hour
+    },
+}
+
+MEDIA_URL = '/media/'
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 
 # Cache timeout for Search API (in seconds) - Default: 1 hour
 SEARCH_CACHE_TIMEOUT = 60 * 60
@@ -757,3 +782,25 @@ CLAMAV_HOST = os.getenv("CLAMAV_HOST", "127.0.0.1")
 CLAMAV_PORT = int(os.getenv("CLAMAV_PORT", "3310"))
 CLAMAV_SOCKET = os.getenv("CLAMAV_SOCKET", "")
 UPLOAD_SCAN_FAIL_CLOSED = os.getenv("UPLOAD_SCAN_FAIL_CLOSED", "true").lower() == "true"
+
+# ──────────────────────────────────────────
+# Database Backup Configuration
+# ──────────────────────────────────────────
+BACKUP_DIR = os.getenv("BACKUP_DIR", str(BASE_DIR / "backups"))
+BACKUP_RETENTION_DAYS = int(os.getenv("BACKUP_RETENTION_DAYS", "30"))
+
+# ──────────────────────────────────────────
+# Sentry Configuration
+# ──────────────────────────────────────────
+SENTRY_DSN = os.getenv("SENTRY_DSN")
+if SENTRY_DSN:
+    import sentry_sdk
+    from sentry_sdk.integrations.django import DjangoIntegration
+
+    sentry_sdk.init(
+        dsn=SENTRY_DSN,
+        integrations=[DjangoIntegration()],
+        traces_sample_rate=float(os.getenv("SENTRY_TRACES_SAMPLE_RATE", "1.0")),
+        send_default_pii=False,
+    )
+

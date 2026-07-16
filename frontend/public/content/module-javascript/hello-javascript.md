@@ -1,8 +1,6 @@
 ## 🇯‌🇸‌ JavaScript is the programming language of the web. In this lesson, we will learn how to write basic JavaScript functions and see the output directly in the browser, and delve into the topic of Web Workers.
 
-<div align="Center">
-  <img width="150" height=auto alt="image" src="https://github.com/user-attachments/assets/6066bbdf-7825-4499-947e-a9cb9f3200a6" />
-</div>
+<img width="1492" height="312" alt="image" src="https://github.com/user-attachments/assets/e247359d-fbc6-436d-8c2a-0d53db6e85b7" />
 
 ---
 

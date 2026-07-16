@@ -10,9 +10,7 @@ Don't panic — conflicts are normal, and resolving them is a skill you'll pick 
 
 ---
 
-<div align="center">
-   <img width="760" height=auto alt="image" src="https://github.com/user-attachments/assets/b9e04891-8876-4496-93c7-439408b4a70e" />
-</div>
+<img width="919" height="367" alt="image" src="https://github.com/user-attachments/assets/a30dee6c-5fb7-48f6-b6ac-7e97f1cc7366" />
 
 ---
 

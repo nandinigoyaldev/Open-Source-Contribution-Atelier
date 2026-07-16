@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 # SANDOX VERIFY WITH DUPLICATE PREVENTION
 # ============================================================
 
-from rest_framework.throttling import ScopedRateThrottle
+from apps.core.throttling import SlidingWindowScopedThrottle
 
 class SandboxVerifySerializer(serializers.Serializer):
     command = serializers.CharField()
@@ -44,7 +44,7 @@ class SandboxVerifyView(APIView):
     Sandbox verification with duplicate execution prevention.
     """
     permission_classes = [permissions.IsAuthenticated]
-    throttle_classes = [ScopedRateThrottle]
+    throttle_classes = [SlidingWindowScopedThrottle]
     throttle_scope = "sandbox_user"
 
     @prevent_duplicate_execution(

@@ -1,4 +1,4 @@
-# Review & Revision Habits
+## After submitting a Pull Request, your changes must pass the reviews of the repo maintainer and be approved in order to be merged with the repo.
 
 Submitting a Pull Request isn't the finish line — it's where the collaboration really begins!
 

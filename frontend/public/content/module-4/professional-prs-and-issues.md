@@ -1,6 +1,4 @@
-# Professional Submissions
-
-Being a good open source contributor isn't just about writing good code — it's about being a **considerate collaborator**.
+## Being a good open source contributor isn't just about writing good code — it's about being a professional and considerate collaborator.
 
 Think of it like **being a guest at a potluck dinner**. You wouldn't show up empty-handed, eat all the food without talking to anyone, or bring a dish that nobody asked for. The same courtesies apply to pull requests and issues.
 

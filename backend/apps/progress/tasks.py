@@ -253,3 +253,29 @@ def process_buffered_progress_updates():
     logger.info(
         f"Successfully processed {success_count} progress updates. {len(failed_updates)} failed."
     )
+
+
+def award_specific_badge(user_id, badge_id):
+    """
+    Background task to award a specific badge to a user.
+    """
+    from apps.notifications.signals import create_and_push_notification
+
+    try:
+        user = User.objects.get(id=user_id)
+        badge = Badge.objects.get(id=badge_id)
+    except (User.DoesNotExist, Badge.DoesNotExist):
+        return
+
+    _, newly_earned = UserBadge.objects.get_or_create(user=user, badge=badge)
+    if newly_earned:
+        create_and_push_notification(
+            recipient=user,
+            notif_type="badge",
+            title="\U0001f3c6 Badge Unlocked!",
+            message=f"You unlocked: {badge.name}",
+            meta={
+                "badge_slug": badge.slug,
+                "icon": badge.icon_asset_url,
+            },
+        )

@@ -6,9 +6,7 @@ Think of it like the **water cooler at an office** or the **lounge at a meetup**
 
 ---
 
-<div align="center">
-  <img width="600" height=auto alt="image" src="https://github.com/user-attachments/assets/8d054469-a5c1-4ff0-9e8d-8baf14eddeed" />
-</div>
+<img width="1011" height="502" alt="image" src="https://github.com/user-attachments/assets/a9768b76-89ac-4fb9-ad8f-0cb56109f0bd" />
 
 ---
 

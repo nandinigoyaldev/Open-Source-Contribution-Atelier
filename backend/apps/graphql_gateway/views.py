@@ -16,7 +16,7 @@ logger = logging.getLogger(__name__)
 
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
+from apps.core.throttling import SlidingWindowAnonThrottle, SlidingWindowUserThrottle
 from rest_framework.views import APIView
 
 
@@ -26,7 +26,7 @@ class GraphQLGatewayView(APIView):
     """
 
     permission_classes = [IsAuthenticated]
-    throttle_classes = [UserRateThrottle, AnonRateThrottle]
+    throttle_classes = [SlidingWindowUserThrottle, SlidingWindowAnonThrottle]
 
     def get(self, request):
         return self._handle_request(request)

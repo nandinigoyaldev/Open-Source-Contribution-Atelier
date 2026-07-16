@@ -38,6 +38,13 @@ class Notification(models.Model):
         return f"[{self.notif_type}] → {self.recipient} | {self.title}"
 
 
+class NotificationPreference(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE)
+    email_enabled = models.BooleanField(default=True)
+    in_app_enabled = models.BooleanField(default=True)
+    websocket_enabled = models.BooleanField(default=True)
+  
+
 class PushSubscription(models.Model):
     user = models.ForeignKey(
         User, on_delete=models.CASCADE, related_name="push_subscriptions"

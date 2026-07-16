@@ -93,22 +93,36 @@ def deliver_webhook(delivery_id, attempt=1):
     delivery.attempt_count = attempt
     delivery.status = "retrying" if attempt > 1 else "pending"
 
+    from apps.core.resilience import CircuitBreaker, CircuitOpenError
+
+    cb = CircuitBreaker(
+        f"webhook:{hashlib.md5(endpoint.target_url.encode('utf-8')).hexdigest()}",
+        failure_threshold=5,
+        recovery_timeout=30,
+    )
+
     try:
-        response = requests.post(
-            endpoint.target_url, json=delivery.payload, headers=headers, timeout=10
-        )
-        delivery.status_code = response.status_code
-        delivery.response_body = response.text[:2000]
+        with cb:
+            response = requests.post(
+                endpoint.target_url, json=delivery.payload, headers=headers, timeout=5
+            )
+            delivery.status_code = response.status_code
+            delivery.response_body = response.text[:2000]
 
-        if 200 <= response.status_code < 300:
-            delivery.status = "success"
-            delivery.next_retry_at = None
-            delivery.save()
-            return
+            if 200 <= response.status_code < 300:
+                delivery.status = "success"
+                delivery.next_retry_at = None
+                delivery.save()
+                return
 
-        # Retryable: rate-limited or server-side errors
-        is_retryable = response.status_code == 429 or response.status_code >= 500
-        failure_reason = f"HTTP {response.status_code}: {response.text[:500]}"
+            # Retryable: rate-limited or server-side errors
+            is_retryable = response.status_code == 429 or response.status_code >= 500
+            failure_reason = f"HTTP {response.status_code}: {response.text[:500]}"
+
+    except CircuitOpenError as exc:
+        is_retryable = True
+        failure_reason = f"Circuit open: {str(exc)}"
+        delivery.response_body = failure_reason
 
     except requests.exceptions.RequestException as exc:
         is_retryable = True
@@ -156,11 +170,15 @@ def replay_delivery(dlq_entry_id: int) -> None:
     delivery.status = "pending"
     delivery.attempt_count = 0
     delivery.next_retry_at = None
-    delivery.save(update_fields=["status", "attempt_count", "next_retry_at", "updated_at"])
+    delivery.save(
+        update_fields=["status", "attempt_count", "next_retry_at", "updated_at"]
+    )
 
     dlq.replayed = True
     dlq.replayed_at = timezone.now()
     dlq.save(update_fields=["replayed", "replayed_at"])
 
     async_task("apps.webhooks.tasks.deliver_webhook", delivery.id, attempt=1)
-    logger.info("Queued replay for DLQ entry %s (delivery %s).", dlq_entry_id, delivery.id)
+    logger.info(
+        "Queued replay for DLQ entry %s (delivery %s).", dlq_entry_id, delivery.id
+    )

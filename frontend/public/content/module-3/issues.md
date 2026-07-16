@@ -16,9 +16,7 @@ An **Issue** is a tracking ticket. It's used to:
 
 It's the starting line for almost every contribution.
 
-<div align="center">
-  <img width="650" height=auto alt="image" src="https://github.com/user-attachments/assets/8a23a0c6-6a54-455d-95f8-ed85217df791" />
-</div>
+<img width="1011" height="473" alt="image" src="https://github.com/user-attachments/assets/8986a306-bc9a-4967-a4c3-fe7d9ece02b2" />
 
 ---
 

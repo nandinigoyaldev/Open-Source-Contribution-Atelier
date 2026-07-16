@@ -8,27 +8,7 @@ Let's walk through the nine steps of a professional contribution.
 
 ## The 9-Step Lifecycle
 
-```mermaid
-graph TD
-    A[1. Pick/Raise Issue] --> B[2. Request Assignment]
-    B --> C[3. Get Assigned]
-    C --> D[4. Create Branch]
-    D --> E[5. Develop/Make Your Changes]
-    E --> F[6. Run Local Tests]
-    F --> G[7. Create Pull Request]
-    G --> H[8. Maintainer Review & Revisions]
-    H --> I[9. Merge & Close]
-
-    style A fill:#ff4a4a,stroke:#fff,stroke-width:2px,color:#fff
-    style B fill:#ff9f43,stroke:#fff,stroke-width:2px,color:#fff
-    style C fill:#f1c40f,stroke:#fff,stroke-width:2px,color:#000
-    style D fill:#2ecc71,stroke:#fff,stroke-width:2px,color:#fff
-    style E fill:#00f3ff,stroke:#fff,stroke-width:2px,color:#000
-    style F fill:#3498db,stroke:#fff,stroke-width:2px,color:#fff
-    style G fill:#9b59b6,stroke:#fff,stroke-width:2px,color:#fff
-    style H fill:#ff0055,stroke:#fff,stroke-width:2px,color:#fff
-    style I fill:#34495e,stroke:#fff,stroke-width:2px,color:#fff
-```
+<img width="1042" height="727" alt="image" src="https://github.com/user-attachments/assets/f38a53e1-12e1-496c-a3c9-afa90f7f79d9" />
 
 ---
 

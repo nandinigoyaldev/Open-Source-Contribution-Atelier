@@ -66,6 +66,14 @@ class Bounty(models.Model):
         blank=True,
         related_name="claimed_bounties",
     )
+    badge = models.ForeignKey(
+        "progress.Badge",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="bounties",
+        help_text="Optional badge awarded upon completion of this bounty.",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

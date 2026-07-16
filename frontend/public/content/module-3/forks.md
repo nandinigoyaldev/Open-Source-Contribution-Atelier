@@ -6,9 +6,7 @@ Instead, you make a **fork** — your own personal copy of the project.
 
 ---
 
-<div align="center">
-  <img width="600" height=auto alt="Untitled design (1)" src="https://github.com/user-attachments/assets/23a980f9-4d45-4d26-9e46-27a3a6e49630" />
-</div>
+<img width="1364" height="98" alt="image" src="https://github.com/user-attachments/assets/0f29b4f0-ce29-4389-8567-86bae421d44b" />
 
 ---
 

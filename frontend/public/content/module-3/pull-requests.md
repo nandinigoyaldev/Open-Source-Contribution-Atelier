@@ -6,9 +6,7 @@ Think of it like this: you borrowed a friend's recipe book and photocopied a pag
 
 ---
 
-<div align="center">
-  <img width="714" height="400" alt="image" src="https://github.com/user-attachments/assets/0e184fe1-9d55-41e0-a46e-aa3b69d94517" />
-</div>
+<img width="1011" height="435" alt="image" src="https://github.com/user-attachments/assets/b1d6901d-47e5-47fd-ae6d-719d261045d2" />
 
 ---
 

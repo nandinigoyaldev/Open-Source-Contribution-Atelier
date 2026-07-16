@@ -1,8 +1,8 @@
-# Reading Guidelines First
+## Before you write a single line of code, you need to read the project's rules. These live in two critical files.
 
 Imagine you're invited to a friend's house for dinner. You wouldn't walk in and start rearranging their kitchen, right? You'd ask: "Where's the bathroom? What can I help with? Any house rules?"
 
-Contributing to a project is the same. Before you write a single line of code, you need to read the project's rules. These live in two critical files.
+Contributing to a project is the same. Before you start coding or making your changes, you need to read the project's rules. These live in two critical files.
 
 ---
 
@@ -18,6 +18,10 @@ A good README tells you:
 
 If the README is missing or unclear, that's a great opportunity for your first contribution — you could improve it!
 
+_Example README_
+
+<img width="1012" height="738" alt="image" src="https://github.com/user-attachments/assets/78db4bbb-48bf-49bc-8fc5-265a45270980" />
+
 ---
 
 ### 📋 CONTRIBUTING.md — The Instruction Manual
@@ -30,6 +34,10 @@ This file explains:
 - How to name your branches (e.g. `fix/...` instead of `bug/...`)
 - How to run tests and check code style
 - The Pull Request submission process
+
+_Example CONTRIBUTING.md_
+
+<img width="1012" height="876" alt="image" src="https://github.com/user-attachments/assets/30fa0ef6-ee42-4228-a18a-a4f90af1bcfb" />
 
 ---
 

@@ -12,6 +12,8 @@ But don't worry — we've got a map. Let's look at the best ways to find beginne
 
 Start at **github.com/explore** — it's like a curated bookstore window. You can browse projects by topics you're interested in: `react`, `python`, `machine-learning`, `cli`, `games` — whatever excites you!
 
+---
+
 ### 2. Search for Beginner-Friendly Issues
 
 Use GitHub's search bar to find issues tagged specifically for newcomers:
@@ -23,6 +25,8 @@ is:open is:issue label:"help wanted"
 ```
 
 These labels are like **"new players welcome" signs** — projects that use them are actively looking for contributors like you.
+
+---
 
 ### 3. Use Dedicated Platforms
 

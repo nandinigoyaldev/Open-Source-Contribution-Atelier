@@ -1,12 +1,16 @@
-from django.test import TestCase, override_settings
-from django.utils import timezone
+import os
+from pathlib import Path
+
 from datetime import timedelta
-from apps.core.models import PurgeLog
-from apps.dashboard.models import Issue
+from unittest.mock import patch
+
 from django.contrib.auth import get_user_model
 from django.core.cache import caches
+from django.test import TestCase, override_settings
+from django.utils import timezone
 
-from unittest.mock import patch
+from apps.core.models import PurgeLog
+from apps.dashboard.models import Issue
 
 User = get_user_model()
 
@@ -26,6 +30,7 @@ User = get_user_model()
 class MultiLevelCacheTests(TestCase):
     def setUp(self):
         from apps.core.cache import MultiLevelCache
+
         self.cache = MultiLevelCache()
         caches["default"].clear()
         caches["l1_memory"].clear()
@@ -139,3 +144,150 @@ class SoftDeleteFrameworkTests(TestCase):
         # Issue should NOT be deleted
         self.assertEqual(Issue.all_objects.count(), 1)
         self.assertEqual(Issue.deleted_objects.count(), 1)
+
+    def test_n_plus_one_query_detection(self):
+        from nplusone.core.exceptions import NPlusOneError
+        from nplusone.core.profiler import Profiler
+
+        users = [
+            User.objects.create_user(username=f"user_{i}", password="password123")
+            for i in range(3)
+        ]
+
+        for i in range(3):
+            Issue.objects.create(
+                title=f"Test Issue {i}",
+                description="Test Description",
+                assigned_to=users[i],
+                status="open",
+            )
+
+        with self.assertRaises(NPlusOneError):
+            with Profiler():
+                parent_users = list(User.objects.all())
+                for user in parent_users:
+                    _ = list(user.assigned_issues.all())
+
+
+class DatabaseBackupTests(TestCase):
+    def setUp(self):
+        import tempfile
+        self.tmpdir = tempfile.mkdtemp()
+
+    def tearDown(self):
+        import shutil
+        shutil.rmtree(self.tmpdir, ignore_errors=True)
+
+    @override_settings(BACKUP_DIR=None)
+    def test_backup_creates_file(self):
+        from django.conf import settings as _s
+        _s.BACKUP_DIR = self.tmpdir
+
+        from apps.core.tasks import backup_database
+        result = backup_database()
+
+        self.assertIsNotNone(result)
+        self.assertTrue(Path(result).exists())
+        self.assertGreater(Path(result).stat().st_size, 0)
+
+    @override_settings(BACKUP_DIR=None, BACKUP_RETENTION_DAYS=30)
+    def test_prune_removes_old_files(self):
+        from django.conf import settings as _s
+        _s.BACKUP_DIR = self.tmpdir
+        _s.BACKUP_RETENTION_DAYS = 30
+
+        old_file = Path(self.tmpdir) / "backup_20000101_000000.json"
+        old_file.write_text("[]")
+        old_mtime = (timezone.now() - timedelta(days=31)).timestamp()
+        os.utime(old_file, (old_mtime, old_mtime))
+
+        from apps.core.tasks import prune_old_backups
+        deleted = prune_old_backups()
+
+        self.assertEqual(deleted, 1)
+        self.assertFalse(old_file.exists())
+
+    @override_settings(BACKUP_DIR=None, BACKUP_RETENTION_DAYS=30)
+    def test_prune_keeps_recent_files(self):
+        from django.conf import settings as _s
+        _s.BACKUP_DIR = self.tmpdir
+        _s.BACKUP_RETENTION_DAYS = 30
+
+        recent_file = Path(self.tmpdir) / "backup_20991231_000000.json"
+        recent_file.write_text("[]")
+
+        from apps.core.tasks import prune_old_backups
+        deleted = prune_old_backups()
+
+        self.assertEqual(deleted, 0)
+        self.assertTrue(recent_file.exists())
+
+    @override_settings(BACKUP_DIR=None)
+    def test_prune_missing_dir_returns_zero(self):
+        from django.conf import settings as _s
+        _s.BACKUP_DIR = str(Path(self.tmpdir) / "nonexistent")
+
+        from apps.core.tasks import prune_old_backups
+        self.assertEqual(prune_old_backups(), 0)
+
+
+class CircuitBreakerTests(TestCase):
+    def setUp(self):
+        from django.core.cache import cache
+
+        cache.clear()
+
+    def test_circuit_breaker_success_flow(self):
+        from apps.core.resilience import CircuitBreaker
+
+        cb = CircuitBreaker("test_service", failure_threshold=3, recovery_timeout=2)
+
+        self.assertEqual(cb.get_state(), "closed")
+
+        with cb:
+            pass
+
+        self.assertEqual(cb.get_state(), "closed")
+
+    def test_circuit_breaker_failure_flow_and_open(self):
+        from apps.core.resilience import CircuitBreaker, CircuitOpenError
+
+        cb = CircuitBreaker("test_service", failure_threshold=3, recovery_timeout=2)
+
+        for _ in range(3):
+            try:
+                with cb:
+                    raise ValueError("Fail")
+            except ValueError:
+                pass
+
+        self.assertEqual(cb.get_state(), "open")
+
+        with self.assertRaises(CircuitOpenError):
+            with cb:
+                pass
+
+    def test_circuit_breaker_recovery_half_open(self):
+        import time
+
+        from apps.core.resilience import CircuitBreaker
+
+        cb = CircuitBreaker("test_service", failure_threshold=2, recovery_timeout=1)
+
+        for _ in range(2):
+            try:
+                with cb:
+                    raise ValueError("Fail")
+            except ValueError:
+                pass
+
+        self.assertEqual(cb.get_state(), "open")
+
+        time.sleep(1.1)
+
+        self.assertEqual(cb.get_state(), "half_open")
+
+        with cb:
+            pass
+
+        self.assertEqual(cb.get_state(), "closed")
