@@ -71,6 +71,7 @@ urlpatterns = [
     path("api/portfolio/", include("apps.portfolio.urls")),
     path("api/organizations/", include("apps.organizations.urls")),
     path("api/accessibility/", include("apps.accessibility.urls")),
+    # ── Issue Reporting ────────────────────────────────────────────────────────
     path("api/issues/", include("apps.issues.urls")),
     # ── Project Health Dashboard ───────────────────────────────────────────────
     path("api/project-health/", include("apps.project_health.urls")),
