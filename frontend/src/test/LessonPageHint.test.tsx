@@ -63,6 +63,7 @@ vi.mock("../components/ui/NotePanel", () => ({
 
 // Provide our own mock data
 const customLesson = {
+  id: 0,
   slug: "test-lesson-hint",
   title: "Hint Testing Lesson",
   description: "Testing the hint gamification",

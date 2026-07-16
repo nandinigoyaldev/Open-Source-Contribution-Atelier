@@ -30,6 +30,28 @@ services:
     ports:
       - "6379:6379"
 
+  meilisearch:
+    image: getmeili/meilisearch:v1.7
+    ports:
+      - "7700:7700"
+    environment:
+      - MEILI_MASTER_KEY=masterKey123
+      - MEILI_NO_ANALYTICS=true
+    volumes:
+      - meili_data:/meili_data
+
+  pgbouncer:
+    image: edoburu/pgbouncer:latest
+    environment:
+      - DATABASE_URL=postgres://atelier_user:atelier_password@db:5432/atelier
+      - MAX_CLIENT_CONN=1000
+      - DEFAULT_POOL_SIZE=20
+      - POOL_MODE=transaction
+    ports:
+      - "6432:6432"
+    depends_on:
+      - db
+
   backend:
     build:
       context: ./backend
@@ -39,12 +61,16 @@ services:
     volumes:
       - ./backend:/app
     environment:
-      - DATABASE_URL=postgres://atelier_user:atelier_password@db:5432/atelier
+      - DATABASE_URL=postgres://atelier_user:atelier_password@pgbouncer:6432/atelier
       - REDIS_URL=redis://redis:6379/0
+      - MEILI_URL=http://meilisearch:7700
+      - MEILI_MASTER_KEY=masterKey123
       - DEBUG=True
     depends_on:
       - db
       - redis
+      - pgbouncer
+      - meilisearch
     labels:
       - "traefik.enable=true"
       - "traefik.http.routers.backend.rule=PathPrefix(`/api`) || PathPrefix(`/admin`) || PathPrefix(`/static`)"
@@ -69,12 +95,15 @@ services:
     volumes:
       - ./backend:/app
     environment:
-      - DATABASE_URL=postgres://atelier_user:atelier_password@db:5432/atelier
+      - DATABASE_URL=postgres://atelier_user:atelier_password@pgbouncer:6432/atelier
       - REDIS_URL=redis://redis:6379/0
+      - MEILI_URL=http://meilisearch:7700
+      - MEILI_MASTER_KEY=masterKey123
       - DEBUG=True
     depends_on:
       - db
       - redis
+      - meilisearch
 
   frontend:
     build:
@@ -103,3 +132,5 @@ services:
 
 volumes:
   postgres_data:
+  meili_data:
+

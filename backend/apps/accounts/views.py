@@ -14,9 +14,14 @@ from django.utils import timezone
 from django.utils.text import slugify
 from django_filters.rest_framework import DjangoFilterBackend
 from django_q.tasks import async_task
-from drf_spectacular.utils import OpenApiResponse, extend_schema, extend_schema_view
-from drf_spectacular.utils import extend_schema, OpenApiParameter, OpenApiExample
 from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import (
+    OpenApiExample,
+    OpenApiParameter,
+    OpenApiResponse,
+    extend_schema,
+    extend_schema_view,
+)
 from rest_framework import filters, generics, permissions, status
 from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.permissions import IsAuthenticated
@@ -27,6 +32,18 @@ from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
 
 from apps.progress.models import LessonProgress, UserBadge
 from apps.progress.serializers import UserBadgeSerializer
+from schemas.user import (
+    LoginResponseSchema,
+    UserCreateSchema,
+    UserLoginSchema,
+    UserProfileSchema,
+    UserResponseSchema,
+)
+
+
+class LoginResponseSchema(UserResponseSchema):
+    pass
+
 
 from .models import MagicLinkToken, OTPToken, PasswordResetToken
 from .serializers import (
@@ -62,15 +79,16 @@ from .throttles import (
 )
 
 
+def username_from_value(value: str) -> str:
+    """Return a normalized username candidate from a GitHub login or email."""
+    return slugify(value.split("@")[0]) or "user"
+
+
 def unique_username_from_value(value: str) -> str:
-    base = slugify(value.split("@")[0]) or "user"
-    candidate = base
-    suffix = 1
-
-    while User.objects.filter(username=candidate).exists():
-        candidate = f"{base}{suffix}"
-        suffix += 1
-
+    """Return a username candidate, raising when it is already in use."""
+    candidate = username_from_value(value)
+    if User.objects.filter(username__iexact=candidate).exists():
+        raise ValueError("Username is already taken.")
     return candidate
 
 
@@ -93,6 +111,7 @@ class SignupView(generics.CreateAPIView):
     permission_classes = [permissions.AllowAny]
     throttle_classes = [SignupThrottle]
 
+
 @extend_schema(
     summary="Register a new user",
     description="Create a new user account with username, email, and password",
@@ -107,25 +126,29 @@ class SignupView(generics.CreateAPIView):
             value={
                 "username": "johndoe",
                 "email": "john@example.com",
-                "password": "SecurePass123"
-            }
+                "password": "SecurePass123",
+            },
         )
-    ]
+    ],
 )
 def register(request):
-    # ... view logic
+    pass
+
 
 @extend_schema(
     summary="Login user",
     description="Authenticate user and return JWT token",
     request=UserLoginSchema,
     responses={
-        200: OpenApiResponse(description="Login successful", response=LoginResponseSchema),
+        200: OpenApiResponse(
+            description="Login successful", response=LoginResponseSchema
+        ),
         401: OpenApiResponse(description="Invalid credentials"),
-    }
+    },
 )
 def login(request):
-    # ... view logic
+    pass
+
 
 @extend_schema(
     summary="Get user profile",
@@ -133,10 +156,11 @@ def login(request):
     responses={
         200: UserProfileSchema,
         401: OpenApiResponse(description="Unauthorized"),
-    }
+    },
 )
 def get_profile(request):
-    # ... view logic
+    pass
+
 
 class MeView(APIView):
     permission_classes = [IsAuthenticated]  # check jwt authentication
@@ -154,8 +178,8 @@ class MeView(APIView):
         serializer.is_valid(raise_exception=True)
         instance = serializer.save()
         instance.refresh_from_db()
-        if hasattr(instance, "profile"):
-            instance.profile.refresh_from_db()
+        if hasattr(instance, "user_profile"):
+            instance.user_profile.refresh_from_db()
         response_serializer = UserListSerializer(instance, context={"request": request})
         return Response(response_serializer.data)
 
@@ -398,10 +422,22 @@ class GitHubOAuthCallbackView(APIView):
                 )
 
             user = User.objects.filter(email__iexact=email).first()
+            username_source = github_user.get("login") or email
+            github_username = username_from_value(username_source)
+
+            username_conflict = User.objects.filter(username__iexact=github_username)
+            if user is not None:
+                username_conflict = username_conflict.exclude(pk=user.pk)
+
+            if username_conflict.exists():
+                return Response(
+                    {"detail": "Username is already taken."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
             if not user:
-                username_source = github_user.get("login") or email
                 user = User.objects.create_user(
-                    username=unique_username_from_value(username_source),
+                    username=github_username,
                     email=email,
                     password=secrets.token_urlsafe(24),
                 )
@@ -427,7 +463,7 @@ from .permissions import IsAdminOrModeratorRole
 
 @extend_schema(responses=UserListSerializer(many=True))
 class UserListView(generics.ListAPIView):
-    queryset = User.objects.select_related("profile").order_by("id")
+    queryset = User.objects.select_related("user_profile").order_by("id")
     permission_classes = [permissions.IsAuthenticated, IsAdminOrModeratorRole]
     serializer_class = UserListSerializer
     pagination_class = LimitOffsetPagination
@@ -546,9 +582,9 @@ class PasswordResetConfirmView(APIView):
 
         user = reset_token.user
         user.set_password(new_password)
-        if hasattr(user, "profile"):
-            user.profile.last_password_change = timezone.now()
-            user.profile.save(update_fields=["last_password_change"])
+        if hasattr(user, "user_profile"):
+            user.user_profile.last_password_change = timezone.now()
+            user.user_profile.save(update_fields=["last_password_change"])
         user.save()
 
         reset_token.is_used = True
@@ -866,70 +902,6 @@ class ExportDataView(APIView):
             status=status.HTTP_400_BAD_REQUEST,
         )
 
-class AvatarUploadView(APIView):
-    permission_classes = [IsAuthenticated]
-
-    def post(self, request):
-        serializer = AvatarUploadSerializer(data=request.data)
-        
-        if not serializer.is_valid():
-            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
-        
-        avatar = serializer.validated_data['avatar']
-        
-        # Optimize image
-        try:
-            img = Image.open(avatar)
-            
-            # Convert to RGB if needed
-            if img.mode in ('RGBA', 'LA', 'P'):
-                img = img.convert('RGB')
-            
-            # Resize to max 300x300
-            img.thumbnail((300, 300))
-            
-            # Save to buffer
-            buffer = io.BytesIO()
-            img.save(buffer, format='JPEG', quality=85)
-            
-            # Create new file
-            filename = f"{request.user.id}_avatar.jpg"
-            avatar_file = ContentFile(buffer.getvalue(), name=filename)
-            
-        except Exception as e:
-            return Response(
-                {'error': 'Invalid image file'},
-                status=status.HTTP_400_BAD_REQUEST
-            )
-        
-        # Update or create profile
-        profile, created = UserProfile.objects.get_or_create(user=request.user)
-        
-        # Delete old avatar if exists
-        if profile.avatar:
-            try:
-                profile.avatar.delete(save=False)
-            except:
-                pass
-        
-        profile.avatar = avatar_file
-        profile.save()
-        
-        return Response({
-            'message': 'Avatar uploaded successfully',
-            'avatar_url': profile.avatar.url if profile.avatar else None
-        }, status=status.HTTP_200_OK)
-
-    def delete(self, request):
-        """Remove avatar"""
-        profile = UserProfile.objects.filter(user=request.user).first()
-        if profile and profile.avatar:
-            profile.avatar.delete()
-            profile.avatar = None
-            profile.save()
-            return Response({'message': 'Avatar removed'})
-        return Response({'error': 'No avatar found'}, status=status.HTTP_404_NOT_FOUND)
-
 
 from apps.chat.models import Message
 from apps.content.models import Comment
@@ -1136,3 +1108,143 @@ class LearningPathView(APIView):
             recommended = max(scored_modules, key=lambda m: m["score"])
 
         return Response({"modules": scored_modules, "next_step": recommended})
+
+
+from .serializers import (
+    AvatarUploadSerializer,
+    ChangePasswordSerializer,
+    PasswordResetValidateTokenSerializer,
+)
+
+
+class ChangePasswordView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        request=ChangePasswordSerializer,
+        responses={200: OpenApiResponse(description="Password changed successfully.")},
+    )
+    def post(self, request):
+        serializer = ChangePasswordSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        user = request.user
+        if not user.check_password(serializer.validated_data["old_password"]):
+            return Response(
+                {"error": "Incorrect old password."}, status=status.HTTP_400_BAD_REQUEST
+            )
+
+        user.set_password(serializer.validated_data["new_password"])
+        user.save()
+        if hasattr(user, "user_profile"):
+            user.user_profile.increment_jwt_version()
+
+        return Response(
+            {"status": "password changed successfully"}, status=status.HTTP_200_OK
+        )
+
+
+from rest_framework.parsers import MultiPartParser
+
+
+class AvatarUploadView(APIView):
+    permission_classes = [IsAuthenticated]
+    parser_classes = [MultiPartParser]
+
+    @extend_schema(
+        request=AvatarUploadSerializer,
+        responses={200: OpenApiResponse(description="Avatar uploaded successfully.")},
+    )
+    def post(self, request):
+        serializer = AvatarUploadSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        user_profile = request.user.user_profile
+        user_profile.avatar = serializer.validated_data["avatar"]
+        user_profile.save()
+
+        return Response(
+            {
+                "status": "avatar uploaded successfully",
+                "avatar_url": request.build_absolute_uri(user_profile.avatar.url),
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class ShopStreakFreezeView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        responses={200: OpenApiResponse(description="Streak freeze purchased.")}
+    )
+    def post(self, request):
+        from apps.progress.models import StreakProfile
+
+        streak_profile, _ = StreakProfile.objects.get_or_create(user=request.user)
+        streak_profile.streak_freezes += 1
+        streak_profile.save(update_fields=["streak_freezes"])
+        return Response(
+            {
+                "status": "streak freeze purchased successfully",
+                "streak_freezes": streak_profile.streak_freezes,
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class PasswordResetValidateTokenView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    @extend_schema(
+        request=PasswordResetValidateTokenSerializer,
+        responses={200: OpenApiResponse(description="Token is valid.")},
+    )
+    def post(self, request):
+        serializer = PasswordResetValidateTokenSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        token_value = serializer.validated_data["token"]
+        try:
+            reset_token = PasswordResetToken.objects.get(
+                token=token_value, is_used=False
+            )
+        except PasswordResetToken.DoesNotExist:
+            return Response(
+                {"error": "invalid_token"}, status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if reset_token.is_expired():
+            return Response(
+                {"error": "expired_token"}, status=status.HTTP_400_BAD_REQUEST
+            )
+
+        return Response(
+            {"status": "password reset token is valid"}, status=status.HTTP_200_OK
+        )
+
+
+class UserSuggestionsView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(responses=UserListSerializer(many=True))
+    def get(self, request):
+        suggestions = User.objects.exclude(id=request.user.id).order_by("-date_joined")[
+            :5
+        ]
+        serializer = UserListSerializer(
+            suggestions, many=True, context={"request": request}
+        )
+        return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+class PublicProfileView(APIView):
+    permission_classes = [permissions.AllowAny]
+
+    @extend_schema(responses=UserListSerializer)
+    def get(self, request, username):
+        from django.shortcuts import get_object_or_404
+
+        user = get_object_or_404(User, username=username)
+        serializer = UserListSerializer(user, context={"request": request})
+        return Response(serializer.data, status=status.HTTP_200_OK)

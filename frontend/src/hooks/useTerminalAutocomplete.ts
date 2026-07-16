@@ -169,9 +169,28 @@ export function useTerminalAutocomplete(
     return results;
   }, [inputVal, shellState]);
 
+  const commonCompletionPrefix = useMemo(() => {
+    if (suggestions.length === 0) return "";
+    
+    const compTexts = suggestions.map(s => s.completionText);
+    let commonComp = "";
+    const minCompLen = Math.min(...compTexts.map(t => t.length));
+    
+    for (let i = 0; i < minCompLen; i++) {
+      const char = compTexts[0][i];
+      if (compTexts.every(t => t[i] === char)) {
+        commonComp += char;
+      } else {
+        break;
+      }
+    }
+    return commonComp;
+  }, [suggestions]);
+
   useEffect(() => {
     setSelectedIndex(0);
   }, [suggestions]);
 
-  return { suggestions, selectedIndex, setSelectedIndex };
+  return { suggestions, selectedIndex, setSelectedIndex, commonCompletionPrefix };
 }
+

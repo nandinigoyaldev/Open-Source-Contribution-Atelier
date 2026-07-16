@@ -1,8 +1,9 @@
 import pytest
-from rest_framework.test import APIClient
 from django.contrib.auth import get_user_model
-from apps.issues.models import IssueReport
 from django.core.files.uploadedfile import SimpleUploadedFile
+from rest_framework.test import APIClient
+
+from apps.issues.models import IssueReport
 
 User = get_user_model()
 

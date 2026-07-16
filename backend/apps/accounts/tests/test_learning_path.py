@@ -13,6 +13,7 @@ ALL_SLUGS = [
     "history-of-open-source",
     "benefits-of-contributing",
     "common-misconceptions",
+    "open-source-licenses",
     "repositories-and-commits",
     "branches",
     "merging",

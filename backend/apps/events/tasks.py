@@ -3,7 +3,6 @@ Celery tasks for async event processing.
 """
 
 import logging
-from celery import shared_task
 from django.db import transaction
 from apps.events.models import DomainEvent
 from apps.events.services.event_bus import EventBus
@@ -11,8 +10,7 @@ from apps.events.services.event_bus import EventBus
 logger = logging.getLogger(__name__)
 
 
-@shared_task(bind=True, max_retries=3)
-def process_event(self, event_id: str):
+def process_event(event_id: str):
     """
     Process a domain event asynchronously.
 
@@ -52,21 +50,24 @@ def process_event(self, event_id: str):
         if event.should_retry():
             # Retry with exponential backoff
             event.mark_retry()
-            countdown = 2**event.retry_count  # Exponential backoff
-            self.retry(exc=e, countdown=countdown, max_retries=event.max_retries)
+            # Django-Q doesn't have self.retry, we can enqueue it again if needed or let Django-Q handle it.
+            # For manual retry:
+            from django_q.tasks import async_task
+            async_task("apps.events.tasks.process_event", str(event.id))
         else:
             # Max retries exceeded
             event.mark_failed(str(e))
             logger.error(f"Event {event_id} failed after {event.retry_count} retries")
 
 
-@shared_task
 def retry_failed_events():
     """
     Scheduled task to retry failed events.
     """
     from django.utils import timezone
     from datetime import timedelta
+    from django.db import models
+    from django_q.tasks import async_task
 
     # Get events that failed and are eligible for retry
     failed_events = DomainEvent.objects.filter(
@@ -76,13 +77,12 @@ def retry_failed_events():
     count = 0
     for event in failed_events:
         event.mark_retry()
-        process_event.delay(str(event.id))
+        async_task("apps.events.tasks.process_event", str(event.id))
         count += 1
 
     logger.info(f"Retried {count} failed events")
 
 
-@shared_task
 def cleanup_old_events():
     """
     Clean up old completed events.

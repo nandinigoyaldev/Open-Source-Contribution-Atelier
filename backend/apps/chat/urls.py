@@ -1,6 +1,13 @@
 from django.urls import path
 
-from .views import ChatRoomListView, MessageCreateView, MessageListView
+from .views import (
+    ChatRoomListView,
+    DirectMessageCreateView,
+    DirectMessageListView,
+    MessageCreateView,
+    MessageListView,
+    UserPublicKeyView,
+)
 
 app_name = "chat"
 
@@ -16,4 +23,10 @@ urlpatterns = [
         MessageCreateView.as_view(),
         name="chat-message-create",
     ),
+    # E2E Encrypted Direct Messages
+    path("dm/send/", DirectMessageCreateView.as_view(), name="dm-create"),
+    path("dm/<str:username>/", DirectMessageListView.as_view(), name="dm-list"),
+    # Public key registry
+    path("public-keys/", UserPublicKeyView.as_view(), name="public-key-publish"),
+    path("public-keys/<str:username>/", UserPublicKeyView.as_view(), name="public-key-get"),
 ]

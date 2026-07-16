@@ -114,6 +114,50 @@
               "explanation": "Open source relies heavily on documentation, translations, design, bug triage, and mentoring, which are highly valued non-code contributions."
             }
           ]
+        },
+        {
+          "slug": "open-source-licenses",
+          "title": "Choosing and Understanding Open Source Licenses",
+          "description": "Learn the difference between permissive and copyleft licenses before your first contribution.",
+          "difficulty": "beginner",
+          "estimatedMinutes": 6,
+          "points": 15,
+          "filePath": "module-1/open-source-licenses.md",
+          "quizzes": [
+            {
+              "question": "What happens if a public repository has no license file at all?",
+              "options": [
+                "It's automatically MIT licensed, since that's the most common license.",
+                "Anyone can use, copy, and modify it freely, since it's publicly visible.",
+                "By default, no one has permission to use, copy, modify, or distribute it beyond viewing the source.",
+                "It becomes public domain after 30 days."
+              ],
+              "answer": 2,
+              "explanation": "Without an explicit license, default copyright law applies: the author retains all rights, and others have no legal permission to use, modify, or distribute the code, even though it's publicly visible on GitHub."
+            },
+            {
+              "question": "Which of these best describes a 'copyleft' license like the GPL?",
+              "options": [
+                "It requires derivative works and distributed modifications to also be released under the same open source terms.",
+                "It forbids anyone from ever modifying the code.",
+                "It only applies to code written before 2000.",
+                "It means the code cannot be used commercially under any circumstances."
+              ],
+              "answer": 0,
+              "explanation": "Copyleft licenses like the GPL/LGPL/AGPL require that derivative or distributed works stay open source under compatible terms, which is why they're sometimes called 'viral' licenses."
+            },
+            {
+              "question": "You want to use a library in a closed-source commercial product with minimal restrictions. Which type of license should you look for?",
+              "options": [
+                "A strong copyleft license like the AGPL.",
+                "A permissive license like MIT or Apache 2.0.",
+                "No license at all.",
+                "A trademark license."
+              ],
+              "answer": 1,
+              "explanation": "Permissive licenses such as MIT, BSD, and Apache 2.0 impose very few restrictions, letting you use the code in proprietary/commercial software as long as you keep the required attribution notice."
+            }
+          ]
         }
       ]
     },

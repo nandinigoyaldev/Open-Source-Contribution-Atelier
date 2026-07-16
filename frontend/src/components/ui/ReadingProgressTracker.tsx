@@ -13,7 +13,7 @@ export function ReadingProgressTracker({
   const [progress, setProgress] = useState(0);
   const [initialProgressLoaded, setInitialProgressLoaded] = useState(false);
   const syncTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  
+
   // Elements tracking
   const elementsRef = useRef<Element[]>([]);
   const visibleElements = useRef<Set<number>>(new Set());
@@ -21,14 +21,16 @@ export function ReadingProgressTracker({
   // Fetch initial progress
   useEffect(() => {
     let isMounted = true;
-    
+
     const fetchProgress = async () => {
       try {
-        const response = await fetchApi(`/api/progress/reading-position/?lesson=${lessonSlug}`);
+        const response = await fetchApi(
+          `/api/progress/reading-position/?lesson=${lessonSlug}`,
+        );
         if (isMounted && response?.progress !== undefined) {
           setProgress(response.progress);
           setInitialProgressLoaded(true);
-          
+
           // If we have a saved progress, try to scroll to it
           if (response.progress > 0) {
             setTimeout(() => {
@@ -36,9 +38,15 @@ export function ReadingProgressTracker({
               if (container) {
                 const elements = Array.from(container.children);
                 if (elements.length > 0) {
-                  const targetIndex = Math.floor((response.progress / 100) * elements.length);
-                  const targetElement = elements[Math.min(targetIndex, elements.length - 1)];
-                  targetElement?.scrollIntoView({ behavior: "smooth", block: "start" });
+                  const targetIndex = Math.floor(
+                    (response.progress / 100) * elements.length,
+                  );
+                  const targetElement =
+                    elements[Math.min(targetIndex, elements.length - 1)];
+                  targetElement?.scrollIntoView({
+                    behavior: "smooth",
+                    block: "start",
+                  });
                 }
               }
             }, 1000); // Give markdown time to render
@@ -48,9 +56,9 @@ export function ReadingProgressTracker({
         console.error("Failed to load reading progress:", err);
       }
     };
-    
+
     fetchProgress();
-    
+
     return () => {
       isMounted = false;
     };
@@ -61,13 +69,16 @@ export function ReadingProgressTracker({
     if (syncTimeoutRef.current) {
       clearTimeout(syncTimeoutRef.current);
     }
-    
+
     // Debounce for 2 seconds
     syncTimeoutRef.current = setTimeout(async () => {
       try {
         await fetchApi("/api/progress/reading-position/", {
           method: "POST",
-          body: JSON.stringify({ lesson: lessonSlug, progress: currentProgress }),
+          body: JSON.stringify({
+            lesson: lessonSlug,
+            progress: currentProgress,
+          }),
         });
       } catch (err) {
         console.error("Failed to save reading progress:", err);
@@ -78,7 +89,7 @@ export function ReadingProgressTracker({
   // Setup Intersection Observer
   useEffect(() => {
     if (!initialProgressLoaded) return;
-    
+
     // Slight delay to ensure content is fully rendered
     const timer = setTimeout(() => {
       const container = document.querySelector(containerSelector);
@@ -86,7 +97,7 @@ export function ReadingProgressTracker({
 
       const elements = Array.from(container.children);
       elementsRef.current = elements;
-      
+
       if (elements.length === 0) return;
 
       const observer = new IntersectionObserver(
@@ -94,21 +105,29 @@ export function ReadingProgressTracker({
           entries.forEach((entry) => {
             const index = elementsRef.current.indexOf(entry.target);
             if (index === -1) return;
-            
+
             if (entry.isIntersecting) {
               visibleElements.current.add(index);
             } else {
               visibleElements.current.delete(index);
             }
           });
-          
+
           if (visibleElements.current.size > 0) {
-            const maxVisibleIndex = Math.max(...Array.from(visibleElements.current));
+            const maxVisibleIndex = Math.max(
+              ...Array.from(visibleElements.current),
+            );
             // Calculate progress based on the furthest visible element
-            const calculatedProgress = Math.min(100, Math.round(((maxVisibleIndex + 1) / elementsRef.current.length) * 100));
-            
+            const calculatedProgress = Math.min(
+              100,
+              Math.round(
+                ((maxVisibleIndex + 1) / elementsRef.current.length) * 100,
+              ),
+            );
+
             setProgress((prev) => {
-              if (calculatedProgress > prev) { // Only increase progress, don't decrease if they scroll up
+              if (calculatedProgress > prev) {
+                // Only increase progress, don't decrease if they scroll up
                 syncProgressToBackend(calculatedProgress);
                 return calculatedProgress;
               }
@@ -120,7 +139,7 @@ export function ReadingProgressTracker({
           root: null, // viewport
           rootMargin: "0px",
           threshold: 0.1, // Trigger when 10% visible
-        }
+        },
       );
 
       elements.forEach((el) => observer.observe(el));
@@ -129,7 +148,7 @@ export function ReadingProgressTracker({
         observer.disconnect();
       };
     }, 1500);
-    
+
     return () => clearTimeout(timer);
   }, [lessonSlug, initialProgressLoaded, containerSelector]);
 
@@ -144,7 +163,7 @@ export function ReadingProgressTracker({
 
   return (
     <div className="fixed top-0 left-0 w-full z-50 pointer-events-none">
-      <div 
+      <div
         className="h-1 bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,0.5)] transition-all duration-300 ease-out"
         style={{ width: `${progress}%` }}
       />
