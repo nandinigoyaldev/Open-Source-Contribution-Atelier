@@ -174,6 +174,7 @@ INSTALLED_APPS = [
     "allauth.socialaccount",
     "allauth.socialaccount.providers.github",
     "apps.accounts",
+    "apps.errors",
     "apps.cache",
     "apps.core",
     "apps.localization",

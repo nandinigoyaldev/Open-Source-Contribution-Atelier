@@ -61,6 +61,9 @@ urlpatterns = [
     path("api/rbac/", include("apps.rbac.urls")),
     
 
+    # ── Errors ─────────────────────────────────────────────────────────────────
+    path("api/errors/", include("apps.errors.urls")),
+
     # ── Webhooks & Uploads ─────────────────────────────────────────────────────
     path("api/webhooks/", include("apps.webhooks.urls")),
     path("api/uploads/", include("apps.uploads.urls")),
