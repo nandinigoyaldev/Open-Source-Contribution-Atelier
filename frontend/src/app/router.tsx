@@ -104,6 +104,12 @@ const ContributorSandboxPage = lazy(() =>
   })),
 );
 
+const PrDiffSummarizerPage = lazy(() =>
+  import("../pages/PrDiffSummarizerPage").then((module) => ({
+    default: module.PrDiffSummarizerPage,
+  })),
+);
+
 const ProfileSettingsPage = lazy(() =>
   import("../pages/ProfileSettingsPage").then((module) => ({
     default: module.ProfileSettingsPage,
@@ -353,6 +359,15 @@ export function AppRouter() {
             element={
               <ProtectedRoute>
                 <ContributorSandboxPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/pr-diff-summarizer"
+            element={
+              <ProtectedRoute>
+                <PrDiffSummarizerPage />
               </ProtectedRoute>
             }
           />

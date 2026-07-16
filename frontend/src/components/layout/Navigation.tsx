@@ -17,6 +17,7 @@ import {
   Eye,
   FileText,
   Target,
+  FileDiff,
 } from "lucide-react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import { useTheme } from "../../hooks/useTheme";
@@ -41,6 +42,7 @@ const navGroups = [
     items: [
       { to: "/contributor-sandbox", label: "Playground", icon: TerminalSquare },
       { to: "/a11y-sandbox", label: "A11y Sandbox", icon: Eye },
+      { to: "/pr-diff-summarizer", label: "PR Summarizer", icon: FileDiff },
       { to: "/bounties", label: "Bounties", icon: Target },
     ],
   },

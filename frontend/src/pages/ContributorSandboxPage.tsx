@@ -12,7 +12,9 @@ import {
 } from "lucide-react";
 import { SectionCard } from "../components/ui/SectionCard";
 import { CommitMessageCoach } from "../components/ui/CommitMessageCoach";
+import { PrDiffSummarizer } from "../components/ui/PrDiffSummarizer";
 import { validateCommitMessage } from "../lib/conventionalCommitCoach";
+import { Link } from "react-router-dom";
 
 type Step = "setup" | "fix" | "commit" | "pr" | "success";
 
@@ -451,6 +453,27 @@ export function ContributorSandboxPage() {
                     credentials leaked
                   </div>
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <p className="text-sm font-black text-text dark:text-[#f0ebe2]">
+                  Practice writing your PR description
+                </p>
+                <p className="text-xs text-muted dark:text-[#c4bbae] font-bold">
+                  Paste changed files to generate a checklist-ready PR body. Full
+                  tool:{" "}
+                  <Link
+                    to="/pr-diff-summarizer"
+                    className="underline text-accent hover:opacity-80"
+                  >
+                    /pr-diff-summarizer
+                  </Link>
+                </p>
+                <PrDiffSummarizer
+                  compact
+                  defaultIssueNumber=""
+                  className="shadow-none"
+                />
               </div>
 
               <div className="flex justify-end gap-3 mt-6">
