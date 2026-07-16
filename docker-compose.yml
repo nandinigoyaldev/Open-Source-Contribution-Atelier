@@ -65,7 +65,7 @@ services:
       - REDIS_URL=redis://redis:6379/0
       - MEILI_URL=http://meilisearch:7700
       - MEILI_MASTER_KEY=masterKey123
-      - DEBUG=True
+      - DEBUG=False
     depends_on:
       - db
       - redis
@@ -99,7 +99,7 @@ services:
       - REDIS_URL=redis://redis:6379/0
       - MEILI_URL=http://meilisearch:7700
       - MEILI_MASTER_KEY=masterKey123
-      - DEBUG=True
+      - DEBUG=False
     depends_on:
       - db
       - redis
