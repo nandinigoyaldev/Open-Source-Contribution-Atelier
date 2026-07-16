@@ -8,7 +8,7 @@ from .serializers import NotificationSerializer, PushSubscriptionSerializer
 from .models import NotificationPreference
 
 class NotificationPrefsView(APIView):
-    permission_classes = [IsAuthenticated]
+    permission_classes = [permissions.IsAuthenticated]
     
     def get(self, request):
         prefs, _ = NotificationPreference.objects.get_or_create(user=request.user)

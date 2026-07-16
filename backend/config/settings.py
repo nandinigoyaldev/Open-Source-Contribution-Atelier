@@ -35,6 +35,7 @@ def safe_context_copy(self):
 BaseContext.__copy__ = safe_context_copy
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+PLUGINS_DIR = BASE_DIR / "plugins"
 
 
 from dotenv import load_dotenv
@@ -199,6 +200,7 @@ INSTALLED_APPS = [
     "apps.project_health",
     "django_q",
     "waffle",
+    "apps.plugins.apps.PluginsConfig",
 ]
 # Redis Cache
 CACHES = {
