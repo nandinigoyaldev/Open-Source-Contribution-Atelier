@@ -1,0 +1,64 @@
+{% extends "admin/base_site.html" %}
+{% load i18n admin_urls static %}
+
+{% block breadcrumbs %}
+<div class="breadcrumbs">
+<a href="{% url 'admin:index' %}">{% translate 'Home' %}</a>
+&rsaquo; <a href="{% url 'admin:app_list' app_label='core' %}">Core</a>
+&rsaquo; <a href="{% url 'admin:core_purgelog_changelist' %}">Purge Logs</a>
+&rsaquo; Cache Invalidation Dashboard
+</div>
+{% endblock %}
+
+{% block content %}
+<div id="content-main">
+    <div class="module" style="padding: 15px; margin-bottom: 20px; background: var(--body-bg, #fff); border: 1px solid var(--border-color, #ccc); border-radius: 8px;">
+        <h2 style="margin-top: 0;">Purge Cache Tag Manually</h2>
+        <form method="post" style="display: flex; gap: 10px; align-items: center;">
+            {% csrf_token %}
+            <input type="text" name="invalidate_tag" placeholder="e.g. user:42 or leaderboard:*" required style="padding: 6px; width: 300px; border: 1px solid #ccc; border-radius: 4px;" />
+            <button type="submit" class="button" style="background: #ba2121; color: white; padding: 6px 14px; border: none; border-radius: 4px; cursor: pointer;">Purge Tag</button>
+        </form>
+    </div>
+
+    <div class="module" style="background: var(--body-bg, #fff); border: 1px solid var(--border-color, #ccc); border-radius: 8px; overflow: hidden;">
+        <h2 style="padding: 15px; margin: 0; background: var(--primary, #79aec8); color: white;">Active Cache Tags</h2>
+        <table style="width: 100%; border-collapse: collapse; text-align: left;">
+            <thead>
+                <tr style="border-bottom: 2px solid var(--border-color, #ccc); background: var(--darkened-bg, #f8f8f8);">
+                    <th style="padding: 12px 15px;">Cache Tag</th>
+                    <th style="padding: 12px 15px;">Associated Keys</th>
+                    <th style="padding: 12px 15px; text-align: right;">Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% if active_tags %}
+                    {% for item in active_tags %}
+                        <tr style="border-bottom: 1px solid var(--border-color, #eee);">
+                            <td style="padding: 12px 15px; font-weight: bold; color: var(--primary, #79aec8);">{{ item.tag }}</td>
+                            <td style="padding: 12px 15px; font-family: monospace; font-size: 11px;">
+                                <ul style="margin: 0; padding-left: 20px;">
+                                    {% for key in item.keys %}
+                                        <li>{{ key }}</li>
+                                    {% endfor %}
+                                </ul>
+                            </td>
+                            <td style="padding: 12px 15px; text-align: right;">
+                                <form method="post" style="margin: 0;">
+                                    {% csrf_token %}
+                                    <input type="hidden" name="invalidate_tag" value="{{ item.tag }}" />
+                                    <button type="submit" class="button" style="background: #ba2121; color: white; padding: 4px 10px; border: none; border-radius: 3px; cursor: pointer; font-size: 11px;">Purge</button>
+                                </form>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                {% else %}
+                    <tr>
+                        <td colspan="3" style="padding: 20px; text-align: center; color: #666;">No active cache tags tracked in registry.</td>
+                    </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}
