@@ -31,6 +31,26 @@ class CoreConfig(AppConfig):
                     "repeats": -1,  # Infinite repeats
                 },
             )
+
+            # Daily database backup
+            Schedule.objects.get_or_create(
+                name="db-backup-daily",
+                defaults={
+                    "func": "apps.core.tasks.backup_database",
+                    "schedule_type": Schedule.DAILY,
+                    "repeats": -1,
+                },
+            )
+
+            # Weekly backup pruning (retention enforcement)
+            Schedule.objects.get_or_create(
+                name="db-backup-prune-weekly",
+                defaults={
+                    "func": "apps.core.tasks.prune_old_backups",
+                    "schedule_type": Schedule.WEEKLY,
+                    "repeats": -1,
+                },
+            )
         except Exception:
             # Table might not be migrated yet or django_q not installed
             pass

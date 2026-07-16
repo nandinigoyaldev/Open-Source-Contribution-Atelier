@@ -1,10 +1,13 @@
 """
-Core Celery tasks with distributed locking.
+Core scheduled tasks (distributed locking + database backups).
 """
 
 import logging
+import os
+import subprocess
 import time
 from datetime import timedelta
+from pathlib import Path
 
 from celery import shared_task
 from django.apps import apps
@@ -218,3 +221,101 @@ def _purge_for_model(model, threshold_date, batch_size):
         records_deleted=deleted_count,
         duration_seconds=duration,
     )
+
+
+# ──────────────────────────────────────────
+# Database Backup Tasks
+# ──────────────────────────────────────────
+
+def backup_database():
+    """
+    Create a timestamped database backup.
+
+    - SQLite: uses Django's ``dumpdata`` management command to produce a
+      JSON dump (portable, no external tool required).
+    - PostgreSQL: calls ``pg_dump`` to produce a plain-SQL dump.
+
+    The backup file is written to ``settings.BACKUP_DIR``.
+    Returns the path of the created file as a string.
+    """
+    from django.conf import settings as _settings
+
+    backup_dir = Path(getattr(_settings, "BACKUP_DIR", "backups"))
+    backup_dir.mkdir(parents=True, exist_ok=True)
+
+    timestamp = timezone.now().strftime("%Y%m%d_%H%M%S")
+    db_settings = _settings.DATABASES.get("default", {})
+    engine = db_settings.get("ENGINE", "")
+
+    if "sqlite" in engine:
+        output_path = backup_dir / f"backup_{timestamp}.json"
+        _backup_sqlite(output_path)
+    elif "postgresql" in engine or "postgis" in engine:
+        output_path = backup_dir / f"backup_{timestamp}.sql"
+        _backup_postgres(db_settings, output_path)
+    else:
+        logger.warning("backup_database: unsupported engine %s — skipping", engine)
+        return None
+
+    logger.info("Database backup created: %s", output_path)
+    return str(output_path)
+
+
+def _backup_sqlite(output_path: Path) -> None:
+    """Dump via Django's dumpdata (works without sqlite3 CLI)."""
+    import django
+    from django.core.management import call_command
+    import io
+
+    buf = io.StringIO()
+    call_command("dumpdata", stdout=buf, verbosity=0)
+    output_path.write_text(buf.getvalue(), encoding="utf-8")
+
+
+def _backup_postgres(db_settings: dict, output_path: Path) -> None:
+    """Dump via pg_dump."""
+    env = os.environ.copy()
+    if db_settings.get("PASSWORD"):
+        env["PGPASSWORD"] = db_settings["PASSWORD"]
+
+    cmd = [
+        "pg_dump",
+        "--host", db_settings.get("HOST", "localhost"),
+        "--port", str(db_settings.get("PORT") or 5432),
+        "--username", db_settings.get("USER", ""),
+        "--dbname", db_settings.get("NAME", ""),
+        "--no-password",
+        "--file", str(output_path),
+    ]
+    subprocess.run(cmd, env=env, check=True, capture_output=True)
+
+
+def prune_old_backups():
+    """
+    Delete backup files older than ``settings.BACKUP_RETENTION_DAYS`` days.
+
+    Only files matching the ``backup_*.json`` / ``backup_*.sql`` pattern
+    inside ``settings.BACKUP_DIR`` are considered, so unrelated files are
+    left untouched.
+    Returns the count of deleted files.
+    """
+    from django.conf import settings as _settings
+
+    backup_dir = Path(getattr(_settings, "BACKUP_DIR", "backups"))
+    retention_days = int(getattr(_settings, "BACKUP_RETENTION_DAYS", 30))
+    cutoff = timezone.now() - timedelta(days=retention_days)
+
+    if not backup_dir.exists():
+        return 0
+
+    deleted = 0
+    for pattern in ("backup_*.json", "backup_*.sql"):
+        for f in backup_dir.glob(pattern):
+            mtime = timezone.datetime.fromtimestamp(f.stat().st_mtime, tz=timezone.utc)
+            if mtime < cutoff:
+                f.unlink()
+                deleted += 1
+                logger.info("Pruned old backup: %s", f)
+
+    logger.info("Backup pruning complete: %d file(s) removed", deleted)
+    return deleted

@@ -757,6 +757,12 @@ CLAMAV_SOCKET = os.getenv("CLAMAV_SOCKET", "")
 UPLOAD_SCAN_FAIL_CLOSED = os.getenv("UPLOAD_SCAN_FAIL_CLOSED", "true").lower() == "true"
 
 # ──────────────────────────────────────────
+# Database Backup Configuration
+# ──────────────────────────────────────────
+BACKUP_DIR = os.getenv("BACKUP_DIR", str(BASE_DIR / "backups"))
+BACKUP_RETENTION_DAYS = int(os.getenv("BACKUP_RETENTION_DAYS", "30"))
+
+# ──────────────────────────────────────────
 # Sentry Configuration
 # ──────────────────────────────────────────
 SENTRY_DSN = os.getenv("SENTRY_DSN")
@@ -770,5 +776,3 @@ if SENTRY_DSN:
         traces_sample_rate=float(os.getenv("SENTRY_TRACES_SAMPLE_RATE", "1.0")),
         send_default_pii=False,
     )
-
-
