@@ -1,6 +1,13 @@
-import React from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import CopyButton from "./CopyButton";
 import { pluginRegistry } from "../../lib/markdownPlugins";
+import { GlossaryTerm } from "./GlossaryTerm";
+import { GlossaryDrawer } from "./GlossaryDrawer";
+import {
+  loadGlossary,
+  splitTextWithGlossary,
+  type GlossaryEntry,
+} from "../../lib/glossary";
 
 interface MarkdownRendererProps {
   content: string;
@@ -39,35 +46,82 @@ function splitTableRow(row: string): string[] {
 }
 
 export function MarkdownRenderer({ content }: MarkdownRendererProps) {
+  const [glossary, setGlossary] = useState<GlossaryEntry[]>([]);
+  const [activeTerm, setActiveTerm] = useState<GlossaryEntry | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    loadGlossary()
+      .then((terms) => {
+        if (!cancelled) setGlossary(terms);
+      })
+      .catch(() => {
+        if (!cancelled) setGlossary([]);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const renderGlossaryText = useCallback(
+    (text: string, keyPrefix: string): React.ReactNode[] => {
+      if (!glossary.length) return [text];
+      return splitTextWithGlossary(text, glossary).map((seg, i) => {
+        if (seg.type === "text") {
+          return (
+            <React.Fragment key={`${keyPrefix}-t-${i}`}>
+              {seg.value}
+            </React.Fragment>
+          );
+        }
+        return (
+          <GlossaryTerm
+            key={`${keyPrefix}-g-${i}-${seg.entry.id}`}
+            entry={seg.entry}
+            onOpen={setActiveTerm}
+          >
+            {seg.value}
+          </GlossaryTerm>
+        );
+      });
+    },
+    [glossary],
+  );
+
   // Helper to parse inline formats: bold, inline code, links
+  // Inline code is never glossarized (avoids false positives).
   const parseInline = (text: string): React.ReactNode[] => {
-    // Regular expressions for matching bold, code, and links
     const inlineRegex = /(\*\*.*?\*\*|`.*?`|\[.*?\]\(.*?\))/g;
     const matches = text.split(inlineRegex);
 
-    return matches.map((part, i) => {
+    return matches.flatMap((part, i) => {
+      if (!part) return [];
+
       if (part.startsWith("**") && part.endsWith("**")) {
-        return (
-          <strong key={i} className="font-extrabold text-black dark:text-white">
-            {part.slice(2, -2)}
-          </strong>
-        );
+        return [
+          <strong
+            key={i}
+            className="font-extrabold text-black dark:text-white"
+          >
+            {renderGlossaryText(part.slice(2, -2), `b${i}`)}
+          </strong>,
+        ];
       }
       if (part.startsWith("`") && part.endsWith("`")) {
-        return (
+        return [
           <code
             key={i}
             className="font-mono text-sm bg-surface-low border border-black/20 rounded px-1.5 py-0.5 text-primary dark:bg-black/45 dark:border-[#2e2924]"
           >
             {part.slice(1, -1)}
-          </code>
-        );
+          </code>,
+        ];
       }
       if (part.startsWith("[") && part.includes("](")) {
         const linkMatch = part.match(/\[(.*?)\]\((.*?)\)/);
         if (linkMatch) {
           const [, label, href] = linkMatch;
-          return (
+          return [
             <a
               key={i}
               href={href}
@@ -75,12 +129,12 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
               rel="noopener noreferrer"
               className="text-primary underline font-bold hover:text-accent transition-colors"
             >
-              {label}
-            </a>
-          );
+              {renderGlossaryText(label, `a${i}`)}
+            </a>,
+          ];
         }
       }
-      return part;
+      return renderGlossaryText(part, `p${i}`);
     });
   };
 
@@ -433,5 +487,10 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
     index++;
   }
 
-  return <div className="space-y-2">{blocks}</div>;
+  return (
+    <div className="space-y-2">
+      {blocks}
+      <GlossaryDrawer entry={activeTerm} onClose={() => setActiveTerm(null)} />
+    </div>
+  );
 }
