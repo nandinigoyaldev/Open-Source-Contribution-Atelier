@@ -227,6 +227,7 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "config.raw_middleware.ReadAfterWriteMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "apps.cache.audit_middleware.AuditLogMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
@@ -292,6 +293,21 @@ for db_name, db_config in DATABASES.items():
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
 DATABASE_ROUTERS = ["config.db_router.PrimaryReplicaRouter"]
+
+# ── Read Replica Configuration ─────────────────────────────────────────────
+# Each entry must match a key in DATABASES. Omit or set to [] to disable.
+DATABASE_REPLICAS = [
+    {"NAME": "replica", "WEIGHT": int(os.getenv("REPLICA_WEIGHT", "1"))},
+]
+
+# Seconds after a write before a user's reads are redirected back to replicas.
+READ_AFTER_WRITE_SECONDS = int(os.getenv("READ_AFTER_WRITE_SECONDS", "5"))
+
+# Replication lag (seconds) above which /health/db/replication-lag returns 503.
+REPLICA_LAG_ALERT_SECONDS = int(os.getenv("REPLICA_LAG_ALERT_SECONDS", "30"))
+
+# Seconds to wait before retrying a dead replica.
+REPLICA_DEAD_TIMEOUT = int(os.getenv("REPLICA_DEAD_TIMEOUT", "60"))
 
 AUTH_PASSWORD_VALIDATORS = [
     {
