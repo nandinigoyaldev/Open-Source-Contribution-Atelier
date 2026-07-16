@@ -23,6 +23,7 @@ from .views import (
     CollabSessionViewSet,
     PipelineExecutionViewSet,
     ConflictScenarioViewSet,
+    TriageIssueViewSet,
 )
 
 # ============================================================
@@ -44,6 +45,7 @@ router.register(r"maintainer-evaluations", MaintainerEvaluationViewSet, basename
 router.register(r"collab-sessions", CollabSessionViewSet, basename="collab-session")
 router.register(r"pipelines", PipelineExecutionViewSet, basename="pipeline")
 router.register(r"conflict-scenarios", ConflictScenarioViewSet, basename="conflict-scenario")
+router.register(r"triage-issues", TriageIssueViewSet, basename="triage-issue")
 
 # ============================================================
 # URL Patterns
