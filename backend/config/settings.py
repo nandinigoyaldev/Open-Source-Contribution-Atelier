@@ -578,6 +578,14 @@ else:
         },
     }
 
+CELERY_BEAT_SCHEDULE = {
+    'sync-oss-issues-hourly': {
+        'task': 'apps.recommendations.tasks.sync_oss_issues',
+        'schedule': 3600.0,  # Every hour
+    },
+}
+
+
 # Cache timeout for Search API (in seconds) - Default: 1 hour
 SEARCH_CACHE_TIMEOUT = 60 * 60
 
