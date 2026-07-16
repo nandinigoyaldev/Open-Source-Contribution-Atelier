@@ -62,6 +62,10 @@ export async function fetchApi(endpoint: string, options: RequestOptions = {}) {
   } = options;
 
   const headers = new Headers(customHeaders);
+
+  // Attach X-Request-ID for distributed tracing
+  const requestId = crypto.randomUUID();
+  headers.set("X-Request-ID", requestId);
   if (!(config.body instanceof FormData)) {
     headers.set("Content-Type", "application/json");
   }
@@ -97,10 +101,14 @@ export async function fetchApi(endpoint: string, options: RequestOptions = {}) {
       if (!response.ok) {
         const errorBody = await response.json().catch(() => ({}));
         const errorMessage =
-          errorBody.detail ||
           errorBody.error ||
           errorBody.message ||
-          "An error occurred";
+          errorBody.non_field_errors?.[0] ||
+          `HTTP error ${response.status} (Req ID: ${requestId})`;
+
+        console.error(`[API Error] ReqID=${requestId}`, errorBody);
+
+        lastError = new Error(errorMessage);
 
         if (!suppressErrorToast) {
           switch (response.status) {
@@ -593,7 +601,10 @@ export async function claimBounty(id: number): Promise<{ status: string }> {
   return fetchApi(`/issues/bounties/${id}/claim/`, { method: "POST" });
 }
 
-export async function submitBounty(id: number, codePatch: string): Promise<{ status: string; xp_earned: number }> {
+export async function submitBounty(
+  id: number,
+  codePatch: string,
+): Promise<{ status: string; xp_earned: number }> {
   return fetchApi(`/issues/bounties/${id}/submit/`, {
     method: "POST",
     body: JSON.stringify({ code_patch: codePatch }),

@@ -152,7 +152,7 @@ if DEBUG:
 # CORS_ALLOW_ALL_ORIGINS defaults to False; rely on CORS_ALLOWED_ORIGINS allowlist.
 
 INSTALLED_APPS = [
-    "daphne",
+    # "daphne",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -216,6 +216,7 @@ DEFAULT_RATE = "100/hour"
 
 MIDDLEWARE = [
     "django_prometheus.middleware.PrometheusBeforeMiddleware",
+    "apps.core.middleware.request_id.RequestIdMiddleware",
     "config.logging_middleware.RequestResponseLoggingMiddleware",
     "corsheaders.middleware.CorsMiddleware",
     "django.middleware.security.SecurityMiddleware",
@@ -603,33 +604,45 @@ AUDIT_LOG_ENABLED = True
 
 # Configure audit logger
 LOGGING = {
-    'version': 1,
-    'disable_existing_loggers': False,
-    'formatters': {
-        'json': {
-            'format': '%(message)s',
-        },
-        'verbose': {
-            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
-            'style': '{',
+    "version": 1,
+    "disable_existing_loggers": False,
+    "filters": {
+        "request_id": {
+            "()": "apps.core.logging_filters.RequestIdFilter",
         },
     },
-    'handlers': {
-        'console': {
-            'class': 'logging.StreamHandler',
-            'formatter': 'json',
+    "formatters": {
+        "json": {
+            "format": '{"time": "%(asctime)s", "level": "%(levelname)s", "request_id": "%(request_id)s", "user_id": "%(user_id)s", "message": "%(message)s"}',
         },
-        'file': {
-            'class': 'logging.FileHandler',
-            'filename': 'audit.log',
-            'formatter': 'json',
+        "verbose": {
+            "format": "{levelname} {asctime} [req:{request_id} user:{user_id}] {module} {process:d} {thread:d} {message}",
+            "style": "{",
         },
     },
-    'loggers': {
-        'audit': {
-            'handlers': ['console', 'file'],
-            'level': 'INFO',
-            'propagate': False,
+    "handlers": {
+        "console": {
+            "class": "logging.StreamHandler",
+            "formatter": "json",
+            "filters": ["request_id"],
+        },
+        "file": {
+            "class": "logging.FileHandler",
+            "filename": "audit.log",
+            "formatter": "json",
+            "filters": ["request_id"],
+        },
+    },
+    "loggers": {
+        "audit": {
+            "handlers": ["console", "file"],
+            "level": "INFO",
+            "propagate": False,
+        },
+        # Add root logger or generic loggers to also use console if needed
+        "": {
+            "handlers": ["console"],
+            "level": "INFO",
         },
     },
 }
@@ -718,17 +731,29 @@ MEILI_MASTER_KEY = os.getenv("MEILI_MASTER_KEY", "masterKey123")
 MEILI_INDEX_NAME = os.getenv("MEILI_INDEX_NAME", "search_documents")
 
 # Files are assembled outside MEDIA_ROOT and remain inaccessible until clean.
-UPLOAD_QUARANTINE_ROOT = Path(os.getenv("UPLOAD_QUARANTINE_ROOT", BASE_DIR / "quarantine"))
+UPLOAD_QUARANTINE_ROOT = Path(
+    os.getenv("UPLOAD_QUARANTINE_ROOT", BASE_DIR / "quarantine")
+)
 UPLOAD_MAX_SIZES = {
     "avatar": int(os.getenv("UPLOAD_AVATAR_MAX_BYTES", str(5 * 1024 * 1024))),
     "project": int(os.getenv("UPLOAD_PROJECT_MAX_BYTES", str(50 * 1024 * 1024))),
     "lesson": int(os.getenv("UPLOAD_LESSON_MAX_BYTES", str(50 * 1024 * 1024))),
 }
-UPLOAD_ALLOWED_TYPES = ("jpeg", "png", "webp", "gif", "svg", "pdf", "markdown", "text", "zip", "gzip")
+UPLOAD_ALLOWED_TYPES = (
+    "jpeg",
+    "png",
+    "webp",
+    "gif",
+    "svg",
+    "pdf",
+    "markdown",
+    "text",
+    "zip",
+    "gzip",
+)
 UPLOAD_AVATAR_ALLOWED_TYPES = ("jpeg", "png", "webp", "gif", "svg")
 
 CLAMAV_HOST = os.getenv("CLAMAV_HOST", "127.0.0.1")
 CLAMAV_PORT = int(os.getenv("CLAMAV_PORT", "3310"))
 CLAMAV_SOCKET = os.getenv("CLAMAV_SOCKET", "")
 UPLOAD_SCAN_FAIL_CLOSED = os.getenv("UPLOAD_SCAN_FAIL_CLOSED", "true").lower() == "true"
-
