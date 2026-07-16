@@ -6,9 +6,7 @@ Think of an Organization like an **apartment building** for projects. Instead of
 
 ---
 
-<div align="center">
-  <img width="595" height="471" alt="image" src="https://github.com/user-attachments/assets/ffbd708c-3d21-4065-bf4a-afa2144c99fb" />
-</div>
+<img width="1009" height="515" alt="image" src="https://github.com/user-attachments/assets/b0720b5b-65c9-4dfa-bd06-995f535f3140" />
 
 ---
 
