@@ -8,6 +8,8 @@ import { SectionCard } from "../ui/SectionCard";
 import { getAccessToken } from "../../lib/authToken";
 import { ChatThreadPanel } from "./chatthreadpanel";
 
+import { ConnectionStatusIndicator } from "../ui/ConnectionStatusIndicator";
+
 export function ChatContainer() {
   const { user } = useAuth();
   const token = getAccessToken();
@@ -23,6 +25,8 @@ export function ChatContainer() {
     messages,
     typingUsers,
     isConnected,
+    state,
+    getMetrics,
     sendMessage,
     onInputChange,
     onInputBlur,
@@ -50,15 +54,8 @@ export function ChatContainer() {
       <div className="flex h-[500px] overflow-hidden rounded-xl border border-slate-200 dark:border-slate-800 shadow-sm mt-4">
         {/* Main Chat Area */}
         <div className="flex-1 flex flex-col min-w-0 bg-white/50 dark:bg-slate-900/50 backdrop-blur-sm p-4">
-          <div className="flex items-center gap-2 mb-4">
-            <span
-              className={`h-2.5 w-2.5 rounded-full ${
-                isConnected ? "bg-green-500" : "bg-red-500"
-              }`}
-            />
-            <span className="text-xs font-bold text-muted uppercase tracking-wider">
-              {isConnected ? "Connected" : "Disconnected"}
-            </span>
+          <div className="mb-4">
+            <ConnectionStatusIndicator state={state} getMetrics={getMetrics} />
           </div>
 
           <div className="flex-1 overflow-y-auto space-y-3 px-1 mb-3 pr-2 styled-scrollbar">
