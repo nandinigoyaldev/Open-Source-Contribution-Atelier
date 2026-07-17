@@ -1,11 +1,19 @@
 from rest_framework import generics, permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from rest_framework.pagination import PageNumberPagination
 
 from .models import Notification, PushSubscription
 from .serializers import NotificationSerializer, PushSubscriptionSerializer
 
 from .models import NotificationPreference
+
+
+class NotificationPagination(PageNumberPagination):
+    page_size = 10
+    page_size_query_param = "page_size"
+    max_page_size = 100
+
 
 class NotificationPrefsView(APIView):
     permission_classes = [permissions.IsAuthenticated]
@@ -24,13 +32,22 @@ class NotificationPrefsView(APIView):
         prefs.in_app_enabled = request.data.get('in_app', prefs.in_app_enabled)
         prefs.websocket_enabled = request.data.get('websocket', prefs.websocket_enabled)
         prefs.save()
-        return Response({'status': 'updated'})
+        return Response({
+            'email': prefs.email_enabled,
+            'in_app': prefs.in_app_enabled,
+            'websocket': prefs.websocket_enabled,
+        })
+
+    def patch(self, request):
+        return self.put(request)
+
 
 class NotificationListView(generics.ListAPIView):
     """GET /api/notifications/ — list current user's notifications"""
 
     serializer_class = NotificationSerializer
     permission_classes = [permissions.IsAuthenticated]
+    pagination_class = NotificationPagination
 
     def get_queryset(self):
         return Notification.objects.filter(recipient=self.request.user)
@@ -49,7 +66,7 @@ class MarkAllReadView(APIView):
 
 
 class MarkOneReadView(APIView):
-    """POST /api/notifications/<pk>/read/"""
+    """POST /api/notifications/<pk>/read/ or PATCH /api/notifications/<pk>/mark-read/"""
 
     permission_classes = [permissions.IsAuthenticated]
 
@@ -61,6 +78,9 @@ class MarkOneReadView(APIView):
         notif.is_read = True
         notif.save(update_fields=["is_read"])
         return Response(NotificationSerializer(notif).data)
+
+    def patch(self, request, pk):
+        return self.post(request, pk)
 
 
 class SubscribePushView(APIView):

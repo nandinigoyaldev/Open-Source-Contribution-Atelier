@@ -116,6 +116,12 @@ const ProfileSettingsPage = lazy(() =>
   })),
 );
 
+const NotificationPreferencesPage = lazy(() =>
+  import("../pages/settings/NotificationPreferencesPage").then((module) => ({
+    default: module.NotificationPreferencesPage,
+  })),
+);
+
 const UserProfilePage = lazy(() =>
   import("../pages/UserProfilePage").then((module) => ({
     default: module.UserProfilePage,
@@ -483,6 +489,15 @@ export function AppRouter() {
             element={
               <ProtectedRoute>
                 <ProfileSettingsPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/settings/notifications"
+            element={
+              <ProtectedRoute>
+                <NotificationPreferencesPage />
               </ProtectedRoute>
             }
           />

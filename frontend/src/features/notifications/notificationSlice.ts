@@ -1,5 +1,5 @@
 import { createSlice, PayloadAction, createAsyncThunk } from "@reduxjs/toolkit";
-import api from "../../api";
+import { fetchApi } from "../../lib/api";
 
 export interface AppNotification {
   id: number;
@@ -16,20 +16,25 @@ interface NotificationState {
   notifications: AppNotification[];
   wsUnreadCount: number;
   isLoading: boolean;
+  nextPage: string | null;
+  count: number;
 }
 
 const initialState: NotificationState = {
   notifications: [],
   wsUnreadCount: 0,
   isLoading: false,
+  nextPage: null,
+  count: 0,
 };
 
 export const fetchNotifications = createAsyncThunk(
   "notifications/fetch",
-  async (_, { rejectWithValue }) => {
+  async (page: number | undefined, { rejectWithValue }) => {
     try {
-      const res = await api.get("/notifications/");
-      return res.data as AppNotification[];
+      const pageNum = page ?? 1;
+      const data = await fetchApi(`/notifications/?page=${pageNum}`);
+      return data;
     } catch (err: unknown) {
       if (err instanceof Error) {
         return rejectWithValue(err.message);
@@ -77,7 +82,25 @@ export const notificationSlice = createSlice({
         state.isLoading = true;
       })
       .addCase(fetchNotifications.fulfilled, (state, action) => {
-        state.notifications = action.payload;
+        const payload = action.payload as any;
+        const page = action.meta.arg ?? 1;
+
+        if (payload && typeof payload === "object" && "results" in payload) {
+          const results = payload.results as AppNotification[];
+          if (page === 1) {
+            state.notifications = results;
+          } else {
+            const existingIds = new Set(state.notifications.map((n) => n.id));
+            const uniqueResults = results.filter((n) => !existingIds.has(n.id));
+            state.notifications = [...state.notifications, ...uniqueResults];
+          }
+          state.nextPage = payload.next;
+          state.count = payload.count;
+        } else if (Array.isArray(payload)) {
+          state.notifications = payload;
+          state.nextPage = null;
+          state.count = payload.length;
+        }
         state.isLoading = false;
       })
       .addCase(fetchNotifications.rejected, (state) => {

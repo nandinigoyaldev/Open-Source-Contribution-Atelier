@@ -26,7 +26,9 @@ import { fetchLessonsApi } from "../../lib/lessons";
 import api from "../../api";
 import LogoutButtonWithConfirm from "./LogoutButtonWithConfirm";
 import { SyncStatusIndicator } from "../ui/SyncStatusIndicator";
-import { NotificationMenu } from "../ui/NotificationMenu";
+import { NotificationDrawer } from "../notifications/NotificationDrawer";
+import { useNotifications } from "../../hooks/useNotifications";
+import { NotificationBell } from "../notifications/NotificationBell";
 
 const navGroups = [
   {
@@ -86,6 +88,8 @@ export function Navigation() {
     { slug: string; title: string; description: string }[]
   >([]);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+  const { notifications, unreadCount, isLoading, hasMore, loadMore, markAsRead, markAllAsRead } = useNotifications();
 
   useEffect(() => {
     fetchLessonsApi().then((data) => setLessonsCatalog(data));
@@ -341,7 +345,25 @@ export function Navigation() {
             >
               <Eye size={16} />
             </button>
-            {user && !user.is_staff && <NotificationMenu />}
+            {user && !user.is_staff && (
+              <>
+                <NotificationBell
+                  unreadCount={unreadCount}
+                  onClick={() => setIsDrawerOpen(true)}
+                />
+                <NotificationDrawer
+                  isOpen={isDrawerOpen}
+                  onClose={() => setIsDrawerOpen(false)}
+                  notifications={notifications}
+                  unreadCount={unreadCount}
+                  isLoading={isLoading}
+                  hasMore={hasMore}
+                  loadMore={loadMore}
+                  markAsRead={markAsRead}
+                  markAllAsRead={markAllAsRead}
+                />
+              </>
+            )}
             {user ? (
               <div className="flex items-center space-x-2">
                 <Link

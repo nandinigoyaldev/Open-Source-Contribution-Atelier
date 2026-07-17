@@ -8,7 +8,7 @@ type WSEventMap = {
 
 export class ManagedWebSocket {
   private url: string;
-  private token: string | null;
+  public token: string | null;
   private ws: WebSocket | null = null;
   
   // Connection State
@@ -44,6 +44,16 @@ export class ManagedWebSocket {
   constructor(url: string, token: string | null = null) {
     this.url = url;
     this.token = token;
+  }
+
+  public updateToken(newToken: string | null) {
+    if (this.token !== newToken) {
+      this.token = newToken;
+      if (this.state === 'OPEN' || this.state === 'CONNECTING') {
+        this.disconnect();
+        this.connect();
+      }
+    }
   }
 
   private buildUrl(): string {
@@ -248,6 +258,8 @@ export class WebSocketManager {
     if (!conn) {
       conn = new ManagedWebSocket(url, token);
       this.connections.set(url, conn);
+    } else if (token !== undefined) {
+      conn.updateToken(token);
     }
     return conn;
   }
