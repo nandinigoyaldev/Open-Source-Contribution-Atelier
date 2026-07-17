@@ -2,11 +2,12 @@ from django.contrib.auth import get_user_model
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
+from apps.core.models import AuditableModel
 
 User = get_user_model()
 
 
-class Lesson(models.Model):
+class Lesson(AuditableModel):
     class DoesNotExist(ObjectDoesNotExist):
         pass
 

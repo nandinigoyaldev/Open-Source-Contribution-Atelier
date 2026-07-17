@@ -16,23 +16,18 @@ from .version_view import version_view
 urlpatterns = [
     # ── Admin ──────────────────────────────────────────────────────────────────
     path("admin/", admin.site.urls),
-    
     # ── Health Checks ──────────────────────────────────────────────────────────
     path("health/", include("apps.health.urls")),
-    
     # ── Legacy Health (keep for backward compatibility) ──────────────────────
     path("health/legacy/", health_view, name="health"),
-    
     # ── API Version ────────────────────────────────────────────────────────────
     path("api/version/", version_view, name="version"),
-    
     # ── Leaderboard ────────────────────────────────────────────────────────────
     path("api/leaderboard/", LeaderboardView.as_view(), name="leaderboard"),
     # ── Authentication ─────────────────────────────────────────────────────────
     path("accounts/", include("allauth.urls")),
     path("api/auth/", include("apps.accounts.urls")),
     path("api/users/", include("apps.accounts.user_urls")),
-
     # ── Core Apps ──────────────────────────────────────────────────────────────
     path("api/content/", include("apps.content.urls")),
     path("api/billing/", include("apps.billing.urls")),
@@ -40,30 +35,24 @@ urlpatterns = [
     path("api/localization/", include("apps.localization.urls")),
     path("api/challenges/", include("apps.challenges.urls")),
     path("api/sandbox/", include("apps.sandbox.urls")),
-
     path("api/gamification/", include("apps.gamification.urls")),
-
     # ── Notifications & Real-time ─────────────────────────────────────────────
     path("api/notifications/", include("apps.notifications.urls")),
     path("api/dashboard/", include("apps.dashboard.urls")),
     path("api/chat/", include("apps.chat.urls")),
-
     # ── Search & Collaboration ────────────────────────────────────────────────
     path("api/search/", include("apps.search.urls")),
     path("api/notes/", include("apps.notes.urls")),
     path("api/recommendations/", include("apps.recommendations.urls")),
-    
     # ── Webhooks & Uploads ─────────────────────────────────────────────────────
     path("api/webhooks/", include("apps.webhooks.urls")),
     path("api/uploads/", include("apps.uploads.urls")),
-    
     # ── RBAC ───────────────────────────────────────────────────────────────────
     path("api/rbac/", include("apps.rbac.urls")),
-    
-
     # ── Errors ─────────────────────────────────────────────────────────────────
     path("api/errors/", include("apps.errors.urls")),
-
+    # ── Audit Trail ────────────────────────────────────────────────────────────
+    path("api/audit/", include("apps.audit.urls")),
     # ── Webhooks & Uploads ─────────────────────────────────────────────────────
     path("api/webhooks/", include("apps.webhooks.urls")),
     path("api/uploads/", include("apps.uploads.urls")),
@@ -84,7 +73,6 @@ urlpatterns = [
     # path("api/events/", include("apps.events.urls")),
     path("api/graphql/", include("apps.graphql_gateway.urls")),
     path("api/graphql/legacy/", csrf_exempt(GraphQLView.as_view(graphiql=True))),
-
     # ── API Documentation ──────────────────────────────────────────────────────
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
     path(
@@ -92,10 +80,8 @@ urlpatterns = [
         SpectacularSwaggerView.as_view(url_name="schema"),  # Fixed here
         name="swagger-ui",
     ),
-
     # ── Prometheus Metrics ─────────────────────────────────────────────────────
     path("", include("django_prometheus.urls")),
-
     path(
         "api/redoc/",
         SpectacularRedocView.as_view(url_name="schema"),
@@ -122,4 +108,3 @@ if settings.DEBUG:
             name="feature-flags-debug",
         ),
     ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
-

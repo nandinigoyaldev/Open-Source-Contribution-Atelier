@@ -67,6 +67,16 @@ class CoreConfig(AppConfig):
                     "repeats": -1,
                 },
             )
+
+            # Daily domain audit events archival to cold storage/archives
+            Schedule.objects.get_or_create(
+                name="audit-events-archive-daily",
+                defaults={
+                    "func": "apps.audit.tasks.archive_audit_events",
+                    "schedule_type": Schedule.DAILY,
+                    "repeats": -1,
+                },
+            )
         except Exception:
             # Table might not be migrated yet or django_q not installed
             pass

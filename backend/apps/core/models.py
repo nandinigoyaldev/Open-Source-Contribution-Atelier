@@ -195,3 +195,12 @@ class AdminAuditLog(models.Model):
     def __str__(self):
         actor_name = self.actor.username if self.actor else "System"
         return f"{actor_name} performed {self.action} at {self.timestamp}"
+
+
+class AuditableModel(models.Model):
+    """
+    Abstract base class/mixin for domain models that should be event-audited on writes.
+    """
+
+    class Meta:
+        abstract = True
