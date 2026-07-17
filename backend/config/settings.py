@@ -1,15 +1,19 @@
 import os
 import sys
-from datetime import timedelta
-from pathlib import Path
-from config.auth import JWT_CONFIG, TOKEN_BLACKLIST_ENABLED
-
+import stripe
 import dj_database_url
 from django.core.exceptions import ImproperlyConfigured
 
 TESTING = "test" in sys.argv or "pytest" in sys.modules
 
 BASE_DIR = Path(__file__).resolve().parent.parent
+
+
+STRIPE_PUBLISHABLE_KEY = os.getenv('STRIPE_PUBLISHABLE_KEY')
+STRIPE_SECRET_KEY = os.getenv('STRIPE_SECRET_KEY')
+STRIPE_WEBHOOK_SECRET = os.getenv('STRIPE_WEBHOOK_SECRET')
+
+stripe.api_key = STRIPE_SECRET_KEY
 
 
 def load_dotenv(dotenv_path: Path) -> None:
