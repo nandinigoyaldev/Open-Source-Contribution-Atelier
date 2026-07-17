@@ -33,7 +33,7 @@ class GithubService:
             raise ValueError("Invalid endpoint: Must be a relative path")
 
         url = f"{self.base_url}/{endpoint.lstrip('/')}"
-        
+
         parsed_url = urlparse(url)
         if parsed_url.netloc != "api.github.com" and not parsed_url.netloc.endswith(".github.com"):
             raise ValueError("Invalid endpoint: Domain must be a github.com domain")
@@ -46,8 +46,11 @@ class GithubService:
             response.raise_for_status()
             return response.json()
         except requests.exceptions.RequestException as e:
-            # If token expired, refresh and retry once
-            if response.status_code == 401:
+            # Only attempt the 401-refresh-and-retry path if we actually got
+            # a response back (connection-level failures like ConnectionError
+            # or Timeout never produce a response object).
+            resp = getattr(e, "response", None)
+            if resp is not None and resp.status_code == 401:
                 self._refresh_token()
                 headers = self._get_headers()
                 response = requests.request(method, url, headers=headers, **kwargs)
