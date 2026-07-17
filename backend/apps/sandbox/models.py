@@ -670,6 +670,70 @@ class ModerationAttempt(models.Model):
 
 
 # ============================================================
+# FEATURE 3: LICENSE & DEPENDENCY DETECTIVE
+# ============================================================
+
+
+class LicenseScenario(models.Model):
+    title = models.CharField(max_length=255, help_text="Title of the scenario.")
+    description = models.TextField(help_text="Context of the PR and base project.")
+    base_project_license = models.CharField(
+        max_length=100, help_text="License of the base project (e.g., 'MIT')."
+    )
+    difficulty = models.IntegerField(default=1, help_text="Difficulty level (1-5).")
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.title
+
+
+class DependencyDiff(models.Model):
+    scenario = models.ForeignKey(
+        LicenseScenario, on_delete=models.CASCADE, related_name="dependencies"
+    )
+    package_name = models.CharField(
+        max_length=255, help_text="Name of the package or file."
+    )
+    package_license = models.CharField(
+        max_length=100,
+        help_text="License of the package (e.g., 'GPLv3', 'Commercial').",
+    )
+    diff_text = models.TextField(
+        help_text="Mock code diff showing the dependency being added."
+    )
+    is_violation = models.BooleanField(
+        default=False,
+        help_text="Does this dependency violate the base project license?",
+    )
+    explanation = models.TextField(
+        blank=True, help_text="Explanation of why this is or isn't a violation."
+    )
+
+    def __str__(self):
+        return f"{self.package_name} ({self.package_license})"
+
+
+class LicenseAttempt(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="license_attempts",
+    )
+    scenario = models.ForeignKey(LicenseScenario, on_delete=models.CASCADE)
+    approved = models.BooleanField(help_text="Did the user approve or reject the PR?")
+    is_successful = models.BooleanField(
+        default=False, help_text="Was the user's decision correct?"
+    )
+    feedback = models.TextField(
+        blank=True, help_text="Feedback provided to the user after the attempt."
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Attempt by {self.user.username} on {self.scenario.title}"
+
+
+# ============================================================
 # FEATURE 11: ISSUE TRIAGE & LABELING MAINTAINER SCENARIO
 # ============================================================
 
@@ -700,7 +764,7 @@ class TriageIssue(models.Model):
         help_text="The poorly written title of the simulated issue.",
     )
     raw_issue_body = models.TextField(
-        help_text="The poorly written body of the simulated issue (missing steps, no env, etc.)."
+        help_text="The poorly written body of the simulated issue."
     )
     correct_labels = models.JSONField(
         help_text='List of correct label strings, e.g. ["bug", "needs-repro"]'

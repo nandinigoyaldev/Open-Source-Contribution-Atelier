@@ -325,6 +325,52 @@ class ModerationAttemptSerializer(serializers.ModelSerializer):
 
 
 # ============================================================
+# FEATURE 3: LICENSE & DEPENDENCY DETECTIVE
+# ============================================================
+
+from .models import LicenseScenario, DependencyDiff, LicenseAttempt
+
+
+class DependencyDiffSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = DependencyDiff
+        fields = ["id", "package_name", "package_license", "diff_text"]
+
+
+class LicenseScenarioSerializer(serializers.ModelSerializer):
+    dependencies = DependencyDiffSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = LicenseScenario
+        fields = [
+            "id",
+            "title",
+            "description",
+            "base_project_license",
+            "difficulty",
+            "created_at",
+            "dependencies",
+        ]
+
+
+class LicenseAttemptSerializer(serializers.ModelSerializer):
+    scenario = LicenseScenarioSerializer(read_only=True)
+
+    class Meta:
+        model = LicenseAttempt
+        fields = [
+            "id",
+            "user",
+            "scenario",
+            "approved",
+            "is_successful",
+            "feedback",
+            "created_at",
+        ]
+        read_only_fields = ["id", "user", "is_successful", "feedback", "created_at"]
+
+
+# ============================================================
 # FEATURE 11: ISSUE TRIAGE & LABELING MAINTAINER SCENARIO
 # ============================================================
 

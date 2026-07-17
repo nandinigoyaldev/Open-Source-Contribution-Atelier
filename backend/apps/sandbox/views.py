@@ -706,6 +706,72 @@ class ModerationScenarioViewSet(viewsets.ReadOnlyModelViewSet):
 
 
 # ============================================================
+# FEATURE 3: LICENSE & DEPENDENCY DETECTIVE
+# ============================================================
+
+from .models import LicenseScenario, DependencyDiff, LicenseAttempt
+from .serializers import LicenseScenarioSerializer, LicenseAttemptSerializer
+
+
+class LicenseScenarioViewSet(viewsets.ReadOnlyModelViewSet):
+    queryset = LicenseScenario.objects.all().order_by("-created_at")
+    serializer_class = LicenseScenarioSerializer
+    permission_classes = [permissions.AllowAny]
+
+    @action(detail=True, methods=["post"])
+    def evaluate(self, request, pk=None):
+        scenario = self.get_object()
+        user = request.user if request.user.is_authenticated else None
+        approved = request.data.get("approved")
+        flagged_dependencies = request.data.get("flagged_dependencies", [])
+
+        if approved is None:
+            return Response(
+                {"error": "You must provide 'approved' boolean."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        violations = scenario.dependencies.filter(is_violation=True)
+        has_violations = violations.exists()
+
+        is_successful = False
+        feedback = ""
+
+        if has_violations and approved:
+            is_successful = False
+            feedback = "You approved a PR with a license violation!"
+        elif has_violations and not approved:
+            violation_ids = set(violations.values_list("id", flat=True))
+            flagged_set = set(flagged_dependencies)
+
+            if violation_ids == flagged_set:
+                is_successful = True
+                feedback = "Great job! You caught all the license violations."
+            elif violation_ids.issubset(flagged_set):
+                is_successful = False
+                feedback = "You caught the violations, but you also flagged safe dependencies."
+            else:
+                is_successful = False
+                feedback = "You rejected the PR, but you missed some of the actual license violations."
+        elif not has_violations and approved:
+            is_successful = True
+            feedback = "Correct! The PR is safe to merge."
+        elif not has_violations and not approved:
+            is_successful = False
+            feedback = "You rejected a perfectly safe PR."
+
+        LicenseAttempt.objects.create(
+            user=user,
+            scenario=scenario,
+            approved=approved,
+            is_successful=is_successful,
+            feedback=feedback,
+        )
+
+        return Response({"is_successful": is_successful, "feedback": feedback})
+
+
+# ============================================================
 # FEATURE 11: ISSUE TRIAGE & LABELING MAINTAINER SCENARIO
 # ============================================================
 

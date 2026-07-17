@@ -23,6 +23,7 @@ from .views import (
     PipelineExecutionViewSet,
     ConflictScenarioViewSet,
     ModerationScenarioViewSet,
+    LicenseScenarioViewSet,
     TriageIssueViewSet,
 )
 
@@ -52,6 +53,7 @@ router.register(r"collab-sessions", CollabSessionViewSet, basename="collab-sessi
 router.register(r"pipelines", PipelineExecutionViewSet, basename="pipeline")
 router.register(r"conflict-scenarios", ConflictScenarioViewSet, basename="conflict-scenario")
 router.register(r"moderation-scenarios", ModerationScenarioViewSet, basename="moderation-scenario")
+router.register(r"license-scenarios", LicenseScenarioViewSet, basename="license-scenario")
 router.register(r"triage-issues", TriageIssueViewSet, basename="triage-issue")
 
 # ============================================================
