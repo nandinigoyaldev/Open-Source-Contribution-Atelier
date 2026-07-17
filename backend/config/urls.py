@@ -61,6 +61,9 @@ urlpatterns = [
     path("api/rbac/", include("apps.rbac.urls")),
     
 
+    # ── Errors ─────────────────────────────────────────────────────────────────
+    path("api/errors/", include("apps.errors.urls")),
+
     # ── Webhooks & Uploads ─────────────────────────────────────────────────────
     path("api/webhooks/", include("apps.webhooks.urls")),
     path("api/uploads/", include("apps.uploads.urls")),
@@ -71,9 +74,12 @@ urlpatterns = [
     path("api/portfolio/", include("apps.portfolio.urls")),
     path("api/organizations/", include("apps.organizations.urls")),
     path("api/accessibility/", include("apps.accessibility.urls")),
+    # ── Issue Reporting ────────────────────────────────────────────────────────
     path("api/issues/", include("apps.issues.urls")),
     # ── Project Health Dashboard ───────────────────────────────────────────────
     path("api/project-health/", include("apps.project_health.urls")),
+    # ── Plugins ────────────────────────────────────────────────────────────────
+    path("api/plugins/", include("apps.plugins.urls")),
     # ── Events & GraphQL ──────────────────────────────────────────────────────
     # path("api/events/", include("apps.events.urls")),
     path("api/graphql/", include("apps.graphql_gateway.urls")),
@@ -86,10 +92,7 @@ urlpatterns = [
         SpectacularSwaggerView.as_view(url_name="schema"),  # Fixed here
         name="swagger-ui",
     ),
-    
-    # ── GraphQL ────────────────────────────────────────────────────────────────
-    path("api/graphql/", csrf_exempt(GraphQLView.as_view(graphiql=True))),
-    
+
     # ── Prometheus Metrics ─────────────────────────────────────────────────────
     path("", include("django_prometheus.urls")),
 
@@ -98,9 +101,6 @@ urlpatterns = [
         SpectacularRedocView.as_view(url_name="schema"),
         name="redoc-ui",
     ),
-    # ── GraphQL ────────────────────────────────────────────────────────────────
-    path("api/graphql/", csrf_exempt(GraphQLView.as_view(graphiql=True))),
-
 ]
 
 # ── Development URLs ──────────────────────────────────────────────────────────

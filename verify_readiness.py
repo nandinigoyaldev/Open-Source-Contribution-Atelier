@@ -5,10 +5,15 @@ import subprocess
 import shutil
 from pathlib import Path
 
-# Fix terminal encoding issues on Windows
-if sys.platform == "win32":
-    import io
-    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+# Configure standard streams to use UTF-8 on Windows to prevent UnicodeEncodeError
+try:
+    if sys.platform == "win32":
+        if hasattr(sys.stdout, "reconfigure"):
+            sys.stdout.reconfigure(encoding="utf-8")
+        if hasattr(sys.stderr, "reconfigure"):
+            sys.stderr.reconfigure(encoding="utf-8")
+except Exception:
+    pass
 
 # ANSI Escape Sequences for beautiful terminal outputs
 BLUE = "\033[94m"

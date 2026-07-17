@@ -11,6 +11,8 @@ import { SectionCard } from "../components/ui/SectionCard";
 import { getAccessToken } from "../lib/authToken";
 import { Radio, Hash } from "lucide-react";
 
+import { ConnectionStatusIndicator } from "../components/ui/ConnectionStatusIndicator";
+
 function getAvatarColor(name: string): string {
   const colors = [
     "bg-red-500", "bg-blue-500", "bg-green-500", "bg-yellow-500",
@@ -48,6 +50,8 @@ export function ChatPage() {
     typingUsers,
     onlineUsers,
     isConnected,
+    state,
+    getMetrics,
     sendMessage,
     onInputChange,
     onInputBlur,
@@ -158,14 +162,7 @@ export function ChatPage() {
                 {roomId.startsWith("dm_") ? "Direct Message" : roomId}
               </h2>
             </div>
-            <div className="flex items-center gap-1.5">
-              <span
-                className={`h-2 w-2 rounded-full ${isConnected ? "bg-green-500" : "bg-red-500"}`}
-              />
-              <span className="text-[11px] font-bold text-slate-400 dark:text-[#a0a0ab] uppercase tracking-wider">
-                {isConnected ? "Connected" : "Disconnected"}
-              </span>
-            </div>
+            <ConnectionStatusIndicator state={state} getMetrics={getMetrics} />
           </div>
 
           {/* Messages Area */}

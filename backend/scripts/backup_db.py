@@ -62,7 +62,17 @@ class DatabaseBackup:
             return filepath
         except subprocess.CalledProcessError as e:
             print(f"❌ Backup failed: {e}")
+            self._cleanup_partial_file(filepath)
             return None
+
+    def _cleanup_partial_file(self, filepath):
+        """Remove a partial/empty backup file left behind by a failed pg_dump run."""
+        try:
+            if filepath.exists():
+                filepath.unlink()
+                print(f"🧹 Removed partial backup after failure: {filepath}")
+        except OSError as e:
+            print(f"⚠️ Could not remove partial backup {filepath}: {e}")
 
     def compress_backup(self, filepath):
         compressed_path = filepath.with_suffix(".sql.gz")
@@ -100,10 +110,15 @@ class DatabaseBackup:
 
         cutoff = time.time() - (self.retention_days * 24 * 60 * 60)
 
-        for file in self.backup_dir.glob("*.sql.gz"):
-            if file.stat().st_mtime < cutoff:
-                file.unlink()
-                print(f"🧹 Deleted old backup: {file}")
+        # *.sql.gz = normal successful backups under retention policy.
+        # *.sql (uncompressed) = orphaned leftovers from failed/interrupted
+        # runs that predate this fix, or from a race where compression
+        # never ran. Sweep both so nothing lingers past retention_days.
+        for pattern in ("*.sql.gz", "*.sql"):
+            for file in self.backup_dir.glob(pattern):
+                if file.stat().st_mtime < cutoff:
+                    file.unlink()
+                    print(f"🧹 Deleted old backup: {file}")
 
     def run(self):
         print(f"📦 Starting database backup at {datetime.now()}")

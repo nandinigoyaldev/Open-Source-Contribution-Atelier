@@ -6,6 +6,9 @@
         <a href="search-logs/" class="addlink" style="background-color: #2b78e4; color: white;">
             Search Request Logs
         </a>
+{% block object-tools-items %}
+    <li>
+        <a href="cache-dashboard/" class="viewsitelink">Cache Invalidation Dashboard</a>
     </li>
     {{ block.super }}
 {% endblock %}

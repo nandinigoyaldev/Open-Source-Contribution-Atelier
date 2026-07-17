@@ -38,9 +38,6 @@ export default defineConfig({
         type: "module",
       },
     }),
-    storybookTest({
-      configDir: path.join(dirname, ".storybook"),
-    }),
   ],
   resolve: {
     dedupe: ["react", "react-dom", "react-i18next"],
@@ -50,6 +47,7 @@ export default defineConfig({
       {
         extends: true,
         test: {
+          name: "unit",
           environment: "jsdom",
           setupFiles: "./src/test/setup.ts",
           include: ["src/**/*.test.{ts,tsx}"],
@@ -58,6 +56,11 @@ export default defineConfig({
       },
       {
         extends: true,
+        plugins: [
+          storybookTest({
+            configDir: path.join(dirname, ".storybook"),
+          }),
+        ],
         test: {
           name: "storybook",
           browser: {

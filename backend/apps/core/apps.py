@@ -23,6 +23,7 @@ class CoreConfig(AppConfig):
 
         try:
             import apps.core.signals  # noqa: F401
+            import apps.core.cache.signals  # noqa: F401
         except ImportError:
             pass
 

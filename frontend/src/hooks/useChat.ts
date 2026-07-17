@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef, useEffect } from "react";
-import { useWebSocket } from "./useWebSocket";
+import { useWebSocketManager as useWebSocket } from "./useWebSocketManager";
 import { useTypingIndicator } from "./useTypingIndicator";
 import {
   generateKeyPair,
@@ -248,6 +248,8 @@ export function useChat({ roomId, token, username }: UseChatOptions) {
     typingUsers: typing.typingUsers,
     onlineUsers,
     isConnected: ws.isConnected,
+    state: ws.state,
+    getMetrics: ws.getMetrics,
     sendMessage,
     onInputChange: typing.onInputChange,
     onInputBlur: typing.onInputBlur,
