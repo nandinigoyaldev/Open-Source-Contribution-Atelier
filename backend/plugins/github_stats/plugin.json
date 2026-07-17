@@ -1,0 +1,15 @@
+{
+  "name": "github_stats",
+  "display_name": "GitHub Stats",
+  "version": "1.0.0",
+  "api_version": "1.0.0",
+  "description": "Displays custom GitHub contribution statistics widgets.",
+  "author": "Atelier Developer",
+  "entry_point": "github_stats",
+  "hooks": {
+    "on_activate": "hooks.on_activate"
+  },
+  "views": {
+    "info/": "views.GitHubStatsInfoView"
+  }
+}

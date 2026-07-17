@@ -580,3 +580,112 @@ class PipelineJob(models.Model):
 
     def __str__(self):
         return f"{self.job_type} job in pipeline {self.pipeline_id} [{self.status}]"
+
+
+# ─────────────────────────────────────────────────────────────────
+# Feature 11: Issue Triage & Labeling Maintainer Scenario
+# ─────────────────────────────────────────────────────────────────
+
+
+class TriageIssue(models.Model):
+    """A simulated, messy bug report that the user must triage as a maintainer."""
+
+    class Difficulty(models.TextChoices):
+        EASY = "easy", "Easy"
+        MEDIUM = "medium", "Medium"
+        HARD = "hard", "Hard"
+
+    VALID_LABELS = [
+        "bug",
+        "enhancement",
+        "needs-repro",
+        "wontfix",
+        "duplicate",
+        "question",
+        "good first issue",
+        "help wanted",
+        "invalid",
+        "documentation",
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    title = models.CharField(max_length=255, help_text="Scenario title shown to the user.")
+    # The raw, poorly written issue text the user must evaluate
+    raw_issue_title = models.CharField(
+        max_length=255,
+        help_text="The poorly written title of the simulated issue.",
+    )
+    raw_issue_body = models.TextField(
+        help_text="The poorly written body of the simulated issue (missing steps, no env, etc.)."
+    )
+    # What the correct triage decision is
+    correct_labels = models.JSONField(
+        help_text='List of correct label strings, e.g. ["bug", "needs-repro"]'
+    )
+    # A model polite-response template the user's reply is scored against
+    model_response = models.TextField(
+        help_text="An exemplary maintainer response asking for missing info."
+    )
+    # Hint visible to the user if they ask for help
+    hint = models.TextField(blank=True, help_text="Optional hint for the user.")
+    difficulty = models.CharField(
+        max_length=10, choices=Difficulty.choices, default=Difficulty.MEDIUM
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["difficulty", "-created_at"]
+
+    def __str__(self):
+        return f"[{self.difficulty}] {self.title}"
+
+
+class TriageAttempt(models.Model):
+    """Records a user's triage decision for a TriageIssue."""
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    issue = models.ForeignKey(
+        TriageIssue,
+        on_delete=models.CASCADE,
+        related_name="attempts",
+    )
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="triage_attempts",
+    )
+    # The labels the user selected
+    submitted_labels = models.JSONField(
+        help_text='Labels the user chose, e.g. ["bug", "needs-repro"]'
+    )
+    # The response the user wrote
+    submitted_response = models.TextField(
+        help_text="The response text the user wrote to the issue author."
+    )
+    # Scoring (0–100)
+    label_score = models.IntegerField(
+        default=0, help_text="Score for label accuracy (0–50)."
+    )
+    response_score = models.IntegerField(
+        default=0, help_text="Score for response quality (0–50)."
+    )
+    total_score = models.IntegerField(default=0, help_text="Combined score (0–100).")
+    passed = models.BooleanField(default=False, help_text="True if total_score >= 70.")
+    feedback = models.TextField(
+        blank=True, help_text="Automated feedback explaining the score."
+    )
+    badge_awarded = models.CharField(
+        max_length=50,
+        blank=True,
+        help_text='Badge slug awarded on pass, e.g. "triager".',
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return (
+            f"TriageAttempt by {self.user} on '{self.issue.title}' "
+            f"[{'PASS' if self.passed else 'FAIL'} {self.total_score}/100]"
+        )

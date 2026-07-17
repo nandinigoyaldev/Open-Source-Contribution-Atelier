@@ -261,3 +261,30 @@ def health_live_view(request):
     Returns 200 if the application is running.
     """
     return JsonResponse({"status": "alive"}, status=200)
+
+
+@csrf_exempt
+@require_http_methods(["GET"])
+def replication_lag_view(request):
+    """
+    Replication lag monitoring endpoint.
+
+    GET /health/db/replication-lag/
+
+    Returns lag seconds for each configured replica. Responds 200 if all
+    replicas are within threshold, 503 if any exceed it or are in error.
+    """
+    from config.db_router import PrimaryReplicaRouter
+
+    router = PrimaryReplicaRouter()
+    lag_info = router.get_replica_lag_info()
+
+    has_error = any(r["status"] in ("error", "lagging") for r in lag_info)
+    status_code = 503 if has_error else 200
+
+    payload = {
+        "status": "degraded" if has_error else "healthy",
+        "replicas": lag_info,
+        "threshold_seconds": getattr(settings, "REPLICA_LAG_ALERT_SECONDS", 30),
+    }
+    return JsonResponse(payload, status=status_code)

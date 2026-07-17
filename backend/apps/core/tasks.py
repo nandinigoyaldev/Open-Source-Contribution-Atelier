@@ -341,3 +341,13 @@ def prune_old_backups():
 
     logger.info("Backup pruning complete: %d file(s) removed", deleted)
     return deleted
+
+
+@shared_task
+def invalidate_tag_task(tag: str):
+    """
+    Asynchronously invalidate cached items tagged with a specific tag (or wildcard pattern).
+    """
+    from apps.core.cache.invalidation import invalidate_tag
+    invalidate_tag(tag)
+

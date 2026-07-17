@@ -159,6 +159,18 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
       continue;
     }
 
+    // Horizontal Rule: ---, ***, ___
+    if (/^(\s*[-*_]\s*){3,}$/.test(line.trim())) {
+      blocks.push(
+        <hr
+          key={index}
+          className="my-6 border-b-4 border-black/10 dark:border-[#2e2924]"
+        />,
+      );
+      index++;
+      continue;
+    }
+
     // 4. GitHub Alerts: > [!NOTE], > [!TIP], etc.
     if (line.trim().startsWith("> [!")) {
       const alertTypeMatch = line.trim().match(/> \[!(.*?)\]/);
@@ -322,6 +334,9 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
     // 8. Numbered Lists: 1.
     if (/^\d+\.\s/.test(line.trim())) {
       const listItems: string[] = [];
+      const firstLineMatch = line.trim().match(/^(\d+)\.\s/);
+      const start = firstLineMatch ? parseInt(firstLineMatch[1], 10) : 1;
+
       while (index < lines.length && /^\d+\.\s/.test(lines[index].trim())) {
         const itemText = lines[index].trim().replace(/^\d+\.\s/, "");
         listItems.push(itemText);
@@ -330,6 +345,7 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
       blocks.push(
         <ol
           key={index}
+          start={start}
           className="list-decimal list-inside space-y-2 pl-4 my-3 text-text dark:text-[#c4bbae]"
         >
           {listItems.map((item, i) => (
@@ -378,27 +394,27 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
     }
 
     // 9b. HTML and Markdown Image Blocks
-    const imgHtmlMatch = line.trim().match(/<img\s+[^>]*src="([^"]+)"[^>]*\/?>/i);
+    const imgHtmlMatch = line.trim().match(/<img\s+[^>]*src="([^"]+)"[^>]*\/?/i);
     if (imgHtmlMatch) {
       const src = imgHtmlMatch[1];
       const altMatch = line.match(/alt="([^"]*)"/i);
       const widthMatch = line.match(/width="([^"]*)"/i);
       const heightMatch = line.match(/height="([^"]*)"/i);
-      
+
       const alt = altMatch ? altMatch[1] : "image";
       const width = widthMatch ? widthMatch[1] : undefined;
       const height = heightMatch ? heightMatch[1] : undefined;
 
       blocks.push(
         <div key={index} className="my-4 flex justify-center">
-          <img 
-            src={src} 
-            alt={alt} 
+          <img
+            src={src}
+            alt={alt}
             width={width}
             height={height}
             className="rounded-2xl border-4 border-black dark:border-[#2e2924] shadow-card-sm max-w-full h-auto"
           />
-        </div>
+        </div>,
       );
       index++;
       continue;
@@ -410,12 +426,12 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
       const src = mdImgMatch[2];
       blocks.push(
         <div key={index} className="my-4 flex justify-center">
-          <img 
-            src={src} 
-            alt={alt} 
+          <img
+            src={src}
+            alt={alt}
             className="rounded-2xl border-4 border-black dark:border-[#2e2924] shadow-card-sm max-w-full h-auto"
           />
-        </div>
+        </div>,
       );
       index++;
       continue;

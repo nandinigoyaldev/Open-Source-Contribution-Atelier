@@ -266,6 +266,9 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     },
                 )
 
+        elif action == "ping":
+            await self.send(text_data=json.dumps({"type": "pong"}))
+
         elif action == "send_message":
             content = data.get("message", "")
             parent_id = data.get("parent_id")

@@ -65,6 +65,7 @@ const MarkdownRenderer = React.lazy(() =>
 import { LessonHistoryModal } from "../components/LessonHistoryModal";
 import { GitGraph } from "../components/ui/GitGraph";
 import { NotePanel } from "../components/ui/NotePanel";
+import { CommitMessageCoach } from "../components/ui/CommitMessageCoach";
 import { LessonFeedbackWidget } from "../components/ui/LessonFeedbackWidget";
 import { PythonSandbox } from "../components/ui/PythonSandbox";
 const CollabPythonSandbox = React.lazy(() =>
@@ -179,6 +180,7 @@ export function LessonPage() {
 
   // Note Panel
   const [isNotePanelOpen, setIsNotePanelOpen] = useState(false);
+  const [isCommitCoachOpen, setIsCommitCoachOpen] = useState(false);
 
   // Reading progress scroll ref
   const mainContentRef = useRef<HTMLDivElement>(null);
@@ -1329,9 +1331,21 @@ export function LessonPage() {
         </div>
 
         {/* Mentor Help Trigger Row */}
-        <div className="border-t-4 border-black p-4 bg-white dark:bg-[#151411] dark:border-[#2e2924] flex justify-end gap-4 flex-shrink-0">
+        <div className="border-t-4 border-black p-4 bg-white dark:bg-[#151411] dark:border-[#2e2924] flex justify-end gap-4 flex-shrink-0 flex-wrap">
           <button
-            onClick={() => setIsNotePanelOpen(!isNotePanelOpen)}
+            onClick={() => {
+              setIsCommitCoachOpen(!isCommitCoachOpen);
+              if (!isCommitCoachOpen) setIsNotePanelOpen(false);
+            }}
+            className="px-4 py-2 bg-white text-text dark:bg-[#151411] dark:text-[#f0ebe2] font-black text-xs rounded-lg border-4 border-black shadow-card-sm hover:-translate-y-0.5 cursor-pointer"
+          >
+            {isCommitCoachOpen ? "Close Commit Coach" : "Commit Coach"}
+          </button>
+          <button
+            onClick={() => {
+              setIsNotePanelOpen(!isNotePanelOpen);
+              if (!isNotePanelOpen) setIsCommitCoachOpen(false);
+            }}
             className="px-4 py-2 bg-white text-text dark:bg-[#151411] dark:text-[#f0ebe2] font-black text-xs rounded-lg border-4 border-black shadow-card-sm hover:-translate-y-0.5 cursor-pointer"
           >
             {isNotePanelOpen ? "Close Notes 📝" : "Notes 📝"}
@@ -1353,6 +1367,38 @@ export function LessonPage() {
           lessonSlug={lesson.slug}
           onClose={() => setIsNotePanelOpen(false)}
         />
+      )}
+
+      {isCommitCoachOpen && (
+        <div className="fixed inset-0 z-50 flex justify-end bg-black/40">
+          <button
+            type="button"
+            aria-label="Close commit message coach"
+            className="flex-1 cursor-default"
+            onClick={() => setIsCommitCoachOpen(false)}
+          />
+          <aside className="h-full w-full max-w-md overflow-y-auto bg-surface-lowest border-l-4 border-black p-6 shadow-card space-y-4 dark:bg-[#0f0e0c] dark:border-[#2e2924]">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-2xl font-black text-text dark:text-[#f0ebe2]">
+                  Practice your commit
+                </h2>
+                <p className="text-xs text-muted mt-1 dark:text-[#c4bbae]">
+                  Draft a Conventional Commit while you learn — then copy it
+                  into your real PR.
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsCommitCoachOpen(false)}
+                className="px-3 py-1 border-2 border-black rounded-lg font-black text-xs hover:bg-surface-low dark:border-[#2e2924] dark:text-[#f0ebe2]"
+              >
+                Close
+              </button>
+            </div>
+            <CommitMessageCoach />
+          </aside>
+        </div>
       )}
 
       {isHelpPanelOpen && (

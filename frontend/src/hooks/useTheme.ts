@@ -8,17 +8,20 @@ const THEME_KEY = 'app-theme';
 
 export function useTheme() {
   const [theme, setThemeState] = useState<Theme>(() => {
+    if (typeof window === "undefined") return "light";
     const saved = localStorage.getItem(THEME_KEY);
     if (saved === 'dark' || saved === 'light' || saved === 'system') return saved as Theme;
     return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
   });
 
   const [soundEnabled, setSoundEnabled] = useState(() => {
+    if (typeof window === "undefined") return true;
     const saved = localStorage.getItem('sound-effects-enabled');
     return saved !== null ? saved === 'true' : true;
   });
 
   useEffect(() => {
+    if (typeof window === "undefined" || typeof document === "undefined") return;
     const applied = theme === 'system'
       ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
       : theme;
