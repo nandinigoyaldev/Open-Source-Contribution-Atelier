@@ -1,5 +1,7 @@
 import { openDB } from "./offlineDB";
 import { eventBus } from "../core/events";
+import { SYNC_STORE } from "./offlineDB";
+
 export interface QueuedAction {
   id: string;
   url: string;
@@ -9,6 +11,17 @@ export interface QueuedAction {
   timestamp: number;
 }
 
+type SyncType = "progress" | "quiz" | "help";
+
+type PendingChangeItem = {
+  id: string;
+  lesson_slug: string;
+  score?: number;
+  completed?: boolean;
+  timestamp: number;
+  type: SyncType;
+};
+
 interface PendingSyncItem {
   lesson_slug: string;
   score?: number;
@@ -16,18 +29,91 @@ interface PendingSyncItem {
   timestamp: number;
 }
 
+function now() {
+  return Date.now();
+}
+
+function makePendingChangeId(type: SyncType, slugOrId: string) {
+  return `${type}-${slugOrId}`;
+}
+
+function getApiBase() {
+  return import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api";
+}
+
+function getPendingList(): PendingChangeItem[] {
+  try {
+    return JSON.parse(localStorage.getItem("atelier_pending_sync") || "[]");
+  } catch {
+    return [];
+  }
+}
+
+function setPendingList(items: PendingChangeItem[]) {
+  localStorage.setItem("atelier_pending_sync", JSON.stringify(items));
+}
+
+async function putActionToIndexedDB(action: QueuedAction) {
+  const db = await openDB();
+  const tx = db.transaction("sync-queue", "readwrite");
+  const store = tx.objectStore("sync-queue");
+  await new Promise<void>((resolve, reject) => {
+    const req = store.put(action);
+    req.onsuccess = () => resolve();
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function mirrorToLocalStorage(item: PendingChangeItem) {
+  const pending = getPendingList();
+  const exists = pending.some((p) => p.id === item.id);
+  if (!exists) {
+    pending.push(item);
+    setPendingList(pending);
+  }
+}
+
+function triggerServiceWorkerSyncProgress() {
+  if (!("serviceWorker" in navigator)) return;
+
+  void (async () => {
+    try {
+      const reg = await navigator.serviceWorker.ready;
+      if ("sync" in reg) {
+        interface ServiceWorkerRegistrationWithSync
+          extends ServiceWorkerRegistration {
+          sync: { register: (tag: string) => Promise<void> };
+        }
+        // Current SW supports sync-progress tag; other tags will be added later.
+        await (reg as ServiceWorkerRegistrationWithSync).sync.register(
+          "sync-progress",
+        );
+      }
+
+      if (navigator.serviceWorker.controller) {
+        navigator.serviceWorker.controller.postMessage({
+          type: "TRIGGER_SYNC",
+        });
+      }
+    } catch (err) {
+      console.warn(
+        "[OfflineQueue] Service worker sync registration failed/unsupported:",
+        err,
+      );
+    }
+  })();
+}
+
 export async function enqueueOfflineAction(
   url: string,
   method: string,
   headers: Record<string, string>,
   body: Record<string, any> | string,
-  type: string,
-  slugOrId: string,
+  type: SyncType,
+  lesson_slug: string,
 ) {
-  const id = `${type}-${slugOrId}`;
-  const API_BASE =
-    import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api";
-  const finalUrl = url.startsWith("http") ? url : `${API_BASE}${url}`;
+  const id = makePendingChangeId(type, lesson_slug);
+  const finalUrl = url.startsWith("http") ? url : `${getApiBase()}${url}`;
 
   const bodyStr = typeof body === "string" ? body : JSON.stringify(body);
   const bodyObj = typeof body === "string" ? JSON.parse(body) : body;
@@ -38,67 +124,33 @@ export async function enqueueOfflineAction(
     method,
     headers,
     body: bodyStr,
-    timestamp: Date.now(),
+    timestamp: now(),
   };
 
   // 1. Save to IndexedDB
   try {
-    const db = await openDB();
-    const tx = db.transaction("sync-queue", "readwrite");
-    const store = tx.objectStore("sync-queue");
-    await new Promise<void>((resolve, reject) => {
-      const req = store.put(action);
-      req.onsuccess = () => resolve();
-      req.onerror = () => reject(req.error);
-    });
+    await putActionToIndexedDB(action);
   } catch (err) {
     console.error("[OfflineQueue] Failed to save action to IndexedDB:", err);
   }
 
-  // 2. Mirror to localStorage
+  // 2. Mirror to localStorage for synchronous UI queries
   try {
-    const pending = JSON.parse(
-      localStorage.getItem("atelier_pending_sync") || "[]",
-    );
-    const exists = pending.some((p: any) => p.id === id);
-    if (!exists) {
-      pending.push({
-        id,
-        lesson_slug: bodyObj.lesson_slug || slugOrId,
-        score: bodyObj.score ?? 100,
-        completed: bodyObj.completed ?? true,
-        timestamp: action.timestamp,
-      });
-      localStorage.setItem("atelier_pending_sync", JSON.stringify(pending));
-    }
+    const pendingItem: PendingChangeItem = {
+      id,
+      lesson_slug,
+      score: bodyObj.score,
+      completed: bodyObj.completed,
+      timestamp: action.timestamp,
+      type,
+    };
+    await mirrorToLocalStorage(pendingItem);
   } catch (err) {
     console.error("[OfflineQueue] Failed to mirror to localStorage:", err);
   }
 
-  // 3. Trigger Service Worker background sync
-  if ("serviceWorker" in navigator) {
-    try {
-      const reg = await navigator.serviceWorker.ready;
-      if ("sync" in reg) {
-        interface ServiceWorkerRegistrationWithSync extends ServiceWorkerRegistration {
-          sync: { register: (tag: string) => Promise<void> };
-        }
-        await (reg as ServiceWorkerRegistrationWithSync).sync.register(
-          "sync-progress",
-        );
-      }
-      if (navigator.serviceWorker.controller) {
-        navigator.serviceWorker.controller.postMessage({
-          type: "TRIGGER_SYNC",
-        });
-      }
-    } catch (err) {
-      console.warn(
-        "[OfflineQueue] Service worker sync registration failed/unsupported:",
-        err,
-      );
-    }
-  }
+  // 3. Trigger SW background sync (currently sync-progress tag)
+  triggerServiceWorkerSyncProgress();
 }
 
 export async function queueProgressSync(data: {
@@ -107,91 +159,64 @@ export async function queueProgressSync(data: {
   completed?: boolean;
   headers: Record<string, string>;
 }) {
-  const API_BASE =
-    import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api";
-  const id = `progress-sync-${data.lesson_slug}`;
+  const API_BASE = getApiBase();
 
-  const action: QueuedAction = {
-    id,
-    url: `${API_BASE}/progress/me/`,
-    method: "POST",
-    headers: data.headers,
-    body: JSON.stringify({
+  await enqueueOfflineAction(
+    `${API_BASE}/progress/me/`,
+    "POST",
+    data.headers,
+    {
       lesson_slug: data.lesson_slug,
       score: data.score,
       completed: data.completed,
-    }),
-    timestamp: Date.now(),
+    },
+    "progress",
+    data.lesson_slug,
+  );
+}
+
+export async function queueQuizSubmissionOffline(data: {
+  lesson_slug: string;
+  // Match expected backend fields loosely; concrete shape will be validated by backend.
+  quiz_attempt_id?: string;
+  quiz_answer_payload: Record<string, any>;
+  headers: Record<string, string>;
+}) {
+  const API_BASE = getApiBase();
+  const body = {
+    lesson_slug: data.lesson_slug,
+    ...(data.quiz_attempt_id ? { quiz_attempt_id: data.quiz_attempt_id } : {}),
+    ...data.quiz_answer_payload,
   };
 
-  // 1. Save to IndexedDB
-  try {
-    const db = await openDB();
-    const tx = db.transaction("sync-queue", "readwrite");
-    const store = tx.objectStore("sync-queue");
-    await new Promise<void>((resolve, reject) => {
-      const req = store.put(action);
-      req.onsuccess = () => resolve();
-      req.onerror = () => reject(req.error);
-    });
-    console.log(`[OfflineQueue] Queued action ${id} in IndexedDB`);
-  } catch (err) {
-    console.error("[OfflineQueue] Failed to save action to IndexedDB:", err);
-  }
+  await enqueueOfflineAction(
+    `${API_BASE}/progress/quiz/submit/`,
+    "POST",
+    data.headers,
+    body,
+    "quiz",
+    data.lesson_slug,
+  );
+}
 
-  // 2. Save/mirror to localStorage for synchronous UI queries
-  try {
-    const pending = JSON.parse(
-      localStorage.getItem("atelier_pending_sync") || "[]",
-    );
-    const exists = pending.some(
-      (p: PendingSyncItem) => p.lesson_slug === data.lesson_slug,
-    );
-    if (!exists) {
-      pending.push({
-        lesson_slug: data.lesson_slug,
-        score: data.score ?? 100,
-        completed: data.completed ?? true,
-        timestamp: action.timestamp,
-      });
-      localStorage.setItem("atelier_pending_sync", JSON.stringify(pending));
-      console.log(
-        `[OfflineQueue] Mirrored to localStorage: ${data.lesson_slug}`,
-      );
-    }
-  } catch (err) {
-    console.error("[OfflineQueue] Failed to mirror to localStorage:", err);
-  }
+export async function queueHelpRequestOffline(data: {
+  lesson_slug: string;
+  message: string;
+  headers: Record<string, string>;
+}) {
+  const API_BASE = getApiBase();
 
-  // 3. Trigger Service Worker background sync
-  if ("serviceWorker" in navigator) {
-    try {
-      const reg = await navigator.serviceWorker.ready;
-      if ("sync" in reg) {
-        interface ServiceWorkerRegistrationWithSync extends ServiceWorkerRegistration {
-          sync: { register: (tag: string) => Promise<void> };
-        }
-        await (reg as ServiceWorkerRegistrationWithSync).sync.register(
-          "sync-progress",
-        );
-        console.log(
-          "[OfflineQueue] Registered background sync tag 'sync-progress'",
-        );
-      }
-
-      // Send message to SW to trigger sync immediately if SW is active
-      if (navigator.serviceWorker.controller) {
-        navigator.serviceWorker.controller.postMessage({
-          type: "TRIGGER_SYNC",
-        });
-      }
-    } catch (err) {
-      console.warn(
-        "[OfflineQueue] Service worker sync registration failed/unsupported:",
-        err,
-      );
-    }
-  }
+  await enqueueOfflineAction(
+    `${API_BASE}/progress/help/request/`,
+    "POST",
+    data.headers,
+    {
+      lesson_slug: data.lesson_slug,
+      message: data.message,
+    },
+    "help",
+    data.lesson_slug,
+  );
 }
 
 export async function syncOfflineQueue() {
@@ -213,6 +238,10 @@ export async function syncOfflineQueue() {
       `[OfflineQueue] Found ${actions.length} pending actions, starting sync...`,
     );
 
+    // Sync in order (IndexedDB getAll returns insertion order in most browsers,
+    // but the TODO tracker will later make this explicit with timestamp sorting).
+    actions.sort((a, b) => a.timestamp - b.timestamp);
+
     for (const action of actions) {
       try {
         const response = await fetch(action.url, {
@@ -221,7 +250,6 @@ export async function syncOfflineQueue() {
           body: action.body,
         });
 
-        // 200/201 is success. 400 or 409 means bad request/already completed, so discard.
         if (response.ok || response.status === 400 || response.status === 409) {
           const bodyObj = JSON.parse(action.body);
           console.log(`[OfflineQueue] Successfully synced action ${action.id}`);
@@ -236,18 +264,10 @@ export async function syncOfflineQueue() {
           });
 
           // Remove from localStorage
-          const pending = JSON.parse(
-            localStorage.getItem("atelier_pending_sync") || "[]",
-          );
-          const filtered = pending.filter(
-            (p: PendingSyncItem) => p.lesson_slug !== bodyObj.lesson_slug,
-          );
-          localStorage.setItem(
-            "atelier_pending_sync",
-            JSON.stringify(filtered),
-          );
+          const pending = getPendingList();
+          const filtered = pending.filter((p) => p.lesson_slug !== bodyObj.lesson_slug);
+          setPendingList(filtered);
 
-          // Emit sync success event instead of directly importing queryClient
           eventBus.emit("sync:success", { lesson_slug: bodyObj.lesson_slug });
         } else {
           console.warn(
@@ -256,7 +276,7 @@ export async function syncOfflineQueue() {
         }
       } catch (err) {
         console.error(`[OfflineQueue] Error syncing action ${action.id}:`, err);
-        break; // Stop and retry later on network error
+        break;
       }
     }
   } catch (err) {
@@ -278,18 +298,10 @@ if (typeof window !== "undefined") {
         console.log(`[OfflineQueue] SW synced ${lesson_slug}`);
 
         try {
-          const pending = JSON.parse(
-            localStorage.getItem("atelier_pending_sync") || "[]",
-          );
-          const filtered = pending.filter(
-            (p: PendingSyncItem) => p.lesson_slug !== lesson_slug,
-          );
-          localStorage.setItem(
-            "atelier_pending_sync",
-            JSON.stringify(filtered),
-          );
+          const pending = getPendingList();
+          const filtered = pending.filter((p: PendingSyncItem) => p.lesson_slug !== lesson_slug);
+          setPendingList(filtered as any);
 
-          // Emit sync success event to decouple UI logic
           eventBus.emit("sync:success", { lesson_slug });
         } catch (e) {
           console.error(
@@ -301,3 +313,4 @@ if (typeof window !== "undefined") {
     });
   }
 }
+
