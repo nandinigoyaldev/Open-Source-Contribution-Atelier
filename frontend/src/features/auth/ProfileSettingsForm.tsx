@@ -8,6 +8,8 @@ import { useToast } from "../ui/ToastContext";
 import { AvatarUploadDropzone } from "../../components/ui/AvatarUploadDropzone";
 import { CoverUploadDropzone } from "../../components/ui/CoverUploadDropzone";
 import { useWebPush } from "../../hooks/useWebPush";
+import { useUnsavedChanges } from "../../hooks/useUnsavedChanges";
+import { UnsavedChangesDialog } from "../../components/ui/UnsavedChangesDialog";
 
 const profileSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email address" }),
@@ -68,8 +70,9 @@ const profileSchema = z.object({
 type ProfileFormValues = z.input<typeof profileSchema>;
 
 interface ProfileSettingsFormProps {
-  onChange?: (values: any) => void;
+  onChange?: (values: ProfileFormValues) => void;
 }
+
 
 export function ProfileSettingsForm({ onChange }: ProfileSettingsFormProps) {
   const { user, checkUser } = useAuth();
@@ -82,12 +85,12 @@ export function ProfileSettingsForm({ onChange }: ProfileSettingsFormProps) {
   const { isSupported, isSubscribed, subscribe, unsubscribe } = useWebPush();
 
   const {
-    register,
-    handleSubmit,
-    reset,
-    watch,
-    formState: { errors },
-  } = useForm<ProfileFormValues>({
+  register,
+  handleSubmit,
+  reset,
+  watch,
+  formState: { errors, isDirty },
+} = useForm<ProfileFormValues>({
     resolver: zodResolver(profileSchema),
     defaultValues: {
       email: user?.email || "",
@@ -101,6 +104,19 @@ export function ProfileSettingsForm({ onChange }: ProfileSettingsFormProps) {
       receive_weekly_digest: user?.receive_weekly_digest ?? true,
     },
   });
+
+    const hasUnsavedChanges =
+  isDirty || selectedAvatar !== null || selectedCover !== null;
+
+const unsavedChanges = useUnsavedChanges({
+  isDirty: hasUnsavedChanges,
+  message:
+    "Your profile changes have not been saved. Discard them and leave this page?",
+  onDiscard: () => {
+    setSelectedAvatar(null);
+    setSelectedCover(null);
+  },
+});
 
   const watchedValues = watch();
 
@@ -182,14 +198,17 @@ export function ProfileSettingsForm({ onChange }: ProfileSettingsFormProps) {
         github_url: data.github_url || "",
         receive_weekly_digest: data.receive_weekly_digest,
       });
-    } catch (err: unknown) {
-      addToast(
-        err instanceof Error
-          ? err.message
-          : "Failed to update profile settings.",
-        "error",
-      );
-    } finally {
+      setSelectedAvatar(null);
+      setSelectedCover(null);
+    } catch (error: unknown) {
+  const message =
+    error instanceof Error
+      ? error.message
+      : "Failed to update profile settings.";
+
+  addToast(message, "error");
+}
+ finally {
       setLoading(false);
     }
   };
@@ -229,6 +248,7 @@ export function ProfileSettingsForm({ onChange }: ProfileSettingsFormProps) {
   };
 
   return (
+     <>
     <form className="space-y-6 pt-2" onSubmit={handleSubmit(onSubmit)}>
       <AvatarUploadDropzone
         currentAvatarUrl={user?.avatar_url}
@@ -463,5 +483,13 @@ export function ProfileSettingsForm({ onChange }: ProfileSettingsFormProps) {
         </div>
       </div>
     </form>
+
+    <UnsavedChangesDialog
+      open={unsavedChanges.isBlocked}
+      message={unsavedChanges.message}
+      onStay={unsavedChanges.stay}
+      onDiscard={unsavedChanges.discard}
+    />
+    </>
   );
 }

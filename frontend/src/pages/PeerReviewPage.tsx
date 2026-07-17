@@ -1,11 +1,13 @@
-import React, { useState, useEffect } from "react";
+import { useState} from "react";
 import { fetchApi } from "../lib/api";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery,} from "@tanstack/react-query";
 import { CodeDiffViewer } from "../components/ui/CodeDiffViewer";
 import { ReportDialog } from "../components/moderation/ReportDialog";
 import { AudioRoom } from "../components/ui/AudioRoom";
 import { MentionTextarea } from "../components/ui/MentionTextarea";
 import { renderWithMentions } from "../utils/renderMentions";
+import { useUnsavedChanges } from "../hooks/useUnsavedChanges";
+import { UnsavedChangesDialog } from "../components/ui/UnsavedChangesDialog";
 
 interface CodeSubmission {
   id: number;
@@ -19,7 +21,6 @@ interface CodeSubmission {
 }
 
 export function PeerReviewPage() {
-  const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState<"submit" | "review">("submit");
   const [isAudioRoomActive, setIsAudioRoomActive] = useState(false);
 
@@ -81,8 +82,36 @@ export function PeerReviewPage() {
       console.error("Failed to submit code", error);
     } finally {
       setIsSubmitting(false);
+
+      setTitle("");
+setOriginalCodeSnippet("");
+setCodeSnippet("");
+setDescription("");
     }
   };
+
+  const hasUnsavedPatch =
+  title.trim().length > 0 ||
+  originalCodeSnippet.trim().length > 0 ||
+  codeSnippet.trim().length > 0 ||
+  description.trim().length > 0 ||
+  feedback.trim().length > 0;
+
+const unsavedChanges = useUnsavedChanges({
+  isDirty:
+    hasUnsavedPatch &&
+    !isSubmitting &&
+    !isReviewing,
+  message:
+    "Your code patch or review feedback has not been submitted. Discard it and leave?",
+  onDiscard: () => {
+    setTitle("");
+    setOriginalCodeSnippet("");
+    setCodeSnippet("");
+    setDescription("");
+    setFeedback("");
+  },
+});
 
   const handleSubmitReview = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -125,7 +154,7 @@ export function PeerReviewPage() {
         parsedDescription = parsed.text;
         parsedOriginalCode = parsed.originalCode || "";
       }
-    } catch (e) {
+    } catch {
       // Legacy simple text format
     }
   }
@@ -389,7 +418,16 @@ export function PeerReviewPage() {
         contentType="progress.peerreview"
         objectId={selectedSubmission?.id || 0}
       />
+
+      <UnsavedChangesDialog
+  open={unsavedChanges.isBlocked}
+  message={unsavedChanges.message}
+  onStay={unsavedChanges.stay}
+  onDiscard={unsavedChanges.discard}
+/>
     </div>
+
+
   );
 }
 
