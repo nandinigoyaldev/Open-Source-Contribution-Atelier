@@ -41,4 +41,7 @@ django-waffle>=4.1.0
 meilisearch>=0.31.0
 pyclamd>=0.4.0
 defusedxml>=0.7.1
+nplusone>=1.0.0
+sentry-sdk[django]>=2.0.0
+
 

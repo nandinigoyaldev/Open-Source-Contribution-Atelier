@@ -362,57 +362,62 @@ class GitHubOAuthCallbackView(APIView):
 
         callback_url = request.build_absolute_uri("/api/auth/github/callback/")
 
+        from apps.core.resilience import CircuitBreaker, CircuitOpenError
+
+        cb = CircuitBreaker("github_oauth", failure_threshold=5, recovery_timeout=30)
         try:
-            token_response = http_requests.post(
-                "https://github.com/login/oauth/access_token",
-                headers={"Accept": "application/json"},
-                data={
-                    "client_id": client_id,
-                    "client_secret": client_secret,
-                    "code": code,
-                    "redirect_uri": callback_url,
-                },
-                timeout=10,
-            )
-            token_response.raise_for_status()
-            access_token = token_response.json().get(
-                "access_token"
-            ) or token_response.json().get("access")
-            if not access_token:
-                return redirect(
-                    frontend_url(
-                        "/", {"auth_error": "GitHub did not return an access token."}
+            with cb:
+                token_response = http_requests.post(
+                    "https://github.com/login/oauth/access_token",
+                    headers={"Accept": "application/json"},
+                    data={
+                        "client_id": client_id,
+                        "client_secret": client_secret,
+                        "code": code,
+                        "redirect_uri": callback_url,
+                    },
+                    timeout=5,
+                )
+                token_response.raise_for_status()
+                access_token = token_response.json().get(
+                    "access_token"
+                ) or token_response.json().get("access")
+                if not access_token:
+                    return redirect(
+                        frontend_url(
+                            "/",
+                            {"auth_error": "GitHub did not return an access token."},
+                        )
                     )
-                )
 
-            github_headers = {
-                "Authorization": f"Bearer {access_token}",
-                "Accept": "application/vnd.github+json",
-            }
-            user_response = http_requests.get(
-                "https://api.github.com/user", headers=github_headers, timeout=10
-            )
-            user_response.raise_for_status()
-            github_user = user_response.json()
+                github_headers = {
+                    "Authorization": f"Bearer {access_token}",
+                    "Accept": "application/vnd.github+json",
+                }
+                user_response = http_requests.get(
+                    "https://api.github.com/user", headers=github_headers, timeout=5
+                )
+                user_response.raise_for_status()
+                github_user = user_response.json()
 
-            email = github_user.get("email")
-            if not email:
-                email_response = http_requests.get(
-                    "https://api.github.com/user/emails",
-                    headers=github_headers,
-                    timeout=10,
-                )
-                email_response.raise_for_status()
-                emails = email_response.json()
-                primary_email = next(
-                    (
-                        item
-                        for item in emails
-                        if item.get("primary") and item.get("verified")
-                    ),
-                    None,
-                )
-                email = primary_email.get("email") if primary_email else None
+                email = github_user.get("email")
+                if not email:
+                    email_response = http_requests.get(
+                        "https://api.github.com/user/emails",
+                        headers=github_headers,
+                        timeout=5,
+                    )
+                    email_response.raise_for_status()
+                    emails = email_response.json()
+                    primary_email = next(
+                        (
+                            item
+                            for item in emails
+                            if item.get("primary") and item.get("verified")
+                        ),
+                        None,
+                    )
+                    email = primary_email.get("email") if primary_email else None
 
             if not email:
                 return redirect(
@@ -449,6 +454,15 @@ class GitHubOAuthCallbackView(APIView):
                     {
                         "access": str(refresh.access_token),
                         "refresh": str(refresh),
+                    },
+                )
+            )
+        except CircuitOpenError:
+            return redirect(
+                frontend_url(
+                    "/",
+                    {
+                        "auth_error": "GitHub authentication service is temporarily unavailable."
                     },
                 )
             )

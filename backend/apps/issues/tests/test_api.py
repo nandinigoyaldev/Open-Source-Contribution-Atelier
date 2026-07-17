@@ -112,3 +112,42 @@ class TestIssueReportAPI:
         assert response.status_code == 200
         issue.refresh_from_db()
         assert issue.status == "In Progress"
+
+
+@pytest.mark.django_db
+class TestBountyAPI:
+    def test_submit_bounty_query_count(self, api_client, regular_user, django_assert_max_num_queries):
+        from apps.issues.models import Bounty
+        from apps.progress.models import Badge
+
+        badge = Badge.objects.create(
+            name="Bounty Hunter", slug="bounty-hunter", description="Completed bounty"
+        )
+        bounty = Bounty.objects.create(
+            title="Fix bug",
+            description="Fix a bug",
+            status=Bounty.Status.CLAIMED,
+            claimed_by=regular_user,
+            xp_reward=100,
+            badge=badge,
+        )
+
+        api_client.force_authenticate(user=regular_user)
+
+        # Assuming no more than 6 queries:
+        # 1. Session/Auth
+        # 2. Fetch Bounty
+        # 3. Create BountySubmission
+        # 4. Update Bounty status
+        # 5. Fetch/Create XP multiplier
+        # 6. Create XPEvent
+        with django_assert_max_num_queries(10):
+            response = api_client.post(
+                f"/api/issues/bounties/{bounty.id}/submit/",
+                {"code_patch": "def fix(): pass"},
+            )
+
+        assert response.status_code == 200
+        assert response.data["status"] == "Bounty completed successfully!"
+        bounty.refresh_from_db()
+        assert bounty.status == Bounty.Status.COMPLETED

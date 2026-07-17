@@ -163,3 +163,35 @@ class PurgeLog(models.Model):
 
     def __str__(self):
         return f"Purged {self.records_deleted} from {self.model_name} at {self.execution_time}"
+
+
+class AdminAuditLog(models.Model):
+    """
+    Audit log for tracking sensitive admin actions (e.g., user bans, deletions).
+    """
+
+    actor = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name="admin_audit_logs",
+        help_text="The admin user who performed the action.",
+    )
+    action = models.CharField(max_length=255, db_index=True)
+    target_type = models.ForeignKey(
+        "contenttypes.ContentType",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+    )
+    target_id = models.CharField(max_length=255, null=True, blank=True)
+    details = models.JSONField(default=dict, blank=True)
+    timestamp = models.DateTimeField(auto_now_add=True, db_index=True)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-timestamp"]
+
+    def __str__(self):
+        actor_name = self.actor.username if self.actor else "System"
+        return f"{actor_name} performed {self.action} at {self.timestamp}"

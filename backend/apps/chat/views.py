@@ -3,7 +3,7 @@ from django.db.models import Count, Max, Q
 from drf_spectacular.utils import OpenApiResponse, extend_schema, extend_schema_view
 from rest_framework import generics, pagination, permissions, status
 from rest_framework.response import Response
-from rest_framework.throttling import ScopedRateThrottle
+from apps.core.throttling import SlidingWindowScopedThrottle
 from rest_framework.views import APIView
 
 from .models import DirectMessage, Message, UserPublicKey
@@ -72,7 +72,7 @@ class MessageListView(generics.ListAPIView):
 )
 class MessageCreateView(APIView):
     permission_classes = [permissions.IsAuthenticated]
-    throttle_classes = [ScopedRateThrottle]
+    throttle_classes = [SlidingWindowScopedThrottle]
     throttle_scope = "chat_message"
 
     def post(self, request, room_id):

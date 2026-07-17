@@ -41,6 +41,12 @@ class Recommendation(models.Model):
     is_dismissed = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    github_id = models.CharField(max_length=100, unique=True, null=True, blank=True)
+    gitlab_id = models.CharField(max_length=100, unique=True, null=True, blank=True)
+    labels = models.JSONField(default=list)
+    language = models.CharField(max_length=50, blank=True)
+    difficulty = models.CharField(max_length=20, blank=True)
+
 
     class Meta:
         ordering = ["-priority_score", "-created_at"]

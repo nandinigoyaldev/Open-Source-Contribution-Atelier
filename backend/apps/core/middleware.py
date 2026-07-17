@@ -60,3 +60,52 @@ class WebSocketRateLimitMiddleware:
         except Exception:
             # Fail open if cache is unreachable
             return True
+
+
+import threading
+
+_audit_local = threading.local()
+
+def get_current_audit_info():
+    """
+    Returns a dict with 'actor' and 'ip_address' from the current request.
+    """
+    return {
+        "actor": getattr(_audit_local, "actor", None),
+        "ip_address": getattr(_audit_local, "ip_address", None),
+    }
+
+class AdminAuditMiddleware:
+    """
+    Middleware that captures the current admin user and request IP 
+    for use by Admin Audit Logging signals.
+    """
+    
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        if request.path.startswith("/admin/") or request.path.startswith("/api/admin/"):
+            # We are in admin area
+            _audit_local.actor = request.user if request.user.is_authenticated else None
+            _audit_local.ip_address = self._get_client_ip(request)
+        else:
+            _audit_local.actor = None
+            _audit_local.ip_address = None
+
+        try:
+            response = self.get_response(request)
+        finally:
+            # Clear local context after request to prevent bleed between requests in same thread
+            _audit_local.actor = None
+            _audit_local.ip_address = None
+            
+        return response
+        
+    def _get_client_ip(self, request):
+        x_forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR")
+        if x_forwarded_for:
+            ip = x_forwarded_for.split(",")[0].strip()
+        else:
+            ip = request.META.get("REMOTE_ADDR")
+        return ip

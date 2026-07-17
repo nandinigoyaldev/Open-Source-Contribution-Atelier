@@ -24,17 +24,18 @@ class IssueReportViewSet(viewsets.ModelViewSet):
 
 
 from django.db import transaction
+from django_q.tasks import async_task
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
 from apps.issues.models import Bounty, BountySubmission
 from apps.issues.serializers import BountySerializer, BountySubmissionSerializer
-from apps.progress.models import Badge, UserBadge, XPEvent, XPMultiplierEvent
+from apps.progress.models import XPEvent, XPMultiplierEvent
 
 
 class BountyViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = Bounty.objects.all()
+    queryset = Bounty.objects.select_related("badge").all()
     serializer_class = BountySerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
 
@@ -97,15 +98,13 @@ class BountyViewSet(viewsets.ReadOnlyModelViewSet):
                 xp_delta=xp_earned,
             )
 
-            # Award "Bounty Hunter" badge if it exists
-            badge, _ = Badge.objects.get_or_create(
-                name="Bounty Hunter",
-                defaults={
-                    "description": "Completed an open-source bounty.",
-                    "icon_name": "Target",
-                },
-            )
-            UserBadge.objects.get_or_create(user=request.user, badge=badge)
+            # Award badge asynchronously if the bounty has one configured
+            if bounty.badge_id:
+                async_task(
+                    "apps.progress.tasks.award_specific_badge",
+                    request.user.id,
+                    bounty.badge_id,
+                )
 
         return Response(
             {

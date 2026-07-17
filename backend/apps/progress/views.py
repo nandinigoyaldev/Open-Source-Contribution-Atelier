@@ -14,7 +14,7 @@ from rest_framework.generics import ListAPIView
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import BasePermission
 from rest_framework.response import Response
-from rest_framework.throttling import AnonRateThrottle
+from apps.core.throttling import SlidingWindowAnonThrottle, SlidingWindowScopedThrottle
 from rest_framework.views import APIView
 from django.http import HttpResponse
 from django.core.cache import cache
@@ -807,7 +807,7 @@ class QuizAttemptView(APIView):
         )
 
 
-class CertificateVerificationThrottle(AnonRateThrottle):
+class CertificateVerificationThrottle(SlidingWindowAnonThrottle):
     rate = "10/minute"
 
 
@@ -961,12 +961,12 @@ from .models import CodeSubmission, ExerciseAttempt, PeerReview
 from .serializers import CodeSubmissionSerializer, PeerReviewSerializer
 
 
-from rest_framework.throttling import ScopedRateThrottle
+
 
 
 class CodeSubmissionView(APIView):
     permission_classes = [permissions.IsAuthenticated]
-    throttle_classes = [ScopedRateThrottle]
+    throttle_classes = [SlidingWindowScopedThrottle]
     throttle_scope = "sandbox_user"
 
     def get(self, request):
