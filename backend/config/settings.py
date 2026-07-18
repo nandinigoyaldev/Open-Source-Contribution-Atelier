@@ -290,7 +290,7 @@ for db_name, db_config in DATABASES.items():
     if db_config.get("ENGINE") == "django.db.backends.postgresql":
         db_config["ENGINE"] = "django_prometheus.db.backends.postgresql"
         # Disable server-side cursors to avoid issues with PgBouncer transaction pooling
-        db_config.setdefault("OPTIONS", {})["DISABLE_SERVER_SIDE_CURSORS"] = True
+        db_config["DISABLE_SERVER_SIDE_CURSORS"] = True
     elif "sqlite3" in db_config.get("ENGINE", ""):
         db_config["ENGINE"] = "django_prometheus.db.backends.sqlite3"
 
@@ -530,10 +530,10 @@ CSRF_TRUSTED_ORIGINS = [
 CONTENT_SECURITY_POLICY = {
     "img-src": [
         "'self'",
-        "blob:",                    
-        "http://localhost:8000",   
-        "https://*.amazonaws.com",  
-        "data:",                    
+        "blob:",
+        "http://localhost:8000",
+        "https://*.amazonaws.com",
+        "data:",
     ],
 }
 
@@ -612,14 +612,14 @@ else:
     }
 
 CELERY_BEAT_SCHEDULE = {
-    'sync-oss-issues-hourly': {
-        'task': 'apps.recommendations.tasks.sync_oss_issues',
-        'schedule': 3600.0,  # Every hour
+    "sync-oss-issues-hourly": {
+        "task": "apps.recommendations.tasks.sync_oss_issues",
+        "schedule": 3600.0,  # Every hour
     },
 }
 
-MEDIA_URL = '/media/'
-MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+MEDIA_URL = "/media/"
+MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 
 # Cache timeout for Search API (in seconds) - Default: 1 hour
 SEARCH_CACHE_TIMEOUT = 60 * 60
@@ -822,4 +822,3 @@ if SENTRY_DSN:
         traces_sample_rate=float(os.getenv("SENTRY_TRACES_SAMPLE_RATE", "1.0")),
         send_default_pii=False,
     )
-

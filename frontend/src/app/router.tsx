@@ -104,6 +104,12 @@ const ContributorSandboxPage = lazy(() =>
   })),
 );
 
+const CollabSessionPage = lazy(() =>
+  import("../pages/CollabSessionPage").then((module) => ({
+    default: module.CollabSessionPage,
+  })),
+);
+
 const PrDiffSummarizerPage = lazy(() =>
   import("../pages/PrDiffSummarizerPage").then((module) => ({
     default: module.PrDiffSummarizerPage,
@@ -359,6 +365,15 @@ export function AppRouter() {
             element={
               <ProtectedRoute>
                 <ContributorSandboxPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/collab/:sessionId"
+            element={
+              <ProtectedRoute>
+                <CollabSessionPage />
               </ProtectedRoute>
             }
           />
