@@ -6,7 +6,7 @@ import {
   buildChecklist,
   AREA_LABELS,
   type ChangeArea,
-} from "../../lib/prDiffSummarizer";
+} from "../../../lib/prDiffSummarizer";
 
 const SAMPLE_INPUT = `frontend/src/components/ui/PrDiffSummarizer/PrDiffSummarizer.tsx
 frontend/src/lib/prDiffSummarizer.ts
