@@ -4,7 +4,6 @@ import { useState, useEffect } from "react";
 
 import { AppRouter } from "./router";
 import { queryClient } from "../lib/queryClient";
-import { ThemeToggle } from "../components/ui/ThemeToggle";
 import { CommandPalette } from "../components/CommandPalette";
 import ReportIssueButton from "../components/ui/ReportIssueButton";
 import { ErrorBoundary } from "../components/ui/ErrorBoundary";
