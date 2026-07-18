@@ -87,6 +87,8 @@ const OrganizationsGrid: React.FC = () => {
       </h3>
 
       <div className="grid gap-3 grid-cols-2 md:grid-cols-3">
+      <div className="org-card coming-soon">
+      
         {organizations.map((org) => (
           <a
             key={org.slug}
@@ -114,6 +116,7 @@ const OrganizationsGrid: React.FC = () => {
               </div>
               <div className="text-[10px] text-muted truncate">GitHub</div>
             </div>
+           </div>
           </a>
         ))}
       </div>
