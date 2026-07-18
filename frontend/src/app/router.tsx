@@ -170,6 +170,12 @@ const MaintainerReplyToneCoachPage = lazy(() =>
   })),
 );
 
+const MergeConflictScenarioBuilderPage = lazy(() =>
+  import("../pages/MergeConflictScenarioBuilderPage").then((module) => ({
+    default: module.MergeConflictScenarioBuilderPage,
+  })),
+);
+
 /*
  * These pages use default exports, so they can be passed directly
  * to React.lazy().
@@ -369,6 +375,15 @@ export function AppRouter() {
             element={
               <ProtectedRoute>
                 <MaintainerReplyToneCoachPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/conflict-scenario-builder"
+            element={
+              <ProtectedRoute>
+                <MergeConflictScenarioBuilderPage />
               </ProtectedRoute>
             }
           />

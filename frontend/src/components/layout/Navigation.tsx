@@ -20,6 +20,7 @@ import {
   FileDiff,
   SearchCode,
   MessageSquareHeart,
+  GitMerge,
 } from "lucide-react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import { useTheme } from "../../hooks/useTheme";
@@ -55,6 +56,11 @@ const navGroups = [
         to: "/tone-coach",
         label: "Tone Coach",
         icon: MessageSquareHeart,
+      },
+      {
+        to: "/conflict-scenario-builder",
+        label: "Conflict Builder",
+        icon: GitMerge,
       },
     ],
   },
