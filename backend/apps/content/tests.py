@@ -659,3 +659,136 @@ def test_seed_lessons_default_format_is_text():
         json.loads(output)
     # Should contain text markers
     assert "✓" in output or "~" in output or "Seeding complete" in output
+
+
+def _make_lesson(**kwargs):
+    defaults = {
+        "title": "Test Lesson",
+        "summary": "Summary",
+        "content": "Content",
+        "difficulty": "beginner",
+        "estimated_minutes": 10,
+    }
+    defaults.update(kwargs)
+    return Lesson.objects.create(**defaults)
+
+
+@pytest.mark.django_db
+def test_check_curriculum_slugs_detects_drift(tmp_path):
+    import json
+    from io import StringIO
+
+    from django.core.management import call_command
+
+    _make_lesson(slug="shared-slug", title="Shared")
+    _make_lesson(slug="only-in-db", title="DB Only")
+
+    curriculum = {
+        "modules": [
+            {
+                "id": "module-1",
+                "lessons": [
+                    {"slug": "shared-slug", "title": "Shared"},
+                    {"slug": "only-in-curriculum", "title": "JSON Only"},
+                ],
+            }
+        ]
+    }
+    path = tmp_path / "curriculum.json"
+    path.write_text(json.dumps(curriculum), encoding="utf-8")
+
+    out = StringIO()
+    call_command(
+        "check_curriculum_slugs",
+        "--curriculum",
+        str(path),
+        "--format",
+        "json",
+        stdout=out,
+    )
+    result = json.loads(out.getvalue())
+
+    assert result["has_drift"] is True
+    assert "only-in-curriculum" in result["missing_in_api"]
+    assert "only-in-db" in result["missing_in_curriculum"]
+    assert "shared-slug" not in result["missing_in_api"]
+    assert "shared-slug" not in result["missing_in_curriculum"]
+
+
+@pytest.mark.django_db
+def test_check_curriculum_slugs_fail_on_drift(tmp_path):
+    import json
+    from io import StringIO
+
+    from django.core.management import CommandError, call_command
+
+    _make_lesson(slug="db-slug", title="DB")
+
+    path = tmp_path / "curriculum.json"
+    path.write_text(
+        json.dumps(
+            {"modules": [{"lessons": [{"slug": "json-slug", "title": "JSON"}]}]}
+        ),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(CommandError, match="Curriculum slug drift"):
+        call_command(
+            "check_curriculum_slugs",
+            "--curriculum",
+            str(path),
+            "--fail-on-drift",
+            stdout=StringIO(),
+        )
+
+
+@pytest.mark.django_db
+def test_check_curriculum_slugs_no_drift(tmp_path):
+    import json
+    from io import StringIO
+
+    from django.core.management import call_command
+
+    _make_lesson(slug="aligned", title="Aligned")
+
+    path = tmp_path / "curriculum.json"
+    path.write_text(
+        json.dumps(
+            {"modules": [{"lessons": [{"slug": "aligned", "title": "Aligned"}]}]}
+        ),
+        encoding="utf-8",
+    )
+
+    out = StringIO()
+    call_command(
+        "check_curriculum_slugs",
+        "--curriculum",
+        str(path),
+        "--format",
+        "json",
+        stdout=out,
+    )
+    result = json.loads(out.getvalue())
+    assert result["has_drift"] is False
+    assert result["missing_in_api"] == []
+    assert result["missing_in_curriculum"] == []
+
+
+def test_diff_curriculum_slugs_helpers():
+    from apps.content.management.commands.check_curriculum_slugs import (
+        diff_slugs,
+        extract_curriculum_slugs,
+    )
+
+    curriculum = {
+        "modules": [
+            {"lessons": [{"slug": "a"}, {"slug": "b"}, {"slug": "a"}]},
+            {"lessons": [{"slug": "  c  "}, {"slug": ""}]},
+        ]
+    }
+    slugs = extract_curriculum_slugs(curriculum)
+    assert slugs == ["a", "b", "c"]
+
+    diff = diff_slugs(["a", "b"], ["b", "d"])
+    assert diff["missing_in_api"] == ["a"]
+    assert diff["missing_in_curriculum"] == ["d"]
