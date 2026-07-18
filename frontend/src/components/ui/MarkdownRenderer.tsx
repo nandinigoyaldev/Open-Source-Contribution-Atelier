@@ -94,6 +94,7 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
     const inlineRegex = /(\*\*.*?\*\*|`.*?`|\[.*?\]\(.*?\))/g;
     const matches = text.split(inlineRegex);
 
+    // @ts-expect-error - matches.flatMap return types union is safe but strict for TS
     return matches.flatMap((part, i) => {
       if (!part) return [];
 
@@ -329,7 +330,9 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
                 {headerCells.map((cell, i) => (
                   <th
                     key={i}
-                    className="px-4 py-3 text-xs uppercase tracking-wider border-r-2 border-black last:border-r-0 dark:border-[#2e2924] dark:text-[#f0ebe2]"
+                    className={`px-4 py-3 text-xs uppercase tracking-wider border-r-2 border-black last:border-r-0 dark:border-[#2e2924] dark:text-[#f0ebe2] ${
+                      i === 0 ? "sticky left-0 bg-surface-low dark:bg-[#151411] z-10 shadow-[2px_0_0_0_rgba(0,0,0,1)] dark:shadow-[2px_0_0_0_rgba(46,41,36,1)]" : ""
+                    }`}
                   >
                     {cell}
                   </th>
@@ -345,7 +348,9 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
                   {row.map((cell, cellIndex) => (
                     <td
                       key={cellIndex}
-                      className="px-4 py-3 border-r-2 border-black last:border-r-0 dark:border-[#2e2924] dark:text-[#c4bbae]"
+                      className={`px-4 py-3 border-r-2 border-black last:border-r-0 dark:border-[#2e2924] dark:text-[#c4bbae] ${
+                        cellIndex === 0 ? "sticky left-0 bg-white dark:bg-[#1f1c18] z-10 shadow-[2px_0_0_0_rgba(0,0,0,1)] dark:shadow-[2px_0_0_0_rgba(46,41,36,1)]" : ""
+                      }`}
                     >
                       {parseInline(cell)}
                     </td>

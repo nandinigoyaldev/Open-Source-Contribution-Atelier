@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { useLocation, Outlet, useNavigate } from "react-router-dom";
 import { Navigation } from "./Navigation";
+import { MobileBottomNav } from "./MobileBottomNav";
 import { BadgeToastNotifier } from "../ui/BadgeToastNotifier";
 import { SessionTracker } from "../ui/SessionTracker";
 import { useAuth } from "../../features/auth/AuthContext";
@@ -54,13 +55,15 @@ export function AppLayout() {
           tabIndex={-1}
           className={location.pathname.startsWith("/lessons/") ? "w-full min-h-screen" : "lg:pl-[240px]"}
         >
-          <div className={location.pathname.startsWith("/lessons/") ? "w-full h-screen overflow-hidden" : "px-4 pb-10 pt-24 sm:px-6 lg:px-8"}>
+          <div className={location.pathname.startsWith("/lessons/") ? "w-full h-screen overflow-hidden" : "px-4 pb-24 pt-24 sm:px-6 sm:pb-28 lg:px-8 lg:pb-10"}>
             <Outlet />
           </div>
         </main>
+        {!location.pathname.startsWith("/lessons/") && <MobileBottomNav />}
         <BadgeToastNotifier />
         {!location.pathname.startsWith("/lessons/") && <SessionTracker />}
       </div>
     </>
   );
 }
+

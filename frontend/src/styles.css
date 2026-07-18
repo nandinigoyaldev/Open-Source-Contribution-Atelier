@@ -753,3 +753,18 @@ button:not([class*="menu"]):not([class*="toggle"]) {
   display: inline-flex !important;
   margin: 4px 8px !important;
 }
+
+/* Safe area padding & touch-friendly custom utilities */
+.pb-safe {
+  padding-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+.h-safe {
+  height: calc(100% - env(safe-area-inset-bottom, 0px));
+}
+
+.touch-target-min {
+  min-height: 44px;
+  min-width: 44px;
+}
+
