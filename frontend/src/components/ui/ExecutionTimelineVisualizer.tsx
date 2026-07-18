@@ -117,7 +117,10 @@ export const ExecutionTimelineVisualizer: React.FC<Props> = ({
               <table className="w-full text-left">
                 <tbody>
                   {Object.entries(currentEvent.locals).map(([key, val]) => (
-                    <tr key={key} className="border-b border-slate-800/50 last:border-0 hover:bg-slate-800/30">
+                    <tr
+                      key={key}
+                      className="border-b border-slate-800/50 last:border-0 hover:bg-slate-800/30"
+                    >
                       <td className="py-1 pr-4 text-purple-400 font-medium">
                         {key}
                       </td>

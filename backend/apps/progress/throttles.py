@@ -1,8 +1,8 @@
 from rest_framework.exceptions import Throttled
-from rest_framework.throttling import UserRateThrottle
+from apps.core.throttling import SlidingWindowUserThrottle
 
 
-class HelpRequestRateThrottle(UserRateThrottle):
+class HelpRequestRateThrottle(SlidingWindowUserThrottle):
     """
     Limit help requests to 5 per hour per authenticated user.
     """

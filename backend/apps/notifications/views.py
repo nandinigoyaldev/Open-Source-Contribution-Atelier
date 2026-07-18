@@ -5,6 +5,26 @@ from rest_framework.views import APIView
 from .models import Notification, PushSubscription
 from .serializers import NotificationSerializer, PushSubscriptionSerializer
 
+from .models import NotificationPreference
+
+class NotificationPrefsView(APIView):
+    permission_classes = [permissions.IsAuthenticated]
+    
+    def get(self, request):
+        prefs, _ = NotificationPreference.objects.get_or_create(user=request.user)
+        return Response({
+            'email': prefs.email_enabled,
+            'in_app': prefs.in_app_enabled,
+            'websocket': prefs.websocket_enabled,
+        })
+    
+    def put(self, request):
+        prefs, _ = NotificationPreference.objects.get_or_create(user=request.user)
+        prefs.email_enabled = request.data.get('email', prefs.email_enabled)
+        prefs.in_app_enabled = request.data.get('in_app', prefs.in_app_enabled)
+        prefs.websocket_enabled = request.data.get('websocket', prefs.websocket_enabled)
+        prefs.save()
+        return Response({'status': 'updated'})
 
 class NotificationListView(generics.ListAPIView):
     """GET /api/notifications/ — list current user's notifications"""

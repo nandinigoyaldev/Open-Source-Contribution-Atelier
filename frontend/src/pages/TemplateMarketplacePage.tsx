@@ -1,7 +1,15 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Search, FolderGit2, Code2, Play, X, FileCode, Users } from 'lucide-react';
-import api from '../api';
+import React, { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import {
+  Search,
+  FolderGit2,
+  Code2,
+  Play,
+  X,
+  FileCode,
+  Users,
+} from "lucide-react";
+import api from "../api";
 
 // Types based on backend serializers
 interface TemplateCategory {
@@ -33,9 +41,10 @@ const TemplateMarketplacePage: React.FC = () => {
   const navigate = useNavigate();
   const [templates, setTemplates] = useState<ProjectTemplate[]>([]);
   const [categories, setCategories] = useState<TemplateCategory[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<string>('all');
-  const [selectedTemplate, setSelectedTemplate] = useState<ProjectTemplate | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [selectedTemplate, setSelectedTemplate] =
+    useState<ProjectTemplate | null>(null);
   const [isInstantiating, setIsInstantiating] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -43,13 +52,13 @@ const TemplateMarketplacePage: React.FC = () => {
     const fetchData = async () => {
       try {
         const [templatesRes, categoriesRes] = await Promise.all([
-          api.get('/sandbox/templates/'),
-          api.get('/sandbox/template-categories/')
+          api.get("/sandbox/templates/"),
+          api.get("/sandbox/template-categories/"),
         ]);
         setTemplates(templatesRes.data);
         setCategories(categoriesRes.data);
       } catch (err) {
-        console.error('Failed to fetch templates', err);
+        console.error("Failed to fetch templates", err);
       } finally {
         setLoading(false);
       }
@@ -60,21 +69,25 @@ const TemplateMarketplacePage: React.FC = () => {
   const handleInstantiate = async (templateId: string) => {
     setIsInstantiating(true);
     try {
-      const res = await api.post(`/sandbox/templates/${templateId}/instantiate/`);
+      const res = await api.post(
+        `/sandbox/templates/${templateId}/instantiate/`,
+      );
       if (res.data && res.data.project_id) {
         navigate(`/sandbox/${res.data.project_id}`);
       }
     } catch (err) {
-      console.error('Failed to instantiate template', err);
-      alert('Error creating project from template.');
+      console.error("Failed to instantiate template", err);
+      alert("Error creating project from template.");
       setIsInstantiating(false);
     }
   };
 
   const filteredTemplates = templates.filter((t) => {
-    const matchesSearch = t.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                          t.description?.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesCategory = selectedCategory === 'all' || t.category === selectedCategory;
+    const matchesSearch =
+      t.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      t.description?.toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesCategory =
+      selectedCategory === "all" || t.category === selectedCategory;
     return matchesSearch && matchesCategory;
   });
 
@@ -89,15 +102,17 @@ const TemplateMarketplacePage: React.FC = () => {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto space-y-8">
-        
         {/* Header Section */}
         <div className="text-center space-y-4">
           <h1 className="text-4xl font-extrabold tracking-tight text-gray-900 dark:text-white sm:text-5xl md:text-6xl">
-            <span className="block text-indigo-600 dark:text-indigo-400">Starter Workspace</span>
+            <span className="block text-indigo-600 dark:text-indigo-400">
+              Starter Workspace
+            </span>
             <span className="block">Library</span>
           </h1>
           <p className="mt-3 max-w-md mx-auto text-base text-gray-500 dark:text-gray-400 sm:text-lg md:mt-5 md:text-xl md:max-w-3xl">
-            Launch your next project instantly with pre-configured templates for your favorite frameworks and languages.
+            Launch your next project instantly with pre-configured templates for
+            your favorite frameworks and languages.
           </p>
         </div>
 
@@ -117,11 +132,11 @@ const TemplateMarketplacePage: React.FC = () => {
           </div>
           <div className="flex space-x-2 overflow-x-auto w-full sm:w-auto pb-2 sm:pb-0">
             <button
-              onClick={() => setSelectedCategory('all')}
+              onClick={() => setSelectedCategory("all")}
               className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
-                selectedCategory === 'all' 
-                ? 'bg-indigo-600 text-white' 
-                : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 shadow-sm border border-gray-200 dark:border-gray-700'
+                selectedCategory === "all"
+                  ? "bg-indigo-600 text-white"
+                  : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 shadow-sm border border-gray-200 dark:border-gray-700"
               }`}
             >
               All
@@ -131,9 +146,9 @@ const TemplateMarketplacePage: React.FC = () => {
                 key={cat.id}
                 onClick={() => setSelectedCategory(cat.id)}
                 className={`px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap transition-colors ${
-                  selectedCategory === cat.id 
-                  ? 'bg-indigo-600 text-white' 
-                  : 'bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 shadow-sm border border-gray-200 dark:border-gray-700'
+                  selectedCategory === cat.id
+                    ? "bg-indigo-600 text-white"
+                    : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 shadow-sm border border-gray-200 dark:border-gray-700"
                 }`}
               >
                 {cat.name}
@@ -145,7 +160,7 @@ const TemplateMarketplacePage: React.FC = () => {
         {/* Templates Grid */}
         <div className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {filteredTemplates.map((template) => (
-            <div 
+            <div
               key={template.id}
               onClick={() => setSelectedTemplate(template)}
               className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden hover:shadow-md transition-all cursor-pointer group flex flex-col"
@@ -168,8 +183,11 @@ const TemplateMarketplacePage: React.FC = () => {
                   {template.description}
                 </p>
                 <div className="mt-4 flex flex-wrap gap-2">
-                  {template.tags.slice(0, 3).map(tag => (
-                    <span key={tag} className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300">
+                  {template.tags.slice(0, 3).map((tag) => (
+                    <span
+                      key={tag}
+                      className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-300"
+                    >
                       {tag}
                     </span>
                   ))}
@@ -197,10 +215,24 @@ const TemplateMarketplacePage: React.FC = () => {
 
       {/* Preview Modal */}
       {selectedTemplate && (
-        <div className="fixed inset-0 z-50 overflow-y-auto" aria-labelledby="modal-title" role="dialog" aria-modal="true">
+        <div
+          className="fixed inset-0 z-50 overflow-y-auto"
+          aria-labelledby="modal-title"
+          role="dialog"
+          aria-modal="true"
+        >
           <div className="flex items-end justify-center min-h-screen pt-4 px-4 pb-20 text-center sm:block sm:p-0">
-            <div className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity backdrop-blur-sm" aria-hidden="true" onClick={() => setSelectedTemplate(null)}></div>
-            <span className="hidden sm:inline-block sm:align-middle sm:h-screen" aria-hidden="true">&#8203;</span>
+            <div
+              className="fixed inset-0 bg-gray-500 bg-opacity-75 transition-opacity backdrop-blur-sm"
+              aria-hidden="true"
+              onClick={() => setSelectedTemplate(null)}
+            ></div>
+            <span
+              className="hidden sm:inline-block sm:align-middle sm:h-screen"
+              aria-hidden="true"
+            >
+              &#8203;
+            </span>
             <div className="inline-block align-bottom bg-white dark:bg-gray-800 rounded-2xl text-left overflow-hidden shadow-2xl transform transition-all sm:my-8 sm:align-middle sm:max-w-2xl w-full border border-gray-200 dark:border-gray-700">
               <div className="absolute top-0 right-0 pt-4 pr-4">
                 <button
@@ -218,7 +250,10 @@ const TemplateMarketplacePage: React.FC = () => {
                     <FolderGit2 className="h-6 w-6 text-indigo-600 dark:text-indigo-400" />
                   </div>
                   <div className="mt-3 text-center sm:mt-0 sm:ml-4 sm:text-left flex-1">
-                    <h3 className="text-2xl leading-6 font-bold text-gray-900 dark:text-white flex items-center" id="modal-title">
+                    <h3
+                      className="text-2xl leading-6 font-bold text-gray-900 dark:text-white flex items-center"
+                      id="modal-title"
+                    >
                       {selectedTemplate.name}
                       {selectedTemplate.is_official && (
                         <span className="ml-3 inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">
@@ -231,7 +266,7 @@ const TemplateMarketplacePage: React.FC = () => {
                         {selectedTemplate.description}
                       </p>
                     </div>
-                    
+
                     <div className="mt-6">
                       <h4 className="text-sm font-medium text-gray-900 dark:text-white flex items-center">
                         <FileCode className="w-4 h-4 mr-2" />
@@ -239,7 +274,10 @@ const TemplateMarketplacePage: React.FC = () => {
                       </h4>
                       <ul className="mt-2 border border-gray-200 dark:border-gray-700 rounded-md divide-y divide-gray-200 dark:divide-gray-700 bg-gray-50 dark:bg-gray-900/50 max-h-48 overflow-y-auto">
                         {selectedTemplate.files?.map((file) => (
-                          <li key={file.id} className="pl-3 pr-4 py-2 flex items-center justify-between text-sm">
+                          <li
+                            key={file.id}
+                            className="pl-3 pr-4 py-2 flex items-center justify-between text-sm"
+                          >
                             <div className="w-0 flex-1 flex items-center">
                               <span className="ml-2 flex-1 w-0 truncate text-gray-700 dark:text-gray-300 font-mono text-xs">
                                 {file.path}
@@ -247,7 +285,8 @@ const TemplateMarketplacePage: React.FC = () => {
                             </div>
                           </li>
                         ))}
-                        {(!selectedTemplate.files || selectedTemplate.files.length === 0) && (
+                        {(!selectedTemplate.files ||
+                          selectedTemplate.files.length === 0) && (
                           <li className="pl-3 pr-4 py-3 flex items-center justify-center text-sm text-gray-500">
                             No starter files included.
                           </li>

@@ -48,12 +48,20 @@ describe("useRecentCommands", () => {
     const { result } = renderHook(() => useRecentCommands());
 
     act(() => {
-      result.current.addRecentCommand({ id: "1", title: "First", type: "navigation" });
+      result.current.addRecentCommand({
+        id: "1",
+        title: "First",
+        type: "navigation",
+      });
     });
-    
+
     // Wait a bit or mock Date.now so timestamp is different, but here we just test order
     act(() => {
-      result.current.addRecentCommand({ id: "2", title: "Second", type: "navigation" });
+      result.current.addRecentCommand({
+        id: "2",
+        title: "Second",
+        type: "navigation",
+      });
     });
 
     expect(result.current.recentCommands[0].id).toBe("2");
@@ -61,7 +69,11 @@ describe("useRecentCommands", () => {
 
     // Add first again
     act(() => {
-      result.current.addRecentCommand({ id: "1", title: "First", type: "navigation" });
+      result.current.addRecentCommand({
+        id: "1",
+        title: "First",
+        type: "navigation",
+      });
     });
 
     expect(result.current.recentCommands.length).toBe(2);
@@ -92,7 +104,11 @@ describe("useRecentCommands", () => {
     const { result } = renderHook(() => useRecentCommands());
 
     act(() => {
-      result.current.addRecentCommand({ id: "1", title: "First", type: "navigation" });
+      result.current.addRecentCommand({
+        id: "1",
+        title: "First",
+        type: "navigation",
+      });
     });
 
     expect(result.current.recentCommands.length).toBe(1);

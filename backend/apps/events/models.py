@@ -95,10 +95,10 @@ class DomainEvent(models.Model):
     class Meta:
         ordering = ["-occurred_at"]
         indexes = [
-            models.Index(fields=["event_type", "status"]),
-            models.Index(fields=["event_name", "status"]),
-            models.Index(fields=["occurred_at", "status"]),
-            models.Index(fields=["actor", "event_type"]),
+            models.Index(fields=["event_type", "status"], name="idx_event_typestatus"),
+            models.Index(fields=["event_name", "status"], name="idx_event_namestatus"),
+            models.Index(fields=["occurred_at", "status"], name="idx_occurred_atstatus"),
+            models.Index(fields=["actor", "event_type"], name="idx_actorevent_type"),
         ]
 
     def __str__(self):

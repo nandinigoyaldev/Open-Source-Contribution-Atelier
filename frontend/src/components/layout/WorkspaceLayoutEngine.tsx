@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react';
-import { Layout, Model, TabNode, IJsonModel, Action } from 'flexlayout-react';
-import 'flexlayout-react/style/dark.css';
-import { Save, LayoutTemplate, RotateCcw } from 'lucide-react';
+import React, { useEffect, useState } from "react";
+import { Layout, Model, TabNode, IJsonModel, Action } from "flexlayout-react";
+import "flexlayout-react/style/dark.css";
+import { Save, LayoutTemplate, RotateCcw } from "lucide-react";
 
 const DEFAULT_LAYOUT: IJsonModel = {
   global: {
@@ -11,51 +11,51 @@ const DEFAULT_LAYOUT: IJsonModel = {
   },
   borders: [
     {
-      type: 'border',
-      location: 'left',
+      type: "border",
+      location: "left",
       size: 250,
       children: [
         {
-          type: 'tab',
-          name: 'Explorer',
-          component: 'explorer',
+          type: "tab",
+          name: "Explorer",
+          component: "explorer",
           enableClose: false,
-        }
-      ]
+        },
+      ],
     },
     {
-      type: 'border',
-      location: 'bottom',
+      type: "border",
+      location: "bottom",
       size: 200,
       children: [
         {
-          type: 'tab',
-          name: 'Console',
-          component: 'console',
+          type: "tab",
+          name: "Console",
+          component: "console",
           enableClose: false,
-        }
-      ]
-    }
+        },
+      ],
+    },
   ],
   layout: {
-    type: 'row',
+    type: "row",
     weight: 100,
     children: [
       {
-        type: 'tabset',
+        type: "tabset",
         weight: 100,
-        id: 'editor-area',
+        id: "editor-area",
         children: [
           {
-            type: 'tab',
-            name: 'Welcome',
-            component: 'editor',
-            id: 'welcome-tab'
-          }
-        ]
-      }
-    ]
-  }
+            type: "tab",
+            name: "Welcome",
+            component: "editor",
+            id: "welcome-tab",
+          },
+        ],
+      },
+    ],
+  },
 };
 
 interface WorkspaceLayoutEngineProps {
@@ -73,7 +73,7 @@ export function WorkspaceLayoutEngine({
   consoleContent,
   onLayoutChange,
   savedLayout,
-  onSaveLayout
+  onSaveLayout,
 }: WorkspaceLayoutEngineProps) {
   const [model, setModel] = useState<Model>(() => {
     try {
@@ -86,7 +86,7 @@ export function WorkspaceLayoutEngine({
       return Model.fromJson(DEFAULT_LAYOUT);
     }
   });
-  
+
   // Re-initialize model if savedLayout prop changes and is valid
   useEffect(() => {
     if (savedLayout && Object.keys(savedLayout).length > 0) {
@@ -100,14 +100,26 @@ export function WorkspaceLayoutEngine({
 
   const factory = (node: TabNode) => {
     const component = node.getComponent();
-    if (component === 'explorer') {
-      return <div className="h-full w-full overflow-hidden bg-[#1e1e1e] text-gray-300">{explorerContent}</div>;
+    if (component === "explorer") {
+      return (
+        <div className="h-full w-full overflow-hidden bg-[#1e1e1e] text-gray-300">
+          {explorerContent}
+        </div>
+      );
     }
-    if (component === 'console') {
-      return <div className="h-full w-full overflow-hidden bg-[#151411] text-gray-300">{consoleContent}</div>;
+    if (component === "console") {
+      return (
+        <div className="h-full w-full overflow-hidden bg-[#151411] text-gray-300">
+          {consoleContent}
+        </div>
+      );
     }
-    if (component === 'editor') {
-      return <div className="h-full w-full bg-[#1e1e1e]">{editorContent(node.getId())}</div>;
+    if (component === "editor") {
+      return (
+        <div className="h-full w-full bg-[#1e1e1e]">
+          {editorContent(node.getId())}
+        </div>
+      );
     }
     return <div>Component not found</div>;
   };
@@ -130,17 +142,19 @@ export function WorkspaceLayoutEngine({
       <div className="flex items-center justify-between px-4 py-2 border-b border-gray-800 bg-[#1e1e1e]">
         <div className="flex items-center gap-2">
           <LayoutTemplate className="w-4 h-4 text-gray-400" />
-          <span className="text-xs font-semibold text-gray-400">Workspace Layout</span>
+          <span className="text-xs font-semibold text-gray-400">
+            Workspace Layout
+          </span>
         </div>
         <div className="flex items-center gap-2">
-          <button 
+          <button
             onClick={resetLayout}
             className="flex items-center gap-1 px-2 py-1 text-xs text-gray-400 hover:text-white hover:bg-gray-700 rounded transition-colors"
             title="Reset to Default Layout"
           >
             <RotateCcw className="w-3 h-3" /> Reset
           </button>
-          <button 
+          <button
             onClick={() => onSaveLayout && onSaveLayout(model.toJson())}
             className="flex items-center gap-1 px-2 py-1 text-xs bg-blue-600 hover:bg-blue-500 text-white rounded transition-colors"
           >
@@ -148,14 +162,10 @@ export function WorkspaceLayoutEngine({
           </button>
         </div>
       </div>
-      
+
       {/* Layout Area */}
       <div className="flex-1 relative">
-        <Layout 
-          model={model} 
-          factory={factory} 
-          onAction={handleModelChange}
-        />
+        <Layout model={model} factory={factory} onAction={handleModelChange} />
       </div>
     </div>
   );

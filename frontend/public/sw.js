@@ -52,7 +52,11 @@ async function replaySyncQueue() {
             });
 
             // Accept 200/201 success, or 400/409 (already processed/bad request) to clean the queue
-            if (response.ok || response.status === 400 || response.status === 409) {
+            if (
+              response.ok ||
+              response.status === 400 ||
+              response.status === 409
+            ) {
               const writeTx = db.transaction("sync-queue", "readwrite");
               writeTx.objectStore("sync-queue").delete(action.id);
 
@@ -67,7 +71,10 @@ async function replaySyncQueue() {
               });
             }
           } catch (err) {
-            console.error("[SW Sync Queue] Error syncing action item, halting for retry:", err);
+            console.error(
+              "[SW Sync Queue] Error syncing action item, halting for retry:",
+              err,
+            );
             break; // Halt execution loop if network breaks mid-sync
           }
         }

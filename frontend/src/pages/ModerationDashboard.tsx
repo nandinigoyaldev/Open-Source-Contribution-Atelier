@@ -16,10 +16,16 @@ interface ContentReport {
 
 export function ModerationDashboard() {
   const [filter, setFilter] = useState("PENDING");
-  const [selectedReport, setSelectedReport] = useState<ContentReport | null>(null);
+  const [selectedReport, setSelectedReport] = useState<ContentReport | null>(
+    null,
+  );
   const [isActionLoading, setIsActionLoading] = useState(false);
 
-  const { data: reports = [], refetch, isLoading } = useQuery<ContentReport[]>({
+  const {
+    data: reports = [],
+    refetch,
+    isLoading,
+  } = useQuery<ContentReport[]>({
     queryKey: ["moderationReports", filter],
     queryFn: async () => {
       const response = await fetchApi(`/moderation/reports/?status=${filter}`);
@@ -126,22 +132,28 @@ export function ModerationDashboard() {
               <h2 className="text-2xl font-bold mb-6 border-b-2 border-black/10 pb-4">
                 Report Details
               </h2>
-              
+
               <div className="space-y-6 flex-1">
                 <div>
-                  <h3 className="text-xs font-bold uppercase opacity-50 mb-1">Category</h3>
+                  <h3 className="text-xs font-bold uppercase opacity-50 mb-1">
+                    Category
+                  </h3>
                   <p className="font-bold text-xl">{selectedReport.category}</p>
                 </div>
-                
+
                 <div>
-                  <h3 className="text-xs font-bold uppercase opacity-50 mb-1">Description</h3>
+                  <h3 className="text-xs font-bold uppercase opacity-50 mb-1">
+                    Description
+                  </h3>
                   <p className="p-4 bg-surface dark:bg-[#0a0908] border-2 border-black/10 rounded-lg whitespace-pre-wrap">
                     {selectedReport.description || "No description provided."}
                   </p>
                 </div>
-                
+
                 <div>
-                  <h3 className="text-xs font-bold uppercase opacity-50 mb-1">Reported Content ({selectedReport.content_type_str})</h3>
+                  <h3 className="text-xs font-bold uppercase opacity-50 mb-1">
+                    Reported Content ({selectedReport.content_type_str})
+                  </h3>
                   <p className="p-4 bg-surface dark:bg-[#0a0908] border-2 border-black/10 rounded-lg whitespace-pre-wrap font-mono text-sm">
                     {selectedReport.content_summary}
                   </p>
@@ -173,3 +185,5 @@ export function ModerationDashboard() {
     </div>
   );
 }
+
+export default ModerationDashboard;

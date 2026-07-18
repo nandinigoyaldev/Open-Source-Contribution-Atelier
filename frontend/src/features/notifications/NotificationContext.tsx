@@ -1,12 +1,14 @@
 // @refresh reset
 /* eslint-disable react-refresh/only-export-components */
-import React, { createContext, useContext, useEffect, useCallback, useMemo } from "react";
+import React, { createContext, useContext, useEffect, useCallback, useMemo, useState } from "react";
+import Confetti from "react-confetti";
 import { useAppDispatch, useAppSelector } from "../../store/hooks";
 import { useAuth } from "../auth/AuthContext";
 import { useWebSocket } from "../../hooks/useWebSocket";
 import { useBadgeToast } from "../../hooks/useBadgeToast";
 import { BADGES } from "../../constants/badges";
 import api from "../../api";
+import { getAccessToken } from "../../lib/authToken";
 import {
   fetchNotifications,
   setWsUnreadCount,
@@ -26,6 +28,7 @@ interface NotificationContextType {
   markAllAsRead: () => Promise<void>;
   toasts: unknown[];
   dismissToast: (id: string) => void;
+  triggerConfetti: () => void;
 }
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
@@ -43,6 +46,12 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   const { notifications, wsUnreadCount, isLoading } = useAppSelector((state) => state.notifications);
   const { toasts, addToast, addDynamicToast, dismissToast } = useBadgeToast(BADGES);
 
+  const [showConfetti, setShowConfetti] = useState(false);
+  const triggerConfetti = useCallback(() => {
+    setShowConfetti(true);
+    setTimeout(() => setShowConfetti(false), 5000);
+  }, []);
+
   // Initial fetch for notifications list
   useEffect(() => {
     if (user && !user.is_staff) {
@@ -59,12 +68,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   }, [wsUnreadCount, notifications]);
 
   // Auth token for WS
-  let token: string | null = null;
-  try {
-    token = localStorage.getItem("accessToken");
-  } catch {
-    /* localStorage unavailable */
-  }
+  const token = getAccessToken();
 
   const { send: sendMessage } = useWebSocket({
     url: getNotificationsWsUrl(),
@@ -85,6 +89,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
         if (notifType === "badge") {
           const slug = notif.meta?.badge_slug as string | undefined;
           if (slug) addToast(slug);
+          triggerConfetti();
         } else if (notifType === "achievement") {
           if (notif.meta) {
             addDynamicToast({
@@ -93,6 +98,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
               icon: (notif.meta.icon as string) || "🏆",
               desc: notif.message,
             });
+            triggerConfetti();
           }
         }
       }
@@ -142,10 +148,16 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     markAllAsRead,
     toasts,
     dismissToast,
+    triggerConfetti,
   };
 
   return (
     <NotificationContext.Provider value={value}>
+      {showConfetti && (
+        <div style={{ position: "fixed", top: 0, left: 0, width: "100%", height: "100%", zIndex: 9999, pointerEvents: "none" }}>
+          <Confetti width={window.innerWidth} height={window.innerHeight} recycle={false} numberOfPieces={400} />
+        </div>
+      )}
       {children}
     </NotificationContext.Provider>
   );

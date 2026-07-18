@@ -34,7 +34,7 @@ class TestTimezoneSetting:
         assert response.data["timezone"] == "Asia/Kolkata"
 
         user.refresh_from_db()
-        assert user.profile.timezone == "Asia/Kolkata"
+        assert user.user_profile.timezone == "Asia/Kolkata"
 
     def test_update_to_invalid_timezone_rejected(self, api_client, user):
         api_client.force_authenticate(user=user)

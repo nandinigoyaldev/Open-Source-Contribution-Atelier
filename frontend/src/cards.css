@@ -1,0 +1,42 @@
+.card {
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.card:hover {
+  transform: translateY(-4px);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+}
+
+/* For dark mode */
+.dark .card:hover {
+  box-shadow: 0 8px 24px rgba(255, 255, 255, 0.08);
+}
+
+/* Card variants */
+.card-primary:hover {
+  border-color: #6c63ff;
+}
+
+.card-secondary:hover {
+  border-color: #4CAF50;
+}
+
+.card-danger:hover {
+  border-color: #f44336;
+}
+
+.card-warning:hover {
+  border-color: #FF9800;
+}
+
+/* With image */
+.card-image:hover img {
+  transform: scale(1.02);
+}
+
+/* With button */
+.card:hover .card-btn {
+  background: #6c63ff;
+  color: white;
+}
