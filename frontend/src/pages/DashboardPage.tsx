@@ -9,35 +9,17 @@ import { useState, useMemo } from "react";
 import { useUserProgress } from "../hooks/useUserProgress";
 import { useBookmarks } from "../hooks/useBookmarks";
 import { useOfflineReadyLessons } from "../hooks/useOfflineReadyLessons";
+import { useCurriculumLessons } from "../hooks/useCurriculum";
 import { BADGES } from "../constants/badges";
 import { Flame, ArrowRight, Bookmark, Lock, BookOpen, Award, Sparkles } from "lucide-react";
 import { AvailableOfflineBadge } from "../components/ui/AvailableOfflineBadge";
-
-type CurriculumLesson = {
-  slug: string;
-  title: string;
-  description: string;
-  filePath?: string;
-};
 
 export function DashboardPage() {
   const { user } = useAuth();
   const { progress, isLoading: progressLoading, isLessonCompleted } = useUserProgress();
   const { bookmarks, toggleBookmark } = useBookmarks();
 
-  const { data: lessonsData = [], isLoading: lessonsLoading } = useQuery({
-    queryKey: ["dashboardLessons"],
-    queryFn: () =>
-      fetch("/content/curriculum.json")
-        .then((r) => r.json())
-        .then(
-          (json: {
-            modules: { lessons: CurriculumLesson[] }[];
-          }) => json.modules.flatMap((m) => m.lessons),
-        )
-        .catch(() => [] as CurriculumLesson[]),
-  });
-  const lessons = lessonsData;
+  const { lessons, isLoading: lessonsLoading } = useCurriculumLessons();
 
   const lessonRefs = useMemo(
     () =>

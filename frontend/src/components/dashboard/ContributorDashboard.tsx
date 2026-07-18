@@ -16,6 +16,7 @@ import { useAuth } from "../../features/auth/AuthContext";
 import { useTheme } from "../../hooks/useTheme";
 import { useBookmarks } from "../../hooks/useBookmarks";
 import { useUserProgress } from "../../hooks/useUserProgress";
+import { useCurriculum } from "../../hooks/useCurriculum";
 import { fetchApi } from "../../lib/api";
 import { fetchLessonsApi, type Lesson } from "../../lib/lessons";
 import { BADGES } from "../../constants/badges";
@@ -60,7 +61,6 @@ export function ContributorDashboard() {
   const { isLessonCompleted } = useUserProgress();
   const { bookmarks, toggleBookmark } = useBookmarks();
 
-  const [curriculumData, setCurriculumData] = useState<ModuleData[]>([]);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [onboardingStep, setOnboardingStep] = useState(0);
   const [showCertificate, setShowCertificate] = useState(false);
@@ -71,16 +71,21 @@ export function ContributorDashboard() {
   >([]);
   const [showOnlyBookmarked, setShowOnlyBookmarked] = useState(false);
 
-  useEffect(() => {
-    fetch("/content/curriculum.json")
-      .then((response) => response.json())
-      .then((data: { modules?: ModuleData[] }) => {
-        if (data.modules) setCurriculumData(data.modules);
-      })
-      .catch((error) =>
-        console.error("Error loading dashboard curriculum:", error),
-      );
-  }, []);
+  const { data: curriculumCatalog, isLoading: isCurriculumLoading } =
+    useCurriculum();
+  const curriculumData: ModuleData[] = useMemo(
+    () =>
+      (curriculumCatalog?.modules ?? []).map((mod) => ({
+        id: mod.id,
+        title: mod.title,
+        lessons: mod.lessons.map((les) => ({
+          slug: les.slug,
+          title: les.title,
+          difficulty: les.difficulty,
+        })),
+      })),
+    [curriculumCatalog],
+  );
 
   const {
     data: contributorData,
@@ -112,7 +117,8 @@ export function ContributorDashboard() {
     queryFn: () => fetchApi("/progress/daily-stats/"),
   });
 
-  const isLoading = isContributorLoading || isLessonsLoading;
+  const isLoading =
+    isContributorLoading || isLessonsLoading || isCurriculumLoading;
   const [showSkeleton, setShowSkeleton] = useState(isLoading);
 
   useEffect(() => {
