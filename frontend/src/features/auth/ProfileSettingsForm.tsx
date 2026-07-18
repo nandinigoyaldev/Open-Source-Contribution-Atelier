@@ -3,6 +3,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { fetchApi } from "../../lib/api";
+import { getAccessToken } from "../../lib/authToken";
 import { useAuth } from "./AuthContext";
 import { useToast } from "../ui/ToastContext";
 import { AvatarUploadDropzone } from "../../components/ui/AvatarUploadDropzone";
@@ -66,7 +67,11 @@ const profileSchema = z.object({
 
 type ProfileFormValues = z.input<typeof profileSchema>;
 
-export function ProfileSettingsForm() {
+interface ProfileSettingsFormProps {
+  onChange?: (data: Record<string, unknown>) => void;
+}
+
+export function ProfileSettingsForm({ onChange }: ProfileSettingsFormProps) {
   const { user, checkUser } = useAuth();
   const { addToast } = useToast();
   const [loading, setLoading] = useState(false);
@@ -80,6 +85,7 @@ export function ProfileSettingsForm() {
     register,
     handleSubmit,
     reset,
+    watch,
     formState: { errors },
   } = useForm<ProfileFormValues>({
     resolver: zodResolver(profileSchema),
@@ -109,6 +115,11 @@ export function ProfileSettingsForm() {
       });
     }
   }, [user, reset]);
+
+  const formValues = watch();
+  useEffect(() => {
+    onChange?.(formValues as unknown as Record<string, unknown>);
+  }, [formValues, onChange]);
 
   const onSubmit = async (data: ProfileFormValues) => {
     setLoading(true);
@@ -176,7 +187,7 @@ export function ProfileSettingsForm() {
       const API_BASE =
         import.meta.env.VITE_API_BASE_URL?.trim() ||
         `${window.location.origin}/api`;
-      const token = localStorage.getItem("accessToken");
+      const token = getAccessToken();
       const response = await fetch(
         `${API_BASE}/auth/me/export/?export_format=csv`,
         {

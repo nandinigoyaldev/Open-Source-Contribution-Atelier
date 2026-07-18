@@ -1,38 +1,40 @@
-import React, {useState} from 'react';
-import './PublicPreview.css';
+import React, { useState } from "react";
+import "./PublicPreview.css";
 
-export function PublicPreview(){
-    const[activeTab, setActiveTab] = useState<'preview' | 'demo'>('preview');
-    return (
+export function PublicPreview() {
+  const [activeTab, setActiveTab] = useState<"preview" | "demo">("preview");
+  return (
     <div className="public-preview">
       <div className="preview-header">
         <h2>🎯 Try Before You Start</h2>
-        <p>Explore sample content and interactive features without signing up</p>
+        <p>
+          Explore sample content and interactive features without signing up
+        </p>
       </div>
 
       <div className="preview-tabs">
-        <button 
-          className={`tab-btn ${activeTab === 'preview' ? 'active' : ''}`}
-          onClick={() => setActiveTab('preview')}
+        <button
+          className={`tab-btn ${activeTab === "preview" ? "active" : ""}`}
+          onClick={() => setActiveTab("preview")}
         >
           📚 Sample Lesson
         </button>
-        <button 
-          className={`tab-btn ${activeTab === 'demo' ? 'active' : ''}`}
-          onClick={() => setActiveTab('demo')}
+        <button
+          className={`tab-btn ${activeTab === "demo" ? "active" : ""}`}
+          onClick={() => setActiveTab("demo")}
         >
           🧪 Interactive Demo
         </button>
       </div>
 
       <div className="preview-content">
-        {activeTab === 'preview' ? (
+        {activeTab === "preview" ? (
           <div className="sample-lesson">
             <h3>📖 Introduction to Open Source</h3>
             <div className="lesson-preview">
               <p>
-                Open source software is code that is publicly accessible and 
-                can be modified, enhanced, and shared by anyone. 
+                Open source software is code that is publicly accessible and can
+                be modified, enhanced, and shared by anyone.
               </p>
               <ul className="preview-features">
                 <li>✅ Learn what open source means</li>
@@ -41,7 +43,9 @@ export function PublicPreview(){
               </ul>
               <div className="preview-actions">
                 <button className="preview-btn">Continue Reading →</button>
-                <span className="preview-note">Sign up to access full lesson</span>
+                <span className="preview-note">
+                  Sign up to access full lesson
+                </span>
               </div>
             </div>
           </div>
@@ -54,9 +58,16 @@ export function PublicPreview(){
                 <span className="terminal-status">⚡ Ready</span>
               </div>
               <div className="terminal-body">
-                <div className="terminal-line">$ git init</div>
-                <div className="terminal-line output">✅ Initialized empty Git repository</div>
-                <div className="terminal-line">$ echo "Hello World" {'>'} README.md</div>
+                <div className="terminal-line">
+                  <span className="prompt">$</span>git init
+                </div>
+                <div className="terminal-line output">
+                  ✅ Initialized empty Git repository
+                </div>
+                <div className="terminal-line">
+                  <span className="prompt">$</span>echo "Hello World" {">"}{" "}
+                  README.md
+                </div>
                 <div className="terminal-line output">✅ Created README.md</div>
                 <div className="terminal-line input">
                   <span className="prompt">$</span>
@@ -64,14 +75,11 @@ export function PublicPreview(){
                 </div>
               </div>
             </div>
-            <p className="demo-note">💡 This is a preview. Full sandbox available after sign up</p>
+            <p className="demo-note">
+              💡 This is a preview. Full sandbox available after sign up
+            </p>
           </div>
         )}
-      </div>
-
-      <div className="preview-footer">
-        <p>Ready to start learning?</p>
-        <a href="/signup" className="cta-btn">🚀 Create Free Account</a>
       </div>
     </div>
   );

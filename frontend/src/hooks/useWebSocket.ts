@@ -108,10 +108,9 @@ export function useWebSocket({
   }, [connect]);
 
   const disconnect = useCallback(() => {
-    reconnectCountRef.current = maxReconnectAttempts;
     cleanup();
     setState((s) => ({ ...s, isConnected: false }));
-  }, [cleanup, maxReconnectAttempts]);
+  }, [cleanup]);
 
   const send = useCallback((data: unknown) => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {

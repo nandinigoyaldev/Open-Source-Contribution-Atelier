@@ -102,28 +102,45 @@ def on_badge_awarded(sender, instance, created, **kwargs):
 
 
 # ------------------------------------------------------------------ #
-# Comment signal                                                      #
+# PeerReview signal
 # ------------------------------------------------------------------ #
-# Uncomment and adjust once you have the Comment model
-#
-# from apps.contributions.models import Comment   # <- your real import
-#
-# @receiver(post_save, sender=Comment)
-# def on_comment_posted(sender, instance, created, **kwargs):
-#     if not created:
-#         return
-#     contribution_owner = instance.contribution.author
-#     if contribution_owner == instance.author:
-#         return   # don't notify self
-#     notif = Notification.objects.create(
-#         recipient  = contribution_owner,
-#         sender     = instance.author,
-#         notif_type = "comment",
-#         title      = "💬 New Comment on Your Contribution",
-#         message    = f"{instance.author.username} commented: \"{instance.body[:80]}\"",
-#         meta       = {"contribution_id": instance.contribution.id, "comment_id": instance.id},
-#     )
-#     _push_notification(notif)
+from apps.progress.models import PeerReview
+from django_q.tasks import async_task
+
+@receiver(post_save, sender=PeerReview, dispatch_uid="on_peer_review_submitted")
+def on_peer_review_submitted(sender, instance, created, **kwargs):
+    if not created:
+        return
+    submission_owner = instance.submission.user
+    if submission_owner == instance.reviewer:
+        return   # don't notify self
+    notif = Notification.objects.create(
+        recipient  = submission_owner,
+        sender     = instance.reviewer,
+        notif_type = "comment",
+        title      = "👀 New Peer Review",
+        message    = f"{instance.reviewer.username} reviewed your submission: \"{instance.feedback[:80]}\"",
+        meta       = {"submission_id": instance.submission.id, "review_id": instance.id},
+    )
+    _push_notification(notif)
+
+    # Offload email notification to independent worker
+    import sys
+    if "test" in sys.argv or any("pytest" in arg for arg in sys.argv):
+        return
+
+    async_task(
+        "apps.notifications.tasks.send_bulk_email",
+        payload={
+            "template_id": "comment_posted_email",
+            "recipients": [submission_owner.email],
+            "data": {
+                "reviewer_name": instance.reviewer.username,
+                "feedback": instance.feedback[:100],
+                "username": submission_owner.username,
+            },
+        },
+    )
 
 
 # ------------------------------------------------------------------ #

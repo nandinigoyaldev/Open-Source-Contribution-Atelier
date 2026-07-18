@@ -5,7 +5,10 @@ import { useNavigate } from "react-router-dom";
 import { Command } from "cmdk";
 import { useFocusTrap } from "../hooks/useFocusTrap";
 import { useTheme } from "../hooks/useTheme";
-import { useRecentCommands, type RecentCommand } from "../hooks/useRecentCommands";
+import {
+  useRecentCommands,
+  type RecentCommand,
+} from "../hooks/useRecentCommands";
 import {
   LayoutGrid,
   BookOpen,
@@ -23,7 +26,7 @@ import {
   Moon,
   Contrast,
   Clock,
-  Palette
+  Palette,
 } from "lucide-react";
 
 interface SearchIndexEntry {
@@ -110,7 +113,7 @@ export const CommandPalette: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [index, setIndex] = useState<SearchIndexEntry[]>([]);
   const [isLoading, setIsLoading] = useState(false);
-  
+
   const navigate = useNavigate();
   const { setTheme } = useTheme();
   const { recentCommands, addRecentCommand } = useRecentCommands();
@@ -158,47 +161,52 @@ export const CommandPalette: React.FC = () => {
     }
   }, [isOpen]);
 
-  const actions: ActionItem[] = useMemo(() => [
-    {
-      type: "action",
-      id: "action-theme-light",
-      label: "Switch to Light Theme",
-      icon: Sun,
-      description: "Change appearance to light mode",
-      onSelect: () => setTheme("light"),
-    },
-    {
-      type: "action",
-      id: "action-theme-dark",
-      label: "Switch to Dark Theme",
-      icon: Moon,
-      description: "Change appearance to dark mode",
-      onSelect: () => setTheme("dark"),
-    },
-    {
-      type: "action",
-      id: "action-theme-high-contrast",
-      label: "Switch to High Contrast",
-      icon: Contrast,
-      description: "Change appearance to high contrast mode",
-      onSelect: () => setTheme("high-contrast"),
-    },
-    {
-      type: "action",
-      id: "action-settings",
-      label: "Open Settings",
-      icon: Settings,
-      description: "Configure application settings",
-      onSelect: () => navigate("/profile"),
-    }
-  ], [setTheme, navigate]);
+  const actions: ActionItem[] = useMemo(
+    () => [
+      {
+        type: "action",
+        id: "action-theme-light",
+        label: "Switch to Light Theme",
+        icon: Sun,
+        description: "Change appearance to light mode",
+        onSelect: () => setTheme("light"),
+      },
+      {
+        type: "action",
+        id: "action-theme-dark",
+        label: "Switch to Dark Theme",
+        icon: Moon,
+        description: "Change appearance to dark mode",
+        onSelect: () => setTheme("dark"),
+      },
+      {
+        type: "action",
+        id: "action-theme-high-contrast",
+        label: "Switch to High Contrast",
+        icon: Contrast,
+        description: "Change appearance to high contrast mode",
+        onSelect: () => setTheme("high-contrast"),
+      },
+      {
+        type: "action",
+        id: "action-settings",
+        label: "Open Settings",
+        icon: Settings,
+        description: "Configure application settings",
+        onSelect: () => navigate("/profile"),
+      },
+    ],
+    [setTheme, navigate],
+  );
 
   // Manual Filtering Logic for optimal performance
   const filteredNavItems = useMemo(() => {
     if (!searchQuery) return navItems;
     const q = searchQuery.toLowerCase();
     return navItems.filter(
-      (item) => item.label.toLowerCase().includes(q) || item.description.toLowerCase().includes(q)
+      (item) =>
+        item.label.toLowerCase().includes(q) ||
+        item.description.toLowerCase().includes(q),
     );
   }, [searchQuery]);
 
@@ -206,14 +214,16 @@ export const CommandPalette: React.FC = () => {
     if (!searchQuery) return actions;
     const q = searchQuery.toLowerCase();
     return actions.filter(
-      (item) => item.label.toLowerCase().includes(q) || item.description.toLowerCase().includes(q)
+      (item) =>
+        item.label.toLowerCase().includes(q) ||
+        item.description.toLowerCase().includes(q),
     );
   }, [searchQuery, actions]);
 
   const searchResults = useMemo(() => {
     if (!searchQuery.trim()) return [];
     const q = searchQuery.toLowerCase();
-    
+
     return index
       .map((entry) => {
         let score = 0;
@@ -243,19 +253,27 @@ export const CommandPalette: React.FC = () => {
       <>
         {parts.map((part, i) =>
           part.toLowerCase() === query.toLowerCase() ? (
-            <span key={i} className="bg-[#FFCC00] text-black font-extrabold px-0.5 rounded">
+            <span
+              key={i}
+              className="bg-[#FFCC00] text-black font-extrabold px-0.5 rounded"
+            >
               {part}
             </span>
           ) : (
             <span key={i}>{part}</span>
-          )
+          ),
         )}
       </>
     );
   };
 
   const handleSelectNav = (item: NavItem) => {
-    addRecentCommand({ id: item.id, title: item.label, type: item.type, to: item.to });
+    addRecentCommand({
+      id: item.id,
+      title: item.label,
+      type: item.type,
+      to: item.to,
+    });
     navigate(item.to);
     setIsOpen(false);
   };
@@ -269,17 +287,19 @@ export const CommandPalette: React.FC = () => {
   const handleSelectSearchResult = (entry: SearchIndexEntry) => {
     const hash = entry.hash ? `#${entry.hash}` : "";
     const to = `/lessons/${entry.slug}${hash}`;
-    const title = entry.subtitle ? `${entry.title} (${entry.subtitle})` : entry.title;
+    const title = entry.subtitle
+      ? `${entry.title} (${entry.subtitle})`
+      : entry.title;
     addRecentCommand({ id: entry.id, title, type: entry.type, to });
     navigate(to);
     setIsOpen(false);
   };
-  
+
   const handleSelectRecent = (recent: RecentCommand) => {
     if (recent.to) {
       navigate(recent.to);
     } else if (recent.type === "action") {
-      const action = actions.find(a => a.id === recent.id);
+      const action = actions.find((a) => a.id === recent.id);
       if (action) action.onSelect();
     }
     addRecentCommand(recent); // Refresh timestamp
@@ -296,12 +316,27 @@ export const CommandPalette: React.FC = () => {
   };
 
   const getBadgeForType = (type: string) => {
-    const baseClass = "px-2 py-0.5 border border-black text-[10px] font-black rounded uppercase tracking-wider ml-2";
-    if (type === "navigation") return <span className={`${baseClass} bg-[#FF3B30] text-white`}>Page</span>;
-    if (type === "lesson") return <span className={`${baseClass} bg-blue-600 text-white`}>Lesson</span>;
-    if (type === "heading") return <span className={`${baseClass} bg-purple-600 text-white`}>Section</span>;
-    if (type === "action") return <span className={`${baseClass} bg-[#34C759] text-white`}>Action</span>;
-    return <span className={`${baseClass} bg-zinc-700 text-zinc-300`}>Text</span>;
+    const baseClass =
+      "px-2 py-0.5 border border-black text-[10px] font-black rounded uppercase tracking-wider ml-2";
+    if (type === "navigation")
+      return (
+        <span className={`${baseClass} bg-[#FF3B30] text-white`}>Page</span>
+      );
+    if (type === "lesson")
+      return (
+        <span className={`${baseClass} bg-blue-600 text-white`}>Lesson</span>
+      );
+    if (type === "heading")
+      return (
+        <span className={`${baseClass} bg-purple-600 text-white`}>Section</span>
+      );
+    if (type === "action")
+      return (
+        <span className={`${baseClass} bg-[#34C759] text-white`}>Action</span>
+      );
+    return (
+      <span className={`${baseClass} bg-zinc-700 text-zinc-300`}>Text</span>
+    );
   };
 
   // Common item render
@@ -311,7 +346,7 @@ export const CommandPalette: React.FC = () => {
     description: React.ReactNode,
     icon: React.ReactNode,
     type: string,
-    onSelect: () => void
+    onSelect: () => void,
   ) => (
     <Command.Item
       key={id}
@@ -340,7 +375,10 @@ export const CommandPalette: React.FC = () => {
   );
 
   const showRecents = !searchQuery && recentCommands.length > 0;
-  const hasResults = filteredNavItems.length > 0 || filteredActions.length > 0 || searchResults.length > 0;
+  const hasResults =
+    filteredNavItems.length > 0 ||
+    filteredActions.length > 0 ||
+    searchResults.length > 0;
 
   return (
     <AnimatePresence>
@@ -364,8 +402,10 @@ export const CommandPalette: React.FC = () => {
               className="relative w-full max-w-2xl bg-[#0f0e0c] border-4 border-black rounded-2xl shadow-[8px_8px_0px_0px_rgba(0,0,0,1)] overflow-hidden flex flex-col focus:outline-none z-10"
             >
               {/* Cmdk overrides focus logic, but we still provide shouldFilter={false} to manage custom highlighting & scoring */}
-              <Command shouldFilter={false} className="flex flex-col w-full h-full bg-transparent">
-                
+              <Command
+                shouldFilter={false}
+                className="flex flex-col w-full h-full bg-transparent"
+              >
                 {/* Search Input Header */}
                 <div className="flex items-center px-4 py-4 border-b-4 border-black bg-[#151411]">
                   <Search className="w-6 h-6 text-[#FFCC00] flex-shrink-0" />
@@ -396,8 +436,10 @@ export const CommandPalette: React.FC = () => {
                 </div>
 
                 {/* Results Body */}
-                <Command.List className="flex-1 overflow-y-auto max-h-[60vh] p-2 space-y-2 bg-[#0f0e0c] scroll-smooth" style={{ overscrollBehavior: 'contain' }}>
-                  
+                <Command.List
+                  className="flex-1 overflow-y-auto max-h-[60vh] p-2 space-y-2 bg-[#0f0e0c] scroll-smooth"
+                  style={{ overscrollBehavior: "contain" }}
+                >
                   {!showRecents && !hasResults && (
                     <Command.Empty className="p-8 text-center text-[#6b5a49] font-bold bg-[#151411] border-4 border-black rounded-xl shadow-[4px_4px_0px_0px_rgba(0,0,0,1)] my-2 mx-2">
                       No matches found for "{searchQuery}"
@@ -405,22 +447,34 @@ export const CommandPalette: React.FC = () => {
                   )}
 
                   {showRecents && (
-                    <Command.Group heading={<div className="px-2 py-2 text-xs font-bold text-[#6b5a49] uppercase tracking-widest flex items-center"><Clock className="w-3 h-3 mr-1"/> Recent</div>}>
-                      {recentCommands.map((item) => 
+                    <Command.Group
+                      heading={
+                        <div className="px-2 py-2 text-xs font-bold text-[#6b5a49] uppercase tracking-widest flex items-center">
+                          <Clock className="w-3 h-3 mr-1" /> Recent
+                        </div>
+                      }
+                    >
+                      {recentCommands.map((item) =>
                         renderItem(
                           `recent-${item.id}`,
                           item.title,
                           "Recently used",
                           getIconForType(item.type),
                           item.type,
-                          () => handleSelectRecent(item)
-                        )
+                          () => handleSelectRecent(item),
+                        ),
                       )}
                     </Command.Group>
                   )}
 
                   {filteredNavItems.length > 0 && (
-                    <Command.Group heading={<div className="px-2 py-2 text-xs font-bold text-[#6b5a49] uppercase tracking-widest mt-2">Pages</div>}>
+                    <Command.Group
+                      heading={
+                        <div className="px-2 py-2 text-xs font-bold text-[#6b5a49] uppercase tracking-widest mt-2">
+                          Pages
+                        </div>
+                      }
+                    >
                       {filteredNavItems.map((item) =>
                         renderItem(
                           item.id,
@@ -428,14 +482,20 @@ export const CommandPalette: React.FC = () => {
                           highlightMatch(item.description, searchQuery),
                           <item.icon className="w-5 h-5 flex-shrink-0" />,
                           item.type,
-                          () => handleSelectNav(item)
-                        )
+                          () => handleSelectNav(item),
+                        ),
                       )}
                     </Command.Group>
                   )}
 
                   {filteredActions.length > 0 && (
-                    <Command.Group heading={<div className="px-2 py-2 text-xs font-bold text-[#6b5a49] uppercase tracking-widest mt-2">Actions</div>}>
+                    <Command.Group
+                      heading={
+                        <div className="px-2 py-2 text-xs font-bold text-[#6b5a49] uppercase tracking-widest mt-2">
+                          Actions
+                        </div>
+                      }
+                    >
                       {filteredActions.map((item) =>
                         renderItem(
                           item.id,
@@ -443,23 +503,31 @@ export const CommandPalette: React.FC = () => {
                           highlightMatch(item.description, searchQuery),
                           <item.icon className="w-5 h-5 flex-shrink-0" />,
                           item.type,
-                          () => handleSelectAction(item)
-                        )
+                          () => handleSelectAction(item),
+                        ),
                       )}
                     </Command.Group>
                   )}
 
                   {searchResults.length > 0 && (
-                    <Command.Group heading={<div className="px-2 py-2 text-xs font-bold text-[#6b5a49] uppercase tracking-widest mt-2">Lessons & Topics</div>}>
+                    <Command.Group
+                      heading={
+                        <div className="px-2 py-2 text-xs font-bold text-[#6b5a49] uppercase tracking-widest mt-2">
+                          Lessons & Topics
+                        </div>
+                      }
+                    >
                       {searchResults.map((entry) => {
-                        const title = entry.subtitle ? `${entry.title} (${entry.subtitle})` : entry.title;
+                        const title = entry.subtitle
+                          ? `${entry.title} (${entry.subtitle})`
+                          : entry.title;
                         return renderItem(
                           entry.id,
                           highlightMatch(title, searchQuery),
                           highlightMatch(entry.content, searchQuery),
                           getIconForType(entry.type),
                           entry.type,
-                          () => handleSelectSearchResult(entry)
+                          () => handleSelectSearchResult(entry),
                         );
                       })}
                     </Command.Group>
@@ -471,22 +539,39 @@ export const CommandPalette: React.FC = () => {
               <div className="px-4 py-3 border-t-4 border-black bg-[#151411] flex items-center justify-between text-xs text-[#6b5a49] font-mono shrink-0">
                 <div className="flex items-center space-x-4">
                   <span className="flex items-center">
-                    <kbd className="bg-black rounded px-1.5 py-0.5 mr-1 text-[#f0ebe2] border border-[#2e2924]">↑↓</kbd> navigate
+                    <kbd className="bg-black rounded px-1.5 py-0.5 mr-1 text-[#f0ebe2] border border-[#2e2924]">
+                      ↑↓
+                    </kbd>{" "}
+                    navigate
                   </span>
                   <span className="flex items-center">
-                    <kbd className="bg-black rounded px-1.5 py-0.5 mr-1 text-[#f0ebe2] border border-[#2e2924]">↵</kbd> select
+                    <kbd className="bg-black rounded px-1.5 py-0.5 mr-1 text-[#f0ebe2] border border-[#2e2924]">
+                      ↵
+                    </kbd>{" "}
+                    select
                   </span>
                   <span className="hidden sm:flex items-center">
-                    <kbd className="bg-black rounded px-1.5 py-0.5 mr-1 text-[#f0ebe2] border border-[#2e2924]">esc</kbd> close
+                    <kbd className="bg-black rounded px-1.5 py-0.5 mr-1 text-[#f0ebe2] border border-[#2e2924]">
+                      esc
+                    </kbd>{" "}
+                    close
                   </span>
                 </div>
                 <div className="hidden sm:block text-right">
-                  Press <kbd className="bg-black rounded px-1.5 py-0.5 text-[#f0ebe2] border border-[#2e2924]">⌘K</kbd> / <kbd className="bg-black rounded px-1.5 py-0.5 text-[#f0ebe2] border border-[#2e2924]">Ctrl K</kbd> anywhere
+                  Press{" "}
+                  <kbd className="bg-black rounded px-1.5 py-0.5 text-[#f0ebe2] border border-[#2e2924]">
+                    ⌘K
+                  </kbd>{" "}
+                  /{" "}
+                  <kbd className="bg-black rounded px-1.5 py-0.5 text-[#f0ebe2] border border-[#2e2924]">
+                    Ctrl K
+                  </kbd>{" "}
+                  anywhere
                 </div>
               </div>
             </motion.div>
           </div>,
-          document.body
+          document.body,
         )}
     </AnimatePresence>
   );

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { fetchApi } from '../lib/api';
 
 export function SettingsPage() {
-  const [prefs, setPrefs] = useState({ email: true, in_app: true, websocket: true });
+  const [prefs, setPrefs] = useState<Record<string, boolean>>({ email: true, in_app: true, websocket: true });
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {

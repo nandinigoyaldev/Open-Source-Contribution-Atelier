@@ -5,7 +5,14 @@ import * as Y from "yjs";
 import { WebsocketProvider } from "y-websocket";
 import { MonacoBinding } from "y-monaco";
 import randomColor from "randomcolor";
-import { Play, RotateCcw, CheckCircle2, XCircle, Share2, Library } from "lucide-react";
+import {
+  Play,
+  RotateCcw,
+  CheckCircle2,
+  XCircle,
+  Share2,
+  Library,
+} from "lucide-react";
 import { usePythonSandbox } from "../../hooks/usePythonSandbox";
 import { PythonExercise } from "../../lib/lessons";
 import { useAuth } from "../../features/auth/AuthContext";
@@ -32,7 +39,7 @@ export function CollabPythonSandbox({
   >([]);
   const { runPythonCode, isExecuting, isReady } = usePythonSandbox();
   const { user } = useAuth();
-  
+
   const [isLibraryOpen, setIsLibraryOpen] = useState(false);
   const { threads, addComment, resolveThread } = useCodeReviews(roomId);
   const [activeLine, setActiveLine] = useState<number | null>(null);
@@ -96,7 +103,10 @@ export function CollabPythonSandbox({
     };
   }, [roomId, user]);
 
-  const handleEditorDidMount = (editor: editor.IStandaloneCodeEditor, monaco: Monaco) => {
+  const handleEditorDidMount = (
+    editor: editor.IStandaloneCodeEditor,
+    monaco: Monaco,
+  ) => {
     editorRef.current = editor;
     monacoRef.current = monaco;
 
@@ -117,7 +127,10 @@ export function CollabPythonSandbox({
 
     // Handle glyph margin clicks for comments
     editor.onMouseDown((e: editor.IEditorMouseEvent) => {
-      if (e.target.type === monaco.editor.MouseTargetType.GUTTER_GLYPH_MARGIN && e.target.position) {
+      if (
+        e.target.type === monaco.editor.MouseTargetType.GUTTER_GLYPH_MARGIN &&
+        e.target.position
+      ) {
         const lineNumber = e.target.position.lineNumber;
         setActiveLine(lineNumber);
       }
@@ -129,18 +142,21 @@ export function CollabPythonSandbox({
     const editor = editorRef.current;
     const monaco = monacoRef.current;
     if (!editor || !monaco) return;
-    
-    const unresolvedThreads = threads.filter(t => !t.is_resolved);
+
+    const unresolvedThreads = threads.filter((t) => !t.is_resolved);
     const newDecorations = unresolvedThreads.map((thread) => ({
       range: new monaco.Range(thread.line_number, 1, thread.line_number, 1),
       options: {
         isWholeLine: true,
-        glyphMarginClassName: 'review-glyph',
-        glyphMarginHoverMessage: { value: 'Code Review Comments' }
-      }
+        glyphMarginClassName: "review-glyph",
+        glyphMarginHoverMessage: { value: "Code Review Comments" },
+      },
     }));
-    
-    decorationsRef.current = editor.deltaDecorations(decorationsRef.current, newDecorations);
+
+    decorationsRef.current = editor.deltaDecorations(
+      decorationsRef.current,
+      newDecorations,
+    );
   }, [threads]);
 
   const handleRun = async () => {
@@ -270,9 +286,9 @@ export function CollabPythonSandbox({
             onMount={handleEditorDidMount}
           />
         </div>
-        
+
         {activeLine !== null && (
-          <CodeReviewPanel 
+          <CodeReviewPanel
             activeLine={activeLine}
             threads={threads}
             onAddComment={addComment}
@@ -316,10 +332,10 @@ export function CollabPythonSandbox({
         )}
       </div>
 
-      <SnippetLibraryModal 
-        isOpen={isLibraryOpen} 
-        onClose={() => setIsLibraryOpen(false)} 
-        onInsertCode={handleInsertSnippet} 
+      <SnippetLibraryModal
+        isOpen={isLibraryOpen}
+        onClose={() => setIsLibraryOpen(false)}
+        onInsertCode={handleInsertSnippet}
       />
     </div>
   );
