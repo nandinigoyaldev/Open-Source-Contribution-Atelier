@@ -10,7 +10,7 @@ import ReportIssueButton from "../components/ui/ReportIssueButton";
 import { ErrorBoundary } from "../components/ui/ErrorBoundary";
 import { NotificationProvider } from "../features/notifications/NotificationContext";
 import { WebSocketStatusIndicator } from "../components/WebSocketStatus/WebSocketStatusIndicator";
-
+import { CustomCursor } from "../components/CustomCursor";
 // Pure React Onboarding Tour Step Definition Type Map
 interface TourStep {
   target: string;
@@ -138,8 +138,8 @@ export function App({ children }: { children?: React.ReactNode }) {
           />
           {children || <AppRouter />}
           <CommandPalette />
-          <ReportIssueButton />
-          <WebSocketStatusIndicator url="" />
+<ReportIssueButton />
+          <CustomCursor />          <WebSocketStatusIndicator url="" />
 
           {/* Pure React Onboarding Modals Highlight Tour Overlay Portal */}
           {currentStep >= 0 && coords && (
