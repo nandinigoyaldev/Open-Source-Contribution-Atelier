@@ -26,10 +26,13 @@ export function CodeDiffViewer({
         <div className="flex items-center gap-2">
           <FileCode2 size={16} className="text-primary" />
           <h3 className="font-bold text-sm text-text dark:text-[#f0ebe2]">
-            {title} <span className="opacity-50 text-xs ml-2 font-mono">{fileName}</span>
+            {title}{" "}
+            <span className="opacity-50 text-xs ml-2 font-mono">
+              {fileName}
+            </span>
           </h3>
         </div>
-        
+
         <div className="flex bg-black/10 dark:bg-white/10 p-1 rounded-lg">
           <button
             onClick={() => setSplitView(true)}
@@ -102,11 +105,12 @@ export function CodeDiffViewer({
               },
             },
             diffContainer: {
-              fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+              fontFamily:
+                "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
             },
             marker: {
               width: "25px",
-            }
+            },
           }}
         />
       </div>

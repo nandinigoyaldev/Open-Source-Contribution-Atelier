@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import Recommendation
+from .models import Recommendation, OSSIssue
 
 
 class RecommendationSerializer(serializers.ModelSerializer):
@@ -16,3 +16,8 @@ class RecommendationSerializer(serializers.ModelSerializer):
             "is_dismissed",
             "created_at",
         )
+
+class OSSIssueSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = OSSIssue
+        fields = "__all__"

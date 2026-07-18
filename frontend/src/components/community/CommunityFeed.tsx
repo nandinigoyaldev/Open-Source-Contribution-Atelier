@@ -1,11 +1,15 @@
-import { useMemo, useRef, useCallback } from "react";
+import { useState, useMemo, useRef, useCallback } from "react";
 import { useInfiniteQuery } from "@tanstack/react-query";
 import { fetchApi } from "../../lib/api";
 import { HelpCircle, Code, Award, BookOpen, Clock } from "lucide-react";
 
 interface FeedEntry {
   id: string;
-  type: "help_request" | "code_submission" | "badge_earned" | "lesson_completed";
+  type:
+    | "help_request"
+    | "code_submission"
+    | "badge_earned"
+    | "lesson_completed";
   user_id: number;
   username: string;
   title: string;
@@ -45,29 +49,91 @@ function timeAgo(dateStr: string): string {
   return new Date(dateStr).toLocaleDateString();
 }
 
+function FeedEntryItem({ entry }: { entry: FeedEntry }) {
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  const parsedData = useMemo(() => {
+    if (!entry.description) return null;
+    const desc = entry.description.trim();
+    if (desc.startsWith("{") || desc.startsWith("[")) {
+      try {
+        return JSON.parse(desc);
+      } catch {
+        return null;
+      }
+    }
+    return null;
+  }, [entry.description]);
+
+  const formattedDescription = useMemo(() => {
+    if (parsedData) {
+      const parts: string[] = [];
+      if (parsedData.text) {
+        parts.push(`Message: ${parsedData.text}`);
+      }
+      if (parsedData.originalCode || parsedData.code) {
+        parts.push(`Code:\n${parsedData.originalCode || parsedData.code}`);
+      }
+      if (parts.length > 0) return parts.join("\n\n");
+      return JSON.stringify(parsedData, null, 2);
+    }
+    return entry.description;
+  }, [parsedData, entry.description]);
+
+  if (!formattedDescription) return null;
+
+  const shouldTruncate =
+    formattedDescription.length > 120 || formattedDescription.includes("\n");
+
+  return (
+    <div className="mt-1">
+      {shouldTruncate && !isExpanded ? (
+        <div className="text-xs text-muted dark:text-[#94a3b8]">
+          <p className="line-clamp-2 inline whitespace-pre-wrap">
+            {formattedDescription}
+          </p>
+          <button
+            onClick={() => setIsExpanded(true)}
+            className="text-xs text-primary font-bold ml-1 hover:underline focus:outline-none"
+          >
+            Show more
+          </button>
+        </div>
+      ) : (
+        <div className="text-xs text-muted dark:text-[#94a3b8] whitespace-pre-wrap bg-slate-50 dark:bg-slate-900/50 p-2.5 rounded-lg border border-black/5 dark:border-white/5">
+          <p className="inline">{formattedDescription}</p>
+          {shouldTruncate && (
+            <button
+              onClick={() => setIsExpanded(false)}
+              className="text-xs text-primary font-bold ml-2 hover:underline focus:outline-none block mt-2"
+            >
+              Show less
+            </button>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export function CommunityFeed() {
-  const {
-    data,
-    fetchNextPage,
-    hasNextPage,
-    isFetchingNextPage,
-    isLoading,
-  } = useInfiniteQuery<FeedResponse>({
-    queryKey: ["communityFeed"],
-    queryFn: async ({ pageParam }) => {
-      const url = pageParam
-        ? `/progress/feed/?page=${pageParam}`
-        : "/progress/feed/";
-      return fetchApi(url);
-    },
-    initialPageParam: 1,
-    getNextPageParam: (lastPage) => {
-      if (!lastPage.next) return undefined;
-      const url = new URL(lastPage.next);
-      const page = url.searchParams.get("page");
-      return page ? Number(page) : undefined;
-    },
-  });
+  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } =
+    useInfiniteQuery<FeedResponse>({
+      queryKey: ["communityFeed"],
+      queryFn: async ({ pageParam }) => {
+        const url = pageParam
+          ? `/progress/feed/?page=${pageParam}`
+          : "/progress/feed/";
+        return fetchApi(url);
+      },
+      initialPageParam: 1,
+      getNextPageParam: (lastPage) => {
+        if (!lastPage.next) return undefined;
+        const url = new URL(lastPage.next);
+        const page = url.searchParams.get("page");
+        return page ? Number(page) : undefined;
+      },
+    });
 
   const entries = useMemo(() => {
     if (!data) return [];
@@ -121,11 +187,7 @@ export function CommunityFeed() {
                     <span className="text-primary">@{entry.username}</span>{" "}
                     {entry.title}
                   </p>
-                  {entry.description && (
-                    <p className="text-xs text-muted dark:text-[#94a3b8] mt-0.5 line-clamp-2">
-                      {entry.description}
-                    </p>
-                  )}
+                  <FeedEntryItem entry={entry} />
                 </div>
                 <span className="text-[10px] font-bold text-muted dark:text-[#94a3b8] flex-shrink-0 whitespace-nowrap pt-0.5">
                   {timeAgo(entry.created_at)}

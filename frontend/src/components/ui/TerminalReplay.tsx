@@ -65,12 +65,14 @@ export function TerminalReplay({
       const nextChar = currentCmd.command[currentTyped.length];
       const baseDelay = currentCmd.typingDelayMs ?? 50;
       // Add slight randomness to typing speed for realism (30ms - 70ms) if no explicit delay
-      const randomDelay = currentCmd.typingDelayMs ? baseDelay : Math.max(10, baseDelay + (Math.random() * 40 - 20));
-      
+      const randomDelay = currentCmd.typingDelayMs
+        ? baseDelay
+        : Math.max(10, baseDelay + (Math.random() * 40 - 20));
+
       timeoutRef.current = setTimeout(() => {
         setCurrentTyped((prev) => prev + nextChar);
       }, randomDelay / speed);
-      
+
       return;
     }
 
@@ -103,13 +105,13 @@ export function TerminalReplay({
 
   const handleSkip = () => {
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    
+
     // Push all remaining commands instantly
     const remaining = commands.slice(cmdIndex).map((cmd, i) => ({
       ...cmd,
       id: Date.now() + i,
     }));
-    
+
     setHistory((prev) => [...prev, ...remaining]);
     setCmdIndex(commands.length);
     setCurrentTyped("");
@@ -154,11 +156,17 @@ export function TerminalReplay({
           >
             <RotateCcw className="w-4 h-4" />
           </button>
-          
+
           <button
             onClick={handlePlayPause}
             className="p-1.5 rounded hover:bg-gray-700 text-gray-400 hover:text-white transition-colors"
-            title={status === "playing" ? "Pause" : status === "finished" ? "Replay" : "Play"}
+            title={
+              status === "playing"
+                ? "Pause"
+                : status === "finished"
+                  ? "Replay"
+                  : "Play"
+            }
           >
             {status === "playing" ? (
               <Pause className="w-4 h-4" />
@@ -208,7 +216,7 @@ export function TerminalReplay({
             )}
           </div>
         ))}
-        
+
         {/* Currently typing line */}
         {status !== "finished" && (
           <div className="flex items-center gap-2 text-gray-300 font-bold">
@@ -219,7 +227,7 @@ export function TerminalReplay({
             </span>
           </div>
         )}
-        
+
         {status === "finished" && (
           <div className="flex items-center gap-2 text-gray-300 font-bold">
             <span className="text-emerald-500">~/workspace $</span>

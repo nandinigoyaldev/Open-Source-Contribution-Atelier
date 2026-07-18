@@ -5,7 +5,7 @@ test.describe("Lesson Journey and Badge Awarding Flow", () => {
   test.beforeEach(async ({ authPage }) => {
     // 1. Mock user login
     await mockLogin(authPage);
-    
+
     // 2. Mock curriculum lessons to have exactly 1 lesson, so completing it awards the module/curriculum badges.
     await authPage.route("**/api/content/lessons/", async (route) => {
       const json = [
@@ -27,9 +27,9 @@ test.describe("Lesson Journey and Badge Awarding Flow", () => {
               expectedCommand: "git init",
               explanation: "Use git init to start.",
               points: 15,
-            }
-          ]
-        }
+            },
+          ],
+        },
       ];
       await route.fulfill({ status: 200, json });
     });
@@ -55,8 +55,10 @@ test.describe("Lesson Journey and Badge Awarding Flow", () => {
 
     // Find the terminal input and type the correct command
     // The placeholder dynamically uses hint or falls back
-    const terminalInput = authPage.locator('input[placeholder*="Type your git command here"], input[placeholder*="Use git init to start"]');
-    await terminalInput.waitFor({ state: 'visible' });
+    const terminalInput = authPage.locator(
+      'input[placeholder*="Type your git command here"], input[placeholder*="Use git init to start"]',
+    );
+    await terminalInput.waitFor({ state: "visible" });
     await terminalInput.fill("git init");
 
     // Click run command
@@ -66,7 +68,7 @@ test.describe("Lesson Journey and Badge Awarding Flow", () => {
     // The component sets feedback to 'correct', syncs progress, and should show the success status
     // Then useEarnedBadges hook should calculate the module completion because it's the only lesson in 'git-basics' module
     // The BadgeToast should pop up!
-    
+
     const badgeToast = authPage.getByText(/You earned a new badge/i);
     // Give it a bit of time since there might be network/react query delays and framer motion
     await expect(badgeToast).toBeVisible({ timeout: 10000 });

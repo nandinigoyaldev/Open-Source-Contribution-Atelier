@@ -67,8 +67,8 @@ export function DashboardGrid() {
             width: widget.width * 100,
             height: widget.height * 100
           }}
-          onDragStop={(e, d) => onDragStop(widget.id, d.x / 100, d.y / 100)}
-          onResizeStop={(e, dir, ref) => {
+          onDragStop={(_e: any, d: { x: number; y: number }) => { onDragStop(widget.id, d.x / 100, d.y / 100); }}
+          onResizeStop={(_e: any, _dir: any, ref: { offsetWidth: number; offsetHeight: number }) => {
             onResize(widget.id, ref.offsetWidth / 100, ref.offsetHeight / 100);
           }}
         >

@@ -28,7 +28,7 @@ export function useSandboxCore(createWorker: () => Worker) {
       messageData: Record<string, unknown>,
       timeoutMs: number,
       extractResult: (data: unknown) => TResult,
-      timeoutResult: TResult
+      timeoutResult: TResult,
     ): Promise<TResult> => {
       return new Promise((resolve) => {
         if (!workerRef.current) {
@@ -68,7 +68,7 @@ export function useSandboxCore(createWorker: () => Worker) {
         workerRef.current.postMessage({ id: executionId, ...messageData });
       });
     },
-    [initWorker]
+    [initWorker],
   );
 
   return { executeCode, isExecuting, isReady, workerRef, initWorker };

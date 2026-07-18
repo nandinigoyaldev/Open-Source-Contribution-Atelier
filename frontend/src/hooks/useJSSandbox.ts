@@ -9,7 +9,7 @@ export interface JSExecutionResult {
 }
 
 export const EXAMPLES: Record<string, string> = {
-  'Hello World': `// Hello World Example
+  "Hello World": `// Hello World Example
 console.log('Hello, World!');
 console.log('Welcome to the Open Source Contribution Atelier!');
 
@@ -21,7 +21,7 @@ console.log('5 + 3 =', sum);
 const greeting = 'Hello ' + 'Developer!';
 console.log(greeting);`,
 
-  'Functions': `// Functions Example
+  Functions: `// Functions Example
 function calculateSum(a, b) {
   return a + b;
 }
@@ -44,7 +44,7 @@ console.log('Greeting:', message);
 
 console.log('Sum + Product:', sum + product);`,
 
-  'Arrays': `// Array Operations Example
+  Arrays: `// Array Operations Example
 const numbers = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10];
 
 console.log('Original array:', numbers);
@@ -68,7 +68,7 @@ const result = numbers
   .reduce((acc, n) => acc + n, 0);
 console.log('Result (filter > 5, double, sum):', result);`,
 
-  'Objects': `// Objects and Destructuring Example
+  Objects: `// Objects and Destructuring Example
 const user = {
   name: 'Alice',
   age: 30,
@@ -95,7 +95,7 @@ console.log(\`\${name} is \${age} years old and knows \${skills.join(', ')}\`);
 const userWithId = { id: 1, ...user };
 console.log('User with ID:', userWithId);`,
 
-  'Async/Await': `// Async/Await Example
+  "Async/Await": `// Async/Await Example
 async function fetchData() {
   console.log('Fetching data...');
   
@@ -122,7 +122,7 @@ async function main() {
 
 main();`,
 
-  'Error Handling': `// Error Handling Example
+  "Error Handling": `// Error Handling Example
 try {
   console.log('Attempting to divide by zero...');
   const result = 10 / 0;
@@ -148,22 +148,33 @@ try {
 }`,
 };
 
-export function useJSSandbox(_options: { timeout?: number; maxWorkers?: number } = {}) {
+export function useJSSandbox(
+  _options: { timeout?: number; maxWorkers?: number } = {},
+) {
   const createWorker = useCallback(
     () =>
       new Worker(new URL("../workers/jsWorker.ts", import.meta.url), {
         type: "module",
       }),
-    []
+    [],
   );
 
-  const [status, setStatus] = useState<'idle' | 'running' | 'completed' | 'error' | 'timeout'>('idle');
+  const [status, setStatus] = useState<
+    "idle" | "running" | "completed" | "error" | "timeout"
+  >("idle");
   const [executionTime, setExecutionTime] = useState<number | null>(null);
   const [errorState, setErrorState] = useState<string | null>(null);
-  const [output, setOutput] = useState<Array<{ type: 'log' | 'error' | 'info'; timestamp: string; content: string }>>([]);
+  const [output, setOutput] = useState<
+    Array<{
+      type: "log" | "error" | "info";
+      timestamp: string;
+      content: string;
+    }>
+  >([]);
   const [workerStatus] = useState({ availableWorkers: 4, totalWorkers: 4 });
 
-  const { executeCode, isExecuting, isReady, initWorker } = useSandboxCore(createWorker);
+  const { executeCode, isExecuting, isReady, initWorker } =
+    useSandboxCore(createWorker);
 
   const clearOutput = useCallback(() => {
     setOutput([]);
@@ -171,24 +182,30 @@ export function useJSSandbox(_options: { timeout?: number; maxWorkers?: number }
 
   const stopExecution = useCallback(() => {
     initWorker();
-    setStatus('idle');
+    setStatus("idle");
   }, [initWorker]);
 
   const resetSandbox = useCallback(() => {
     clearOutput();
-    setStatus('idle');
+    setStatus("idle");
     setExecutionTime(null);
     setErrorState(null);
   }, [clearOutput]);
 
-  const loadExample = useCallback((code: string) => {
-    resetSandbox();
-    return code;
-  }, [resetSandbox]);
+  const loadExample = useCallback(
+    (code: string) => {
+      resetSandbox();
+      return code;
+    },
+    [resetSandbox],
+  );
 
   const runJSCode = useCallback(
-    async (code: string, timeoutMs: number = 5000): Promise<JSExecutionResult> => {
-      setStatus('running');
+    async (
+      code: string,
+      timeoutMs: number = 5000,
+    ): Promise<JSExecutionResult> => {
+      setStatus("running");
       setErrorState(null);
       const startTime = performance.now();
       const res = await executeCode<JSExecutionResult>(
@@ -200,24 +217,31 @@ export function useJSSandbox(_options: { timeout?: number; maxWorkers?: number }
         }),
         {
           output: "",
-          error: "Execution Timeout: The code took too long to run and was terminated.",
-        }
+          error:
+            "Execution Timeout: The code took too long to run and was terminated.",
+        },
       );
       const endTime = performance.now();
       setExecutionTime(endTime - startTime);
 
       const timestamp = new Date().toLocaleTimeString();
       if (res.error) {
-        setStatus(res.error.includes("Timeout") ? 'timeout' : 'error');
+        setStatus(res.error.includes("Timeout") ? "timeout" : "error");
         setErrorState(res.error);
-        setOutput((prev) => [...prev, { type: 'error', timestamp, content: res.error! }]);
+        setOutput((prev) => [
+          ...prev,
+          { type: "error", timestamp, content: res.error! },
+        ]);
       } else {
-        setStatus('completed');
-        setOutput((prev) => [...prev, { type: 'log', timestamp, content: res.output }]);
+        setStatus("completed");
+        setOutput((prev) => [
+          ...prev,
+          { type: "log", timestamp, content: res.output },
+        ]);
       }
       return res;
     },
-    [executeCode]
+    [executeCode],
   );
 
   const traceJSCode = useCallback(
@@ -226,17 +250,19 @@ export function useJSSandbox(_options: { timeout?: number; maxWorkers?: number }
         { code, action: "execute_trace" },
         timeoutMs,
         (data: any) => data.trace_events || [],
-        [{
-          step: 0,
-          line: 0,
-          event: "error",
-          locals: {},
-          stdout: "",
-          error: "Execution Timeout: Code took too long to run."
-        }]
+        [
+          {
+            step: 0,
+            line: 0,
+            event: "error",
+            locals: {},
+            stdout: "",
+            error: "Execution Timeout: Code took too long to run.",
+          },
+        ],
       );
     },
-    [executeCode]
+    [executeCode],
   );
 
   return {
@@ -252,7 +278,7 @@ export function useJSSandbox(_options: { timeout?: number; maxWorkers?: number }
     clearOutput,
     stopExecution,
     resetSandbox,
-    loadExample
+    loadExample,
   };
 }
 
