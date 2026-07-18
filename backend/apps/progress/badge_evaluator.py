@@ -19,12 +19,17 @@ BADGE_RULES = {
             "history-of-open-source",
             "benefits-of-contributing",
             "common-misconceptions",
+            "open-source-licenses",
         ],
     },
     "mod-2": {
         "name": "Git Cadet",
         "description": "Initialize repos, commit, and manage local branches.",
         "lessons": [
+            "history-of-open-source",
+            "benefits-of-contributing",
+            "common-misconceptions",
+            "open-source-licenses",
             "repositories-and-commits",
             "branches",
             "merging",
@@ -147,15 +152,30 @@ class BadgeEvaluator:
             user=user, status=PullRequest.Status.MERGED
         ).count()
 
-        # Calculate streak based on deterministic daily activity ledger
+        # Calculate longest consecutive daily streak based on deterministic activity ledger
         from apps.progress.models import DailyActivity
 
-        streak_days = (
-            DailyActivity.objects.filter(user=user)
-            .values_list("date", flat=True)
-            .distinct()
-            .count()
+        dates = sorted(
+            list(
+                DailyActivity.objects.filter(user=user)
+                .values_list("date", flat=True)
+                .distinct()
+            )
         )
+        longest_streak = 0
+        current_streak = 0
+        prev_date = None
+        for date in dates:
+            if prev_date is None:
+                current_streak = 1
+            elif (date - prev_date).days == 1:
+                current_streak += 1
+            elif (date - prev_date).days > 1:
+                longest_streak = max(longest_streak, current_streak)
+                current_streak = 1
+            prev_date = date
+        longest_streak = max(longest_streak, current_streak)
+        streak_days = longest_streak
 
         # Fetch user's already earned badge slugs
 

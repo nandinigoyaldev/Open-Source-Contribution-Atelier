@@ -119,16 +119,10 @@ class ProgressConcurrencyTests(TransactionTestCase):
                 ),
             ]
 
-            statuses = [
-                future.result()
-                for future in futures
-            ]
+            statuses = [future.result() for future in futures]
 
         self.assertTrue(
-            all(
-                response_status in (200, 201)
-                for response_status in statuses
-            )
+            all(response_status in (200, 201) for response_status in statuses)
         )
 
         self.assertEqual(

@@ -9,6 +9,7 @@ on:
 permissions:
   issues: write
   pull-requests: write
+  contents: read
 
 jobs:
   welcome-issue:
@@ -60,11 +61,27 @@ jobs:
       - name: Post welcome comment on new PR
         uses: actions/github-script@v8
         with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const pr = context.payload.pull_request;
             const owner = context.repo.owner;
             const repo = context.repo.repo;
             
+            // Assign the author of the PR (skip if author is the repo owner)
+            if (pr.user.login !== owner) {
+              try {
+                await github.rest.issues.addAssignees({owner, repo, issue_number: pr.number, assignees: [pr.user.login]});
+              } catch (e) {
+                console.warn(`Could not assign PR to ${pr.user.login}: ${e}`);
+                try {
+                  await github.rest.repos.addCollaborator({owner, repo, username: pr.user.login, permission: 'pull'});
+                  await github.rest.issues.addAssignees({owner, repo, issue_number: pr.number, assignees: [pr.user.login]});
+                } catch (err) {
+                  console.warn(`Failed to invite and assign PR author: ${err}`);
+                }
+              }
+            }
+
             const isFirstTime = pr.author_association === 'FIRST_TIME_CONTRIBUTOR';
             
             let greeting = '';

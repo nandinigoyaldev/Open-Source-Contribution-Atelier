@@ -19,21 +19,38 @@ body {
   margin: 0;
   min-width: 320px;
   min-height: 100vh;
+  overflow-x: hidden;
   font-family: "Outfit", "Inter", sans-serif;
   color: #000000;
-  background-color: #fdfbf7;
-  /* Fun dot grid background */
-  background-image: radial-gradient(#dcd3c4 2px, transparent 2px);
-  background-size: 30px 30px;
+  background-color: #ffffff;
+}
+
+.bg-surface {
+  background-color: #ffffff;
+}
+.bg-surface-lowest {
+  background-color: #ffffff;
+}
+.bg-surface-low {
+  background-color: #f9fafb;
+}
+.bg-surface-high {
+  background-color: #f3f4f6;
+}
+.bg-surface-highest {
+  background-color: #e5e7eb;
 }
 
 html.dark body {
   color-scheme: dark;
   color: var(--dark-text);
   background-color: var(--dark-bg);
-  background-image:
-    radial-gradient(#1e1e2a 1.5px, transparent 1.5px),
-    linear-gradient(135deg, #080810 0%, #0c0f1a 48%, #080f0c 100%);
+  background-image: linear-gradient(
+    135deg,
+    #080810 0%,
+    #0c0f1a 48%,
+    #080f0c 100%
+  );
 }
 
 html.dark {
@@ -62,6 +79,10 @@ html.dark {
   --dark-primary: #ff665c;
   --dark-cyan: #22d3ee;
   --dark-green: #4ade80;
+}
+
+html {
+  overflow-x: hidden;
 }
 
 /*
@@ -164,7 +185,7 @@ html.dark .bg-accent\/20 {
 
 html.dark .bg-primary\/10,
 html.dark .bg-primary\/20 {
-  background-color: rgb(255 102 92 / 0.20) !important;
+  background-color: rgb(255 102 92 / 0.2) !important;
 }
 
 html.dark .bg-green-100,
@@ -473,6 +494,24 @@ input {
     border: none !important;
   }
 
+  /* Reset dark mode styles for printing */
+  html.dark .certificate-printable,
+  html.dark .certificate-printable * {
+    color: #000000 !important;
+    border-color: #000000 !important;
+  }
+
+  html.dark .certificate-printable {
+    color-scheme: light !important;
+    background-color: #ffffff !important;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  html.dark .certificate-printable.bg-\[\#FFF9F0\] {
+    background-color: #fff9f0 !important;
+  }
+
   .no-print {
     display: none !important;
   }
@@ -650,4 +689,67 @@ html.high-contrast textarea:focus-visible,
 html.high-contrast [tabindex]:focus-visible {
   outline: 3px solid var(--hc-accent) !important;
   outline-offset: 2px !important;
+}
+
+/* Button containers */
+.button-group,
+.cta-buttons,
+.auth-buttons,
+.footer-buttons,
+.flex.gap-2,
+.flex.gap-3,
+.flex.gap-4 {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  gap: 16px !important;
+  justify-content: center !important;
+  align-items: center !important;
+}
+
+/* All buttons inside containers */
+.button-group button,
+.cta-buttons button,
+.auth-buttons button,
+.footer-buttons button,
+.flex.gap-2 button,
+.flex.gap-3 button,
+.flex.gap-4 button {
+  position: relative !important;
+  margin: 0 !important;
+  flex: 0 1 auto !important;
+  min-width: 120px !important;
+}
+
+/* Mobile responsive */
+@media (max-width: 640px) {
+  .button-group,
+  .cta-buttons,
+  .auth-buttons,
+  .footer-buttons,
+  .flex.gap-2,
+  .flex.gap-3,
+  .flex.gap-4 {
+    flex-direction: column !important;
+    gap: 12px !important;
+    width: 100% !important;
+  }
+
+  .button-group button,
+  .cta-buttons button,
+  .auth-buttons button,
+  .footer-buttons button,
+  .flex.gap-2 button,
+  .flex.gap-3 button,
+  .flex.gap-4 button {
+    width: 100% !important;
+    max-width: 300px !important;
+  }
+}
+
+/* Fix any absolute positioned buttons */
+button:not([class*="menu"]):not([class*="toggle"]) {
+  position: relative !important;
+  float: none !important;
+  display: inline-flex !important;
+  margin: 4px 8px !important;
 }

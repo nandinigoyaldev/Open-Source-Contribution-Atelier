@@ -13,44 +13,6 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.CreateModel(
-            name="PlagiarismReport",
-            fields=[
-                (
-                    "id",
-                    models.BigAutoField(
-                        auto_created=True,
-                        primary_key=True,
-                        serialize=False,
-                        verbose_name="ID",
-                    ),
-                ),
-                ("similarity_score", models.FloatField()),
-                ("is_flagged", models.BooleanField(default=False)),
-                ("created_at", models.DateTimeField(auto_now_add=True)),
-            ],
-            options={
-                "ordering": ["-similarity_score"],
-            },
-        ),
-        migrations.CreateModel(
-            name="StreakProfile",
-            fields=[
-                (
-                    "id",
-                    models.BigAutoField(
-                        auto_created=True,
-                        primary_key=True,
-                        serialize=False,
-                        verbose_name="ID",
-                    ),
-                ),
-                ("current_streak", models.PositiveIntegerField(default=0)),
-                ("longest_streak", models.PositiveIntegerField(default=0)),
-                ("last_activity_date", models.DateField(blank=True, null=True)),
-                ("updated_at", models.DateTimeField(auto_now=True)),
-            ],
-        ),
         migrations.AlterUniqueTogether(
             name="userbadge",
             unique_together=set(),
@@ -64,43 +26,6 @@ class Migration(migrations.Migration):
             model_name="userbadge",
             constraint=models.UniqueConstraint(
                 fields=("user", "badge"), name="unique_user_badge_award"
-            ),
-        ),
-        migrations.AddField(
-            model_name="plagiarismreport",
-            name="matched_submission",
-            field=models.ForeignKey(
-                on_delete=django.db.models.deletion.CASCADE,
-                related_name="matched_in_reports",
-                to="progress.codesubmission",
-            ),
-        ),
-        migrations.AddField(
-            model_name="plagiarismreport",
-            name="submission",
-            field=models.ForeignKey(
-                on_delete=django.db.models.deletion.CASCADE,
-                related_name="plagiarism_reports",
-                to="progress.codesubmission",
-            ),
-        ),
-        migrations.AddField(
-            model_name="streakprofile",
-            name="user",
-            field=models.OneToOneField(
-                on_delete=django.db.models.deletion.CASCADE,
-                related_name="streak_profile",
-                to=settings.AUTH_USER_MODEL,
-            ),
-        ),
-        migrations.AlterUniqueTogether(
-            name="plagiarismreport",
-            unique_together={("submission", "matched_submission")},
-        ),
-        migrations.AddIndex(
-            model_name="streakprofile",
-            index=models.Index(
-                fields=["user", "current_streak"], name="idx_streak_user_current"
             ),
         ),
     ]

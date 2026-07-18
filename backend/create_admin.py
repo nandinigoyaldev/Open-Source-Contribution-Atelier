@@ -17,7 +17,10 @@ if not all([username, email, password]):
         "and DJANGO_ADMIN_PASSWORD env vars before running this script."
     )
 
-user, created = User.objects.get_or_create(username=username, email=email)
+# Look up by username only — email is allowed to change on an existing
+# admin without get_or_create() trying to insert a duplicate username.
+user, created = User.objects.get_or_create(username=username)
+user.email = email
 user.set_password(password)
 user.is_staff = True
 user.is_superuser = True

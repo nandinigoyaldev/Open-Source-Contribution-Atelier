@@ -1,0 +1,37 @@
+.ring-container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+}
+
+.ring-wrapper {
+  position: relative;
+}
+
+.ring-center {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  text-align: center;
+}
+
+.ring-percent {
+  font-size: 14px;
+  font-weight: 700;
+  color: aquamarine;
+}
+
+.dark.ring-percent {
+  color: #eef2f6;
+}
+
+.ring-label {
+  font-size: 12px;
+  color: #6b7280;
+}
+
+.dark .ring-label {
+  color: #9b8f80;
+}

@@ -1,6 +1,7 @@
 """
 Tests for Discord Webhook Integration.
 """
+
 from unittest.mock import MagicMock, patch
 
 from django.contrib.auth import get_user_model
@@ -144,7 +145,9 @@ class DiscordWebhookTests(TestCase):
 
             call_args = mock_post.call_args
             embed = call_args[1]["json"]["embeds"][0]
-            self.assertEqual(embed["color"], expected_color, f"Color mismatch for {tier}")
+            self.assertEqual(
+                embed["color"], expected_color, f"Color mismatch for {tier}"
+            )
 
     @patch("apps.webhooks.discord.requests.post")
     @patch("apps.webhooks.discord.get_discord_webhook_url")

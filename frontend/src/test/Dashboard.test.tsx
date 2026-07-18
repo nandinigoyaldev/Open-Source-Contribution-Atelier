@@ -140,7 +140,7 @@ describe("DashboardPage Dual-Role Views", () => {
     expect(screen.getByText("Assigned Issues")).toBeInTheDocument();
     expect(screen.getByText("Fix git conflicts")).toBeInTheDocument();
 
-   // Assert lesson queue
+    // Assert lesson queue
     expect(screen.getByText("Resume Learning Queue")).toBeInTheDocument();
     expect(screen.getByText("Introduction to Atelier")).toBeInTheDocument();
   });

@@ -1,25 +1,25 @@
 /**
  * Sandbox component for secure JavaScript/TypeScript code execution.
- * 
+ *
  * @file Sandbox.tsx
  * @location frontend/src/components/Sandbox/Sandbox.tsx
  */
 
-import React, { useState } from 'react';
-import useJSSandbox, { EXAMPLES } from '../../hooks/useJSSandbox';
-import './Sandbox.css';
+import React, { useState } from "react";
+import useJSSandbox, { EXAMPLES } from "../../hooks/useJSSandbox";
+import "./Sandbox.css";
 
 interface SandboxProps {
   initialCode?: string;
   className?: string;
 }
 
-const Sandbox: React.FC<SandboxProps> = ({ 
-  initialCode = EXAMPLES['Hello World'],
-  className = '',
+const Sandbox: React.FC<SandboxProps> = ({
+  initialCode = EXAMPLES["Hello World"],
+  className = "",
 }) => {
   const [code, setCode] = useState<string>(initialCode);
-  const [selectedExample, setSelectedExample] = useState<string>('Hello World');
+  const [selectedExample, setSelectedExample] = useState<string>("Hello World");
 
   const {
     isExecuting,
@@ -67,14 +67,16 @@ const Sandbox: React.FC<SandboxProps> = ({
         </div>
         <div className="sandbox-status">
           <span className={`status-badge ${status}`}>
-            {status === 'idle' && '● Idle'}
-            {status === 'running' && '● Running...'}
-            {status === 'completed' && '✅ Completed'}
-            {status === 'error' && '❌ Error'}
-            {status === 'timeout' && '⏰ Timeout'}
+            {status === "idle" && "● Idle"}
+            {status === "running" && "● Running..."}
+            {status === "completed" && "✅ Completed"}
+            {status === "error" && "❌ Error"}
+            {status === "timeout" && "⏰ Timeout"}
           </span>
           {executionTime !== null && (
-            <span className="execution-time">⏱️ {executionTime.toFixed(2)}ms</span>
+            <span className="execution-time">
+              ⏱️ {executionTime.toFixed(2)}ms
+            </span>
           )}
           <span className="worker-status">
             🧵 {workerStatus.availableWorkers}/{workerStatus.totalWorkers}
@@ -94,7 +96,7 @@ const Sandbox: React.FC<SandboxProps> = ({
                   <button
                     key={name}
                     onClick={() => handleExampleSelect(name)}
-                    className={`example-item ${selectedExample === name ? 'active' : ''}`}
+                    className={`example-item ${selectedExample === name ? "active" : ""}`}
                   >
                     {name}
                   </button>
@@ -132,10 +134,7 @@ const Sandbox: React.FC<SandboxProps> = ({
                 Clear
               </button>
               {isExecuting && (
-                <button
-                  onClick={stopExecution}
-                  className="stop-btn"
-                >
+                <button onClick={stopExecution} className="stop-btn">
                   ⏹ Stop
                 </button>
               )}
@@ -148,10 +147,7 @@ const Sandbox: React.FC<SandboxProps> = ({
               </div>
             )}
             {output.map((entry, index) => (
-              <div
-                key={index}
-                className={`output-line ${entry.type}`}
-              >
+              <div key={index} className={`output-line ${entry.type}`}>
                 <span className="output-time">[{entry.timestamp}]</span>
                 <pre className="output-text">{entry.content}</pre>
               </div>
@@ -166,9 +162,9 @@ const Sandbox: React.FC<SandboxProps> = ({
           <button
             onClick={handleRun}
             disabled={isExecuting || !code.trim()}
-            className={`run-btn ${isExecuting ? 'running' : ''}`}
+            className={`run-btn ${isExecuting ? "running" : ""}`}
           >
-            {isExecuting ? '⏳ Running...' : '▶ Run Code'}
+            {isExecuting ? "⏳ Running..." : "▶ Run Code"}
           </button>
           {error && (
             <div className="sandbox-error">

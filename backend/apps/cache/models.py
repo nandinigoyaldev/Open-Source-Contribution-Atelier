@@ -36,9 +36,9 @@ class CacheDependency(models.Model):
 
     class Meta:
         indexes = [
-            models.Index(fields=["source_content_type", "source_object_id"]),
-            models.Index(fields=["target_content_type", "target_object_id"]),
-            models.Index(fields=["cache_key"]),
+            models.Index(fields=["source_content_type", "source_object_id"], name="idx_source_content_types"),
+            models.Index(fields=["target_content_type", "target_object_id"], name="idx_target_content_typet"),
+            models.Index(fields=["cache_key"], name="idx_cache_key"),
         ]
         unique_together = [
             [

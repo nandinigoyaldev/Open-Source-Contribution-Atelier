@@ -1,4 +1,5 @@
 import { enqueueOfflineAction } from "./offlineQueue";
+import { getAccessToken } from "./authToken";
 import toast from "react-hot-toast"; // <-- YEH HUMNE ADD KIYA HAI
 
 const getApiBaseUrl = () => {
@@ -13,7 +14,9 @@ const getApiBaseUrl = () => {
 
 const API_BASE =
   getApiBaseUrl()?.trim() ||
-  (typeof window !== "undefined" ? `${window.location.origin}/api` : "http://127.0.0.1:8000/api");
+  (typeof window !== "undefined"
+    ? `${window.location.origin}/api`
+    : "http://127.0.0.1:8000/api");
 
 type RequestOptions = RequestInit & {
   requireAuth?: boolean;
@@ -52,22 +55,23 @@ export async function fetchApi(endpoint: string, options: RequestOptions = {}) {
   const {
     requireAuth = true,
     suppressErrorToast = false,
-    timeoutMs = 15_000,
+    timeoutMs = 3_000,
     maxRetries = 1,
     headers: customHeaders,
     ...config
   } = options;
 
   const headers = new Headers(customHeaders);
-  headers.set("Content-Type", "application/json");
+
+  // Attach X-Request-ID for distributed tracing
+  const requestId = crypto.randomUUID();
+  headers.set("X-Request-ID", requestId);
+  if (!(config.body instanceof FormData)) {
+    headers.set("Content-Type", "application/json");
+  }
 
   if (requireAuth) {
-    let token: string | null = null;
-    try {
-      token = localStorage.getItem("accessToken");
-    } catch {
-      // localStorage unavailable (e.g. Safari private mode, SSR)
-    }
+    const token = getAccessToken();
     if (token) {
       headers.set("Authorization", `Bearer ${token}`);
     }
@@ -97,10 +101,14 @@ export async function fetchApi(endpoint: string, options: RequestOptions = {}) {
       if (!response.ok) {
         const errorBody = await response.json().catch(() => ({}));
         const errorMessage =
-          errorBody.detail ||
           errorBody.error ||
           errorBody.message ||
-          "An error occurred";
+          errorBody.non_field_errors?.[0] ||
+          `HTTP error ${response.status} (Req ID: ${requestId})`;
+
+        console.error(`[API Error] ReqID=${requestId}`, errorBody);
+
+        lastError = new Error(errorMessage);
 
         if (!suppressErrorToast) {
           switch (response.status) {
@@ -116,7 +124,9 @@ export async function fetchApi(endpoint: string, options: RequestOptions = {}) {
               toast.error("You do not have permission to perform this action.");
               break;
             case 429:
-              toast.error(errorMessage || "Too many requests. Please slow down!");
+              toast.error(
+                errorMessage || "Too many requests. Please slow down!",
+              );
               break;
             case 500:
               toast.error("Server error. Our team has been notified.");
@@ -258,7 +268,6 @@ export async function saveSandboxSnapshot(
     body: JSON.stringify({ code, label, is_auto }),
   });
 }
-
 
 export interface ProjectFile {
   id: string;
@@ -533,13 +542,16 @@ export async function executeTerminalCommand(
 }
 
 export async function exportWorkspaceZip(projectId: string): Promise<void> {
-  const token = localStorage.getItem("accessToken");
-  const response = await fetch(`${API_BASE}/sandbox/projects/${projectId}/export_zip/`, {
-    method: "GET",
-    headers: {
-      Authorization: `Bearer ${token}`,
+  const token = getAccessToken();
+  const response = await fetch(
+    `${API_BASE}/sandbox/projects/${projectId}/export_zip/`,
+    {
+      method: "GET",
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
     },
-  });
+  );
 
   if (!response.ok) {
     throw new Error("Failed to export workspace");
@@ -559,5 +571,74 @@ export async function exportWorkspaceZip(projectId: string): Promise<void> {
   document.body.appendChild(a);
   a.click();
   window.URL.revokeObjectURL(url);
+  document.body.removeChild(a);
+}
+
+export function getMediaUrl(url: string | null | undefined): string | null {
+  if (!url) return null;
+  if (url.startsWith("http://") || url.startsWith("https://")) return url;
+  return url;
+}
+
+// ---------------------- BOUNTIES API ----------------------
+
+export interface Bounty {
+  id: number;
+  title: string;
+  description: string;
+  xp_reward: number;
+  status: "Open" | "Claimed" | "Completed";
+  claimed_by: number | null;
+  claimed_by_username?: string;
+  created_at: string;
+}
+
+export async function fetchBounties(): Promise<Bounty[]> {
+  return fetchApi("/issues/bounties/", { method: "GET" });
+}
+
+export async function claimBounty(id: number): Promise<{ status: string }> {
+  return fetchApi(`/issues/bounties/${id}/claim/`, { method: "POST" });
+}
+
+export async function submitBounty(
+  id: number,
+  codePatch: string,
+): Promise<{ status: string; xp_earned: number }> {
+  return fetchApi(`/issues/bounties/${id}/submit/`, {
+    method: "POST",
+    body: JSON.stringify({ code_patch: codePatch }),
+  });
+}
+
+export async function exportHeatmapCSV(activityType?: string): Promise<void> {
+  const token = getAccessToken();
+  let url = `${API_BASE}/progress/heatmap/export/`;
+  if (activityType && activityType !== "all") {
+    url += `?activity_type=${activityType}`;
+  }
+  const response = await fetch(url, {
+    method: "GET",
+    headers: {
+      Authorization: `Bearer ${token}`,
+    },
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to export heatmap CSV");
+  }
+
+  const contentDisposition = response.headers.get("Content-Disposition") || "";
+  const filenameMatch = contentDisposition.match(/filename="(.+)"/);
+  const filename = filenameMatch ? filenameMatch[1] : "activity_export.csv";
+
+  const blob = await response.blob();
+  const downloadUrl = window.URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = downloadUrl;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  window.URL.revokeObjectURL(downloadUrl);
   document.body.removeChild(a);
 }

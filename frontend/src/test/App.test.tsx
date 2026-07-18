@@ -4,6 +4,8 @@ import { describe, it, expect, vi } from "vitest";
 import { LandingPage } from "../pages/LandingPage";
 import { AuthProvider } from "../features/auth/AuthContext";
 import { GoogleOAuthProvider } from "@react-oauth/google";
+import { Provider } from "react-redux";
+import { store } from "../store";
 import "../lib/i18n";
 
 vi.mock("lucide-react", async (importOriginal) => {
@@ -38,18 +40,18 @@ vi.mock("@react-oauth/google", () => ({
 describe("LandingPage", () => {
   it("renders the project headline", () => {
     render(
-      <GoogleOAuthProvider clientId="test">
-        <AuthProvider>
-          <MemoryRouter>
-            <LandingPage />
-          </MemoryRouter>
-        </AuthProvider>
-      </GoogleOAuthProvider>,
+      <Provider store={store}>
+        <GoogleOAuthProvider clientId="test">
+          <AuthProvider>
+            <MemoryRouter>
+              <LandingPage />
+            </MemoryRouter>
+          </AuthProvider>
+        </GoogleOAuthProvider>
+      </Provider>,
     );
 
-    const heading =
-      screen.queryByText(/Enter the Sandbox/i) ||
-      screen.queryByText("landing.enter_sandbox");
+    const heading = screen.queryByText(/Contribution\s*Atelier/i);
     expect(heading).toBeInTheDocument();
   });
 });

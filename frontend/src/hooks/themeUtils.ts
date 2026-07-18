@@ -14,6 +14,7 @@ function isValidTheme(value: string | null): value is Theme {
 }
 
 export function getStoredTheme(): Theme | null {
+  if (typeof window === "undefined") return null;
   try {
     const stored = localStorage.getItem(THEME_KEY);
     return isValidTheme(stored) ? stored : null;
@@ -23,6 +24,7 @@ export function getStoredTheme(): Theme | null {
 }
 
 export function setStoredTheme(theme: Theme): void {
+  if (typeof window === "undefined") return;
   try {
     localStorage.setItem(THEME_KEY, theme);
   } catch {
@@ -31,6 +33,7 @@ export function setStoredTheme(theme: Theme): void {
 }
 
 export function getSystemPreference(): Theme | null {
+  if (typeof window === "undefined") return null;
   if (window.matchMedia("(prefers-contrast: more)").matches) {
     return "high-contrast";
   }
@@ -45,6 +48,7 @@ export function getInitialTheme(): Theme {
 }
 
 export function applyThemeToDOM(theme: Theme): void {
+  if (typeof window === "undefined" || typeof document === "undefined") return;
   document.documentElement.classList.remove("dark", "high-contrast");
   if (theme === "system") {
     if (window.matchMedia("(prefers-contrast: more)").matches) {
@@ -58,6 +62,7 @@ export function applyThemeToDOM(theme: Theme): void {
 }
 
 export function syncThemeOnLoad(): void {
+  if (typeof window === "undefined" || typeof document === "undefined") return;
   try {
     const stored = localStorage.getItem(THEME_KEY);
     if (isValidTheme(stored) && stored !== "system") {
