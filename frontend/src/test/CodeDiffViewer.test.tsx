@@ -10,8 +10,14 @@ vi.mock("../hooks/useTheme", () => ({
 
 // Mock react-diff-viewer-continued
 vi.mock("react-diff-viewer-continued", async (importOriginal) => {
-  const actual = await importOriginal<typeof import("react-diff-viewer-continued")>();
-  const MockDiffViewer = ({ oldValue, newValue, splitView, useDarkTheme }: any) => (
+  const actual =
+    await importOriginal<typeof import("react-diff-viewer-continued")>();
+  const MockDiffViewer = ({
+    oldValue,
+    newValue,
+    splitView,
+    useDarkTheme,
+  }: any) => (
     <div data-testid="mock-diff-viewer">
       <div data-testid="old-value">{oldValue}</div>
       <div data-testid="new-value">{newValue}</div>
@@ -40,7 +46,7 @@ describe("CodeDiffViewer", () => {
       <CodeDiffViewer
         originalCode="const a = 1;"
         modifiedCode="const a = 2;"
-      />
+      />,
     );
 
     expect(screen.getByText("Source Code Changes")).toBeInTheDocument();
@@ -50,12 +56,7 @@ describe("CodeDiffViewer", () => {
   });
 
   it("should toggle between split and unified views correctly", () => {
-    render(
-      <CodeDiffViewer
-        originalCode="code A"
-        modifiedCode="code B"
-      />
-    );
+    render(<CodeDiffViewer originalCode="code A" modifiedCode="code B" />);
 
     const splitViewElement = screen.getByTestId("is-split-view");
     expect(splitViewElement).toHaveTextContent("true"); // Default is true
@@ -74,12 +75,7 @@ describe("CodeDiffViewer", () => {
   it("should correctly handle dark theme from useTheme", () => {
     vi.mocked(useThemeHook.useTheme).mockReturnValue({ theme: "dark" } as any);
 
-    render(
-      <CodeDiffViewer
-        originalCode="dark1"
-        modifiedCode="dark2"
-      />
-    );
+    render(<CodeDiffViewer originalCode="dark1" modifiedCode="dark2" />);
 
     expect(screen.getByTestId("is-dark-theme")).toHaveTextContent("true");
   });
@@ -91,7 +87,7 @@ describe("CodeDiffViewer", () => {
         modifiedCode="y"
         title="Custom Title"
         fileName="custom.js"
-      />
+      />,
     );
 
     expect(screen.getByText("Custom Title")).toBeInTheDocument();

@@ -1,0 +1,210 @@
+/**
+ * Styles for SearchWithFilters: skeleton loading, error banner,
+ * degraded-search notice, and empty state. Uses the app's theme
+ * CSS variables so it adapts to light/dark mode automatically.
+ *
+ * @file SearchWithFilters.css
+ * @location frontend/src/components/Search/SearchWithFilters.css
+ */
+
+/* ---------- Skeleton loading state ---------- */
+
+.search-skeleton-list {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.result-skeleton {
+  padding: 16px;
+  border-radius: 8px;
+  border: 1px solid var(--border-color);
+  background: var(--card-bg);
+}
+
+.skeleton-line {
+  height: 14px;
+  border-radius: 4px;
+  margin-bottom: 10px;
+  background: linear-gradient(
+    90deg,
+    var(--border-color) 25%,
+    var(--bg-secondary) 37%,
+    var(--border-color) 63%
+  );
+  background-size: 400% 100%;
+  animation: skeleton-shimmer 1.4s ease infinite;
+}
+
+.skeleton-title {
+  width: 55%;
+  height: 18px;
+}
+
+.skeleton-description {
+  width: 90%;
+}
+
+.skeleton-description.short {
+  width: 65%;
+  margin-bottom: 14px;
+}
+
+.skeleton-tags {
+  display: flex;
+  gap: 8px;
+}
+
+.skeleton-tag {
+  display: inline-block;
+  width: 60px;
+  height: 20px;
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    var(--border-color) 25%,
+    var(--bg-secondary) 37%,
+    var(--border-color) 63%
+  );
+  background-size: 400% 100%;
+  animation: skeleton-shimmer 1.4s ease infinite;
+}
+
+@keyframes skeleton-shimmer {
+  0% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0 50%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-line,
+  .skeleton-tag {
+    animation: none;
+  }
+}
+
+/* ---------- Error banner ---------- */
+
+.search-error-banner {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  padding: 16px;
+  border-radius: 8px;
+  border: 1px solid #f87171;
+  background: rgba(248, 113, 113, 0.08);
+  color: var(--text-primary);
+}
+
+.dark .search-error-banner {
+  border-color: #b91c1c;
+  background: rgba(185, 28, 28, 0.15);
+}
+
+.search-error-icon {
+  font-size: 18px;
+  line-height: 1;
+}
+
+.search-error-body {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.search-error-message {
+  margin: 0;
+  color: var(--text-primary);
+}
+
+.search-retry-btn {
+  align-self: flex-start;
+  padding: 6px 14px;
+  border-radius: 6px;
+  border: 1px solid var(--border-color);
+  background: var(--card-bg);
+  color: var(--text-primary);
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.search-retry-btn:hover {
+  background: var(--bg-secondary);
+}
+
+/* ---------- Degraded-search notice ---------- */
+
+.search-degraded-banner {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  padding: 10px 14px;
+  margin: 12px 0;
+  border-radius: 8px;
+  border: 1px solid #fbbf24;
+  background: rgba(251, 191, 36, 0.1);
+  color: var(--text-primary);
+  font-size: 14px;
+}
+
+.dark .search-degraded-banner {
+  border-color: #92400e;
+  background: rgba(146, 64, 14, 0.2);
+}
+
+.search-degraded-icon {
+  font-size: 16px;
+}
+
+/* ---------- Empty state ---------- */
+
+.no-results {
+  text-align: center;
+  padding: 32px 16px;
+  color: var(--text-secondary);
+}
+
+.no-results-hint {
+  font-size: 14px;
+  margin-top: 4px;
+}
+
+.no-results-suggestions {
+  max-width: 320px;
+  margin: 16px auto 0;
+  text-align: left;
+}
+
+.no-results-suggestions-label {
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: 6px;
+}
+
+.no-results-suggestions ul {
+  list-style: disc;
+  padding-left: 20px;
+  margin: 0;
+}
+
+.no-results-suggestions li {
+  margin-bottom: 6px;
+  color: var(--text-secondary);
+}
+
+.no-results-suggestion-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  color: #6366f1;
+  cursor: pointer;
+  text-decoration: underline;
+  font: inherit;
+}
+
+.dark .no-results-suggestion-btn {
+  color: #a5b4fc;
+}

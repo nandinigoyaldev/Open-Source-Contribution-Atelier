@@ -49,11 +49,11 @@ registerRoute(
 
 const DB_NAME = "atelier-offline-db";
 const STORE_NAME = "sync-queue";
-const DB_VERSION = 1;
+const DB_VERSION = 2;
 
-self.addEventListener("install", () => {
+self.addEventListener("install", (event) => {
   console.log("[ServiceWorker] Installed");
-  self.skipWaiting();
+  event.waitUntil(self.skipWaiting());
 });
 
 self.addEventListener("activate", (event) => {

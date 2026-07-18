@@ -2,6 +2,9 @@ from django.urls import path
 from rest_framework.routers import DefaultRouter
 
 from .views import (
+    LessonFeedbackListCreateView,
+    LessonFeedbackMetricsView,
+    LessonFeedbackRetrieveUpdateDeleteView,
     LessonPDFView,
     LessonViewSet,
     OrganizationListView,
@@ -9,6 +12,7 @@ from .views import (
     RoadmapView,
     SearchView,
     SemanticSearchView,
+    UserLessonFeedbackView,
 )
 
 router = DefaultRouter()
@@ -26,4 +30,25 @@ urlpatterns = router.urls + [
         name="lesson-pdf",
     ),
     path("quizzes/<str:quiz_id>/", QuizDetailView.as_view(), name="quiz-detail"),
+    # Lesson Feedback endpoints
+    path(
+        "lessons/<slug:lesson_slug>/feedback/",
+        LessonFeedbackListCreateView.as_view(),
+        name="lesson-feedback-list-create",
+    ),
+    path(
+        "lessons/<slug:lesson_slug>/feedback/metrics/",
+        LessonFeedbackMetricsView.as_view(),
+        name="lesson-feedback-metrics",
+    ),
+    path(
+        "lessons/<slug:lesson_slug>/feedback/my/",
+        UserLessonFeedbackView.as_view(),
+        name="lesson-feedback-user",
+    ),
+    path(
+        "feedback/<int:pk>/",
+        LessonFeedbackRetrieveUpdateDeleteView.as_view(),
+        name="lesson-feedback-detail",
+    ),
 ]

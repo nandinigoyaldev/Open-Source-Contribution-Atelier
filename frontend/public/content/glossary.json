@@ -1,0 +1,144 @@
+{
+  "terms": [
+    {
+      "id": "fork",
+      "term": "fork",
+      "aliases": ["forks", "forked"],
+      "short": "Your personal copy of someone else’s repository on GitHub.",
+      "definition": "A fork is your own copy of a project. You can change it freely, then open a pull request to suggest those changes back to the original project."
+    },
+    {
+      "id": "upstream",
+      "term": "upstream",
+      "aliases": [],
+      "short": "The original project you forked from.",
+      "definition": "Upstream usually means the main/original repository. After you fork, you pull updates from upstream so your copy stays current."
+    },
+    {
+      "id": "origin",
+      "term": "origin",
+      "aliases": [],
+      "short": "The default name for your remote repository on GitHub.",
+      "definition": "Origin is just a nickname Git uses for a remote URL—usually your fork or the repo you cloned. It is not a special Git command."
+    },
+    {
+      "id": "clone",
+      "term": "clone",
+      "aliases": ["cloning"],
+      "short": "Download a repository to your computer.",
+      "definition": "Cloning copies a remote Git repo (including history) onto your machine so you can work locally."
+    },
+    {
+      "id": "commit",
+      "term": "commit",
+      "aliases": ["commits"],
+      "short": "A saved snapshot of your changes with a message.",
+      "definition": "A commit records a set of staged changes plus a message. Think of it as a checkpoint you can return to later."
+    },
+    {
+      "id": "branch",
+      "term": "branch",
+      "aliases": ["branches"],
+      "short": "A separate line of work in Git.",
+      "definition": "Branches let you try changes without breaking the main line of the project. You usually create a branch for each bugfix or feature."
+    },
+    {
+      "id": "rebase",
+      "term": "rebase",
+      "aliases": ["rebasing"],
+      "short": "Replay your commits on top of another branch.",
+      "definition": "Rebasing moves your commits onto a newer base (often main). It can keep history cleaner, but you should avoid rebasing shared commits until you know the risks."
+    },
+    {
+      "id": "merge-conflict",
+      "term": "merge conflict",
+      "aliases": ["merge conflicts"],
+      "short": "When Git can’t auto-combine two sets of edits.",
+      "definition": "A merge conflict happens when two branches changed the same lines. You manually choose the correct final text, then mark the conflict resolved."
+    },
+    {
+      "id": "pull-request",
+      "term": "pull request",
+      "aliases": ["pull requests", "PR", "PRs"],
+      "short": "A proposal to merge your changes into a project.",
+      "definition": "A pull request (PR) shows your commits, lets others review them, and—if approved—merges your branch into the target branch (often main)."
+    },
+    {
+      "id": "issue",
+      "term": "issue",
+      "aliases": ["issues"],
+      "short": "A tracked bug report, idea, or task on GitHub.",
+      "definition": "Issues are discussion tickets. They help maintainers and contributors track bugs, features, and questions in one place."
+    },
+    {
+      "id": "maintainer",
+      "term": "maintainer",
+      "aliases": ["maintainers"],
+      "short": "People who review and steward the project.",
+      "definition": "Maintainers decide what gets merged, keep the project healthy, and guide contributors. Be patient and respectful when waiting for review."
+    },
+    {
+      "id": "contributor",
+      "term": "contributor",
+      "aliases": ["contributors"],
+      "short": "Anyone who helps a project (code, docs, design, triage).",
+      "definition": "Contributors improve a project by submitting PRs, fixing docs, reporting bugs, or helping others. You don’t need to be an expert to contribute."
+    },
+    {
+      "id": "lgtm",
+      "term": "LGTM",
+      "aliases": ["lgtm"],
+      "short": "“Looks Good To Me” — a friendly approval shorthand.",
+      "definition": "Reviewers often write LGTM when a change looks ready to merge. It is informal approval, not a special GitHub button by itself."
+    },
+    {
+      "id": "good-first-issue",
+      "term": "good first issue",
+      "aliases": ["good-first-issue", "good first issues"],
+      "short": "A beginner-friendly task labeled for new contributors.",
+      "definition": "Projects mark some issues as good first issues so newcomers can start with smaller, well-scoped tasks."
+    },
+    {
+      "id": "code-review",
+      "term": "code review",
+      "aliases": ["code reviews"],
+      "short": "When someone checks your PR before it merges.",
+      "definition": "Code review is feedback on your changes—correctness, style, tests, and clarity. Treat comments as collaboration, not personal criticism."
+    },
+    {
+      "id": "ci",
+      "term": "CI",
+      "aliases": ["continuous integration"],
+      "short": "Automated checks that run on your PR.",
+      "definition": "Continuous Integration (CI) runs tests, linting, and builds automatically. A red CI check usually means something needs fixing before merge."
+    },
+    {
+      "id": "remote",
+      "term": "remote",
+      "aliases": ["remotes"],
+      "short": "A Git nickname for a repo hosted elsewhere (like GitHub).",
+      "definition": "A remote is a pointer to another copy of the repository, often on GitHub. Common remotes are origin (your copy) and upstream (the original)."
+    },
+    {
+      "id": "staging",
+      "term": "staging",
+      "aliases": ["staged", "stage"],
+      "short": "The holding area for files you plan to commit next.",
+      "definition": "Staging (`git add`) selects which changes go into the next commit. Unstaged edits stay in your working files until you add them."
+    },
+    {
+      "id": "main",
+      "term": "main",
+      "aliases": ["master"],
+      "short": "The default primary branch in many projects.",
+      "definition": "Main (sometimes still called master) is usually the stable default branch. Feature work typically happens on other branches, then merges into main."
+    },
+    {
+      "id": "changelog",
+      "term": "changelog",
+      "aliases": ["change log"],
+      "short": "A human-readable list of what changed between versions.",
+      "definition": "A changelog summarizes features, fixes, and breaking changes so users and contributors can quickly see what is new."
+    }
+  ]
+}

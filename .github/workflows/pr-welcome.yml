@@ -1,0 +1,60 @@
+name: PR Welcome
+
+on:
+  pull_request:
+    types: [opened]
+
+permissions:
+  issues: write
+  pull-requests: write
+
+jobs:
+  welcome:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Post welcome comment
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const pr = context.payload.pull_request;
+
+            const body = `
+            ## 🚀 Thanks for your Pull Request, @${pr.user.login}!
+
+            We appreciate your contribution to **Open Source Contribution Atelier**! 🎉
+
+            ### 📋 Next Steps
+
+            Our team will review your PR shortly. In the meantime:
+
+            | Step | Action |
+            |------|--------|
+            | 1️⃣ | Wait for CI checks to pass |
+            | 2️⃣ | Address any review comments |
+            | 3️⃣ | Keep your branch up to date |
+
+            ### ✅ Pre-Merge Checklist
+
+            - [ ] Code follows project style guidelines
+            - [ ] Tests added/updated
+            - [ ] Documentation updated
+            - [ ] No merge conflicts
+
+            ### 📚 Resources
+
+            - [Contribution Guide](https://github.com/nandinigoyaldev/Open-Source-Contribution-Atelier/blob/main/CONTRIBUTING.md)
+            - [Code of Conduct](https://github.com/nandinigoyaldev/Open-Source-Contribution-Atelier/blob/main/CODE_OF_CONDUCT.md)
+
+            ### 💡 Quick Tip
+
+            > Make sure your PR title follows conventional commits format: \`type(scope): description\`
+
+            Thank you for your contribution! 🙏
+            `;
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: pr.number,
+              body: body
+            });

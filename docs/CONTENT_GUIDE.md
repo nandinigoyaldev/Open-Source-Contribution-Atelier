@@ -12,6 +12,8 @@ All educational content is located in the `frontend/public/content/` folder:
 ```text
 frontend/public/content/
 ├── curriculum.json             # Main catalog mapping modules, lessons, quizzes, and tasks
+├── glossary.json               # “Explain like I’m new” OSS jargon for lesson markdown
+├── git-cheatsheet-map.json     # Contextual Git terminal cheat-sheet by lesson/module
 ├── module-1/                   # Markdown files for Module 1
 │   ├── what-is-open-source.md
 │   └── ...
@@ -101,3 +103,37 @@ We support:
    Use `-` for bullets, and `1.` for ordered lists.
 5. **Inline Styling**:
    Use `**bold**`, `` `inline code` ``, and `[links](url)`.
+
+---
+
+## Part 4: Lesson Glossary (“Explain Like I’m New”)
+
+Lessons automatically highlight known open-source jargon from [`glossary.json`](../frontend/public/content/glossary.json). Clicking a dotted-underline term opens a short plain-English drawer.
+
+### Adding a term
+
+Edit `frontend/public/content/glossary.json` and append an object to `"terms"`:
+
+```json
+{
+  "id": "upstream",
+  "term": "upstream",
+  "aliases": [],
+  "short": "The original project you forked from.",
+  "definition": "Upstream usually means the main/original repository…"
+}
+```
+
+- **`id`**: Stable unique key (kebab-case).
+- **`term`**: Primary phrase shown in the drawer title.
+- **`aliases`**: Optional alternate spellings/plurals matched in lesson text (e.g. `"PRs"`, `"pull requests"`).
+- **`short`**: One-line summary (also used for `aria-describedby` / tooltip).
+- **`definition`**: Beginner-friendly explanation.
+
+### Matching rules
+
+- Matching is **case-insensitive** and uses **word boundaries** (so `commit` won’t match `commitment`).
+- Longer phrases win (e.g. `good first issue` before `issue`).
+- Terms inside **fenced code blocks** and **inline `` `code` ``** are **not** linked (avoids false positives).
+
+No React or database changes are required to add glossary terms.

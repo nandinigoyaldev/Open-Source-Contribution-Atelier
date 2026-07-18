@@ -29,20 +29,20 @@ export function useRecentCommands() {
     setRecentCommands((prev) => {
       // Remove if it already exists to avoid duplicates
       const filtered = prev.filter((c) => c.id !== command.id);
-      
+
       const newCommand: RecentCommand = {
         ...command,
         timestamp: Date.now(),
       };
-      
+
       const updated = [newCommand, ...filtered].slice(0, MAX_RECENT);
-      
+
       try {
         localStorage.setItem(STORAGE_KEY, JSON.stringify(updated));
       } catch (err) {
         console.error("Failed to save recent commands:", err);
       }
-      
+
       return updated;
     });
   };

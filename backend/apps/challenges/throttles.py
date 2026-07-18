@@ -1,8 +1,8 @@
 from rest_framework.exceptions import Throttled
-from rest_framework.throttling import AnonRateThrottle, UserRateThrottle
+from apps.core.throttling import SlidingWindowAnonThrottle, SlidingWindowUserThrottle
 
 
-class SandboxAnonRateThrottle(AnonRateThrottle):
+class SandboxAnonRateThrottle(SlidingWindowAnonThrottle):
     """Rate limit anonymous users: 10 requests/minute by IP."""
 
     scope = "sandbox_anon"
@@ -17,7 +17,7 @@ class SandboxAnonRateThrottle(AnonRateThrottle):
         )
 
 
-class SandboxUserRateThrottle(UserRateThrottle):
+class SandboxUserRateThrottle(SlidingWindowUserThrottle):
     """Rate limit authenticated users: 10 requests/minute by user ID."""
 
     scope = "sandbox_user"

@@ -1,0 +1,40 @@
+/**
+ * Certificate share buttons styles.
+ * 
+ * @file CertificateShareButtons.css
+ * @location frontend/src/components/Certificate/CertificateShareButtons.css
+ */
+
+.certificate-share-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+/* Button hover animations */
+.certificate-share-buttons button {
+  transition: all 0.2s ease;
+}
+
+.certificate-share-buttons button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+.certificate-share-buttons button:active {
+  transform: translateY(0px);
+}
+
+/* Responsive */
+@media (max-width: 640px) {
+  .certificate-share-buttons {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .certificate-share-buttons button {
+    width: 100%;
+    justify-content: center;
+  }
+}
