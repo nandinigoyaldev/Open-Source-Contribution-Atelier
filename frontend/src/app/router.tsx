@@ -436,6 +436,7 @@ export function AppRouter() {
 
                   <TerminalReplay
                     sessionName="Git Tutorial Replay"
+                    sharePathname="/sandbox"
                     commands={[
                       {
                         command: "git init",
