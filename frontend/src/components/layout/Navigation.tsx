@@ -18,6 +18,7 @@ import {
   FileText,
   Target,
   FileDiff,
+  SearchCode,
 } from "lucide-react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import { useTheme } from "../../hooks/useTheme";
@@ -44,6 +45,11 @@ const navGroups = [
       { to: "/a11y-sandbox", label: "A11y Sandbox", icon: Eye },
       { to: "/pr-diff-summarizer", label: "PR Summarizer", icon: FileDiff },
       { to: "/bounties", label: "Bounties", icon: Target },
+      {
+        to: "/good-first-issues",
+        label: "Good First Issues",
+        icon: SearchCode,
+      },
     ],
   },
   {
