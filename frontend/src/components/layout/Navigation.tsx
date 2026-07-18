@@ -19,6 +19,7 @@ import {
   Target,
   FileDiff,
   SearchCode,
+  MessageSquareHeart,
 } from "lucide-react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import { useTheme } from "../../hooks/useTheme";
@@ -49,6 +50,11 @@ const navGroups = [
         to: "/good-first-issues",
         label: "Good First Issues",
         icon: SearchCode,
+      },
+      {
+        to: "/tone-coach",
+        label: "Tone Coach",
+        icon: MessageSquareHeart,
       },
     ],
   },

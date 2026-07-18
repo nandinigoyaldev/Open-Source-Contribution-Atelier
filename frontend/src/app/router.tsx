@@ -164,6 +164,12 @@ const GoodFirstIssueFinderPage = lazy(() =>
   })),
 );
 
+const MaintainerReplyToneCoachPage = lazy(() =>
+  import("../pages/MaintainerReplyToneCoachPage").then((module) => ({
+    default: module.MaintainerReplyToneCoachPage,
+  })),
+);
+
 /*
  * These pages use default exports, so they can be passed directly
  * to React.lazy().
@@ -354,6 +360,15 @@ export function AppRouter() {
             element={
               <ProtectedRoute>
                 <GoodFirstIssueFinderPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/tone-coach"
+            element={
+              <ProtectedRoute>
+                <MaintainerReplyToneCoachPage />
               </ProtectedRoute>
             }
           />
