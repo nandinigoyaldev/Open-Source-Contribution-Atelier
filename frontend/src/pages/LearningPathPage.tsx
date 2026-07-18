@@ -1,9 +1,14 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { ArrowLeft, Sparkles } from "lucide-react";
 import { fetchApi } from "../lib/api";
 import { mockLearningPath } from "../lib/dashboardMockData";
+import { useAuth } from "../features/auth/AuthContext";
+import { useStreak } from "../hooks/useStreak";
+import { useEarnedBadges } from "../hooks/useEarnedBadges";
+import { computeShareStats } from "../lib/learningPathShareCard";
+import { LearningPathShareCard } from "../components/LearningPathShareCard";
 
 interface ModuleData {
   id: string;
@@ -23,11 +28,26 @@ interface LearningPathResponse {
 }
 
 export const LearningPathPage: React.FC = () => {
+  const { user } = useAuth();
+  const { streakData, isLoading: streakLoading } = useStreak();
+  const { earnedBadges, isLessonsLoading } = useEarnedBadges();
+
   const { data: rawData, isLoading, error } = useQuery<LearningPathResponse>({
     queryKey: ["learningPath"],
     queryFn: () => fetchApi("/users/me/learning-path/"),
   });
   let data = rawData;
+
+  const shareStats = useMemo(
+    () =>
+      computeShareStats({
+        username: user?.username,
+        modules: (data ?? mockLearningPath).modules,
+        streakDays: streakData?.current_streak ?? 0,
+        badgeCount: earnedBadges?.length ?? 0,
+      }),
+    [user?.username, data, streakData?.current_streak, earnedBadges],
+  );
 
   if (isLoading) {
     return (
@@ -57,6 +77,11 @@ export const LearningPathPage: React.FC = () => {
         </Link>
         <h1 className="text-3xl font-black">Personalized Learning Path</h1>
       </div>
+
+      <LearningPathShareCard
+        stats={shareStats}
+        isLoading={streakLoading || isLessonsLoading}
+      />
 
       {/* Description Banner */}
       <section className="rounded-[2rem] border-4 border-black bg-[#c3c0ff] p-8 sm:p-10 shadow-card relative overflow-hidden dark:border-[#2e2924]">
