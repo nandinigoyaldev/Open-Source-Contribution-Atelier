@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { RotateCcw, Terminal, ChevronRight, BookOpen } from "lucide-react";
+import { RotateCcw, Terminal, ChevronRight, BookOpen, Link2, Check } from "lucide-react";
 import { useGitShell } from "../../hooks/useGitShell";
 import type { TerminalLine } from "../../hooks/useGitShell";
 import { useTerminalAutocomplete } from "../../hooks/useTerminalAutocomplete";
@@ -7,6 +7,10 @@ import { useFailureAnimation } from "../../hooks/useFailureAnimation";
 import { Textarea } from "./Textarea";
 import { GitCheatSheet } from "./GitCheatSheet";
 import { ContextualGitCheatSheet } from "./ContextualGitCheatSheet";
+import {
+  buildReplayShareUrl,
+  replayCommandsFromTerminalLines,
+} from "../../lib/terminalReplayShare";
 
 interface GitTerminalProps {
   /** Called when a lesson-objective command succeeds */
@@ -21,6 +25,8 @@ interface GitTerminalProps {
   lessonSlug?: string;
   /** Curriculum module id (e.g. module-2) */
   moduleId?: string;
+  /** Path for shareable replay links (default /sandbox) */
+  replaySharePath?: string;
 }
 
 function LineRenderer({ line }: { line: TerminalLine }) {
@@ -61,6 +67,7 @@ export function GitTerminal({
   xp = 20,
   lessonSlug,
   moduleId,
+  replaySharePath = "/sandbox",
 }: GitTerminalProps) {
   const [isExecuting, setIsExecuting] = useState(false);
   const [inputVal, setInputVal] = useState("");
@@ -68,6 +75,7 @@ export function GitTerminal({
   const [completed, setCompleted] = useState(false);
   const [showCheatSheet, setShowCheatSheet] = useState(false);
   const [liveMsg, setLiveMsg] = useState("");
+  const [shareCopied, setShareCopied] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -160,6 +168,28 @@ export function GitTerminal({
       setLiveMsg("Unable to copy terminal output to clipboard.");
     }
   }, [lines]);
+
+  const copyReplayShareLink = useCallback(async () => {
+    const commands = replayCommandsFromTerminalLines(lines);
+    const url = buildReplayShareUrl({
+      commands,
+      sessionName: title,
+      pathname: replaySharePath,
+    });
+    if (!url) {
+      setLiveMsg("Run at least one command before copying a share link.");
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      setShareCopied(true);
+      setLiveMsg("Replay share link copied to clipboard.");
+      setTimeout(() => setShareCopied(false), 2000);
+    } catch {
+      window.location.hash = url.slice(url.indexOf("#") + 1);
+      setLiveMsg("Share hash applied to the address bar.");
+    }
+  }, [lines, title, replaySharePath]);
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     // Allow standard Tab/keyboard traversal when no suggestions are being displayed.
@@ -315,6 +345,22 @@ export function GitTerminal({
           >
             <BookOpen size={13} />
             <span className="hidden sm:inline">Cheat Sheet</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => void copyReplayShareLink()}
+            title="Copy shareable replay link"
+            aria-label="Copy shareable replay link"
+            className="text-gray-400 hover:text-white transition-colors p-1 rounded flex items-center gap-1 text-xs"
+          >
+            {shareCopied ? (
+              <Check size={13} className="text-emerald-400" />
+            ) : (
+              <Link2 size={13} />
+            )}
+            <span className="hidden sm:inline">
+              {shareCopied ? "Copied" : "Share"}
+            </span>
           </button>
           <button
             onClick={handleReset}

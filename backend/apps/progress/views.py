@@ -218,6 +218,9 @@ class BadgeListView(ListAPIView):
 class MyProgressView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
+    def patch(self, request):
+        return self.post(request)
+
     def get(self, request):
         progress = LessonProgress.objects.filter(
             user=request.user, organization=request.user.organization

@@ -1,5 +1,5 @@
 import { createSlice, PayloadAction, createAsyncThunk } from "@reduxjs/toolkit";
-import api from "../../api";
+import { listNotifications } from "../../lib/notificationsApi";
 
 export interface AppNotification {
   id: number;
@@ -28,8 +28,7 @@ export const fetchNotifications = createAsyncThunk(
   "notifications/fetch",
   async (_, { rejectWithValue }) => {
     try {
-      const res = await api.get("/notifications/");
-      return res.data as AppNotification[];
+      return await listNotifications();
     } catch (err: unknown) {
       if (err instanceof Error) {
         return rejectWithValue(err.message);
@@ -47,19 +46,20 @@ export const notificationSlice = createSlice({
       state.wsUnreadCount = action.payload;
     },
     addNotification: (state, action: PayloadAction<AppNotification>) => {
-      // Prepend new notification, remove old if duplicated by id
       state.notifications = [
         action.payload,
         ...state.notifications.filter((n) => n.id !== action.payload.id),
       ];
-      state.wsUnreadCount += 1;
+      if (!action.payload.is_read) {
+        state.wsUnreadCount += 1;
+      }
     },
     markReadLocally: (state, action: PayloadAction<number>) => {
       const notif = state.notifications.find((n) => n.id === action.payload);
       if (notif && !notif.is_read) {
         notif.is_read = true;
+        state.wsUnreadCount = Math.max(0, state.wsUnreadCount - 1);
       }
-      state.wsUnreadCount = Math.max(0, state.wsUnreadCount - 1);
     },
     markAllReadLocally: (state) => {
       state.notifications.forEach((n) => {
@@ -69,6 +69,7 @@ export const notificationSlice = createSlice({
     },
     setNotifications: (state, action: PayloadAction<AppNotification[]>) => {
       state.notifications = action.payload;
+      state.wsUnreadCount = action.payload.filter((n) => !n.is_read).length;
     },
   },
   extraReducers: (builder) => {
@@ -78,6 +79,7 @@ export const notificationSlice = createSlice({
       })
       .addCase(fetchNotifications.fulfilled, (state, action) => {
         state.notifications = action.payload;
+        state.wsUnreadCount = action.payload.filter((n) => !n.is_read).length;
         state.isLoading = false;
       })
       .addCase(fetchNotifications.rejected, (state) => {
