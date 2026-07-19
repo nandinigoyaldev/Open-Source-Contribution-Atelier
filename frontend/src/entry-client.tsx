@@ -16,11 +16,10 @@ import "./styles.css";
 import "./plugins/coreLessonPlugins";
 import { NetworkStatusProvider } from "./context/NetworkStatusContext";
 import { initializeTracing } from "./tracing";
-import * as Sentry from "@sentry/react";
-
 // Initialize Sentry before rendering if DSN is set
 const SENTRY_DSN = import.meta.env.VITE_SENTRY_DSN;
 if (SENTRY_DSN) {
+  const Sentry = await import("@sentry/react");
   Sentry.init({
     dsn: SENTRY_DSN,
     integrations: [

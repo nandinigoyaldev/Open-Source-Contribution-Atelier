@@ -90,6 +90,7 @@ export default defineConfig({
         "workbox-routing",
         "workbox-strategies",
         "workbox-expiration",
+        "@sentry/react",
       ],
     },
   },
