@@ -1,8 +1,16 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { Link } from "react-router-dom";
 import { ArrowLeft, Sparkles } from "lucide-react";
 import { fetchApi } from "../lib/api";
+import { mockLearningPath } from "../lib/dashboardMockData";
+import { useAuth } from "../features/auth/AuthContext";
+import { useStreak } from "../hooks/useStreak";
+import { useEarnedBadges } from "../hooks/useEarnedBadges";
+import { computeShareStats } from "../lib/learningPathShareCard";
+import { LearningPathShareCard } from "../components/LearningPathShareCard";
+import { CurriculumDriftSummaryBanner } from "../components/ui/CurriculumDriftBanner";
+import { useCurriculumDriftReport } from "../hooks/useCurriculumDriftReport";
 
 interface ModuleData {
   id: string;
@@ -13,6 +21,7 @@ interface ModuleData {
   explanation: string;
   lessons_count: number;
   completed_lessons_count: number;
+  firstLessonSlug: string;
 }
 
 interface LearningPathResponse {
@@ -21,10 +30,27 @@ interface LearningPathResponse {
 }
 
 export const LearningPathPage: React.FC = () => {
-  const { data, isLoading, error } = useQuery<LearningPathResponse>({
+  const { user } = useAuth();
+  const { streakData, isLoading: streakLoading } = useStreak();
+  const { earnedBadges, isLessonsLoading } = useEarnedBadges();
+  const driftReport = useCurriculumDriftReport();
+
+  const { data: rawData, isLoading, error } = useQuery<LearningPathResponse>({
     queryKey: ["learningPath"],
     queryFn: () => fetchApi("/users/me/learning-path/"),
   });
+  let data = rawData;
+
+  const shareStats = useMemo(
+    () =>
+      computeShareStats({
+        username: user?.username,
+        modules: (data ?? mockLearningPath).modules,
+        streakDays: streakData?.current_streak ?? 0,
+        badgeCount: earnedBadges?.length ?? 0,
+      }),
+    [user?.username, data, streakData?.current_streak, earnedBadges],
+  );
 
   if (isLoading) {
     return (
@@ -37,14 +63,7 @@ export const LearningPathPage: React.FC = () => {
   }
 
   if (error || !data) {
-    return (
-      <div className="pt-24 max-w-7xl mx-auto px-4">
-        <div className="p-8 text-center bg-red-100 rounded-2xl border-4 border-black font-bold text-red-800 shadow-card">
-          Failed to load your Personalized Learning Path. Please make sure the
-          backend is running.
-        </div>
-      </div>
-    );
+    data = mockLearningPath;
   }
 
   const { modules, next_step } = data;
@@ -61,6 +80,13 @@ export const LearningPathPage: React.FC = () => {
         </Link>
         <h1 className="text-3xl font-black">Personalized Learning Path</h1>
       </div>
+
+      {driftReport && <CurriculumDriftSummaryBanner report={driftReport} />}
+
+      <LearningPathShareCard
+        stats={shareStats}
+        isLoading={streakLoading || isLessonsLoading}
+      />
 
       {/* Description Banner */}
       <section className="rounded-[2rem] border-4 border-black bg-[#c3c0ff] p-8 sm:p-10 shadow-card relative overflow-hidden dark:border-[#2e2924]">
@@ -181,8 +207,9 @@ export const LearningPathPage: React.FC = () => {
 
         <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {modules.map((mod) => (
-            <div
+            <Link
               key={mod.id}
+              to={`/lessons/${mod.firstLessonSlug}`}
               className="flex flex-col justify-between p-6 bg-white border-4 border-black rounded-2xl shadow-card-sm hover:shadow-card hover:-translate-y-1 transition-all dark:bg-[#1f1c18] dark:border-[#2e2924] dark:shadow-none"
             >
               <div>
@@ -236,10 +263,12 @@ export const LearningPathPage: React.FC = () => {
                   </div>
                 )}
               </div>
-            </div>
+            </Link>
           ))}
         </div>
       </section>
     </div>
   );
 };
+
+export default LearningPathPage;

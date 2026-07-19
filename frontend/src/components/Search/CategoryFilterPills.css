@@ -1,0 +1,120 @@
+/**
+ * Neobrutalist category filter pills styles.
+ * 
+ * @file CategoryFilterPills.css
+ * @location frontend/src/components/Search/CategoryFilterPills.css
+ */
+
+.category-filter-pills {
+  padding: 16px 0;
+  border-bottom: 2px solid #2a2a4e;
+  margin-bottom: 16px;
+}
+
+/* Header */
+.pills-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.pills-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #8888aa;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.clear-all-btn {
+  background: transparent;
+  color: #8888aa;
+  border: none;
+  font-size: 13px;
+  cursor: pointer;
+  padding: 4px 12px;
+  border-radius: 4px;
+  transition: all 0.2s;
+}
+
+.clear-all-btn:hover {
+  color: #e0e0e0;
+  background: #2a2a4e;
+}
+
+/* Pills Container */
+.pills-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+/* Individual Pill */
+.category-pill {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  background: #1a1a2e;
+  color: #8888aa;
+  border: 2px solid #2a2a4e;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+  user-select: none;
+}
+
+/* Neobrutalist hover effect */
+.category-pill:hover {
+  transform: translateY(-2px);
+  border-color: #4a4a6e;
+  color: #cdd6f4;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+}
+
+/* Selected state */
+.category-pill.selected {
+  background: #4a6cf7;
+  color: #ffffff;
+  border-color: #4a6cf7;
+  box-shadow: 0 4px 12px rgba(74, 108, 247, 0.3);
+}
+
+.category-pill.selected:hover {
+  background: #3a5cd9;
+  border-color: #3a5cd9;
+  transform: translateY(-2px);
+  box-shadow: 0 6px 16px rgba(74, 108, 247, 0.4);
+}
+
+/* Pill icon */
+.pill-icon {
+  font-size: 12px;
+  opacity: 0.6;
+}
+
+.category-pill.selected .pill-icon {
+  opacity: 1;
+}
+
+/* Check mark on selected */
+.pill-check {
+  font-size: 14px;
+  margin-left: 4px;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .category-pill {
+    padding: 6px 12px;
+    font-size: 13px;
+  }
+
+  .pills-container {
+    gap: 8px;
+  }
+}

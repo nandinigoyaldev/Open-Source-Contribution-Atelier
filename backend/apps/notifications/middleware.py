@@ -22,6 +22,23 @@ def get_user_from_token(token_key):
         return AnonymousUser()
 
 
+def get_token_expiry(token_key):
+    """
+    Returns the token's expiry as a POSIX timestamp (float), or None if the
+    token is missing/invalid. Kept synchronous + side-effect free so it's
+    cheap to call from the async middleware without a thread hop.
+    """
+    if not token_key:
+        return None
+    try:
+        from rest_framework_simplejwt.tokens import AccessToken
+
+        token = AccessToken(token_key)
+        return float(token["exp"])
+    except Exception:
+        return None
+
+
 class JWTAuthMiddleware:
     """ASGI middleware: attaches an authenticated user to the scope."""
 
@@ -38,5 +55,10 @@ class JWTAuthMiddleware:
             scope["user"] = (
                 await get_user_from_token(token) if token else AnonymousUser()
             )
+            # Attaches when the current token expires (POSIX timestamp) so
+            # long-lived WebSocket consumers (e.g. FeedConsumer) can close
+            # gracefully near expiry instead of the client silently losing
+            # events after the token dies.
+            scope["token_expires_at"] = get_token_expiry(token)
 
         return await self.inner(scope, receive, send)

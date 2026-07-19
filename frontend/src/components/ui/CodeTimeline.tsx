@@ -40,8 +40,15 @@ export function CodeTimeline({
           snapshots.map((snap) => {
             const isSelected = selectedSnapshotId === snap.id;
             const date = new Date(snap.timestamp);
-            const dateString = date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
-            const timeString = date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+            const dateString = date.toLocaleDateString(undefined, {
+              month: "short",
+              day: "numeric",
+              year: "numeric",
+            });
+            const timeString = date.toLocaleTimeString(undefined, {
+              hour: "numeric",
+              minute: "2-digit",
+            });
 
             return (
               <div
@@ -55,8 +62,14 @@ export function CodeTimeline({
               >
                 <div className="flex justify-between items-start mb-1">
                   <div className="flex items-center gap-1.5 text-xs font-bold text-text dark:text-[#f0ebe2]">
-                    {snap.is_auto ? <Clock size={12} /> : <Bookmark size={12} className="text-amber-500" />}
-                    <span>{snap.label || (snap.is_auto ? "Auto-save" : "Bookmark")}</span>
+                    {snap.is_auto ? (
+                      <Clock size={12} />
+                    ) : (
+                      <Bookmark size={12} className="text-amber-500" />
+                    )}
+                    <span>
+                      {snap.label || (snap.is_auto ? "Auto-save" : "Bookmark")}
+                    </span>
                   </div>
                 </div>
                 <div className="text-xs text-text/80 dark:text-[#e0dbd0] mt-1">

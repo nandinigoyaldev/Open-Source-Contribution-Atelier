@@ -90,10 +90,10 @@ class CacheManager:
 
         if result:
             logger.debug(f"Cache set: {key} (TTL: {ttl}s)")
-        else:
-            logger.warning(f"Cache set failed: {key}")
+            return True
 
-        return result
+        logger.warning(f"Cache set failed: {key}")
+        return False
 
     def delete(self, key: str) -> bool:
         """
@@ -108,7 +108,8 @@ class CacheManager:
         result = cache.delete(key)
         if result:
             logger.debug(f"Cache delete: {key}")
-        return result
+            return True
+        return False
 
     def clear_pattern(self, pattern: str) -> int:
         """
@@ -120,13 +121,19 @@ class CacheManager:
         Returns:
             int: Number of keys deleted
         """
-        # Note: This is a simplified implementation
-        # In production, use Redis SCAN for better performance
-        keys = cache.keys(f"*{pattern}*")
+        # Note: This is a simplified implementation using standard django cache backend features
+        # In production, use Redis SCAN for better performance if using a Redis backend
         count = 0
-        for key in keys:
-            if cache.delete(key):
-                count += 1
+        if hasattr(cache, "keys"):
+            keys = cache.keys(f"*{pattern}*")  # type: ignore
+            for key in keys:
+                if cache.delete(key):
+                    count += 1
+        else:
+            logger.warning(
+                "Cache backend does not support keys() pattern extraction natively."
+            )
+
         logger.info(f"Cleared {count} keys matching pattern: {pattern}")
         return count
 
@@ -202,8 +209,10 @@ class CacheManager:
                         parent = getattr(target, field.name)
                         if parent:
                             self.invalidate_dependencies(parent)
-                    except:
-                        pass
+                    except Exception:
+                        logger.exception(
+                            "Failed to invalidate parent cache dependency."
+                        )
 
     def warm_cache(self, model_name: str):
         """
@@ -340,14 +349,69 @@ class invalidates:
 # Signal Handlers for Automatic Invalidation
 # ============================================================
 
+# Flag to disable signals during migrations
+_cache_signals_enabled = True
+
+
+def disable_cache_signals():
+    """Disable cache invalidation signals (used during migrations)"""
+    global _cache_signals_enabled
+    _cache_signals_enabled = False
+
+
+def enable_cache_signals():
+    """Re-enable cache invalidation signals"""
+    global _cache_signals_enabled
+    _cache_signals_enabled = True
+
+
+def _is_migration_in_progress():
+    """Check if Django is running migrations"""
+    import sys
+
+    # Check if we're in a manage.py command (migration)
+    if "manage.py" in sys.argv and "migrate" in sys.argv:
+        return True
+    try:
+        from django.db import connection
+
+        with connection.cursor() as cursor:
+            # Check if contenttypes table has the name column properly
+            cursor.execute("PRAGMA table_info(django_content_type)")
+            columns = {row[1] for row in cursor.fetchall()}
+            return "name" not in columns
+    except Exception:
+        return True
+
 
 @receiver(post_save)
 def invalidate_cache_on_save(sender, instance, created, **kwargs):
     """
     Invalidate cache when a model is saved.
     """
-    manager = CacheManager()
-    manager.invalidate_dependencies(instance)
+    if not _cache_signals_enabled:
+        return
+
+    # Skip during migrations or when system apps are involved
+    if _is_migration_in_progress() or sender._meta.app_label in [
+        "migrations",
+        "contenttypes",
+        "sessions",
+        "admin",
+        "sites",
+        "auth",
+    ]:
+        return
+
+    try:
+        manager = CacheManager()
+        manager.invalidate_dependencies(instance)
+    except Exception as e:
+        logger.warning(
+            "Cache invalidation failed after saving %s: %s",
+            instance,
+            e,
+        )
 
 
 @receiver(post_delete)
@@ -355,8 +419,32 @@ def invalidate_cache_on_delete(sender, instance, **kwargs):
     """
     Invalidate cache when a model is deleted.
     """
-    manager = CacheManager()
-    manager.invalidate_dependencies(instance)
+    if not _cache_signals_enabled:
+        return
+
+    # Skip during migrations or for Django system apps
+    if _is_migration_in_progress():
+        return
+
+    if sender._meta.app_label in [
+        "migrations",
+        "contenttypes",
+        "sessions",
+        "admin",
+        "sites",
+        "auth",
+    ]:
+        return
+
+    try:
+        manager = CacheManager()
+        manager.invalidate_dependencies(instance)
+    except Exception as e:
+        logger.warning(
+            "Cache invalidation failed after deleting %s: %s",
+            instance,
+            e,
+        )
 
 
 @receiver(m2m_changed)
@@ -368,12 +456,27 @@ def invalidate_cache_on_m2m_change(
     """
     if action in ["post_add", "post_remove", "post_clear"]:
         manager = CacheManager()
-        manager.invalidate_dependencies(instance)
+        try:
+            manager.invalidate_dependencies(instance)
+        except Exception as e:
+            logger.warning(
+                "Cache invalidation failed for M2M change on %s: %s",
+                instance,
+                e,
+            )
 
         # Also invalidate for related objects
-        for pk in pk_set:
-            try:
-                related = model.objects.get(pk=pk)
-                manager.invalidate_dependencies(related)
-            except model.DoesNotExist:
-                pass
+        if pk_set:
+            for pk in pk_set:
+                try:
+                    related = model.objects.get(pk=pk)
+                    try:
+                        manager.invalidate_dependencies(related)
+                    except Exception as e:
+                        logger.warning(
+                            "Cache invalidation failed for related object with pk=%s: %s",
+                            pk,
+                            e,
+                        )
+                except model.DoesNotExist:
+                    pass

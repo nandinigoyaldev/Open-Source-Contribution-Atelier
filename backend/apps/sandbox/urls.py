@@ -1,16 +1,35 @@
-from django.urls import include, path
+"""
+URL configuration for sandbox app.
+"""
+
+from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 
 from .views import (
+    SandboxVerifyView,
+    CodeSnapshotViewSet,
+    ProjectViewSet,
+    ProjectFileViewSet,
     CodeExecutionTraceViewSet,
     CodeReviewThreadViewSet,
-    CodeSnapshotViewSet,
-    CodeSnippetViewSet,
-    ProjectFileViewSet,
-    ProjectViewSet,
-    SandboxVerifyView,
     SnippetCollectionViewSet,
+    CodeSnippetViewSet,
+    ExecutionStatusView,
+    ClearExecutionView,
+    WorkspaceSnapshotViewSet,
+    MaintainerScenarioViewSet,
+    MaintainerEvaluationViewSet,
+    CollabSessionViewSet,
+    PipelineExecutionViewSet,
+    ConflictScenarioViewSet,
+    ModerationScenarioViewSet,
+    LicenseScenarioViewSet,
+    TriageIssueViewSet,
 )
+
+# ============================================================
+# Router Configuration
+# ============================================================
 
 router = DefaultRouter()
 router.register(r"snapshots", CodeSnapshotViewSet, basename="snapshot")
@@ -22,9 +41,28 @@ router.register(
     r"snippet-collections", SnippetCollectionViewSet, basename="snippet-collection"
 )
 router.register(r"snippets", CodeSnippetViewSet, basename="snippet")
-# router.register(r"workspace-snapshots", WorkspaceSnapshotViewSet, basename="workspace-snapshot")
+router.register(
+    r"maintainer-scenarios", MaintainerScenarioViewSet, basename="maintainer-scenario"
+)
+router.register(
+    r"maintainer-evaluations",
+    MaintainerEvaluationViewSet,
+    basename="maintainer-evaluation",
+)
+router.register(r"collab-sessions", CollabSessionViewSet, basename="collab-session")
+router.register(r"pipelines", PipelineExecutionViewSet, basename="pipeline")
+router.register(r"conflict-scenarios", ConflictScenarioViewSet, basename="conflict-scenario")
+router.register(r"moderation-scenarios", ModerationScenarioViewSet, basename="moderation-scenario")
+router.register(r"license-scenarios", LicenseScenarioViewSet, basename="license-scenario")
+router.register(r"triage-issues", TriageIssueViewSet, basename="triage-issue")
+
+# ============================================================
+# URL Patterns
+# ============================================================
 
 urlpatterns = [
     path("verify/", SandboxVerifyView.as_view(), name="sandbox-verify"),
+    path("execution-status/", ExecutionStatusView.as_view(), name="execution-status"),
+    path("clear-execution/", ClearExecutionView.as_view(), name="clear-execution"),
     path("", include(router.urls)),
 ]

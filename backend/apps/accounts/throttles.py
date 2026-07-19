@@ -23,7 +23,7 @@ Endpoint throttle map
 """
 
 from django.conf import settings as django_settings
-from rest_framework.throttling import AnonRateThrottle
+from apps.core.throttling import SlidingWindowAnonThrottle
 
 
 def _get_real_ip(request) -> str:
@@ -49,14 +49,14 @@ def _get_real_ip(request) -> str:
     return request.META.get("REMOTE_ADDR", "")
 
 
-class _ProxyAwareThrottle(AnonRateThrottle):
+class _ProxyAwareThrottle(SlidingWindowAnonThrottle):
     """Base class that uses the proxy-aware IP resolver for cache keys."""
 
     def get_ident(self, request):
         return _get_real_ip(request)
 
 
-class StrictIdentityLoginThrottle(AnonRateThrottle):
+class StrictIdentityLoginThrottle(SlidingWindowAnonThrottle):
     scope = "auth_login"
 
     def get_ident(self, request):
@@ -101,7 +101,7 @@ class OtpVerifyThrottle(_ProxyAwareThrottle):
     scope = "auth_otp_verify"
 
 
-class StrictIdentityPasswordResetThrottle(AnonRateThrottle):
+class StrictIdentityPasswordResetThrottle(SlidingWindowAnonThrottle):
     scope = "auth_password_reset"
 
     def get_ident(self, request):
@@ -125,7 +125,7 @@ class MagicLinkRequestThrottle(_ProxyAwareThrottle):
     scope = "auth_magic_link_request"
 
 
-class StrictIdentityMagicLinkThrottle(AnonRateThrottle):
+class StrictIdentityMagicLinkThrottle(SlidingWindowAnonThrottle):
     scope = "auth_magic_link_request"
 
     def get_ident(self, request):

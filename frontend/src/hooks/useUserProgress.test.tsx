@@ -1,4 +1,4 @@
-import { renderHook, waitFor } from "@testing-library/react";
+import { renderHook, waitFor, act } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { useUserProgress } from "./useUserProgress";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -35,6 +35,7 @@ describe("useUserProgress", () => {
 
   afterEach(() => {
     vi.restoreAllMocks();
+    vi.useRealTimers();
   });
 
   it("fetches user progress successfully", async () => {
@@ -67,7 +68,7 @@ describe("useUserProgress", () => {
   it("syncs progress to backend successfully", async () => {
     vi.mocked(fetchApi).mockResolvedValueOnce([]); // initial fetch
     vi.mocked(fetchApi).mockResolvedValueOnce({}); // mutation response
-    
+
     const mockProgress = [
       {
         id: 1,
@@ -80,22 +81,55 @@ describe("useUserProgress", () => {
     ];
     vi.mocked(fetchApi).mockResolvedValueOnce(mockProgress); // refetch after invalidation
 
+    // Start with real timers for initial load
     const { result } = renderHook(() => useUserProgress(), {
       wrapper: createWrapper(),
     });
 
-    result.current.syncProgress({
-      lesson_slug: "new-lesson",
-      score: 50,
-      completed: true,
+    // Wait for initial load
+    await waitFor(() => {
+      expect(result.current.isLoading).toBe(false);
     });
 
-    await waitFor(() => {
-      expect(fetchApi).toHaveBeenCalledWith("/progress/me/", expect.objectContaining({
-        method: "POST",
-        body: JSON.stringify({ lesson_slug: "new-lesson", score: 50, completed: true })
-      }));
+    // Switch to fake timers for debouncing
+    vi.useFakeTimers();
+
+    act(() => {
+      result.current.syncProgress({
+        lesson_slug: "new-lesson",
+        score: 50,
+        completed: true,
+      });
     });
+
+    // Advance timers to trigger the debounced sync (3 seconds)
+    await act(async () => {
+      vi.advanceTimersByTime(3000);
+    });
+
+    // Flush promises so mutation fetchApi runs
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    const bulkCall = vi.mocked(fetchApi).mock.calls.find(
+      (call) => call[0] === "/progress/bulk-update/"
+    );
+    expect(bulkCall).toBeDefined();
+    const body = JSON.parse(bulkCall![1]!.body!);
+    expect(body.lessons).toEqual([
+      {
+        lesson_slug: "new-lesson",
+        score: 50,
+        completed: true,
+        client_timestamp: expect.any(Number),
+      },
+    ]);
+    expect(body.metadata.timestamp).toEqual(expect.any(Number));
+
+    // Restore real timers for invalidation/refetch query updates
+    vi.useRealTimers();
 
     await waitFor(() => {
       expect(result.current.progress).toEqual(mockProgress);
@@ -104,11 +138,14 @@ describe("useUserProgress", () => {
 
   it("reads pending sync progress from localStorage for isLessonCompleted", async () => {
     vi.mocked(fetchApi).mockResolvedValueOnce([]); // no progress from backend
-    
+
     // Simulate offline completion
-    localStorage.setItem("atelier_pending_sync", JSON.stringify([
-      { lesson_slug: "offline-lesson", score: 10, completed: true }
-    ]));
+    localStorage.setItem(
+      "atelier_pending_sync",
+      JSON.stringify([
+        { lesson_slug: "offline-lesson", score: 10, completed: true },
+      ]),
+    );
 
     const { result } = renderHook(() => useUserProgress(), {
       wrapper: createWrapper(),

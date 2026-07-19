@@ -3,11 +3,14 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { fetchApi } from "../../lib/api";
+import { getAccessToken } from "../../lib/authToken";
 import { useAuth } from "./AuthContext";
 import { useToast } from "../ui/ToastContext";
 import { AvatarUploadDropzone } from "../../components/ui/AvatarUploadDropzone";
 import { CoverUploadDropzone } from "../../components/ui/CoverUploadDropzone";
 import { useWebPush } from "../../hooks/useWebPush";
+import { useUnsavedChanges } from "../../hooks/useUnsavedChanges";
+import { UnsavedChangesDialog } from "../../components/ui/UnsavedChangesDialog";
 
 const profileSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email address" }),
@@ -66,7 +69,12 @@ const profileSchema = z.object({
 
 type ProfileFormValues = z.input<typeof profileSchema>;
 
-export function ProfileSettingsForm() {
+interface ProfileSettingsFormProps {
+  onChange?: (values: ProfileFormValues) => void;
+}
+
+
+export function ProfileSettingsForm({ onChange }: ProfileSettingsFormProps) {
   const { user, checkUser } = useAuth();
   const { addToast } = useToast();
   const [loading, setLoading] = useState(false);
@@ -77,11 +85,12 @@ export function ProfileSettingsForm() {
   const { isSupported, isSubscribed, subscribe, unsubscribe } = useWebPush();
 
   const {
-    register,
-    handleSubmit,
-    reset,
-    formState: { errors },
-  } = useForm<ProfileFormValues>({
+  register,
+  handleSubmit,
+  reset,
+  watch,
+  formState: { errors, isDirty },
+} = useForm<ProfileFormValues>({
     resolver: zodResolver(profileSchema),
     defaultValues: {
       email: user?.email || "",
@@ -94,6 +103,29 @@ export function ProfileSettingsForm() {
       github_url: user?.github_url || "",
     },
   });
+
+    const hasUnsavedChanges =
+  isDirty || selectedAvatar !== null || selectedCover !== null;
+
+const unsavedChanges = useUnsavedChanges({
+  isDirty: hasUnsavedChanges,
+  message:
+    "Your profile changes have not been saved. Discard them and leave this page?",
+  onDiscard: () => {
+    setSelectedAvatar(null);
+    setSelectedCover(null);
+  },
+});
+
+  const watchedValues = watch();
+
+  useEffect(() => {
+    onChange?.({
+      ...watchedValues,
+      avatarFile: selectedAvatar,
+      coverFile: selectedCover,
+    });
+  }, [watchedValues, selectedAvatar, selectedCover, onChange]);
 
   useEffect(() => {
     if (user?.email) {
@@ -109,6 +141,11 @@ export function ProfileSettingsForm() {
       });
     }
   }, [user, reset]);
+
+  const formValues = watch();
+  useEffect(() => {
+    onChange?.(formValues as unknown as Record<string, unknown>);
+  }, [formValues, onChange]);
 
   const onSubmit = async (data: ProfileFormValues) => {
     setLoading(true);
@@ -158,14 +195,17 @@ export function ProfileSettingsForm() {
         linkedin_url: data.linkedin_url || "",
         github_url: data.github_url || "",
       });
-    } catch (err: unknown) {
-      addToast(
-        err instanceof Error
-          ? err.message
-          : "Failed to update profile settings.",
-        "error",
-      );
-    } finally {
+      setSelectedAvatar(null);
+      setSelectedCover(null);
+    } catch (error: unknown) {
+  const message =
+    error instanceof Error
+      ? error.message
+      : "Failed to update profile settings.";
+
+  addToast(message, "error");
+}
+ finally {
       setLoading(false);
     }
   };
@@ -176,7 +216,7 @@ export function ProfileSettingsForm() {
       const API_BASE =
         import.meta.env.VITE_API_BASE_URL?.trim() ||
         `${window.location.origin}/api`;
-      const token = localStorage.getItem("accessToken");
+      const token = getAccessToken();
       const response = await fetch(
         `${API_BASE}/auth/me/export/?export_format=csv`,
         {
@@ -205,6 +245,7 @@ export function ProfileSettingsForm() {
   };
 
   return (
+     <>
     <form className="space-y-6 pt-2" onSubmit={handleSubmit(onSubmit)}>
       <CoverUploadDropzone
         currentCoverUrl={user?.cover_image_url}
@@ -438,5 +479,13 @@ export function ProfileSettingsForm() {
         </div>
       </div>
     </form>
+
+    <UnsavedChangesDialog
+      open={unsavedChanges.isBlocked}
+      message={unsavedChanges.message}
+      onStay={unsavedChanges.stay}
+      onDiscard={unsavedChanges.discard}
+    />
+    </>
   );
 }

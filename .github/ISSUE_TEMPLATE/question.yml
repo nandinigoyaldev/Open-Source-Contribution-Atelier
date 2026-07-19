@@ -1,39 +1,43 @@
 name: Question
 description: Ask a question about the project, usage, or contribution process
-title: "[QUESTION]: "
-labels: ["question"]
+title: '[QUESTION]: '
+labels:
+- question
 body:
-  - type: textarea
-    id: description
-    attributes:
-      label: Description
-      description: Provide a clear and concise question about the project.
-    validations:
-      required: true
-  - type: textarea
-    id: context
-    attributes:
-      label: Context
-      description: What part of the project does this relate to? (e.g. backend sandbox, frontend lessons, docs)
-    validations:
-      required: true
-  - type: textarea
-    id: attempts
-    attributes:
-      label: Attempts Made
-      description: Describe what research or attempts you've already made to find the answer (reading docs, trying code).
-    validations:
-      required: true
-  - type: textarea
-    id: additional_info
-    attributes:
-      label: Additional Information
-      description: Add any links, screenshots, code snippets, or other details.
-    validations:
-      required: false
-  - type: checkboxes
-    id: program
-    attributes:
-      label: Contributor Program
-      options:
-        - label: I am contributing under SSoC 2026 / ECSoC 2026
+- type: textarea
+  id: description
+  attributes:
+    label: Description
+    description: Provide a clear and concise question about the project.
+  validations:
+    required: true
+- type: checkboxes
+  id: program
+  attributes:
+    label: Contributor Program
+    options:
+    - label: SSoC 2026
+    - label: ECSoC 2026
+- type: textarea
+  id: context
+  attributes:
+    label: Context
+    description: What part of the project does this relate to? (e.g. backend sandbox,
+      frontend lessons, docs)
+  validations:
+    required: true
+- type: textarea
+  id: attempts
+  attributes:
+    label: Attempts Made
+    description: Describe what research or attempts you've already made to find the
+      answer (reading docs, trying code).
+  validations:
+    required: true
+- type: textarea
+  id: additional_info
+  attributes:
+    label: Additional Information
+    description: Add any links, screenshots, code snippets, or other details.
+  validations:
+    required: false

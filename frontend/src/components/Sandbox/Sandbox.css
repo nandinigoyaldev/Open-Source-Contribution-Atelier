@@ -14,7 +14,7 @@
   color: #e0e0e0;
   border-radius: 12px;
   overflow: hidden;
-  font-family: 'Segoe UI', system-ui, sans-serif;
+  font-family: "Segoe UI", system-ui, sans-serif;
   border: 2px solid #2a2a4e;
 }
 
@@ -42,7 +42,9 @@
 }
 
 @keyframes spin {
-  to { transform: rotate(360deg); }
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 /* ============================================================
@@ -112,13 +114,18 @@
 }
 
 @keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.6; }
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.6;
+  }
 }
 
 .execution-time {
   color: #8888aa;
-  font-family: 'Courier New', monospace;
+  font-family: "Courier New", monospace;
   font-size: 13px;
 }
 
@@ -254,7 +261,7 @@
   border: none;
   outline: none;
   resize: none;
-  font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+  font-family: "JetBrains Mono", "Fira Code", "Consolas", monospace;
   font-size: 14px;
   line-height: 1.8;
   tab-size: 2;
@@ -340,7 +347,7 @@
   flex: 1;
   padding: 12px;
   overflow-y: auto;
-  font-family: 'Consolas', 'Courier New', monospace;
+  font-family: "Consolas", "Courier New", monospace;
   font-size: 13px;
   line-height: 1.6;
 }

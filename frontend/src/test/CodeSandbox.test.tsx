@@ -36,8 +36,12 @@ describe("CodeSandbox output capture", () => {
       send: vi.fn(),
       isConnected: false,
     });
-    (fetchSandboxSnapshots as unknown as ReturnType<typeof vi.fn>).mockResolvedValue([]);
-    (saveSandboxSnapshot as unknown as ReturnType<typeof vi.fn>).mockResolvedValue({
+    (
+      fetchSandboxSnapshots as unknown as ReturnType<typeof vi.fn>
+    ).mockResolvedValue([]);
+    (
+      saveSandboxSnapshot as unknown as ReturnType<typeof vi.fn>
+    ).mockResolvedValue({
       id: 1,
       code: "",
       label: "",

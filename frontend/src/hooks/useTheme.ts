@@ -1,38 +1,49 @@
-import { useContext } from "react";
-import {useState, useEffect } from 'react';
-import { ThemeContext, type ThemeContextValue, type Theme } from "./ThemeContext";
+import { useState, useEffect } from 'react';
+import type { Theme } from './themeUtils';
+import { ThemeProvider } from './ThemeContext';
+
+export { ThemeProvider };
 
 const THEME_KEY = 'app-theme';
 
-export { ThemeProvider } from "./ThemeContext";
-export type { ThemeContextValue } from "./ThemeContext";
-
-export function useTheme(): ThemeContextValue {
+export function useTheme() {
   const [theme, setThemeState] = useState<Theme>(() => {
-    // Load from localStorage on init
+    if (typeof window === "undefined") return "light";
     const saved = localStorage.getItem(THEME_KEY);
     if (saved === 'dark' || saved === 'light' || saved === 'system') return saved as Theme;
-    // Default based on system preference
     return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
   });
 
+  const [soundEnabled, setSoundEnabled] = useState(() => {
+    if (typeof window === "undefined") return true;
+    const saved = localStorage.getItem('sound-effects-enabled');
+    return saved !== null ? saved === 'true' : true;
+  });
+
   useEffect(() => {
-    // Determine actual applied theme (resolve 'system') and apply to document
+    if (typeof window === "undefined" || typeof document === "undefined") return;
     const applied = theme === 'system'
       ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
       : theme;
     document.documentElement.className = applied;
-    // Save to localStorage
     localStorage.setItem(THEME_KEY, theme);
   }, [theme]);
 
-  const setTheme: ThemeContextValue['setTheme'] = (t: Theme) => {
-    setThemeState(t);
-  };
+  const setTheme = (t: Theme) => setThemeState(t);
 
   const toggleTheme = () => {
-    setThemeState(prev => (prev === 'light' ? 'dark' : 'light'));
+    setThemeState((prev: Theme) => (prev === 'light' ? 'dark' : 'light'));
   };
 
-  return { theme, setTheme, toggleTheme };
+  const toggleSound = () => {
+    setSoundEnabled(prev => {
+      const next = !prev;
+      localStorage.setItem('sound-effects-enabled', String(next));
+      return next;
+    });
+  };
+
+  const playAudioCue = (_type: "success" | "error" | "achievement") => {};
+
+  return { theme, setTheme, toggleTheme, soundEnabled, toggleSound, playAudioCue };
 }

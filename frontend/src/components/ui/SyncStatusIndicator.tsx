@@ -1,17 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { WifiOff, RefreshCw } from "lucide-react";
 
+import { useNetworkStatus } from "../../context/useNetworkStatus";
+
 export function SyncStatusIndicator() {
-  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const { isOnline } = useNetworkStatus();
   const [pendingCount, setPendingCount] = useState(0);
 
   useEffect(() => {
-    const handleOnline = () => setIsOnline(true);
-    const handleOffline = () => setIsOnline(false);
-
-    window.addEventListener("online", handleOnline);
-    window.addEventListener("offline", handleOffline);
-
     // Poll local storage for pending syncs
     const checkPending = () => {
       try {
@@ -27,8 +23,6 @@ export function SyncStatusIndicator() {
     const interval = setInterval(checkPending, 2000);
 
     return () => {
-      window.removeEventListener("online", handleOnline);
-      window.removeEventListener("offline", handleOffline);
       clearInterval(interval);
     };
   }, []);

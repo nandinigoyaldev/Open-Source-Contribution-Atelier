@@ -1,154 +1,162 @@
-# 🏅 First Contribution Walkthrough
+## 🏅 Your First Contribution — Let's Do This!
 
-### In this module, you will complete the entire process of making your first contribution - raising an issue in your target repisitory, cloning the repository, and submitting a pull request.
+Welcome! You're about to make your very first open source contribution. This might feel like a big step, but we're going to walk through it together, one small step at a time.
 
----
-
-## ⚠️ Raise an Issue
-
-### First, you need to raise an issue in your target repository!
+Think of this like **making your first deposit at a bank**. You have something valuable (your code or your idea), and you're about to add it to a shared account (the project). Let's go!
 
 ---
 
-### Step-by-Step Exercise
+## ⚠️ Step 1: Raise an Issue
 
-1. **Navigate to the Issues Tab**:
-   Go to the original (upstream) repository on GitHub and click the Issues tab.
-   
+Every great contribution starts with a conversation. First, you need to let the project know what you're planning to do.
+
+---
+
+### Step-by-Step
+
+1. **Go to the Issues Tab**  
+   Navigate to the original project on GitHub and click the **Issues** tab.
+
    <img width="415" height="90" alt="image" src="https://github.com/user-attachments/assets/519029d7-732c-430b-b9ff-fcf88562fe47" />
 
-3. **Create a New Issue**:
-   Click the green New Issue button.
-   
+2. **Click New Issue**  
+   Hit the green **New Issue** button.
+
    <img width="415" height="90" alt="image" src="https://github.com/user-attachments/assets/cd9a626b-f7f3-4d53-8a27-179ef7c6b811" />
 
-5. **Choose a Template**:
-   If prompted, select the most relevant template (e.g., Bug Report or Feature Request), or click "Open a blank issue."
-   
+3. **Choose a Template (if offered)**  
+   Pick the template that fits best — like "Bug Report" or "Feature Request" — or click **Open a blank issue**.
+
    <img width="637" height="596" alt="image" src="https://github.com/user-attachments/assets/cfee857a-08ee-4c8a-bb01-a42eeda9d716" />
 
-7. **Fill in the Details**:
-   Give your issue a clear, descriptive title and explain what you plan to change or fix in the body.
+4. **Fill in the Details**  
+   Give your issue a clear title and describe what you plan to do.
 
-8. **Submit the Issue**:
-   Click Submit new issue and note down the issue number (e.g., #123) for your pull request.
-   
+5. **Submit**  
+   Click **Submit new issue** and note down the issue number (e.g. `#123`). You'll need it later for your Pull Request!
+
    <img width="180" height=auto alt="image" src="https://github.com/user-attachments/assets/6ae2077f-1b9d-4a51-b8d0-94a251ed4707" />
 
 ---
 
-## 🍴 Fork the Repository
+## 🍴 Step 2: Fork the Repository
 
-### Now you need to fork the repository - make a copy of it on your own profile.
+Now you need your own copy of the project to work on.
 
 ---
 
-### Step-by-Step Exercise
+### Step-by-Step
 
-1. **Navigate to the Repository**: 
-   Open GitHub and go to the main page of the target project you want to contribute to.
-   
-3. **Click the Fork Button**: 
-   In the top-right corner of the page, click the **Fork** button.
-   
+1. Go to the main page of the project on GitHub.
+2. Click the **Fork** button in the top-right corner.
+
    <img width="1133" height="116" alt="image" src="https://github.com/user-attachments/assets/41ec9cf4-3eed-45aa-9aaf-7042a748bc94" />
 
-5. **Select Your Account**: 
-   Choose your personal GitHub account as the destination for the fork.
-   
+3. Choose your personal GitHub account as the destination.
+
    <img width="644" height="473" alt="image" src="https://github.com/user-attachments/assets/aa18df5c-a718-4f8c-bfa2-9a379401a9f6" />
 
-7. **Clone the Fork Locally**: 
-   Copy the URL of your new fork and run the clone command in your terminal:
-   
+4. **Clone your fork** to your computer:
+
    ```bash
    git clone https://github.com/YOUR-USERNAME/target-repository.git
    ```
 
 ---
 
-## 🧲 Submit a Mock Pull Request
+## 🧲 Step 3: Submit a Pull Request
 
-### Finally, you need to create a PR linking back to your issue and submit it for approval by the repository's maintainer.
+Now for the exciting part — sending your changes back to the original project!
 
 ---
 
-### 1️⃣ Approach 1 - Git/CLI (Terminal) : Step-by-Step Exercise
+### 🖥️ Approach 1 — Using the Terminal
 
-1. **Create and Switch to your Feature Branch**:
+1. **Create and switch to a new branch**:
+
    ```bash
    git switch -c feat/my-first-pr
    ```
-   
-2. **Make Edits**:
-   Create or modify a file (e.g. `CONTRIBUTING.md`).
-   
-3. **Stage Changes / Make files ready for committing**:
+
+2. **Make your changes** — edit a file or create a new one.
+
+3. **Stage your changes**:
+
    ```bash
    git add CONTRIBUTING.md
    ```
 
-   OR, to stage all modified files at once:
+   To stage all changes at once:
+
    ```bash
    git add .
    ```
-   
-4. **Commit with standard imperatve message**:
+
+4. **Commit with a clear message**:
+
    ```bash
    git commit -m "Update the CONTRIBUTING.md file"
    ```
-   
-5. **Push Branch and Set Upstream tracking**:
+
+5. **Push your branch to your fork**:
+
    ```bash
    git push -u origin feat/my-first-pr
    ```
 
 ---
 
-### 2️⃣ Approach 2 - GitHub : Step-by-Step Exercise
+### 🌐 Approach 2 — Using GitHub
 
-1. **Create and Switch to a Feature Branch**:
+1. **Create and switch to a new branch**:
+
    ```bash
    git switch -c feat/my-first-pr
    ```
-   
-2. **Make Edits**:
-   Create or modify a file (e.g. `contrib.md`).
-   
-4. **Stage Changes**:
+
+2. **Make your changes** and save the file.
+
+3. **Stage and commit**:
+
    ```bash
    git add contrib.md
-   ```
-   
-5. **Commit with standard imperatve message**:
-   ```bash
    git commit -m "Add my contributor profile"
    ```
-   
-6. **Push Branch and Set Upstream tracking**:
+
+4. **Push your branch**:
+
    ```bash
    git push -u origin feat/my-first-pr
    ```
 
-7. **Open the Pull Request on GitHub**:
-   - Navigate to your forked repository page on GitHub.
-     
-   - Click the green Compare & pull request button next to the yellow banner.
-     
+5. **Open the Pull Request on GitHub**:
+   - Go to your forked repository on GitHub.
+   - Click the green **Compare & pull request** button.
+
      <img width="300" height=auto alt="image" src="https://github.com/user-attachments/assets/329a36bd-af80-4ff1-8975-8860ca460013" />
 
-   - Add a descriptive title and reference your issue in the description (e.g., Closes #123). Add a description of your changes.
-     
+   - Write a clear title and reference your issue in the description (e.g. `Closes #123`).
+
      <img width="1029" height="673" alt="image" src="https://github.com/user-attachments/assets/a11f89bf-7068-4f99-a481-fedf9a694a2c" />
 
-   - Click Create pull request.
-  
+   - Click **Create pull request**.
+
      <img width="260" height=auto alt="image" src="https://github.com/user-attachments/assets/d3868140-cb64-4c2a-9c40-02209faa1b44" />
 
 ---
 
 > [!TIP]
-> - **Keep PRs Single-Purpose**: A good pull request does exactly one thing. If you notice unrelated typos or minor bugs while working, resist the urge to fix them in the same PR. Open a separate issue and branch for them instead.
-> - **Draft PRs for Work in Progress:** If your contribution isn't quite finished but you want early feedback or to test it in the project's CI pipeline, click the dropdown next to "Create pull request" and select **Create draft pull request**. This tells maintainers it isn't ready for a final review yet.
-> - **Clean Commit History:** Try to squash unnecessary intermediate commits (like "fix typo", "test 2") before requesting a final review. A clean commit history makes it much easier for maintainers to understand your changes.
-> - **NEVER Commit Secrets** (e.g. Passwords, Access tokens, API Keys, etc.) to GitHub.
+>
+> - **Keep PRs Small**: A good pull request does exactly one thing. If you spot other small issues while working, resist the urge to fix them in the same PR. Open a new issue and a new branch instead.
+>
+> - **Use Draft PRs**: If your work isn't finished but you'd like early feedback, click the dropdown next to "Create pull request" and select **Create draft pull request**. This tells maintainers "not ready yet, but feel free to peek."
+>
+> - **Clean Up Your Commits**: Try to squash tiny "oops" commits (like "fix typo" or "test 2") before requesting a review. A clean history makes it easier for maintainers to understand your changes.
+>
+> - **NEVER Commit Secrets**: Passwords, API keys, access tokens — never, ever commit these to GitHub. Double-check your files before staging.
+
+---
+
+### 🧠 Key Takeaway
+
+You raised an issue, forked a repo, made changes, and submitted a pull request. That's the complete open source contribution cycle! You did it. 🎉 Every expert was once where you are right now.

@@ -1,0 +1,41 @@
+{% extends "admin/base_site.html" %}
+{% load i18n %}
+
+{% block content %}
+<div id="content-main">
+    <form method="get">
+        <label for="request_id"><strong>Request ID:</strong></label>
+        <input type="text" id="request_id" name="request_id" value="{{ request_id }}" size="40" placeholder="UUID...">
+        <button type="submit" class="button">Search Logs</button>
+    </form>
+    
+    <br><br>
+
+    {% if request_id %}
+        {% if log_entries %}
+            <table style="width: 100%; text-align: left; border-collapse: collapse;">
+                <thead>
+                    <tr style="background: #f8f8f8; border-bottom: 1px solid #ddd;">
+                        <th style="padding: 8px;">Time</th>
+                        <th style="padding: 8px;">Level</th>
+                        <th style="padding: 8px;">User ID</th>
+                        <th style="padding: 8px;">Message</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for entry in log_entries %}
+                    <tr style="border-bottom: 1px solid #ddd;">
+                        <td style="padding: 8px;">{{ entry.time|default:"-" }}</td>
+                        <td style="padding: 8px;">{{ entry.level|default:"-" }}</td>
+                        <td style="padding: 8px;">{{ entry.user_id|default:"-" }}</td>
+                        <td style="padding: 8px;"><pre style="margin:0;">{{ entry.message|default:entry }}</pre></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <p>No log entries found for this Request ID.</p>
+        {% endif %}
+    {% endif %}
+</div>
+{% endblock %}

@@ -29,7 +29,4 @@ COPY --chown=appuser:appgroup apps/ ./apps/
 EXPOSE 8000
 USER appuser
 
-# Use Python 3.11+ for Django 5.0
-FROM python:3.11-slim
-
-CMD ["gunicorn", "config.wsgi:application", "--bind", "0.0.0.0:8000"]
+CMD ["sh", "-c", "python manage.py migrate && daphne -b 0.0.0.0 -p 8000 config.asgi:application"]
