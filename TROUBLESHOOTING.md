@@ -119,6 +119,27 @@ Postgres may take a moment to initialize (especially on first run or after clear
 
 ---
 
+## 4b) Redis down / Channels WebSocket crashes
+
+### Symptoms
+- Backend logs show Redis connection errors during WebSocket connect
+- Realtime notifications / leaderboard fail hard when Redis is stopped
+
+### Expected (after graceful fallback)
+- If Redis is unreachable at startup, Channels uses **InMemoryChannelLayer** and LocMem cache (warning logged).
+- If Redis dies later, the resilient layer switches to in-memory for that process (warning logged).
+- WebSocket connections still accept; clients may see `"degraded": true` and should poll HTTP for inbox updates.
+
+### Local override
+```bash
+# backend/.env
+FORCE_INMEMORY_CHANNEL_LAYER=1
+```
+
+Restart the backend after changing this. Multi-worker fan-out still needs Redis in Docker/prod.
+
+---
+
 ## 5) Traefik routing / services unreachable
 
 ### Symptoms

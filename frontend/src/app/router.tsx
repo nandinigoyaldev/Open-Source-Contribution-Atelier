@@ -170,6 +170,11 @@ const MaintainerReplyToneCoachPage = lazy(() =>
   })),
 );
 
+const MergeConflictScenarioBuilderPage = lazy(() =>
+  import("../pages/MergeConflictScenarioBuilderPage").then((module) => ({
+    default: module.MergeConflictScenarioBuilderPage,
+  })),
+);
 /*
  * These pages use default exports, so they can be passed directly
  * to React.lazy().
@@ -374,6 +379,15 @@ export function AppRouter() {
           />
 
           <Route
+            path="/conflict-scenario-builder"
+            element={
+              <ProtectedRoute>
+                <MergeConflictScenarioBuilderPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
             path="/community"
             element={
               <ProtectedRoute>
@@ -421,6 +435,7 @@ export function AppRouter() {
 
                   <TerminalReplay
                     sessionName="Git Tutorial Replay"
+                    sharePathname="/sandbox"
                     commands={[
                       {
                         command: "git init",

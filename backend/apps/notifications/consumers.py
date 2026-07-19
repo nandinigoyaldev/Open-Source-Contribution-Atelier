@@ -4,6 +4,8 @@ import logging
 from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
 
+from apps.core.channel_safety import safe_group_add, safe_group_discard
+
 logger = logging.getLogger(__name__)
 
 
@@ -24,26 +26,36 @@ class NotificationConsumer(AsyncWebsocketConsumer):
 
         self.user_id = str(user.id)
         self.group_name = f"notifications_{self.user_id}"
+        self.realtime_degraded = False
 
-        # Join personal channel group
-        await self.channel_layer.group_add(self.group_name, self.channel_name)
+        # Join personal channel group — degrade if Redis/channel layer is down
+        joined = await safe_group_add(self.group_name, self.channel_name)
+        if not joined:
+            self.realtime_degraded = True
+            logger.warning(
+                "WS connected in degraded mode (no channel group): user=%s",
+                self.user_id,
+            )
+
         await self.accept()
         logger.info("WS connected: user=%s group=%s", self.user_id, self.group_name)
 
         # Send unread count on connect
         unread = await self.get_unread_count(user)
-        await self.send(
-            text_data=json.dumps(
-                {
-                    "type": "connection_established",
-                    "unread_count": unread,
-                }
+        payload = {
+            "type": "connection_established",
+            "unread_count": unread,
+        }
+        if self.realtime_degraded:
+            payload["degraded"] = True
+            payload["detail"] = (
+                "Realtime channel layer unavailable; inbox will poll over HTTP."
             )
-        )
+        await self.send(text_data=json.dumps(payload))
 
     async def disconnect(self, close_code):
         if hasattr(self, "group_name"):
-            await self.channel_layer.group_discard(self.group_name, self.channel_name)
+            await safe_group_discard(self.group_name, self.channel_name)
             logger.info(
                 "WS disconnected: group=%s code=%s", self.group_name, close_code
             )
@@ -118,16 +130,32 @@ class LeaderboardConsumer(AsyncWebsocketConsumer):
 
         self.group_name = "leaderboard"
 
-        # Join leaderboard channel group
-        await self.channel_layer.group_add(self.group_name, self.channel_name)
+        joined = await safe_group_add(self.group_name, self.channel_name)
         await self.accept()
-        logger.info(
-            "WS Leaderboard connected: user=%s group=%s", user.id, self.group_name
-        )
+        if not joined:
+            logger.warning(
+                "WS Leaderboard degraded (no channel group): user=%s", user.id
+            )
+            await self.send(
+                text_data=json.dumps(
+                    {
+                        "type": "connection_established",
+                        "degraded": True,
+                        "detail": (
+                            "Realtime leaderboard unavailable; "
+                            "Redis/channel layer down."
+                        ),
+                    }
+                )
+            )
+        else:
+            logger.info(
+                "WS Leaderboard connected: user=%s group=%s", user.id, self.group_name
+            )
 
     async def disconnect(self, close_code):
         if hasattr(self, "group_name"):
-            await self.channel_layer.group_discard(self.group_name, self.channel_name)
+            await safe_group_discard(self.group_name, self.channel_name)
             logger.info(
                 "WS Leaderboard disconnected: group=%s code=%s",
                 self.group_name,

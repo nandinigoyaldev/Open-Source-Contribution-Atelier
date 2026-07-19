@@ -16,6 +16,8 @@ import { useAuth } from "../../features/auth/AuthContext";
 import { useTheme } from "../../hooks/useTheme";
 import { useBookmarks } from "../../hooks/useBookmarks";
 import { useUserProgress } from "../../hooks/useUserProgress";
+import { useCurriculum } from "../../hooks/useCurriculum";
+import { FOCUS_RING } from "../../lib/a11yFocus";
 import { fetchApi } from "../../lib/api";
 import { fetchLessonsApi, type Lesson } from "../../lib/lessons";
 import { BADGES } from "../../constants/badges";
@@ -60,7 +62,6 @@ export function ContributorDashboard() {
   const { isLessonCompleted } = useUserProgress();
   const { bookmarks, toggleBookmark } = useBookmarks();
 
-  const [curriculumData, setCurriculumData] = useState<ModuleData[]>([]);
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [onboardingStep, setOnboardingStep] = useState(0);
   const [showCertificate, setShowCertificate] = useState(false);
@@ -71,16 +72,21 @@ export function ContributorDashboard() {
   >([]);
   const [showOnlyBookmarked, setShowOnlyBookmarked] = useState(false);
 
-  useEffect(() => {
-    fetch("/content/curriculum.json")
-      .then((response) => response.json())
-      .then((data: { modules?: ModuleData[] }) => {
-        if (data.modules) setCurriculumData(data.modules);
-      })
-      .catch((error) =>
-        console.error("Error loading dashboard curriculum:", error),
-      );
-  }, []);
+  const { data: curriculumCatalog, isLoading: isCurriculumLoading } =
+    useCurriculum();
+  const curriculumData: ModuleData[] = useMemo(
+    () =>
+      (curriculumCatalog?.modules ?? []).map((mod) => ({
+        id: mod.id,
+        title: mod.title,
+        lessons: mod.lessons.map((les) => ({
+          slug: les.slug,
+          title: les.title,
+          difficulty: les.difficulty,
+        })),
+      })),
+    [curriculumCatalog],
+  );
 
   const {
     data: contributorData,
@@ -112,7 +118,8 @@ export function ContributorDashboard() {
     queryFn: () => fetchApi("/progress/daily-stats/"),
   });
 
-  const isLoading = isContributorLoading || isLessonsLoading;
+  const isLoading =
+    isContributorLoading || isLessonsLoading || isCurriculumLoading;
   const [showSkeleton, setShowSkeleton] = useState(isLoading);
 
   useEffect(() => {
@@ -323,17 +330,19 @@ export function ContributorDashboard() {
           </div>
           <div className="mt-6 flex flex-wrap gap-2.5 z-10">
             <button
+              type="button"
               onClick={() => setShowAchievementCard(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-slate-900 text-white text-xs font-bold border border-slate-800 rounded-xl hover:-translate-y-0.5 transition-all shadow-sm whitespace-nowrap dark:bg-white dark:text-black dark:border-white"
+              className={`flex items-center gap-2 px-4 py-2 bg-slate-900 text-white text-xs font-bold border border-slate-800 rounded-xl hover:-translate-y-0.5 transition-all shadow-sm whitespace-nowrap dark:bg-white dark:text-black dark:border-white ${FOCUS_RING}`}
             >
-              <Sparkles className="w-3.5 h-3.5" />
+              <Sparkles className="w-3.5 h-3.5" aria-hidden="true" />
               Share Standing Card
             </button>
             <button
+              type="button"
               onClick={() => setShowProgressReport(true)}
-              className="flex items-center gap-2 px-4 py-2 bg-white text-slate-700 text-xs font-bold border border-slate-200 rounded-xl hover:-translate-y-0.5 transition-all shadow-sm whitespace-nowrap dark:bg-[#1a1a24] dark:text-[#eef2f6] dark:border-slate-800"
+              className={`flex items-center gap-2 px-4 py-2 bg-white text-slate-700 text-xs font-bold border border-slate-200 rounded-xl hover:-translate-y-0.5 transition-all shadow-sm whitespace-nowrap dark:bg-[#1a1a24] dark:text-[#eef2f6] dark:border-slate-800 ${FOCUS_RING}`}
             >
-              <Download className="w-3.5 h-3.5" /> Export Progress (PDF)
+              <Download className="w-3.5 h-3.5" aria-hidden="true" /> Export Progress (PDF)
             </button>
           </div>
         </div>
@@ -370,7 +379,8 @@ export function ContributorDashboard() {
             </div>
             <Link
               to="/learning-path"
-              className="w-full md:w-auto rounded-lg bg-[#C3C0FF] text-black border border-black/5 px-4 py-2 text-xs font-black hover:-translate-y-0.5 shadow-sm transition-all text-center uppercase tracking-wider dark:bg-[#2e2640] dark:text-[#f0ebe2]"
+              aria-label="View your personalized learning path"
+              className={`w-full md:w-auto rounded-lg bg-[#C3C0FF] text-black border border-black/5 px-4 py-2 text-xs font-black hover:-translate-y-0.5 shadow-sm transition-all text-center uppercase tracking-wider dark:bg-[#2e2640] dark:text-[#f0ebe2] ${FOCUS_RING}`}
             >
               View Learning Path 🗺️
             </Link>
@@ -455,7 +465,8 @@ export function ContributorDashboard() {
                   <Link
                     key={lesson.slug}
                     to={`/lessons/${lesson.slug}`}
-                    className="flex flex-col gap-1.5 p-4 rounded-xl border border-slate-100 bg-slate-50/20 hover:bg-slate-50 hover:-translate-y-0.5 transition-all cursor-pointer dark:bg-[#151411]/50 dark:border-[#2e2924] dark:hover:bg-[#1f1c18]"
+                    aria-label={`Start lesson: ${lesson.title}`}
+                    className={`flex flex-col gap-1.5 p-4 rounded-xl border border-slate-100 bg-slate-50/20 hover:bg-slate-50 hover:-translate-y-0.5 transition-all cursor-pointer dark:bg-[#151411]/50 dark:border-[#2e2924] dark:hover:bg-[#1f1c18] ${FOCUS_RING}`}
                   >
                     <div className="flex justify-between items-center">
                       <h3 className="font-black text-base text-slate-850 dark:text-[#f0ebe2] truncate pr-4">
@@ -509,7 +520,8 @@ export function ContributorDashboard() {
                       </div>
                       <Link
                         to="/challenges"
-                        className="flex-shrink-0 px-3 py-1.5 bg-slate-900 text-white rounded-lg text-xs font-bold shadow-sm hover:-translate-y-0.5 transition-transform dark:bg-white dark:text-black"
+                        aria-label={`Solve assigned issue: ${issue.title}`}
+                        className={`flex-shrink-0 px-3 py-1.5 bg-slate-900 text-white rounded-lg text-xs font-bold shadow-sm hover:-translate-y-0.5 transition-transform dark:bg-white dark:text-black ${FOCUS_RING}`}
                       >
                         Solve
                       </Link>
@@ -572,8 +584,9 @@ export function ContributorDashboard() {
             </div>
             {completionPercentage === 100 ? (
               <button
+                type="button"
                 onClick={() => setShowCertificate(true)}
-                className="w-full flex items-center justify-center gap-2 rounded-xl bg-green-500 text-black font-black py-2.5 border border-green-600 text-xs shadow-sm hover:-translate-y-0.5 transition-all cursor-pointer uppercase"
+                className={`w-full flex items-center justify-center gap-2 rounded-xl bg-green-500 text-black font-black py-2.5 border border-green-600 text-xs shadow-sm hover:-translate-y-0.5 transition-all cursor-pointer uppercase ${FOCUS_RING}`}
               >
                 <Download size={13} /> Download Certificate
               </button>

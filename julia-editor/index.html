@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang = "en">
+<head>
+    <meta charset="UTF-8" />
+    <meta name>="viewport" content="width=device-width,initial-scale=1.0"/>
+    <title>Julia Editor</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+    <div class=""container">
+    <header>
+        <h1>Julia Editor</h1>
+        <p>Scientific computing and numerical programming</p>
+    </header>
+
+    <div class="editor-container">
+      <div class="code-panel">
+        <div class="panel-header">
+          <span>📝 Code</span>
+          <button id="runBtn">▶️ Run</button>
+          <button id="clearBtn">🗑️ Clear</button>
+          <button id="exampleBtn">📋 Load Example</button>
+        </div>
+        <textarea id="codeInput" placeholder="Write Julia code here..."></textarea>
+      </div>
+
+      <div class="output-panel">
+        <div class="panel-header">
+          <span>📤 Output</span>
+          <span id="status">Ready</span>
+        </div>
+        <div id="output"></div>
+      </div>
+    </div>
+  </div>
+  <script src="script.js"></script>
+</body>
+</html>
