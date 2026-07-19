@@ -71,7 +71,6 @@ class Lesson(TenantAwareModel):
     title = models.CharField(max_length=200)
     # `organization` FK is provided by the base class.
 
-
 Lesson.objects.all()        # -> only the current tenant's lessons
 Lesson.objects.unscoped()   # -> all lessons (admin/migration tooling only)
 ```
@@ -81,28 +80,34 @@ Adding `organization` to an existing model requires a migration.
 ## Migrating an Existing Model
 
 1. Add to the model:
-   ```python
+
+```python
    organization = models.ForeignKey(
        "organizations.Organization",
        on_delete=models.CASCADE,
        null=True,
        db_index=True,
    )
-   ```
+```
+
 2. Run the migration:
-   ```bash
+
+```bash
    python manage.py makemigrations <app>
    python manage.py migrate
-   ```
+```
+
 3. Backfill existing rows:
-   ```sql
-   UPDATE <table>
-   SET organization_id = (
-       SELECT organization_id
-       FROM accounts_userprofile
-       WHERE user_id = <table>.user_id
-   );
-   ```
+
+```sql
+UPDATE <table>
+SET organization_id = (
+    SELECT organization_id
+    FROM accounts_userprofile
+    WHERE user_id = <table>.user_id
+);
+```
+
 4. *(Optional)* Switch the model to inherit `TenantAwareModel` and remove the explicit `organization` field definition.
 
 ## Security Audit
