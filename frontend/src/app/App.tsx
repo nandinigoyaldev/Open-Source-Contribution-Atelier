@@ -4,13 +4,15 @@ import { useState, useEffect } from "react";
 
 import { AppRouter } from "./router";
 import { queryClient } from "../lib/queryClient";
-import { ThemeToggle } from "../components/ui/ThemeToggle";
 import { CommandPalette } from "../components/CommandPalette";
 import ReportIssueButton from "../components/ui/ReportIssueButton";
 import { ErrorBoundary } from "../components/ui/ErrorBoundary";
 import { NotificationProvider } from "../features/notifications/NotificationContext";
 import { WebSocketStatusIndicator } from "../components/WebSocketStatus/WebSocketStatusIndicator";
-
+import { ScrollToTop } from "../components/ui/ScrollToTop";
+import { OfflineBanner } from "../components/ui/OfflineBanner";
+import { InstallAppBanner } from "../components/ui/InstallAppBanner";
+import { ConflictResolutionModal } from "../components/ui/ConflictResolutionModal";
 // Pure React Onboarding Tour Step Definition Type Map
 interface TourStep {
   target: string;
@@ -121,6 +123,9 @@ export function App({ children }: { children?: React.ReactNode }) {
       <NotificationProvider>
         <ErrorBoundary>
         <div className="min-h-screen bg-white dark:bg-slate-900 text-gray-900 dark:text-gray-100 transition-colors duration-300">
+          <OfflineBanner />
+          <InstallAppBanner />
+          <ConflictResolutionModal />
           {/* Global Toast Configuration */}
           <Toaster
             position="top-right"
@@ -140,6 +145,7 @@ export function App({ children }: { children?: React.ReactNode }) {
           <CommandPalette />
           <ReportIssueButton />
           <WebSocketStatusIndicator url="" />
+          <ScrollToTop />
 
           {/* Pure React Onboarding Modals Highlight Tour Overlay Portal */}
           {currentStep >= 0 && coords && (
