@@ -4,6 +4,8 @@ import sys
 from datetime import timedelta
 from pathlib import Path
 
+import stripe
+
 # Safeguard for hosts where cryptography DLL fails to load (e.g. missing VC++ redist)
 try:
     from cryptography.fernet import Fernet
@@ -18,7 +20,6 @@ except ImportError as e:
         sys.modules["cryptography.hazmat"] = mock_crypto
         sys.modules["cryptography.hazmat.primitives"] = mock_crypto
         sys.modules["cryptography.hazmat.bindings"] = mock_crypto
-
 import dj_database_url
 
 # pyrefly: ignore [missing-import]
@@ -49,8 +50,16 @@ def safe_context_copy(self):
 
 BaseContext.__copy__ = safe_context_copy
 
-BASE_DIR = Path(__file__).resolve().parent.parent
-PLUGINS_DIR = BASE_DIR / "plugins"
+STRIPE_PUBLISHABLE_KEY = os.getenv('STRIPE_PUBLISHABLE_KEY')
+STRIPE_SECRET_KEY = os.getenv('STRIPE_SECRET_KEY')
+STRIPE_WEBHOOK_SECRET = os.getenv('STRIPE_WEBHOOK_SECRET')
+
+stripe.api_key = STRIPE_SECRET_KEY
+
+
+def load_dotenv(dotenv_path: Path) -> None:
+    if not dotenv_path.exists():
+        return
 
 
 from dotenv import load_dotenv
@@ -219,16 +228,7 @@ INSTALLED_APPS = [
     "waffle",
     "apps.plugins.apps.PluginsConfig",
 ]
-# Redis Cache
-CACHES = {
-    "default": {
-        "BACKEND": "django_redis.cache.RedisCache",
-        "LOCATION": "redis://127.0.0.1:6379/1",
-        "OPTIONS": {
-            "CLIENT_CLASS": "django_redis.client.DefaultClient",
-        },
-    }
-}
+# Cache backends are selected with channel layers below (Redis or LocMem fallback).
 
 # Rate Limit
 DEFAULT_RATE = "100/hour"
@@ -307,7 +307,7 @@ for db_name, db_config in DATABASES.items():
     if db_config.get("ENGINE") == "django.db.backends.postgresql":
         db_config["ENGINE"] = "django_prometheus.db.backends.postgresql"
         # Disable server-side cursors to avoid issues with PgBouncer transaction pooling
-        db_config.setdefault("OPTIONS", {})["DISABLE_SERVER_SIDE_CURSORS"] = True
+        db_config["DISABLE_SERVER_SIDE_CURSORS"] = True
     elif "sqlite3" in db_config.get("ENGINE", ""):
         db_config["ENGINE"] = "django_prometheus.db.backends.sqlite3"
 
@@ -555,78 +555,18 @@ CONTENT_SECURITY_POLICY = {
 }
 
 # ──────────────────────────────────────────
-# Redis Availability and Configuration (Dynamic Fallbacks)
+# Redis / Channels (graceful fallback when Redis is down)
 # ──────────────────────────────────────────
-import socket
+from config.channel_layers import build_channel_and_cache_config, is_redis_available
 
-
-def is_redis_available(url):
-    try:
-        if not url:
-            return False
-        clean_url = url.replace("rediss://", "").replace("redis://", "")
-        host_port = clean_url.split("/")[0]
-        if "@" in host_port:
-            host_port = host_port.split("@")[1]
-        if ":" in host_port:
-            host, port = host_port.split(":")
-            port = int(port)
-        else:
-            host = host_port
-            port = 6379
-
-        # Test connection with a very short timeout
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.settimeout(0.5)
-        s.connect((host, port))
-        s.close()
-        return True
-    except Exception:
-        return False
-
-
-# Candidates check: use REDIS_URL if set, or default to standard local redis host for check
 ENV_REDIS_URL = os.getenv("REDIS_URL", "")
-CHECK_REDIS_URL = ENV_REDIS_URL or "redis://127.0.0.1:6379"
+CHECK_REDIS_URL = ENV_REDIS_URL or "redis://127.0.0.1:6379/0"
 
-if is_redis_available(CHECK_REDIS_URL):
-    REDIS_URL = CHECK_REDIS_URL
-    CHANNEL_LAYERS = {
-        "default": {
-            "BACKEND": "channels_redis.core.RedisChannelLayer",
-            "CONFIG": {
-                "hosts": [REDIS_URL],
-                "capacity": 1500,
-                "expiry": 10,
-            },
-        },
-    }
-    CACHES = {
-        "default": {
-            "BACKEND": "django.core.cache.backends.redis.RedisCache",
-            "LOCATION": REDIS_URL,
-        },
-        "l1_memory": {
-            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
-            "LOCATION": "atelier-l1-cache",
-        },
-    }
-else:
-    CHANNEL_LAYERS = {
-        "default": {
-            "BACKEND": "channels.layers.InMemoryChannelLayer",
-        },
-    }
-    CACHES = {
-        "default": {
-            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
-            "LOCATION": "atelier-unique-cache",
-        },
-        "l1_memory": {
-            "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
-            "LOCATION": "atelier-l1-cache",
-        },
-    }
+_channel_cfg = build_channel_and_cache_config()
+REDIS_URL = _channel_cfg.get("REDIS_URL") or CHECK_REDIS_URL
+CHANNEL_LAYERS = _channel_cfg["CHANNEL_LAYERS"]
+CACHES = _channel_cfg["CACHES"]
+CHANNEL_LAYER_BACKEND = _channel_cfg["CHANNEL_LAYER_BACKEND"]
 
 CELERY_BEAT_SCHEDULE = {
     "sync-oss-issues-hourly": {

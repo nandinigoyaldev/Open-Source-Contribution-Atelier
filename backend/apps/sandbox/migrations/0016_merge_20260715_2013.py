@@ -6,9 +6,8 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('sandbox', '0015_collabsession_allowed_users_collabsession_project'),
-        ('sandbox', '0015_maintainerscenario_maintainerevaluation'),
+        ("sandbox", "0015_collabsession_allowed_users_collabsession_project"),
+        ("sandbox", "0015_maintainerscenario_maintainerevaluation"),
     ]
 
-    operations = [
-    ]
+    operations = []

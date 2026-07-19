@@ -32,6 +32,14 @@ vi.mock("../features/ui/ToastContext", () => ({
   useToast: () => ({ addToast: vi.fn() }),
 }));
 
+vi.mock("../features/notifications/NotificationContext", () => ({
+  useNotifications: () => ({
+    triggerConfetti: vi.fn(),
+    notifications: [],
+    unreadCount: 0,
+  }),
+}));
+
 // Mock Monaco editor and its CSS imports
 vi.mock("@monaco-editor/react", () => ({
   __esModule: true,
@@ -104,9 +112,10 @@ describe("LessonPage Gamified Hint Module", () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } as any);
 
-    vi.spyOn(lessonsModule, "fetchLessonsApi").mockResolvedValue([
-      customLesson,
-    ]);
+    vi.spyOn(lessonsModule, "fetchLessonsApiResult").mockResolvedValue({
+      lessons: [customLesson],
+      fromApi: true,
+    });
     vi.spyOn(lessonsModule, "fetchLessonContent").mockResolvedValue(
       "Mock markdown",
     );

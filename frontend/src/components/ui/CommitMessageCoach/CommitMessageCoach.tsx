@@ -13,7 +13,7 @@ import {
   buildPrChecklistTemplate,
   COMMIT_TYPE_HINTS,
   ALLOWED_TYPES,
-} from "../../lib/conventionalCommitCoach";
+} from "../../../lib/conventionalCommitCoach";
 
 export type CommitMessageCoachProps = {
   /** Controlled value — when provided, parent owns the message */

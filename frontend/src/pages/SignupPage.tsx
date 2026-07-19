@@ -6,8 +6,8 @@ import { useAuth } from "../features/auth/AuthContext";
 import { useGoogleLogin } from "@react-oauth/google";
 import { GitBranch } from "lucide-react";
 import PasswordStrengthMeter from "../components/PasswordStrengthMeter";
-import { useAppDispatch } from "../store/hooks";
-import { setDemoUser } from "../features/auth/authSlice";
+import { DemoLoginButton } from "../features/auth/DemoLoginButton";
+import { formatGoogleOAuthError } from "../lib/googleOAuth";
 
 const githubAuthUrl =
   import.meta.env?.VITE_GITHUB_OAUTH_URL ||
@@ -24,7 +24,6 @@ export function SignupPage() {
   const [error, setError] = useState("");
   const navigate = useNavigate();
   const { login } = useAuth();
-  const dispatch = useAppDispatch();
 
   const handleGithubSignIn = () => {
     window.location.href = githubAuthUrl;
@@ -42,14 +41,12 @@ export function SignupPage() {
         login(tokens);
         sessionStorage.setItem("justLoggedIn", "true");
         navigate("/dashboard");
-      } catch {
-        dispatch(setDemoUser());
-        navigate("/dashboard");
+      } catch (err: unknown) {
+        setError(formatGoogleOAuthError(err, "backend"));
       }
     },
     onError: () => {
-      dispatch(setDemoUser());
-      navigate("/dashboard");
+      setError(formatGoogleOAuthError(undefined, "popup"));
     },
   });
 
@@ -140,16 +137,10 @@ export function SignupPage() {
           <span className="relative">Sign up with GitHub</span>
         </button>
 
-        <button
-          type="button"
-          onClick={() => {
-            dispatch(setDemoUser());
-            navigate("/dashboard");
-          }}
+        <DemoLoginButton
+          label="🚀 Demo Mode (No Signup Needed)"
           className="w-full bg-green-200 border-4 border-black rounded-2xl p-4 flex items-center justify-center gap-3 font-bold hover:bg-green-300 transition-colors shadow-card-sm active:translate-y-1 active:shadow-none text-sm cursor-pointer"
-        >
-          🚀 Demo Mode (No Signup Needed)
-        </button>
+        />
 
         <div className="flex items-center gap-4 my-6">
           <div className="flex-1 h-1 bg-black"></div>

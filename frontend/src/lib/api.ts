@@ -642,3 +642,67 @@ export async function exportHeatmapCSV(activityType?: string): Promise<void> {
   window.URL.revokeObjectURL(downloadUrl);
   document.body.removeChild(a);
 }
+
+// ---------------------- COLLAB SESSION API ----------------------
+
+export interface CollabSession {
+  id: string;
+  project: string | null;
+  allowed_users: number[];
+  is_active: boolean;
+  created_at: string;
+}
+
+export interface CodeReviewComment {
+  id: string;
+  thread: string;
+  user: {
+    id: number;
+    username: string;
+  };
+  content: string;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface CodeReviewThread {
+  id: string;
+  session: string;
+  line_number: number;
+  is_resolved: boolean;
+  comments: CodeReviewComment[];
+  created_at: string;
+  updated_at: string;
+}
+
+export async function createCollabSession(
+  projectId: string,
+): Promise<CollabSession> {
+  return fetchApi("/sandbox/collab-sessions/", {
+    method: "POST",
+    body: JSON.stringify({ project: projectId }),
+  });
+}
+
+export async function joinCollabSession(
+  sessionId: string,
+): Promise<CollabSession> {
+  return fetchApi(`/sandbox/collab-sessions/${sessionId}/join/`, {
+    method: "POST",
+  });
+}
+
+export async function deleteCollabSession(sessionId: string): Promise<void> {
+  return fetchApi(`/sandbox/collab-sessions/${sessionId}/`, {
+    method: "DELETE",
+  });
+}
+
+export async function fetchReviewThreads(
+  sessionId: string,
+): Promise<CodeReviewThread[]> {
+  return fetchApi(`/sandbox/review-threads/?session=${sessionId}`, {
+    method: "GET",
+  });
+}
+

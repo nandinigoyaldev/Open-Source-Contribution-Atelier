@@ -8,19 +8,29 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('sandbox', '0014_workspacesnapshot_snapshotfile_and_more'),
+        ("sandbox", "0014_workspacesnapshot_snapshotfile_and_more"),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='collabsession',
-            name='allowed_users',
-            field=models.ManyToManyField(blank=True, related_name='allowed_collab_sessions', to=settings.AUTH_USER_MODEL),
+            model_name="collabsession",
+            name="allowed_users",
+            field=models.ManyToManyField(
+                blank=True,
+                related_name="allowed_collab_sessions",
+                to=settings.AUTH_USER_MODEL,
+            ),
         ),
         migrations.AddField(
-            model_name='collabsession',
-            name='project',
-            field=models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.CASCADE, related_name='collab_sessions', to='sandbox.project'),
+            model_name="collabsession",
+            name="project",
+            field=models.ForeignKey(
+                blank=True,
+                null=True,
+                on_delete=django.db.models.deletion.CASCADE,
+                related_name="collab_sessions",
+                to="sandbox.project",
+            ),
         ),
     ]

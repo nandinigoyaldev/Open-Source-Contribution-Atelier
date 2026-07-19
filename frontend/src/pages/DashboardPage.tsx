@@ -2,31 +2,46 @@ import { AdminDashboard } from "../components/dashboard/AdminDashboard";
 import { useAuth } from "../features/auth/AuthContext";
 import { useQuery } from "@tanstack/react-query";
 import { fetchApi } from "../lib/api";
-import { mockStudentStats, mockLessonQueue, getTipOfTheDay } from "../lib/dashboardMockData";
+import { mockStudentStats, getTipOfTheDay } from "../lib/dashboardMockData";
 import { Link } from "react-router-dom";
 import SkeletonAdminDashboard from "../components/ui/skeletons/SkeletonAdminDashboard";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { useUserProgress } from "../hooks/useUserProgress";
 import { useBookmarks } from "../hooks/useBookmarks";
+import { useOfflineReadyLessons } from "../hooks/useOfflineReadyLessons";
+import { useCurriculumLessons } from "../hooks/useCurriculum";
 import { BADGES } from "../constants/badges";
 import { Flame, ArrowRight, Bookmark, Lock, BookOpen, Award, Sparkles } from "lucide-react";
+import { AvailableOfflineBadge } from "../components/ui/AvailableOfflineBadge";
+import { CARD_FOCUS_RING } from "../lib/a11yFocus";
 
 export function DashboardPage() {
   const { user } = useAuth();
-  const { progress, isLoading: progressLoading, isLessonCompleted } = useUserProgress();
+  const { isLoading: progressLoading, isLessonCompleted } = useUserProgress();
   const { bookmarks, toggleBookmark } = useBookmarks();
 
-  const { data: lessonsData = [], isLoading: lessonsLoading } = useQuery({
-    queryKey: ["dashboardLessons"],
-    queryFn: () =>
-      fetch("/content/curriculum.json")
-        .then((r) => r.json())
-        .then((json: { modules: { lessons: { slug: string; title: string; description: string }[] }[] }) =>
-          json.modules.flatMap((m) => m.lessons.map((l) => ({ ...l, filePath: "" }))),
-        )
-        .catch(() => []),
-  });
-  const lessons = lessonsData;
+  const { lessons, isLoading: lessonsLoading } = useCurriculumLessons();
+
+  const lessonRefs = useMemo(
+    () =>
+      lessons.map((l) => ({
+        slug: l.slug,
+        filePath: l.filePath,
+      })),
+    [lessons],
+  );
+  const { isOfflineReady } = useOfflineReadyLessons(lessonRefs);
+
+  const lessonQueue = useMemo(() => {
+    const incomplete = lessons.filter((l) => !isLessonCompleted(l.slug));
+    return incomplete.slice(0, 3).map((l, index) => ({
+      number: index + 1,
+      title: l.title,
+      description: l.description,
+      slug: l.slug,
+      filePath: l.filePath,
+    }));
+  }, [lessons, isLessonCompleted]);
 
   const { isLoading: contributorLoading } = useQuery({
     queryKey: ["contributorStats"],
@@ -42,20 +57,12 @@ export function DashboardPage() {
   const [showProgressReport, setShowProgressReport] = useState(false);
 
   const stats = mockStudentStats;
-  const lessonQueue = mockLessonQueue;
 
   const completedLessonsCount = lessons.filter((l) => isLessonCompleted(l.slug)).length;
   const totalLessonsCount = lessons.length;
   const completionPercentage = totalLessonsCount > 0 ? Math.round((completedLessonsCount / totalLessonsCount) * 100) : 0;
 
-  const lastLesson = useMemo(() => {
-    if (!lessons.length) return null;
-    const incomplete = lessons.find((l) => !isLessonCompleted(l.slug));
-    if (incomplete) {
-      return { slug: incomplete.slug, title: incomplete.title, progress: 0 };
-    }
-    return null;
-  }, [lessons, isLessonCompleted]);
+
 
   const { data: certificateData } = useQuery({
     queryKey: ["userCertificate"],
@@ -123,7 +130,7 @@ export function DashboardPage() {
       </section>
 
       {/* Next Lesson + Stats Grid */}
-      <section className="grid gap-6 md:grid-cols-[1.5fr_1fr]">
+      <section className="grid grid-cols-1 gap-6 md:grid-cols-[1.5fr_1fr]">
         {/* Next Lesson CTA */}
         <div className="rounded-[2rem] border-4 border-black bg-white dark:bg-[#1f1c18] dark:border-[#2e2924] p-6 shadow-card hover:-translate-y-0.5 transition-transform">
           <div className="flex items-start gap-4">
@@ -142,9 +149,14 @@ export function DashboardPage() {
               </p>
               <Link
                 to={lessonQueue[0] ? `/lessons/${lessonQueue[0].slug}` : "/content"}
-                className="inline-flex items-center gap-2 rounded-full bg-black text-white px-6 py-3 font-black text-sm border-2 border-black hover:bg-gray-800 transition-colors dark:bg-white dark:text-black dark:hover:bg-gray-200"
+                aria-label={
+                  lessonQueue[0]
+                    ? `Start lesson: ${lessonQueue[0].title}`
+                    : "Browse all lessons"
+                }
+                className={`inline-flex items-center gap-2 rounded-full bg-black text-white px-6 py-3 font-black text-sm border-2 border-black hover:bg-gray-800 transition-colors dark:bg-white dark:text-black dark:hover:bg-gray-200 ${CARD_FOCUS_RING}`}
               >
-                Start Lesson <ArrowRight size={16} />
+                Start Lesson <ArrowRight size={16} aria-hidden="true" />
               </Link>
             </div>
           </div>
@@ -196,23 +208,37 @@ export function DashboardPage() {
             <Link
               key={lesson.slug}
               to={`/lessons/${lesson.slug}`}
-              className="flex items-center justify-between p-5 rounded-lg border-4 border-black bg-gray-50 dark:bg-[#151411] dark:border-[#2e2924] shadow-card-sm hover:shadow-card hover:-translate-y-0.5 transition-all"
+              aria-label={`Open queued lesson ${lesson.number}: ${lesson.title}`}
+              className={`flex items-center justify-between p-5 rounded-lg border-4 border-black bg-gray-50 dark:bg-[#151411] dark:border-[#2e2924] shadow-card-sm hover:shadow-card hover:-translate-y-0.5 transition-all ${CARD_FOCUS_RING}`}
             >
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-4 min-w-0">
                 <span className="w-8 h-8 rounded-full bg-black text-white font-black text-sm flex items-center justify-center flex-shrink-0 dark:bg-[#2e2924]">
                   {lesson.number}
                 </span>
-                <div>
-                  <h3 className="font-black text-lg dark:text-[#f0ebe2]">{lesson.title}</h3>
-                  <p className="text-sm font-bold text-gray-500 dark:text-[#c4bbae]">{lesson.description}</p>
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="font-black text-lg dark:text-[#f0ebe2]">
+                      {lesson.title}
+                    </h3>
+                    {isOfflineReady(lesson.slug) && <AvailableOfflineBadge />}
+                  </div>
+                  <p className="text-sm font-bold text-gray-500 dark:text-[#c4bbae]">
+                    {lesson.description}
+                  </p>
                 </div>
               </div>
               <ArrowRight className="w-5 h-5 text-gray-400 flex-shrink-0" />
             </Link>
           ))}
+          {lessonQueue.length === 0 && (
+            <p className="text-sm font-bold text-gray-500 dark:text-[#c4bbae] text-center py-4">
+              All queued lessons complete — browse the full curriculum below.
+            </p>
+          )}
           <Link
             to="/content"
-            className="block text-center rounded-lg border-4 border-black bg-gray-100 dark:bg-[#151411] dark:border-[#2e2924] py-3 font-black text-sm hover:-translate-y-0.5 transition-all dark:text-[#f0ebe2]"
+            aria-label="Browse all curriculum lessons"
+            className={`block text-center rounded-lg border-4 border-black bg-gray-100 dark:bg-[#151411] dark:border-[#2e2924] py-3 font-black text-sm hover:-translate-y-0.5 transition-all dark:text-[#f0ebe2] ${CARD_FOCUS_RING}`}
           >
             Browse All Lessons →
           </Link>
@@ -231,7 +257,8 @@ export function DashboardPage() {
               <Link
                 key={bookmark.lesson_slug}
                 to={`/lessons/${bookmark.lesson_slug}`}
-                className="flex flex-col gap-2 p-5 rounded-lg border-4 border-black bg-white dark:bg-[#1f1c18] dark:border-[#2e2924] shadow-card-sm hover:shadow-card hover:-translate-y-0.5 transition-all"
+                aria-label={`Open bookmarked lesson: ${bookmark.lesson_title}`}
+                className={`flex flex-col gap-2 p-5 rounded-lg border-4 border-black bg-white dark:bg-[#1f1c18] dark:border-[#2e2924] shadow-card-sm hover:shadow-card hover:-translate-y-0.5 transition-all ${CARD_FOCUS_RING}`}
               >
                 <div className="flex justify-between items-start mb-2">
                   <h3 className="font-black text-lg leading-tight dark:text-[#f0ebe2] pr-4">
@@ -239,7 +266,8 @@ export function DashboardPage() {
                   </h3>
                   <button
                     type="button"
-                    aria-label="Remove bookmark"
+                    aria-label={`Remove bookmark for ${bookmark.lesson_title}`}
+                    className={`rounded-md p-1 ${CARD_FOCUS_RING}`}
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
@@ -249,7 +277,7 @@ export function DashboardPage() {
                       });
                     }}
                   >
-                    <Bookmark className="fill-primary text-primary hover:opacity-60 transition-opacity" size={20} />
+                    <Bookmark className="fill-primary text-primary hover:opacity-60 transition-opacity" size={20} aria-hidden="true" />
                   </button>
                 </div>
                 <div className="flex justify-between items-center mt-auto pt-4">
@@ -338,15 +366,17 @@ export function DashboardPage() {
       <section className="flex gap-4 justify-center">
         {completionPercentage === 100 && (
           <button
+            type="button"
             onClick={() => setShowCertificate(true)}
-            className="rounded-full bg-green-500 text-white border-4 border-black px-8 py-3 font-black text-sm shadow-card-sm hover:-translate-y-0.5 transition-all"
+            className={`rounded-full bg-green-500 text-white border-4 border-black px-8 py-3 font-black text-sm shadow-card-sm hover:-translate-y-0.5 transition-all ${CARD_FOCUS_RING}`}
           >
             🎓 View Certificate
           </button>
         )}
         <button
+          type="button"
           onClick={() => setShowProgressReport(true)}
-          className="rounded-full bg-white dark:bg-[#1f1c18] border-4 border-black px-8 py-3 font-black text-sm shadow-card-sm hover:-translate-y-0.5 transition-all dark:text-[#f0ebe2]"
+          className={`rounded-full bg-white dark:bg-[#1f1c18] border-4 border-black px-8 py-3 font-black text-sm shadow-card-sm hover:-translate-y-0.5 transition-all dark:text-[#f0ebe2] ${CARD_FOCUS_RING}`}
         >
           📊 View Progress Report
         </button>

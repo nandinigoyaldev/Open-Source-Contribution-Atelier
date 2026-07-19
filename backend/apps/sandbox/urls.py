@@ -1,4 +1,3 @@
-
 """
 URL configuration for sandbox app.
 """
@@ -23,6 +22,8 @@ from .views import (
     CollabSessionViewSet,
     PipelineExecutionViewSet,
     ConflictScenarioViewSet,
+    ModerationScenarioViewSet,
+    LicenseScenarioViewSet,
     TriageIssueViewSet,
 )
 
@@ -40,11 +41,19 @@ router.register(
     r"snippet-collections", SnippetCollectionViewSet, basename="snippet-collection"
 )
 router.register(r"snippets", CodeSnippetViewSet, basename="snippet")
-router.register(r"maintainer-scenarios", MaintainerScenarioViewSet, basename="maintainer-scenario")
-router.register(r"maintainer-evaluations", MaintainerEvaluationViewSet, basename="maintainer-evaluation")
+router.register(
+    r"maintainer-scenarios", MaintainerScenarioViewSet, basename="maintainer-scenario"
+)
+router.register(
+    r"maintainer-evaluations",
+    MaintainerEvaluationViewSet,
+    basename="maintainer-evaluation",
+)
 router.register(r"collab-sessions", CollabSessionViewSet, basename="collab-session")
 router.register(r"pipelines", PipelineExecutionViewSet, basename="pipeline")
 router.register(r"conflict-scenarios", ConflictScenarioViewSet, basename="conflict-scenario")
+router.register(r"moderation-scenarios", ModerationScenarioViewSet, basename="moderation-scenario")
+router.register(r"license-scenarios", LicenseScenarioViewSet, basename="license-scenario")
 router.register(r"triage-issues", TriageIssueViewSet, basename="triage-issue")
 
 # ============================================================

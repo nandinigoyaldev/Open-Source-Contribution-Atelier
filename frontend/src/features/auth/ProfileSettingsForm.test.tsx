@@ -21,6 +21,7 @@ import { fetchApi } from "../../lib/api";
 
 vi.mock("../../lib/api", () => ({
   fetchApi: vi.fn(),
+  getMediaUrl: vi.fn((url) => url),
 }));
 
 beforeAll(() => {

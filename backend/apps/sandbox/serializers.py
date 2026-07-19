@@ -163,30 +163,51 @@ class WorkspaceSnapshotSerializer(serializers.ModelSerializer):
 
 from .models import MaintainerScenario, MaintainerEvaluation
 
+
 class MaintainerScenarioSerializer(serializers.ModelSerializer):
     class Meta:
         model = MaintainerScenario
-        fields = ['id', 'title', 'description', 'original_code', 'flawed_code', 'diff_content', 'required_findings', 'created_at']
-        read_only_fields = ['id', 'created_at']
+        fields = [
+            "id",
+            "title",
+            "description",
+            "original_code",
+            "flawed_code",
+            "diff_content",
+            "required_findings",
+            "created_at",
+        ]
+        read_only_fields = ["id", "created_at"]
+
 
 class MaintainerEvaluationSerializer(serializers.ModelSerializer):
     class Meta:
         model = MaintainerEvaluation
-        fields = ['id', 'scenario', 'user', 'submitted_comments', 'score', 'passed', 'created_at']
-        read_only_fields = ['id', 'user', 'created_at']
+        fields = [
+            "id",
+            "scenario",
+            "user",
+            "submitted_comments",
+            "score",
+            "passed",
+            "created_at",
+        ]
+        read_only_fields = ["id", "user", "created_at"]
 
     def create(self, validated_data):
-        validated_data['user'] = self.context['request'].user
+        validated_data["user"] = self.context["request"].user
         return super().create(validated_data)
 
 
 from .models import CollabSession, CollabSessionLog
+
 
 class CollabSessionSerializer(serializers.ModelSerializer):
     class Meta:
         model = CollabSession
         fields = ["id", "project", "allowed_users", "created_at", "is_active"]
         read_only_fields = ["id", "created_at"]
+
 
 from .models import PipelineExecution, PipelineJob, ConflictScenario, ConflictAttempt
 
@@ -255,6 +276,103 @@ class ConflictAttemptSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ["id", "user", "passed", "error_message", "created_at"]
 
+
+# ============================================================
+# FEATURE 2: TOXIC COMMUNITY DE-ESCALATION TRAINER
+# ============================================================
+
+from .models import ModerationScenario, DialogueNode, DialogueChoice, ModerationAttempt
+
+
+class DialogueChoiceSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = DialogueChoice
+        fields = ["id", "to_node_id", "text", "is_moderation_action"]
+
+
+class DialogueNodeSerializer(serializers.ModelSerializer):
+    choices = DialogueChoiceSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = DialogueNode
+        fields = ["id", "node_id", "text", "is_endpoint", "is_successful", "choices"]
+
+
+class ModerationScenarioSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ModerationScenario
+        fields = ["id", "title", "description", "initial_tension", "created_at"]
+
+
+class ModerationAttemptSerializer(serializers.ModelSerializer):
+    scenario = ModerationScenarioSerializer(read_only=True)
+    current_node = DialogueNodeSerializer(read_only=True)
+
+    class Meta:
+        model = ModerationAttempt
+        fields = [
+            "id",
+            "user",
+            "scenario",
+            "current_node",
+            "current_tension",
+            "is_completed",
+            "is_successful",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "user", "created_at", "updated_at"]
+
+
+# ============================================================
+# FEATURE 3: LICENSE & DEPENDENCY DETECTIVE
+# ============================================================
+
+from .models import LicenseScenario, DependencyDiff, LicenseAttempt
+
+
+class DependencyDiffSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = DependencyDiff
+        fields = ["id", "package_name", "package_license", "diff_text"]
+
+
+class LicenseScenarioSerializer(serializers.ModelSerializer):
+    dependencies = DependencyDiffSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = LicenseScenario
+        fields = [
+            "id",
+            "title",
+            "description",
+            "base_project_license",
+            "difficulty",
+            "created_at",
+            "dependencies",
+        ]
+
+
+class LicenseAttemptSerializer(serializers.ModelSerializer):
+    scenario = LicenseScenarioSerializer(read_only=True)
+
+    class Meta:
+        model = LicenseAttempt
+        fields = [
+            "id",
+            "user",
+            "scenario",
+            "approved",
+            "is_successful",
+            "feedback",
+            "created_at",
+        ]
+        read_only_fields = ["id", "user", "is_successful", "feedback", "created_at"]
+
+
+# ============================================================
+# FEATURE 11: ISSUE TRIAGE & LABELING MAINTAINER SCENARIO
+# ============================================================
 
 from .models import TriageIssue, TriageAttempt
 
