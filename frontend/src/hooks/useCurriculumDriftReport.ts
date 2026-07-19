@@ -1,37 +1,33 @@
-import { useEffect, useState } from "react";
+import { useMemo } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
   buildDriftReport,
   type CurriculumDriftReport,
 } from "../lib/curriculumSlugDrift";
 import { fetchLessonsApiResult } from "../lib/lessons";
+import { useCurriculum } from "./useCurriculum";
+import {
+  CURRICULUM_GC_TIME_MS,
+  CURRICULUM_STALE_TIME_MS,
+} from "../lib/curriculum";
 
-/** Load curriculum.json vs API lesson slug drift once per mount. */
+/** Curriculum vs API lesson slug drift — reuses shared curriculum cache. */
 export function useCurriculumDriftReport(): CurriculumDriftReport | null {
-  const [report, setReport] = useState<CurriculumDriftReport | null>(null);
+  const { data: curriculum } = useCurriculum();
 
-  useEffect(() => {
-    let cancelled = false;
+  const { data: lessonsResult } = useQuery({
+    queryKey: ["lessons", "apiResult"],
+    queryFn: fetchLessonsApiResult,
+    staleTime: CURRICULUM_STALE_TIME_MS,
+    gcTime: CURRICULUM_GC_TIME_MS,
+  });
 
-    Promise.all([
-      fetch("/content/curriculum.json")
-        .then((res) => (res.ok ? res.json() : null))
-        .catch(() => null),
-      fetchLessonsApiResult(),
-    ]).then(([curriculum, lessonsResult]) => {
-      if (cancelled) return;
-      setReport(
-        buildDriftReport({
-          curriculum,
-          apiLessons: lessonsResult.lessons,
-          apiAvailable: lessonsResult.fromApi,
-        }),
-      );
+  return useMemo(() => {
+    if (!curriculum || !lessonsResult) return null;
+    return buildDriftReport({
+      curriculum,
+      apiLessons: lessonsResult.lessons,
+      apiAvailable: lessonsResult.fromApi,
     });
-
-    return () => {
-      cancelled = true;
-    };
-  }, []);
-
-  return report;
+  }, [curriculum, lessonsResult]);
 }
