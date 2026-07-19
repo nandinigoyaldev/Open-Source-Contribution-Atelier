@@ -43,6 +43,27 @@ export function DashboardPage() {
     }));
   }, [lessons, isLessonCompleted]);
 
+  const lessonRefs = useMemo(
+    () =>
+      lessons.map((l) => ({
+        slug: l.slug,
+        filePath: l.filePath,
+      })),
+    [lessons],
+  );
+  const { isOfflineReady } = useOfflineReadyLessons(lessonRefs);
+
+  const lessonQueue = useMemo(() => {
+    const incomplete = lessons.filter((l) => !isLessonCompleted(l.slug));
+    return incomplete.slice(0, 3).map((l, index) => ({
+      number: index + 1,
+      title: l.title,
+      description: l.description,
+      slug: l.slug,
+      filePath: l.filePath,
+    }));
+  }, [lessons, isLessonCompleted]);
+
   const { isLoading: contributorLoading } = useQuery({
     queryKey: ["contributorStats"],
     queryFn: () => fetchApi("/dashboard/stats/", { suppressErrorToast: true, timeoutMs: 2000 }),

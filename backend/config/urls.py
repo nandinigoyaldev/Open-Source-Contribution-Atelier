@@ -1,5 +1,6 @@
 from django.contrib import admin
 from django.urls import include, path, re_path
+from django.urls import path
 from django.views.decorators.csrf import csrf_exempt
 from drf_spectacular.views import (
     SpectacularAPIView,
@@ -12,6 +13,8 @@ from apps.dashboard.views import LeaderboardView
 
 from .health_view import health_view
 from .version_view import version_view
+from .views import CheckoutSessionView
+from .webhooks import stripe_webhook
 
 urlpatterns = [
     # ── Admin ──────────────────────────────────────────────────────────────────
@@ -46,9 +49,8 @@ urlpatterns = [
     # ── Notifications & Real-time ─────────────────────────────────────────────
     path("api/notifications/", include("apps.notifications.urls")),
     path("api/dashboard/", include("apps.dashboard.urls")),
-    path("api/chat/", include("apps.chat.urls")),
-
-    # ── Search & Collaboration ────────────────────────────────────────────────
+    path('create-checkout-session/', CheckoutSessionView.as_view()),
+    path('webhook/', stripe_webhook),
     path("api/search/", include("apps.search.urls")),
     path("api/notes/", include("apps.notes.urls")),
     path("api/recommendations/", include("apps.recommendations.urls")),
