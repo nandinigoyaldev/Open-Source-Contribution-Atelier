@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import {
   Project,
   ProjectFile,
@@ -8,16 +9,18 @@ import {
   updateProjectFile,
   deleteProjectFile,
   exportWorkspaceZip,
+  createCollabSession,
 } from "../../lib/api";
 import { ProjectExplorer } from "./ProjectExplorer";
 import { CodeEditor } from "./CodeEditor";
 import { SnippetLibraryModal } from "./SnippetLibraryModal";
 import { SnapshotManagerModal } from "./SnapshotManagerModal";
-import { Library, Camera, Download } from "lucide-react";
+import { Library, Camera, Download, Users } from "lucide-react";
 import { SearchPanel } from "./SearchPanel";
 import { TerminalWorkspace } from "./Terminal";
 
 export function ProjectWorkspace() {
+  const navigate = useNavigate();
   const [project, setProject] = useState<Project | null>(null);
   const [files, setFiles] = useState<ProjectFile[]>([]);
   const [activeFileId, setActiveFileId] = useState<string | null>(null);
@@ -180,6 +183,22 @@ export function ProjectWorkspace() {
                 {activeFile.path}
               </span>
               <div id="tour-sandbox-tools" className="flex items-center gap-2">
+                <button
+                  id="collab-start-btn"
+                  onClick={async () => {
+                    if (project) {
+                      try {
+                        const session = await createCollabSession(project.id);
+                        navigate(`/collab/${session.id}`);
+                      } catch (err) {
+                        console.error("Failed to start collaboration", err);
+                      }
+                    }
+                  }}
+                  className="flex items-center gap-2 px-2 py-1 text-xs font-bold text-gray-300 border border-gray-600 rounded hover:bg-gray-700 transition-colors"
+                >
+                  <Users className="w-3.5 h-3.5 text-indigo-400" /> Start Collab
+                </button>
                 <button
                   onClick={async () => {
                     if (project) {

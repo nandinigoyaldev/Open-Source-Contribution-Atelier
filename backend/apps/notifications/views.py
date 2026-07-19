@@ -3,10 +3,29 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.pagination import PageNumberPagination
 
-from .models import Notification, PushSubscription
+from .models import Notification, NotificationPreference, PushSubscription
 from .serializers import NotificationSerializer, PushSubscriptionSerializer
 
-from .models import NotificationPreference
+
+def _prefs_payload(prefs: NotificationPreference) -> dict:
+    return {
+        "email": prefs.email_enabled,
+        "in_app": prefs.in_app_enabled,
+        "websocket": prefs.websocket_enabled,
+    }
+
+
+def _coerce_bool(value, default: bool) -> bool:
+    if value is None:
+        return default
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return bool(value)
+    if isinstance(value, str):
+        return value.strip().lower() in ("1", "true", "yes", "on")
+    return default
+
 
 
 class NotificationPagination(PageNumberPagination):
@@ -16,18 +35,17 @@ class NotificationPagination(PageNumberPagination):
 
 
 class NotificationPrefsView(APIView):
+    """GET/PUT /api/notifications/prefs/ — channel delivery preferences."""
+
     permission_classes = [permissions.IsAuthenticated]
-    
+
     def get(self, request):
         prefs, _ = NotificationPreference.objects.get_or_create(user=request.user)
-        return Response({
-            'email': prefs.email_enabled,
-            'in_app': prefs.in_app_enabled,
-            'websocket': prefs.websocket_enabled,
-        })
-    
+        return Response(_prefs_payload(prefs))
+
     def put(self, request):
         prefs, _ = NotificationPreference.objects.get_or_create(user=request.user)
+<<<<<<< HEAD
         prefs.email_enabled = request.data.get('email', prefs.email_enabled)
         prefs.in_app_enabled = request.data.get('in_app', prefs.in_app_enabled)
         prefs.websocket_enabled = request.data.get('websocket', prefs.websocket_enabled)
@@ -37,6 +55,21 @@ class NotificationPrefsView(APIView):
             'in_app': prefs.in_app_enabled,
             'websocket': prefs.websocket_enabled,
         })
+=======
+        prefs.email_enabled = _coerce_bool(
+            request.data.get("email"), prefs.email_enabled
+        )
+        prefs.in_app_enabled = _coerce_bool(
+            request.data.get("in_app"), prefs.in_app_enabled
+        )
+        prefs.websocket_enabled = _coerce_bool(
+            request.data.get("websocket"), prefs.websocket_enabled
+        )
+        prefs.save(
+            update_fields=["email_enabled", "in_app_enabled", "websocket_enabled"]
+        )
+        return Response(_prefs_payload(prefs))
+>>>>>>> main
 
     def patch(self, request):
         return self.put(request)

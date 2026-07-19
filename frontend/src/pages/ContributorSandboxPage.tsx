@@ -233,15 +233,15 @@ export function ContributorSandboxPage() {
                   onSubmit={handleCommand}
                   className="mt-4 flex items-center border-t border-green-900 pt-2"
                 >
-                  <span className="text-green-500 font-black mr-2">$</span>
-                  <input
-                    type="text"
-                    value={terminalInput}
-                    onChange={(e) => setTerminalInput(e.target.value)}
-                    className="bg-transparent border-none outline-none text-green-400 font-mono w-full focus:ring-0"
-                    placeholder="Type clone..."
-                    autoFocus
-                  />
+                <span className="text-green-500 font-black mr-2">$</span>
+                <input
+                  type="text"
+                  value={terminalInput}
+                  onChange={(e) => setTerminalInput(e.target.value)}
+                  className="bg-transparent border-none outline-none text-green-400 font-mono w-full focus:ring-0 touch-target-min py-2"
+                  placeholder="Type clone..."
+                  autoFocus
+                />
                 </form>
               </div>
 
@@ -258,7 +258,7 @@ export function ContributorSandboxPage() {
                     );
                     setTimeout(() => setCurrentStep("fix"), 1500);
                   }}
-                  className="px-4 py-2 border-2 border-black bg-surface-low dark:bg-[#151411] hover:bg-accent font-black rounded-lg transition-colors text-sm"
+                  className="px-4 py-2 border-2 border-black bg-surface-low dark:bg-[#151411] hover:bg-accent font-black rounded-lg transition-colors text-sm touch-target-min inline-flex items-center justify-center"
                 >
                   Skip Typing / Auto-Run ⚡
                 </button>
@@ -320,14 +320,14 @@ export function ContributorSandboxPage() {
               <div className="flex justify-between items-center mt-6">
                 <button
                   onClick={() => setCurrentStep("setup")}
-                  className="px-4 py-2 border-2 border-black hover:bg-surface-low rounded-lg font-black text-sm"
+                  className="px-4 py-2 border-2 border-black hover:bg-surface-low rounded-lg font-black text-sm touch-target-min inline-flex items-center justify-center"
                 >
                   Back
                 </button>
                 <button
                   disabled={selectedFix === null}
                   onClick={handleFixSubmit}
-                  className="px-6 py-3 bg-black text-white dark:bg-[#ffc658] dark:text-black hover:bg-accent hover:text-black font-black rounded-xl transition-all shadow-card flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-6 py-3 bg-black text-white dark:bg-[#ffc658] dark:text-black hover:bg-accent hover:text-black font-black rounded-xl transition-all shadow-card flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed touch-target-min inline-flex items-center justify-center"
                 >
                   Submit Fix <ArrowRight size={16} />
                 </button>
@@ -389,14 +389,14 @@ export function ContributorSandboxPage() {
               <div className="flex justify-between items-center mt-6">
                 <button
                   onClick={() => setCurrentStep("fix")}
-                  className="px-4 py-2 border-2 border-black hover:bg-surface-low rounded-lg font-black text-sm"
+                  className="px-4 py-2 border-2 border-black hover:bg-surface-low rounded-lg font-black text-sm touch-target-min inline-flex items-center justify-center"
                 >
                   Back
                 </button>
                 <button
                   disabled={!commitMsg.trim() || isLinterRunning}
                   onClick={startLinterRun}
-                  className="px-6 py-3 bg-black text-white dark:bg-[#ffc658] dark:text-black hover:bg-accent hover:text-black font-black rounded-xl transition-all shadow-card flex items-center gap-2 disabled:opacity-50"
+                  className="px-6 py-3 bg-black text-white dark:bg-[#ffc658] dark:text-black hover:bg-accent hover:text-black font-black rounded-xl transition-all shadow-card flex items-center gap-2 disabled:opacity-50 touch-target-min inline-flex items-center justify-center"
                 >
                   Run Code Checks 🛠️
                 </button>
@@ -479,7 +479,7 @@ export function ContributorSandboxPage() {
               <div className="flex justify-end gap-3 mt-6">
                 <button
                   onClick={() => setCurrentStep("success")}
-                  className="px-6 py-3 bg-green-500 text-white hover:bg-green-600 font-black rounded-xl transition-all shadow-card flex items-center gap-2"
+                  className="px-6 py-3 bg-green-500 text-white hover:bg-green-600 font-black rounded-xl transition-all shadow-card flex items-center gap-2 touch-target-min inline-flex items-center justify-center"
                 >
                   Merge PR & Unlock Badge! 🏆
                 </button>
@@ -531,7 +531,7 @@ export function ContributorSandboxPage() {
               <div className="flex justify-center gap-4 pt-4">
                 <button
                   onClick={resetAll}
-                  className="px-4 py-2 border-2 border-black hover:bg-surface-low rounded-lg font-black text-sm flex items-center gap-1.5"
+                  className="px-4 py-2 border-2 border-black hover:bg-surface-low rounded-lg font-black text-sm flex items-center gap-1.5 touch-target-min inline-flex items-center justify-center"
                 >
                   <RotateCcw size={14} /> Restart Simulator
                 </button>

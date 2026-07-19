@@ -1,7 +1,9 @@
+# Make this a package
 import time
 import threading
 from asgiref.sync import sync_to_async
 from django.core.cache import cache
+from .request_id import RequestIdMiddleware
 
 class WebSocketRateLimitMiddleware:
     """

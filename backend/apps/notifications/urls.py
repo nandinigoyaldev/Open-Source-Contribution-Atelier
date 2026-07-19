@@ -4,6 +4,7 @@ from .views import (
     MarkAllReadView,
     MarkOneReadView,
     NotificationListView,
+    NotificationPrefsView,
     SubscribePushView,
     UnsubscribePushView,
     NotificationPrefsView,
@@ -11,6 +12,7 @@ from .views import (
 
 urlpatterns = [
     path("", NotificationListView.as_view(), name="notification-list"),
+    path("prefs/", NotificationPrefsView.as_view(), name="notification-prefs"),
     path("mark-all-read/", MarkAllReadView.as_view(), name="notification-mark-all"),
     path("<int:pk>/read/", MarkOneReadView.as_view(), name="notification-mark-one"),
     path("<int:pk>/mark-read/", MarkOneReadView.as_view(), name="notification-mark-read"),
