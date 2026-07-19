@@ -43,7 +43,10 @@ class NotificationPreference(models.Model):
     email_enabled = models.BooleanField(default=True)
     in_app_enabled = models.BooleanField(default=True)
     websocket_enabled = models.BooleanField(default=True)
-  
+
+    def __str__(self):
+        return f"NotificationPreference(user={self.user_id})"
+ 
 
 class PushSubscription(models.Model):
     user = models.ForeignKey(

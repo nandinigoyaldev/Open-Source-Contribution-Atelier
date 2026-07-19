@@ -175,7 +175,6 @@ const MergeConflictScenarioBuilderPage = lazy(() =>
     default: module.MergeConflictScenarioBuilderPage,
   })),
 );
-
 /*
  * These pages use default exports, so they can be passed directly
  * to React.lazy().
@@ -436,6 +435,7 @@ export function AppRouter() {
 
                   <TerminalReplay
                     sessionName="Git Tutorial Replay"
+                    sharePathname="/sandbox"
                     commands={[
                       {
                         command: "git init",

@@ -9,6 +9,8 @@ import { useStreak } from "../hooks/useStreak";
 import { useEarnedBadges } from "../hooks/useEarnedBadges";
 import { computeShareStats } from "../lib/learningPathShareCard";
 import { LearningPathShareCard } from "../components/LearningPathShareCard";
+import { CurriculumDriftSummaryBanner } from "../components/ui/CurriculumDriftBanner";
+import { useCurriculumDriftReport } from "../hooks/useCurriculumDriftReport";
 
 interface ModuleData {
   id: string;
@@ -31,6 +33,7 @@ export const LearningPathPage: React.FC = () => {
   const { user } = useAuth();
   const { streakData, isLoading: streakLoading } = useStreak();
   const { earnedBadges, isLessonsLoading } = useEarnedBadges();
+  const driftReport = useCurriculumDriftReport();
 
   const { data: rawData, isLoading, error } = useQuery<LearningPathResponse>({
     queryKey: ["learningPath"],
@@ -77,6 +80,8 @@ export const LearningPathPage: React.FC = () => {
         </Link>
         <h1 className="text-3xl font-black">Personalized Learning Path</h1>
       </div>
+
+      {driftReport && <CurriculumDriftSummaryBanner report={driftReport} />}
 
       <LearningPathShareCard
         stats={shareStats}

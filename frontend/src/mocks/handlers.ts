@@ -108,4 +108,21 @@ export const handlers = [
   http.post(matchUrl("/api/notifications/mark-all-read/"), () => {
     return HttpResponse.json({ marked_read: 1 });
   }),
+
+  http.get(matchUrl("/api/notifications/prefs/"), () => {
+    return HttpResponse.json({
+      email: true,
+      in_app: true,
+      websocket: true,
+    });
+  }),
+
+  http.put(matchUrl("/api/notifications/prefs/"), async ({ request }) => {
+    const body = (await request.json()) as Record<string, unknown>;
+    return HttpResponse.json({
+      email: Boolean(body.email ?? true),
+      in_app: Boolean(body.in_app ?? true),
+      websocket: Boolean(body.websocket ?? true),
+    });
+  }),
 ];

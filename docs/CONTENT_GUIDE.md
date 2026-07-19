@@ -51,6 +51,18 @@ To add a new lesson or create a module:
 2. **Create the Markdown file**:
    Create the corresponding markdown file at the path listed in the `"filePath"` parameter. In this case: `frontend/public/content/module-2/git-stash-basics.md`.
 
+3. **Keep API seeds in sync** (important):
+   Static `curriculum.json` and Django `Lesson` rows (from `seed_lessons`) can drift. After adding or renaming a slug, run:
+
+   ```bash
+   cd backend
+   python manage.py check_curriculum_slugs
+   # optional CI-style gate:
+   python manage.py check_curriculum_slugs --fail-on-drift
+   ```
+
+   The lesson UI soft-warns when a curriculum slug is missing from the API; reading still works.
+
 ---
 
 ## Part 2: How to Add Quizzes

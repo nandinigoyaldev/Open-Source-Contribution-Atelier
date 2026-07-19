@@ -8,8 +8,6 @@ Adapt the sender models to match the actual models in apps/
 
 import logging
 
-from asgiref.sync import async_to_sync
-from channels.layers import get_channel_layer
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 from django_q.tasks import async_task
@@ -19,26 +17,31 @@ from .serializers import NotificationSerializer
 
 logger = logging.getLogger(__name__)
 
-channel_layer = get_channel_layer()
-
 
 def _push_notification(notification: Notification):
     """Send a notification object to the user's WebSocket group."""
+    from apps.core.channel_safety import safe_group_send_sync
+
     data = NotificationSerializer(notification).data
     group_name = f"notifications_{notification.recipient_id}"  # type: ignore
-    try:
-        async_to_sync(channel_layer.group_send)(  # type: ignore
-            group_name,
-            {
-                "type": "send_notification",  # matches consumer method
-                "notification": data,
-            },
-        )
+    pushed = safe_group_send_sync(
+        group_name,
+        {
+            "type": "send_notification",  # matches consumer method
+            "notification": data,
+        },
+    )
+    if pushed:
         logger.info(
-            "Pushed notification id=%s to group=%s", notification.id, group_name  # type: ignore
+            "Pushed notification id=%s to group=%s",
+            notification.id,  # type: ignore
+            group_name,
         )
-    except Exception as exc:
-        logger.error("Failed to push notification: %s", exc)
+    else:
+        logger.warning(
+            "Skipped WS push for notification id=%s (channel layer unavailable)",
+            notification.id,  # type: ignore
+        )
 
     # Dispatch web push notification asynchronously
     try:

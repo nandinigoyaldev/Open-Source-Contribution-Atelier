@@ -80,16 +80,15 @@ def resolve_tag_with_fallback(tag: str, supported: set[str]) -> str | None:
 
 
 @lru_cache(maxsize=1024)
-def resolve_locale(accept_language_header: str) -> str:
+def _resolve_locale_cached(
+    accept_language_header: str, default_lang_normalized: str, supported_tuple: tuple
+) -> str:
     """
-    Resolves the best supported locale for the Accept-Language header.
-    Falls back to settings.LANGUAGE_CODE if no match is found.
+    Internal cached resolver. Cache key includes the settings-derived state
+    (default language, supported locales) so a settings change produces a
+    different key instead of returning a stale result.
     """
-    default_lang = getattr(settings, "LANGUAGE_CODE", "en-us").lower()
-    supported = get_supported_locales()
-
-    # Normalize default_lang for set comparison
-    default_lang_normalized = default_lang.replace("_", "-")
+    supported = set(supported_tuple)
     supported.add(default_lang_normalized)
 
     try:
@@ -103,6 +102,22 @@ def resolve_locale(accept_language_header: str) -> str:
         pass
 
     return default_lang_normalized
+
+
+def resolve_locale(accept_language_header: str) -> str:
+    """
+    Resolves the best supported locale for the Accept-Language header.
+    Falls back to settings.LANGUAGE_CODE if no match is found.
+    Cache key includes current settings state so changes to LANGUAGE_CODE/LANGUAGES
+    are picked up instead of returning a stale cached result.
+    """
+    default_lang = getattr(settings, "LANGUAGE_CODE", "en-us").lower()
+    default_lang_normalized = default_lang.replace("_", "-")
+    supported_tuple = tuple(sorted(get_supported_locales()))
+
+    return _resolve_locale_cached(
+        accept_language_header, default_lang_normalized, supported_tuple
+    )
 
 
 def check_locale_switch_rate_limit(request, resolved_lang: str) -> bool:
