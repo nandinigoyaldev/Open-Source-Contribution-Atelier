@@ -768,3 +768,54 @@ button:not([class*="menu"]):not([class*="toggle"]) {
   min-width: 44px;
 }
 
+/* Custom Cursor */
+body.custom-cursor-active,
+body.custom-cursor-active * {
+  cursor: none !important;
+}
+
+.custom-cursor-dot,
+.custom-cursor-ring {
+  position: fixed;
+  top: 0;
+  left: 0;
+  border-radius: 50%;
+  pointer-events: none;
+  z-index: 9999;
+  will-change: transform;
+}
+
+.custom-cursor-dot {
+  width: 8px;
+  height: 8px;
+  background-color: #000000;
+  transition: background-color 0.2s ease;
+}
+
+.custom-cursor-ring {
+  width: 32px;
+  height: 32px;
+  border: 2px solid #000000;
+  background-color: rgba(255, 181, 232, 0.2);
+  transition: width 0.2s ease, height 0.2s ease, background-color 0.2s ease;
+}
+
+.custom-cursor-ring--hover {
+  width: 48px;
+  height: 48px;
+  background-color: rgba(255, 181, 232, 0.35);
+}
+
+.custom-cursor-ring--click {
+  width: 24px;
+  height: 24px;
+}
+
+html.dark .custom-cursor-dot {
+  background-color: #f0ebe2;
+}
+
+html.dark .custom-cursor-ring {
+  border-color: #f0ebe2;
+  background-color: rgba(255, 181, 232, 0.15);
+}

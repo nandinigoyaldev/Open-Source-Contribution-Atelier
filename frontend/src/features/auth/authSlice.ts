@@ -115,6 +115,7 @@ export const authSlice = createSlice({
       safeSetItem("refreshToken", action.payload.refresh);
     },
     setDemoUser: (state) => {
+      // Intentional local demo only — never call from Google OAuth failure paths.
       state.user = {
         id: 1,
         username: "Demo Learner",

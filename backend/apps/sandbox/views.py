@@ -498,6 +498,26 @@ class CollabSessionViewSet(viewsets.ModelViewSet):
             Q(project__user=self.request.user) | Q(allowed_users=self.request.user)
         ).distinct()
 
+    def destroy(self, request, *args, **kwargs):
+        session = self.get_object()
+        if session.project and session.project.user != request.user:
+            return Response({"error": "Only the host can end the session."}, status=403)
+        return super().destroy(request, *args, **kwargs)
+
+    @action(detail=True, methods=["post"])
+    def join(self, request, pk=None):
+        try:
+            session = CollabSession.objects.get(pk=pk, is_active=True)
+            if request.user not in session.allowed_users.all() and (
+                not session.project or session.project.user != request.user
+            ):
+                session.allowed_users.add(request.user)
+            return Response(
+                CollabSessionSerializer(session, context={"request": request}).data
+            )
+        except CollabSession.DoesNotExist:
+            return Response({"error": "Active session not found"}, status=404)
+
     @action(detail=True, methods=["post"])
     def invite_mentor(self, request, pk=None):
         session = self.get_object()
@@ -749,7 +769,9 @@ class LicenseScenarioViewSet(viewsets.ReadOnlyModelViewSet):
                 feedback = "Great job! You caught all the license violations."
             elif violation_ids.issubset(flagged_set):
                 is_successful = False
-                feedback = "You caught the violations, but you also flagged safe dependencies."
+                feedback = (
+                    "You caught the violations, but you also flagged safe dependencies."
+                )
             else:
                 is_successful = False
                 feedback = "You rejected the PR, but you missed some of the actual license violations."
@@ -793,17 +815,42 @@ def _score_triage(issue: TriageIssue, submitted_labels: list, submitted_response
     body = submitted_response.lower()
 
     politeness_keywords = [
-        "thank", "appreciate", "welcome", "glad", "happy to help",
-        "great report", "hope", "sorry", "apologies",
+        "thank",
+        "appreciate",
+        "welcome",
+        "glad",
+        "happy to help",
+        "great report",
+        "hope",
+        "sorry",
+        "apologies",
     ]
     action_keywords = [
-        "could you", "please", "can you", "would you", "let us know",
-        "share", "provide", "attach", "include",
+        "could you",
+        "please",
+        "can you",
+        "would you",
+        "let us know",
+        "share",
+        "provide",
+        "attach",
+        "include",
     ]
     missing_info_keywords = [
-        "steps", "environment", "version", "reproduce", "repro",
-        "os", "operating system", "browser", "output", "expected", "actual",
-        "error", "stack trace", "log",
+        "steps",
+        "environment",
+        "version",
+        "reproduce",
+        "repro",
+        "os",
+        "operating system",
+        "browser",
+        "output",
+        "expected",
+        "actual",
+        "error",
+        "stack trace",
+        "log",
     ]
 
     polite_hits = sum(1 for kw in politeness_keywords if kw in body)
@@ -829,19 +876,30 @@ def _score_triage(issue: TriageIssue, submitted_labels: list, submitted_response
     if polite_hits == 0:
         feedback_lines.append("Your response could be more polite and welcoming.")
     if action_hits == 0:
-        feedback_lines.append("Your response should ask the reporter for more information.")
+        feedback_lines.append(
+            "Your response should ask the reporter for more information."
+        )
     if missing_hits == 0:
         feedback_lines.append(
             "Your response should mention what specific information is missing (e.g., steps to reproduce, environment)."
         )
     if not feedback_lines:
-        feedback_lines.append("Excellent triage! Your labels and response are both accurate and professional.")
+        feedback_lines.append(
+            "Excellent triage! Your labels and response are both accurate and professional."
+        )
 
     total_score = label_score + response_score
     passed = total_score >= 70
     badge = "triager" if passed else ""
 
-    return label_score, response_score, total_score, passed, " ".join(feedback_lines), badge
+    return (
+        label_score,
+        response_score,
+        total_score,
+        passed,
+        " ".join(feedback_lines),
+        badge,
+    )
 
 
 class TriageIssueViewSet(viewsets.ReadOnlyModelViewSet):
@@ -869,12 +927,15 @@ class TriageIssueViewSet(viewsets.ReadOnlyModelViewSet):
             )
 
         invalid_labels = [
-            lbl for lbl in submitted_labels
+            lbl
+            for lbl in submitted_labels
             if lbl.lower() not in [v.lower() for v in TriageIssue.VALID_LABELS]
         ]
         if invalid_labels:
             return Response(
-                {"error": f"Invalid labels: {invalid_labels}. Allowed: {TriageIssue.VALID_LABELS}"},
+                {
+                    "error": f"Invalid labels: {invalid_labels}. Allowed: {TriageIssue.VALID_LABELS}"
+                },
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -884,8 +945,8 @@ class TriageIssueViewSet(viewsets.ReadOnlyModelViewSet):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
-        label_score, response_score, total_score, passed, feedback, badge = _score_triage(
-            issue, submitted_labels, submitted_response
+        label_score, response_score, total_score, passed, feedback, badge = (
+            _score_triage(issue, submitted_labels, submitted_response)
         )
 
         attempt = TriageAttempt.objects.create(
@@ -908,5 +969,7 @@ class TriageIssueViewSet(viewsets.ReadOnlyModelViewSet):
 
     @action(detail=False, methods=["get"])
     def my_attempts(self, request):
-        attempts = TriageAttempt.objects.filter(user=request.user).select_related("issue")
+        attempts = TriageAttempt.objects.filter(user=request.user).select_related(
+            "issue"
+        )
         return Response(TriageAttemptSerializer(attempts, many=True).data)
