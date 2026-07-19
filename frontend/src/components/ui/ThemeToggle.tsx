@@ -1,10 +1,19 @@
-import { Sun, Moon, Monitor, Eye } from "lucide-react";
+﻿import { Sun, Moon, Eye } from "lucide-react";
 import { useTheme } from "../../hooks/useTheme";
+import { FOCUS_RING } from "../../lib/a11yFocus";
 
 interface ThemeToggleProps {
   iconSize?: number;
   className?: string;
   buttonClassName?: string;
+}
+
+export { FOCUS_RING as THEME_FOCUS_RING, FOCUS_RING as CARD_FOCUS_RING } from "../../lib/a11yFocus";
+
+function themeToggleLabel(theme: string): string {
+  if (theme === "dark") return "Switch to light mode";
+  if (theme === "high-contrast") return "Switch to light mode";
+  return "Switch to dark mode";
 }
 
 export function ThemeToggle({
@@ -13,48 +22,47 @@ export function ThemeToggle({
   buttonClassName = "p-2",
 }: ThemeToggleProps) {
   const { theme, toggleTheme, setTheme } = useTheme();
+  const isHighContrast = theme === "high-contrast";
+  const isDark = theme === "dark";
 
   return (
-    <div className={`flex items-center gap-2 ${className}`}>
+    <div
+      role="group"
+      aria-label="Color theme"
+      className={`flex items-center gap-2 ${className}`}
+      data-testid="theme-toggle"
+    >
       <button
-        className={`rounded-lg bg-surface-low text-muted hover:text-text border-2 border-black dark:border-[#2e2924] shadow-card-sm hover:-translate-y-0.5 active:translate-y-0 transition-all dark:bg-[#151411] dark:text-[#c4bbae] dark:hover:text-[#f0ebe2] ${buttonClassName}`}
+        type="button"
+        className={`theme-toggle rounded-lg bg-surface-low text-muted hover:text-text border-2 border-black dark:border-[#2e2924] shadow-card-sm hover:-translate-y-0.5 active:translate-y-0 transition-all dark:bg-[#151411] dark:text-[#c4bbae] dark:hover:text-[#f0ebe2] ${FOCUS_RING} ${buttonClassName}`}
         onClick={toggleTheme}
-        aria-label={
-          theme === "light"
-            ? "Switch to dark mode"
-            : theme === "dark"
-              ? "Switch to system mode"
-              : "Switch to light mode"
-        }
-        title={
-          theme === "light"
-            ? "Light Mode"
-            : theme === "dark"
-              ? "Dark Mode"
-              : "System Preference"
-        }
+        aria-label={themeToggleLabel(theme)}
+        aria-pressed={isDark}
+        title={isDark ? "Dark mode (click for light)" : "Light mode (click for dark)"}
       >
-        {theme === "light" ? (
-          <Sun size={iconSize} />
-        ) : theme === "dark" ? (
-          <Moon size={iconSize} />
+        {isDark || isHighContrast ? (
+          <Sun size={iconSize} aria-hidden="true" />
         ) : (
-          <Monitor size={iconSize} />
+          <Moon size={iconSize} aria-hidden="true" />
         )}
       </button>
       <button
-        className={`rounded-lg border-2 border-black dark:border-[#2e2924] shadow-card-sm hover:-translate-y-0.5 active:translate-y-0 transition-all ${buttonClassName} ${
-          theme === "high-contrast"
+        type="button"
+        className={`toggle-contrast rounded-lg border-2 border-black dark:border-[#2e2924] shadow-card-sm hover:-translate-y-0.5 active:translate-y-0 transition-all ${FOCUS_RING} ${buttonClassName} ${
+          isHighContrast
             ? "bg-primary text-white"
             : "bg-surface-low text-muted hover:text-text dark:bg-[#151411] dark:text-[#c4bbae] dark:hover:text-[#f0ebe2]"
         }`}
-        onClick={() =>
-          setTheme(theme === "high-contrast" ? "light" : "high-contrast")
+        onClick={() => setTheme(isHighContrast ? "light" : "high-contrast")}
+        aria-label={
+          isHighContrast
+            ? "Turn off high contrast mode"
+            : "Turn on high contrast mode"
         }
-        aria-label="Toggle High Contrast Mode"
-        title="High Contrast Mode"
+        aria-pressed={isHighContrast}
+        title="High contrast mode"
       >
-        <Eye size={iconSize} />
+        <Eye size={iconSize} aria-hidden="true" />
       </button>
     </div>
   );

@@ -1,9 +1,7 @@
 import logging
 import os
 import sys
-from datetime import timedelta
-from pathlib import Path
-
+import stripe
 import dj_database_url
 
 # pyrefly: ignore [missing-import]
@@ -34,8 +32,16 @@ def safe_context_copy(self):
 
 BaseContext.__copy__ = safe_context_copy
 
-BASE_DIR = Path(__file__).resolve().parent.parent
-PLUGINS_DIR = BASE_DIR / "plugins"
+STRIPE_PUBLISHABLE_KEY = os.getenv('STRIPE_PUBLISHABLE_KEY')
+STRIPE_SECRET_KEY = os.getenv('STRIPE_SECRET_KEY')
+STRIPE_WEBHOOK_SECRET = os.getenv('STRIPE_WEBHOOK_SECRET')
+
+stripe.api_key = STRIPE_SECRET_KEY
+
+
+def load_dotenv(dotenv_path: Path) -> None:
+    if not dotenv_path.exists():
+        return
 
 
 from dotenv import load_dotenv
@@ -550,7 +556,7 @@ CELERY_BEAT_SCHEDULE = {
 }
 
 MEDIA_URL = '/media/'
-MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
+MEDIA_ROOT = os.path.join(BASE_DIR, 'media') 
 
 # Cache timeout for Search API (in seconds) - Default: 1 hour
 SEARCH_CACHE_TIMEOUT = 60 * 60

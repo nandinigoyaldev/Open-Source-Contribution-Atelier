@@ -20,12 +20,12 @@ async def test_sandbox_websocket_consumer():
     connected2, _ = await communicator2.connect()
     assert connected2
 
-    # Send message from communicator1
+   
     await communicator1.send_json_to(
         {"action": "code_update", "code": "print('hello from 1')"}
     )
 
-    # communicator2 should receive it
+
     response2 = await communicator2.receive_json_from()
     assert response2["action"] == "code_update"
     assert response2["code"] == "print('hello from 1')"

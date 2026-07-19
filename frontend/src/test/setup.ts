@@ -41,3 +41,19 @@ afterEach(() => server.resetHandlers());
 afterAll(() => server.close());
 
 vi.stubGlobal("localStorage", localStorageMock);
+
+// Stub browser Cache Storage API for JSDOM test environment
+if (typeof globalThis.caches === "undefined") {
+  const mockCache = {
+    match: vi.fn().mockResolvedValue(undefined),
+    put: vi.fn().mockResolvedValue(undefined),
+  };
+  vi.stubGlobal("caches", {
+    open: vi.fn().mockResolvedValue(mockCache),
+    keys: vi.fn().mockResolvedValue([]),
+    delete: vi.fn().mockResolvedValue(true),
+    has: vi.fn().mockResolvedValue(false),
+    match: vi.fn().mockResolvedValue(undefined),
+  });
+}
+
