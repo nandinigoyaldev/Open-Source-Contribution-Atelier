@@ -204,3 +204,110 @@ class AuditableModel(models.Model):
 
     class Meta:
         abstract = True
+# ============================================================
+# Cross-tenant data isolation primitives (issue #1940)
+# ============================================================
+
+
+class TenantQuerySet(models.QuerySet):
+    """
+    QuerySet that automatically filters by the current tenant.
+
+    The tenant id is read from :mod:`apps.core.tenant` (populated by
+    :class:`apps.core.middleware.tenant.TenantContextMiddleware`).
+
+    When no tenant context is active (management commands, background
+    jobs, unauthenticated requests), the queryset returns ALL rows —
+    this is the "unscoped" mode intended for admin/superuser tooling.
+    Production request paths should always have a tenant context.
+    """
+
+    def _tenant_id(self):
+        # Imported lazily to avoid a circular import at module load.
+        from apps.core.tenant import get_current_tenant_id
+
+        return get_current_tenant_id()
+
+    def for_tenant(self, organization_id):
+        """Explicitly scope to a specific tenant (useful in scripts/tests)."""
+        return self.filter(organization_id=organization_id)
+
+    def unscoped(self):
+        """Return the unfiltered queryset (admin/superuser tooling only)."""
+        return super().get_queryset() if False else self.model.objects.using(
+            self._db
+        ).all()
+
+    # The core magic: every chained query is auto-scoped.
+    def _chain(self, **kwargs):
+        qs = super()._chain(**kwargs)
+        org_id = qs._tenant_id()
+        if org_id is not None:
+            return qs.filter(organization_id=org_id)
+        return qs
+
+
+class TenantManager(models.Manager.from_queryset(TenantQuerySet)):
+    """
+    Manager that returns tenant-scoped querysets by default.
+
+    Use ``TenantModel.objects.unscoped()`` to bypass scoping for
+    admin/migration code (rarely needed in request paths).
+    """
+
+    def get_queryset(self):
+        qs = TenantQuerySet(self.model, using=self._db)
+        org_id = None
+        try:
+            from apps.core.tenant import get_current_tenant_id
+
+            org_id = get_current_tenant_id()
+        except Exception:
+            org_id = None
+        if org_id is not None:
+            return qs.filter(organization_id=org_id)
+        return qs
+
+    def unscoped(self):
+        """Bypass tenant scoping (admin tooling, migrations)."""
+        return super().get_queryset()
+
+
+class TenantAwareModel(models.Model):
+    """
+    Abstract base class for models that carry per-tenant data.
+
+    Inheriting models get:
+        * an ``organization`` FK (the tenant discriminator),
+        * a :class:`TenantManager` that auto-filters by the current
+          tenant on every request-path query.
+
+    Example::
+
+        class Lesson(TenantAwareModel):
+            title = models.CharField(max_length=200)
+            # organization FK is added automatically by the base class
+
+        # In a request handler:
+        Lesson.objects.all()  # -> only lessons for the current tenant
+
+    For models that cannot be altered (e.g. third-party), use
+    :class:`apps.core.mixins.OrganizationScopedQuerySetMixin` on the
+    viewset instead — it derives the tenant from ``user__user_profile``
+    without requiring an ``organization`` column.
+    """
+
+    organization = models.ForeignKey(
+        "organizations.Organization",
+        on_delete=models.CASCADE,
+        related_name="+",
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text="The tenant (organization) this record belongs to.",
+    )
+
+    objects = TenantManager()
+
+    class Meta:
+        abstract = True
