@@ -14,7 +14,7 @@ jobs:
     steps:
       - uses: actions/github-script@v8
         with:
-          github-token: ${{ secrets.PAT_NANDINI || secrets.GITHUB_TOKEN }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const assignees = context.payload.issue.assignees || [];
             if (assignees.length === 0) return;
