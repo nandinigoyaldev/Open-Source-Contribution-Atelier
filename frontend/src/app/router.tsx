@@ -164,6 +164,23 @@ const BountiesPage = lazy(() =>
   })),
 );
 
+const GoodFirstIssueFinderPage = lazy(() =>
+  import("../pages/GoodFirstIssueFinderPage").then((module) => ({
+    default: module.GoodFirstIssueFinderPage,
+  })),
+);
+
+const MaintainerReplyToneCoachPage = lazy(() =>
+  import("../pages/MaintainerReplyToneCoachPage").then((module) => ({
+    default: module.MaintainerReplyToneCoachPage,
+  })),
+);
+
+const MergeConflictScenarioBuilderPage = lazy(() =>
+  import("../pages/MergeConflictScenarioBuilderPage").then((module) => ({
+    default: module.MergeConflictScenarioBuilderPage,
+  })),
+);
 /*
  * These pages use default exports, so they can be passed directly
  * to React.lazy().
@@ -350,6 +367,33 @@ export function AppRouter() {
           />
 
           <Route
+            path="/good-first-issues"
+            element={
+              <ProtectedRoute>
+                <GoodFirstIssueFinderPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/tone-coach"
+            element={
+              <ProtectedRoute>
+                <MaintainerReplyToneCoachPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/conflict-scenario-builder"
+            element={
+              <ProtectedRoute>
+                <MergeConflictScenarioBuilderPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
             path="/community"
             element={
               <ProtectedRoute>
@@ -406,6 +450,7 @@ export function AppRouter() {
 
                   <TerminalReplay
                     sessionName="Git Tutorial Replay"
+                    sharePathname="/sandbox"
                     commands={[
                       {
                         command: "git init",

@@ -1,6 +1,6 @@
 import { precacheAndRoute, cleanupOutdatedCaches } from "workbox-precaching";
 import { registerRoute } from "workbox-routing";
-import { StaleWhileRevalidate } from "workbox-strategies";
+import { CacheFirst, NetworkFirst, StaleWhileRevalidate } from "workbox-strategies";
 import { ExpirationPlugin } from "workbox-expiration";
 
 cleanupOutdatedCaches();
@@ -9,7 +9,7 @@ precacheAndRoute(self.__WB_MANIFEST);
 // Cache curriculum content dynamically if not precached
 registerRoute(
   ({ url }) => url.pathname.startsWith("/content/"),
-  new StaleWhileRevalidate({
+  new CacheFirst({
     cacheName: "content-runtime-cache",
     plugins: [
       new ExpirationPlugin({
@@ -29,6 +29,7 @@ const API_CACHE_PATHS = [
   "/api/recommendations/",
   "/api/challenges/",
   "/api/users/me/learning-path/",
+  "/api/content/lessons/",
 ];
 
 registerRoute(
@@ -36,7 +37,7 @@ registerRoute(
     if (request.method !== "GET") return false;
     return API_CACHE_PATHS.some((p) => url.pathname.startsWith(p));
   },
-  new StaleWhileRevalidate({
+  new NetworkFirst({
     cacheName: "api-runtime-cache",
     plugins: [
       new ExpirationPlugin({
@@ -195,14 +196,15 @@ async function syncProgressQueue() {
             body: action.body,
           });
 
-          // 200, 201 are success. 400 or 409 means bad request / already completed, so discard.
-          if (
-            response.ok ||
-            response.status === 400 ||
-            response.status === 409
-          ) {
+          // Extract lesson slug if id starts with 'progress-sync-'
+          let lesson_slug = null;
+          if (action.id && action.id.startsWith("progress-sync-")) {
+            lesson_slug = action.id.replace("progress-sync-", "");
+          }
+
+          if (response.ok || response.status === 400) {
             console.log(
-              `[ServiceWorker] Action ${action.id} synced successfully (Status: ${response.status})`,
+              `[ServiceWorker] Action ${action.id} synced successfully (Status: ${response.status})`
             );
 
             // Delete from IndexedDB
@@ -212,8 +214,27 @@ async function syncProgressQueue() {
             await notifyClients({
               type: "SYNC_SUCCESS",
               id: action.id,
+              lesson_slug: lesson_slug,
               entity_type: action.entity_type,
               entity_id: action.entity_id,
+            });
+          } else if (response.status === 409) {
+            console.warn(
+              `[ServiceWorker] Conflict detected on server for action ${action.id}`
+            );
+            // On 409 Conflict, notify client of the conflict to open resolution UI, do not delete from store yet
+            const serverData = await response.clone().json().catch(() => ({}));
+            let localData = {};
+            try {
+              localData = JSON.parse(action.body);
+            } catch (e) {}
+
+            await notifyClients({
+              type: "SYNC_CONFLICT",
+              id: action.id,
+              lesson_slug: lesson_slug,
+              serverData,
+              localData,
             });
           } else {
             console.warn(

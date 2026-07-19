@@ -4,10 +4,9 @@ import { GitBranch, Moon, Sun } from "lucide-react";
 import { fetchApi } from "../lib/api";
 import { useAuth } from "../features/auth/AuthContext";
 import { useTheme } from "../hooks/useTheme";
-import { useNavigate } from "react-router-dom";
-import { useAppDispatch } from "../store/hooks";
-import { setDemoUser } from "../features/auth/authSlice";
 import { DraggableSticker } from "../components/ui/DraggableSticker";
+import { DemoLoginButton } from "../features/auth/DemoLoginButton";
+import { formatGoogleOAuthError } from "../lib/googleOAuth";
 
 const getEnvVar = (key: string): string => {
   if (typeof process !== "undefined" && process.env && process.env[key])
@@ -33,8 +32,6 @@ export function LandingPage() {
   } catch { }
 
   const { theme, toggleTheme } = useTheme();
-  const navigate = useNavigate();
-  const dispatch = useAppDispatch();
   const [authRole, setAuthRole] = useState<"student" | "admin">("student");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -81,14 +78,12 @@ export function LandingPage() {
         });
         login(tokens);
         if (typeof window !== "undefined") window.location.href = "/dashboard";
-      } catch {
-        dispatch(setDemoUser());
-        navigate("/dashboard");
+      } catch (err: unknown) {
+        setError(formatGoogleOAuthError(err, "backend"));
       }
     },
     onError: () => {
-      dispatch(setDemoUser());
-      navigate("/dashboard");
+      setError(formatGoogleOAuthError(undefined, "popup"));
     },
   });
 
@@ -232,6 +227,11 @@ export function LandingPage() {
               </svg>
               Continue with Google
             </button>
+
+            <DemoLoginButton
+              label="🚀 Demo Mode (explicit local demo)"
+              className="w-full bg-green-200 border-4 border-black rounded-2xl py-3 px-4 flex items-center justify-center gap-3 font-black text-black hover:bg-green-300 transition-all shadow-card-sm active:translate-y-1 active:shadow-none text-sm"
+            />
           </div>
 
           <div className="flex items-center gap-4 my-5">

@@ -21,9 +21,20 @@ import { useTerminalAutocomplete } from "../hooks/useTerminalAutocomplete";
 import { ShellState } from "../hooks/useGitShell";
 import { useBookmarks } from "../hooks/useBookmarks";
 import { useNotifications } from "../features/notifications/NotificationContext";
+import { useOfflineLesson } from "../hooks/useOfflineLesson";
+import { useOfflineReadyLessons } from "../hooks/useOfflineReadyLessons";
+import { useNetworkStatus } from "../context/useNetworkStatus";
 import { fetchApi } from "../lib/api";
-import { Lesson, fetchLessonsApi, fetchLessonContent } from "../lib/lessons";
+import { Lesson, fetchLessonsApiResult } from "../lib/lessons";
+import {
+  buildDriftReport,
+  type CurriculumDriftReport,
+} from "../lib/curriculumSlugDrift";
 import { RecentlyViewedLessonsWidget } from "../components/ui/RecentlyViewedLessonsWidget";
+import { AvailableOfflineBadge } from "../components/ui/AvailableOfflineBadge";
+import { OfflineStatusBadge } from "../components/ui/OfflineStatusBadge";
+import { OfflineBanner } from "../components/ui/OfflineBanner";
+import { CurriculumDriftBanner } from "../components/ui/CurriculumDriftBanner";
 
 const SESSION_KEY_RECENT = "recentlyViewedLessonsV1";
 const MAX_RECENT_ITEMS = 3;
@@ -105,19 +116,54 @@ export function LessonPage() {
 
   const [lesson, setLesson] = useState<Lesson | undefined>(undefined);
   const [lessonsList, setLessonsList] = useState<Lesson[]>([]);
-  const [markdownContent, setMarkdownContent] = useState("");
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [driftReport, setDriftReport] = useState<CurriculumDriftReport | null>(
+    null,
+  );
+  const { isOnline } = useNetworkStatus();
 
   // Curriculum modules list for sidebar
   const [modules, setModules] = useState<
     {
       id: string;
       title: string;
-      lessons: { slug: string; title: string; difficulty?: string }[];
+      lessons: {
+        slug: string;
+        title: string;
+        difficulty?: string;
+        filePath?: string;
+      }[];
     }[]
   >([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
+  const curriculumLessonRefs = useMemo(
+    () =>
+      modules.flatMap((mod) =>
+        mod.lessons.map((les) => ({
+          slug: les.slug,
+          filePath: les.filePath,
+        })),
+      ),
+    [modules],
+  );
+  const { isOfflineReady, refresh: refreshOfflineReady } =
+    useOfflineReadyLessons(curriculumLessonRefs);
+
+  const {
+    markdown: markdownContent,
+    source: contentSource,
+    isLoading: contentLoading,
+    refresh: refreshLessonContent,
+    isCached,
+  } = useOfflineLesson(lesson);
+
+  // After a lesson is cached (IDB), refresh list badges
+  useEffect(() => {
+    if (isCached) refreshOfflineReady();
+  }, [isCached, lesson?.slug, refreshOfflineReady]);
+
   const sidebarRef = useRef<HTMLElement>(null);
 
   const closeSidebar = useCallback(() => setIsSidebarOpen(false), []);
@@ -247,11 +293,19 @@ export function LessonPage() {
         return null;
       });
 
-    const lessonsPromise = fetchLessonsApi();
+    const lessonsPromise = fetchLessonsApiResult();
 
     Promise.all([curriculumPromise, lessonsPromise])
-      .then(([curriculumJson, lessonsData]) => {
+      .then(([curriculumJson, lessonsResult]) => {
+        const lessonsData = lessonsResult.lessons;
         setLessonsList(lessonsData);
+        setDriftReport(
+          buildDriftReport({
+            curriculum: curriculumJson,
+            apiLessons: lessonsData,
+            apiAvailable: lessonsResult.fromApi,
+          }),
+        );
 
         if (curriculumJson && curriculumJson.modules) {
           setModules(curriculumJson.modules);
@@ -343,14 +397,9 @@ export function LessonPage() {
     setQuizNonce(null);
     setTimeLeft(null);
 
-    if (lesson.filePath) {
-      fetchLessonContent(lesson.filePath).then((content) => {
-        setMarkdownContent(content);
-      });
-    } else {
-      setMarkdownContent(`# ${lesson.title}\n\n${lesson.explanation}`);
-    }
-  }, [lesson]);
+    // Markdown is loaded via useOfflineLesson (network + IndexedDB / SW cache)
+    refreshOfflineReady();
+  }, [lesson, refreshOfflineReady]);
 
   // NEW: Fetch Cryptographic Nonce for the current quiz question
   useEffect(() => {
@@ -724,21 +773,23 @@ export function LessonPage() {
                     slug: string;
                     title: string;
                     difficulty?: string;
+                    filePath?: string;
                   }) => {
                     const active = les.slug === lesson.slug;
                     const completed = isLessonCompleted(les.slug);
+                    const offlineReady = isOfflineReady(les.slug);
                     return (
                       <Link
                         key={les.slug}
                         to={`/lessons/${les.slug}`}
                         onClick={closeSidebar}
-                        className={`w-full flex items-center justify-between p-2.5 rounded-lg border-2 transition-all text-xs font-bold ${
+                        className={`w-full flex items-center justify-between gap-1.5 p-2.5 rounded-lg border-2 transition-all text-xs font-bold ${
                           active
                             ? "bg-surface-low border-black shadow-card-sm text-text"
                             : "border-transparent hover:bg-surface-lowest hover:border-black/10 dark:text-[#c4bbae]"
                         }`}
                       >
-                        <div className="flex items-center gap-2 truncate">
+                        <div className="flex items-center gap-2 truncate min-w-0">
                           {completed ? (
                             <CheckCircle2
                               size={14}
@@ -749,11 +800,16 @@ export function LessonPage() {
                           )}
                           <span className="truncate">{les.title}</span>
                         </div>
-                        {les.difficulty === "advanced" && (
-                          <span className="text-[8px] bg-red-100 text-red-700 px-1 py-0.5 rounded border border-red-700">
-                            ADV
-                          </span>
-                        )}
+                        <div className="flex items-center gap-1 shrink-0">
+                          {offlineReady && (
+                            <AvailableOfflineBadge compact />
+                          )}
+                          {les.difficulty === "advanced" && (
+                            <span className="text-[8px] bg-red-100 text-red-700 px-1 py-0.5 rounded border border-red-700">
+                              ADV
+                            </span>
+                          )}
+                        </div>
                       </Link>
                     );
                   },
@@ -793,6 +849,15 @@ export function LessonPage() {
                   <span className="text-[10px] font-mono font-black bg-surface-low text-muted px-3 py-1 rounded-full border-2 border-black rotate-[-0.5deg] inline-block shadow-card-sm uppercase dark:bg-[#1f1c18] dark:border-[#2e2924] dark:text-[#c4bbae]">
                     📅 Updated: {new Date((lesson as any).updatedAt || (lesson as any).updated_at || new Date()).toLocaleDateString()}
                   </span>
+                  {isCached && <AvailableOfflineBadge />}
+                  <OfflineStatusBadge
+                    source={contentSource}
+                    onRefresh={() => {
+                      refreshLessonContent();
+                      refreshOfflineReady();
+                    }}
+                    isRefreshing={contentLoading}
+                  />
                 </div>
                 <h1 className="text-4xl sm:text-5xl font-black text-text dark:text-[#f0ebe2] drop-shadow-[2.5px_2.5px_0_#FF3B30] mt-3">
                   {lesson.title}
@@ -837,6 +902,10 @@ export function LessonPage() {
               </div>
             </div>
 
+            {driftReport && (
+              <CurriculumDriftBanner slug={lesson.slug} report={driftReport} />
+            )}
+
             <p className="text-xl font-bold text-muted dark:text-[#c4bbae]">
               {lesson.description}
             </p>
@@ -845,15 +914,24 @@ export function LessonPage() {
 
             <TextToSpeechControls content={markdownContent} />
 
-            <article className="prose max-w-none">
-              <React.Suspense
-                fallback={
-                  <div className="w-full h-64 animate-pulse rounded-2xl border-4 border-black/20 bg-surface-low dark:border-[#2e2924]/50 dark:bg-[#151411]" />
-                }
-              >
-                <MarkdownRenderer content={markdownContent} />
-              </React.Suspense>
-            </article>
+            {!isOnline && !isCached ? (
+              <OfflineBanner lessonTitle={lesson.title} isCached={false} />
+            ) : (
+              <>
+                {!isOnline && isCached && (
+                  <OfflineBanner lessonTitle={lesson.title} isCached />
+                )}
+                <article className="prose max-w-none">
+                  <React.Suspense
+                    fallback={
+                      <div className="w-full h-64 animate-pulse rounded-2xl border-4 border-black/20 bg-surface-low dark:border-[#2e2924]/50 dark:bg-[#151411]" />
+                    }
+                  >
+                    <MarkdownRenderer content={markdownContent} />
+                  </React.Suspense>
+                </article>
+              </>
+            )}
             <div className="mt-4 flex justify-end">
               <button
                 onClick={() => alert("Thanks for reporting the typo")}

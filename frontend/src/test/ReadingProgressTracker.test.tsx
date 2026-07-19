@@ -49,12 +49,12 @@ describe("ReadingProgressTracker", () => {
       <ReadingProgressTracker lessonSlug="test-lesson" />,
     );
 
-    await waitFor(() => {
-      expect(fetchApi).toHaveBeenCalled();
+    await act(async () => {
+      await Promise.resolve();
     });
 
-    act(() => {
-      vi.advanceTimersByTime(2000);
+    await act(async () => {
+      vi.runAllTimers();
     });
 
     // The progress bar div with width style
@@ -71,17 +71,22 @@ describe("ReadingProgressTracker", () => {
     const mockContainer = {
       children: [mockChild, mockChild, mockChild, mockChild],
     };
-    vi.spyOn(document, "querySelector").mockReturnValue(mockContainer as any);
+    const originalQuerySelector = document.querySelector.bind(document);
+    vi.spyOn(document, "querySelector").mockImplementation((selector) => {
+      if (selector === ".markdown-body") {
+        return mockContainer as any;
+      }
+      return originalQuerySelector(selector);
+    });
 
     render(<ReadingProgressTracker lessonSlug="test-lesson" />);
 
-    await waitFor(() => {
-      expect(fetchApi).toHaveBeenCalled();
+    await act(async () => {
+      await Promise.resolve();
     });
 
-    // Fast forward the 1500ms init delay + 1000ms scroll delay
-    act(() => {
-      vi.advanceTimersByTime(3000);
+    await act(async () => {
+      vi.runAllTimers();
     });
 
     expect(document.querySelector).toHaveBeenCalledWith(".markdown-body");

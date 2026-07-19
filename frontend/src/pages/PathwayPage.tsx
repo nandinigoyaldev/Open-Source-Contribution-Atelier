@@ -3,11 +3,14 @@ import { fetchApi } from "../lib/api";
 import { LearningPathway, LessonNode } from "../components/LearningPathway";
 import { ArrowLeft } from "lucide-react";
 import { Link } from "react-router-dom";
+import { CurriculumDriftSummaryBanner } from "../components/ui/CurriculumDriftBanner";
+import { useCurriculumDriftReport } from "../hooks/useCurriculumDriftReport";
 
 export const PathwayPage: React.FC = () => {
   const [lessons, setLessons] = useState<LessonNode[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const driftReport = useCurriculumDriftReport();
 
   useEffect(() => {
     fetchApi("/content/roadmap/", { suppressErrorToast: true })
@@ -74,6 +77,10 @@ export const PathwayPage: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {driftReport && (
+        <CurriculumDriftSummaryBanner report={driftReport} className="mb-4" />
+      )}
 
       <div className="flex-1 rounded-xl overflow-hidden border-4 border-black shadow-[4px_4px_0_0_rgba(0,0,0,1)]">
         <LearningPathway lessons={lessons} />

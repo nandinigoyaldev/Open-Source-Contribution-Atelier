@@ -97,61 +97,75 @@ export const lessons: Lesson[] = [
   },
 ];
 
-// Fetch lessons from live API
-export async function fetchLessonsApi(): Promise<Lesson[]> {
+export type LessonsFetchResult = {
+  lessons: Lesson[];
+  /** True when lessons came from a non-empty `/content/lessons/` response */
+  fromApi: boolean;
+};
+
+function mapApiLessons(data: unknown[]): Lesson[] {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (data as any[]).map((les, index: number) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const firstExercise = (les.exercises as any[] | undefined)?.[0];
+    return {
+      id: Number(les.id ?? 0),
+      slug: String(les.slug ?? ""),
+      title: String(les.title ?? ""),
+      description: String(les.description ?? les.summary ?? ""),
+      explanation: String(les.content ?? ""),
+      expected: String(firstExercise?.expectedCommand ?? ""),
+      hint: String(
+        firstExercise?.explanation ??
+          "Read the lesson contents and solve the check.",
+      ),
+      difficulty: String(les.difficulty ?? "beginner"),
+      points: Number(firstExercise?.points ?? 15),
+      estimatedMinutes: Number(les.estimatedMinutes ?? 10),
+      learningObjectives: Array.isArray(les.learningObjectives)
+        ? les.learningObjectives
+        : [],
+      tips: Array.isArray(les.tips) ? les.tips : [],
+      exercises: Array.isArray(les.exercises) ? les.exercises : [],
+      quizzes: Array.isArray(les.quizzes) ? les.quizzes : [],
+      conflictScenario: les.conflictScenario ?? undefined,
+      pythonExercise: les.pythonExercise ?? undefined,
+      jsExercise: les.jsExercise ?? undefined,
+      debugExercise: les.debugExercise ?? undefined,
+      order: Number(les.order ?? index),
+      category: String(les.category ?? "general"),
+      filePath: les.filePath ? String(les.filePath) : undefined,
+    } satisfies Lesson;
+  });
+}
+
+/** Fetch lessons and report whether the live API catalog was used. */
+export async function fetchLessonsApiResult(): Promise<LessonsFetchResult> {
   try {
     const data = await fetchApi("/content/lessons/", {
       requireAuth: false,
       timeoutMs: 3000,
     });
-    // Use fallback lessons when the API returns no data (e.g. unseeded database)
     if (!Array.isArray(data) || data.length === 0) {
       console.warn(
         "[fetchLessonsApi] API returned no lessons. Using built-in fallbacks.",
       );
-      return lessons;
+      return { lessons, fromApi: false };
     }
-
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return (data as any[]).map((les, index: number) => {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const firstExercise = (les.exercises as any[] | undefined)?.[0];
-      return {
-        id: Number(les.id ?? 0),
-        slug: String(les.slug ?? ""),
-        title: String(les.title ?? ""),
-        description: String(les.description ?? les.summary ?? ""),
-        explanation: String(les.content ?? ""),
-        expected: String(firstExercise?.expectedCommand ?? ""),
-        hint: String(
-          firstExercise?.explanation ??
-            "Read the lesson contents and solve the check.",
-        ),
-        difficulty: String(les.difficulty ?? "beginner"),
-        points: Number(firstExercise?.points ?? 15),
-        estimatedMinutes: Number(les.estimatedMinutes ?? 10),
-        learningObjectives: Array.isArray(les.learningObjectives)
-          ? les.learningObjectives
-          : [],
-        tips: Array.isArray(les.tips) ? les.tips : [],
-        exercises: Array.isArray(les.exercises) ? les.exercises : [],
-        quizzes: Array.isArray(les.quizzes) ? les.quizzes : [],
-        conflictScenario: les.conflictScenario ?? undefined,
-        pythonExercise: les.pythonExercise ?? undefined,
-        jsExercise: les.jsExercise ?? undefined,
-        debugExercise: les.debugExercise ?? undefined,
-        order: Number(les.order ?? index),
-        category: String(les.category ?? "general"),
-        filePath: les.filePath ? String(les.filePath) : undefined,
-      } satisfies Lesson;
-    });
+    return { lessons: mapApiLessons(data), fromApi: true };
   } catch (err) {
     console.error(
       "[fetchLessonsApi] API request failed, using built-in fallback lessons:",
       err,
     );
-    return lessons;
+    return { lessons, fromApi: false };
   }
+}
+
+// Fetch lessons from live API
+export async function fetchLessonsApi(): Promise<Lesson[]> {
+  const { lessons: result } = await fetchLessonsApiResult();
+  return result;
 }
 
 export function buildModulesFromLessons(lessonsList: Lesson[]) {
