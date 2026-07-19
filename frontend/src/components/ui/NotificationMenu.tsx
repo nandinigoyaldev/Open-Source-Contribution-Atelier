@@ -6,6 +6,8 @@ import {
   MessageSquare,
   Trophy,
   AlertCircle,
+  Wifi,
+  WifiOff,
 } from "lucide-react";
 import {
   useNotifications,
@@ -14,12 +16,17 @@ import {
 import { Link } from "react-router-dom";
 
 export function NotificationMenu() {
-  const { notifications, unreadCount, markAsRead, markAllAsRead } =
-    useNotifications();
+  const {
+    notifications,
+    unreadCount,
+    markAsRead,
+    markAllAsRead,
+    isWsConnected,
+    isPollingFallback,
+  } = useNotifications();
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Close dropdown when clicking outside
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
       if (
@@ -60,38 +67,62 @@ export function NotificationMenu() {
 
   const handleNotificationClick = (notif: AppNotification) => {
     if (!notif.is_read) {
-      markAsRead(notif.id);
+      void markAsRead(notif.id);
     }
     setIsOpen(false);
   };
+
+  const badgeLabel =
+    unreadCount > 99 ? "99+" : unreadCount > 0 ? String(unreadCount) : "";
 
   return (
     <div className="relative" ref={dropdownRef}>
       <button
         onClick={() => setIsOpen(!isOpen)}
-        aria-label="Notifications"
+        aria-label={
+          unreadCount > 0
+            ? `Notifications, ${unreadCount} unread`
+            : "Notifications"
+        }
         aria-expanded={isOpen}
         className="relative rounded-lg bg-surface-low p-2 text-muted hover:text-text dark:bg-[#151411] dark:text-[#c4bbae] dark:hover:text-[#f0ebe2] transition-colors"
       >
         <Bell size={16} />
         {unreadCount > 0 && (
-          <span className="absolute right-1.5 top-1.5 flex h-2 w-2">
-            <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-accent opacity-75"></span>
-            <span className="relative inline-flex h-2 w-2 rounded-full bg-accent"></span>
+          <span
+            className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full border border-black bg-accent px-1 text-[9px] font-black text-black"
+            data-testid="notification-unread-badge"
+          >
+            {badgeLabel}
           </span>
         )}
       </button>
 
       {isOpen && (
         <div className="absolute right-0 mt-2 w-80 sm:w-96 rounded-2xl bg-white dark:bg-[#151411] border-4 border-black dark:border-[#2e2924] shadow-card overflow-hidden z-50 flex flex-col">
-          <div className="flex items-center justify-between p-4 border-b-2 border-dashed border-black/10 dark:border-white/10">
-            <h3 className="font-bold text-sm text-text dark:text-[#f0ebe2]">
-              Notifications
-            </h3>
+          <div className="flex items-center justify-between gap-2 p-4 border-b-2 border-dashed border-black/10 dark:border-white/10">
+            <div>
+              <h3 className="font-bold text-sm text-text dark:text-[#f0ebe2]">
+                Notifications
+              </h3>
+              <p className="mt-0.5 flex items-center gap-1 text-[10px] font-bold uppercase tracking-wide text-muted dark:text-[#c4bbae]">
+                {isWsConnected ? (
+                  <>
+                    <Wifi className="h-3 w-3 text-green-600" aria-hidden />
+                    Live
+                  </>
+                ) : (
+                  <>
+                    <WifiOff className="h-3 w-3 text-amber-600" aria-hidden />
+                    {isPollingFallback ? "Polling fallback" : "Connecting…"}
+                  </>
+                )}
+              </p>
+            </div>
             {unreadCount > 0 && (
               <button
                 onClick={() => {
-                  markAllAsRead();
+                  void markAllAsRead();
                   setIsOpen(false);
                 }}
                 className="text-xs font-bold text-primary hover:text-primary/80 flex items-center gap-1 transition-colors"
@@ -105,7 +136,7 @@ export function NotificationMenu() {
             {notifications.length === 0 ? (
               <div className="p-8 text-center text-muted dark:text-[#c4bbae] flex flex-col items-center">
                 <Bell size={32} className="opacity-20 mb-3" />
-                <p className="text-sm">You're all caught up!</p>
+                <p className="text-sm">You&apos;re all caught up!</p>
               </div>
             ) : (
               <div className="flex flex-col">

@@ -14,6 +14,8 @@ frontend/public/content/
 ├── curriculum.json             # Main catalog mapping modules, lessons, quizzes, and tasks
 ├── glossary.json               # “Explain like I’m new” OSS jargon for lesson markdown
 ├── git-cheatsheet-map.json     # Contextual Git terminal cheat-sheet by lesson/module
+├── conflict-scenarios/         # Exported merge-conflict practice JSON (authoring)
+│   └── api-version-conflict.json
 ├── module-1/                   # Markdown files for Module 1
 │   ├── what-is-open-source.md
 │   └── ...
@@ -48,6 +50,18 @@ To add a new lesson or create a module:
    
 2. **Create the Markdown file**:
    Create the corresponding markdown file at the path listed in the `"filePath"` parameter. In this case: `frontend/public/content/module-2/git-stash-basics.md`.
+
+3. **Keep API seeds in sync** (important):
+   Static `curriculum.json` and Django `Lesson` rows (from `seed_lessons`) can drift. After adding or renaming a slug, run:
+
+   ```bash
+   cd backend
+   python manage.py check_curriculum_slugs
+   # optional CI-style gate:
+   python manage.py check_curriculum_slugs --fail-on-drift
+   ```
+
+   The lesson UI soft-warns when a curriculum slug is missing from the API; reading still works.
 
 ---
 
@@ -137,3 +151,65 @@ Edit `frontend/public/content/glossary.json` and append an object to `"terms"`:
 - Terms inside **fenced code blocks** and **inline `` `code` ``** are **not** linked (avoids false positives).
 
 No React or database changes are required to add glossary terms.
+
+---
+
+## Part 5: Merge Conflict Scenarios (Content Authors)
+
+Conflict practice sandboxes already exist (`ConflictSandbox`). Authors can create new scenarios **without writing React** by exporting JSON from the in-app builder.
+
+### Authoring UI
+
+1. Open **Practice → Conflict Builder** (`/conflict-scenario-builder`).
+2. Fill in:
+   - **Base** — shared lines before the conflict hunk
+   - **Ours** — `HEAD` / current-branch side
+   - **Theirs** — incoming / feature-branch side
+   - **After** — shared lines after the hunk (optional but recommended)
+   - Branch names + a kebab-case `id`
+3. Preview the live sandbox, then **Download JSON** or copy the curriculum snippet.
+
+### Where to save files
+
+Place exported files here:
+
+```text
+frontend/public/content/conflict-scenarios/
+└── api-version-conflict.json   # example included in the repo
+```
+
+Suggested path is shown in the builder UI, e.g.  
+`frontend/public/content/conflict-scenarios/<id>.json`.
+
+### JSON shape
+
+```json
+{
+  "id": "api-version-conflict",
+  "title": "API version path conflict",
+  "description": "…",
+  "filePath": "src/api.ts",
+  "baseBranchName": "main",
+  "featureBranchName": "feat/api-v3",
+  "base": "function init() {",
+  "ours": "  const fetchUsers = () => api.get('/v2/users');",
+  "theirs": "  const fetchUsers = () => api.get('/v3/users', { timeout: 5000 });",
+  "after": "}",
+  "conflictScenario": {
+    "baseBranchName": "main",
+    "featureBranchName": "feat/api-v3",
+    "fileContent": "function init() {\n<<<<<<< main\n…\n=======\n…\n>>>>>>> feat/api-v3\n}\n"
+  }
+}
+```
+
+- **`conflictScenario`** matches the lesson field already used in `curriculum.json` (`baseBranchName`, `featureBranchName`, `fileContent` with Git markers).
+- Use **Copy curriculum snippet** in the builder, then paste `conflictScenario` onto a lesson object in `curriculum.json`.
+
+### Validation tips
+
+- Ours and theirs must differ.
+- Provide base and/or after lines so learners see surrounding context.
+- Ids must be lowercase kebab-case (`my-scenario-name`).
+
+No backend changes are required to ship a new conflict scenario.

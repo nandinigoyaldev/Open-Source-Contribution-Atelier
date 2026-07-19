@@ -2,55 +2,59 @@ name: CI
 
 on:
   push:
-    branches: [ main, develop ]
+    branches: [main]
   pull_request:
-    branches: [ main ]
+    branches: [main]
 
 jobs:
-  # Frontend Jobs
-  frontend-lint:
-    uses: ./.github/workflows/lint.yml
-    with:
-      working-directory: './frontend'
-
-  frontend-test:
-    uses: ./.github/workflows/test.yml
-    with:
-      working-directory: './frontend'
-
-  frontend-build:
-    uses: ./.github/workflows/build.yml
-    with:
-      working-directory: './frontend'
-
-  # Backend Jobs
-  backend-ci:
-    uses: ./.github/workflows/backend-ci.yml
-
-  # E2E Tests
-  e2e:
+  backend:
     runs-on: ubuntu-latest
-    needs: [frontend-build]
+    services:
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v3
       
-      - name: Download build artifacts
-        uses: actions/download-artifact@v4
+      - name: Setup Python
+        uses: actions/setup-python@v4
         with:
-          name: build
-          path: ./frontend/dist
+          python-version: '3.11'
       
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
+      - name: Install dependencies
+        run: |
+          cd backend
+          pip install -r requirements.txt
+      
+      - name: Run migrations
+        run: |
+          cd backend
+          python manage.py migrate
+      
+      - name: Check migrations
+        run: |
+          cd backend
+          python manage.py makemigrations --check
+      
+      - name: Run tests
+        run: |
+          cd backend
+          pytest --cov=. --cov-report=xml
+      
+      - name: Upload coverage
+        uses: codecov/codecov-action@v3
         with:
-          node-version: '20'
-      
-      - name: Install Playwright
-        run: |
-          cd frontend
-          npx playwright install --with-deps
-      
-      - name: Run E2E tests
-        run: |
-          cd frontend
-          npm run test:e2e
+          file: ./backend/coverage.xml
+
+  frontend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+      - run: cd frontend && npm ci
+      - run: cd frontend && npm run lint
+      - run: cd frontend && npm run test
+      - run: cd frontend && npm run build

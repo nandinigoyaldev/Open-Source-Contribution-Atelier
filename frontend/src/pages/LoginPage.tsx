@@ -5,9 +5,9 @@ import { AuthPageShell } from "../features/auth/AuthPageShell";
 import { fetchApi } from "../lib/api";
 import { useAuth } from "../features/auth/AuthContext";
 import { toast } from "react-hot-toast";
-import { useAppDispatch } from "../store/hooks";
-import { setDemoUser } from "../features/auth/authSlice";
 import { DraggableSticker } from "../components/ui/DraggableSticker";
+import { DemoLoginButton } from "../features/auth/DemoLoginButton";
+import { formatGoogleOAuthError } from "../lib/googleOAuth";
 
 function getErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback;
@@ -22,7 +22,6 @@ export function LoginPage() {
   const [isEmailFocused, setIsEmailFocused] = useState(false);
   const navigate = useNavigate();
   const { login } = useAuth();
-  const dispatch = useAppDispatch();
 
   // ✅ Check for session expired parameter
   useEffect(() => {
@@ -56,14 +55,16 @@ export function LoginPage() {
         login(tokens);
         sessionStorage.setItem("justLoggedIn", "true");
         navigate("/dashboard");
-      } catch {
-        dispatch(setDemoUser());
-        navigate("/dashboard");
+      } catch (err: unknown) {
+        const message = formatGoogleOAuthError(err, "backend");
+        setError(message);
+        toast.error(message);
       }
     },
     onError: () => {
-      dispatch(setDemoUser());
-      navigate("/dashboard");
+      const message = formatGoogleOAuthError(undefined, "popup");
+      setError(message);
+      toast.error(message);
     },
   });
 
@@ -223,16 +224,7 @@ export function LoginPage() {
           />
         </div>
 
-        <button
-          type="button"
-          onClick={() => {
-            dispatch(setDemoUser());
-            navigate("/dashboard");
-          }}
-          className="w-full rounded-xl border-2 border-black bg-green-200 px-4 py-3.5 font-black text-black text-sm shadow-card-sm hover:-translate-y-0.5 transition-all cursor-pointer uppercase"
-        >
-          🚀 Demo Mode (No Login Required)
-        </button>
+        <DemoLoginButton label="🚀 Demo Mode (No Login Required)" />
 
         <div className="flex items-center gap-3 py-2">
           <div className="h-[2px] flex-1 bg-black/10 dark:bg-white/10"></div>

@@ -1,0 +1,17 @@
+{
+  "id": "api-version-conflict",
+  "title": "API version path conflict",
+  "description": "main still calls /v2/users while the feature branch moves to /v3 with a timeout.",
+  "filePath": "src/api.ts",
+  "baseBranchName": "main",
+  "featureBranchName": "feat/api-v3",
+  "base": "function init() {",
+  "ours": "  const fetchUsers = () => api.get('/v2/users');",
+  "theirs": "  const fetchUsers = () => api.get('/v3/users', { timeout: 5000 });",
+  "after": "}",
+  "conflictScenario": {
+    "baseBranchName": "main",
+    "featureBranchName": "feat/api-v3",
+    "fileContent": "function init() {\n<<<<<<< main\n  const fetchUsers = () => api.get('/v2/users');\n=======\n  const fetchUsers = () => api.get('/v3/users', { timeout: 5000 });\n>>>>>>> feat/api-v3\n}\n"
+  }
+}
