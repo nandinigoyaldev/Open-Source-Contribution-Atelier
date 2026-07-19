@@ -11,8 +11,6 @@ import {
   TrendingUp,
   Trophy,
   X,
-  Sun,
-  Moon,
   Settings,
   Eye,
   FileText,
@@ -23,13 +21,13 @@ import {
   GitMerge,
 } from "lucide-react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
-import { useTheme } from "../../hooks/useTheme";
 import { useAuth } from "../../features/auth/AuthContext";
 import { fetchLessonsApi } from "../../lib/lessons";
 import api from "../../api";
 import LogoutButtonWithConfirm from "./LogoutButtonWithConfirm";
 import { SyncStatusIndicator } from "../ui/SyncStatusIndicator";
 import { NotificationMenu } from "../ui/NotificationMenu";
+import { ThemeToggle } from "../ui/ThemeToggle";
 
 const navGroups = [
   {
@@ -86,7 +84,6 @@ const navGroups = [
 ];
 
 export function Navigation() {
-  const { theme, toggleTheme, setTheme } = useTheme();
   const { user } = useAuth();
   const navigate = useNavigate();
   const [searchQuery, setSearchQuery] = useState("");
@@ -334,31 +331,7 @@ export function Navigation() {
               Dashboard
             </Link>
             <SyncStatusIndicator />
-            <button
-              className="rounded-lg bg-surface-low p-2 text-muted hover:text-text border-2 border-black dark:border-[#2e2924] shadow-card-sm hover:-translate-y-0.5 active:translate-y-0 transition-all dark:bg-[#151411] dark:text-[#c4bbae] dark:hover:text-[#f0ebe2] theme-toggle"
-              onClick={toggleTheme}
-              aria-label={
-                theme === "light"
-                  ? "Switch to dark mode"
-                  : "Switch to light mode"
-              }
-            >
-              {theme === "light" ? <Moon size={16} /> : <Sun size={16} />}
-            </button>
-            <button
-              className={`rounded-lg p-2 border-2 border-black dark:border-[#2e2924] shadow-card-sm hover:-translate-y-0.5 active:translate-y-0 transition-all toggle-contrast ${
-                theme === "high-contrast"
-                  ? "bg-primary text-white"
-                  : "bg-surface-low text-muted hover:text-text dark:bg-[#151411] dark:text-[#c4bbae] dark:hover:text-[#f0ebe2]"
-              }`}
-              onClick={() =>
-                setTheme(theme === "high-contrast" ? "light" : "high-contrast")
-              }
-              aria-label="Toggle High Contrast Mode"
-              title="High Contrast Mode"
-            >
-              <Eye size={16} />
-            </button>
+            <ThemeToggle />
             {user && !user.is_staff && <NotificationMenu />}
             {user ? (
               <div className="flex items-center space-x-2">
