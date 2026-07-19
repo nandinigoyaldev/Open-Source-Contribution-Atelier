@@ -45,7 +45,7 @@ export function TerminalReplay({
   // Auto-scroll
   useEffect(() => {
     if (bottomRef.current) {
-      bottomRef.current.scrollIntoView({ behavior: "smooth" });
+      bottomRef.current.scrollIntoView?.({ behavior: "smooth" });
     }
   }, [history, currentTyped]);
 
@@ -72,20 +72,18 @@ export function TerminalReplay({
       timeoutRef.current = setTimeout(() => {
         setCurrentTyped((prev) => prev + nextChar);
       }, randomDelay / speed);
-
-      return;
+    } else {
+      // Command fully typed, simulate execution delay
+      const execDelay = currentCmd.executionDelayMs ?? 400;
+      timeoutRef.current = setTimeout(() => {
+        setHistory((prev) => [
+          ...prev,
+          { ...currentCmd, id: Date.now() + Math.random() },
+        ]);
+        setCmdIndex((prev) => prev + 1);
+        setCurrentTyped("");
+      }, execDelay / speed);
     }
-
-    // Command fully typed, simulate execution delay
-    const execDelay = currentCmd.executionDelayMs ?? 400;
-    timeoutRef.current = setTimeout(() => {
-      setHistory((prev) => [
-        ...prev,
-        { ...currentCmd, id: Date.now() + Math.random() },
-      ]);
-      setCmdIndex((prev) => prev + 1);
-      setCurrentTyped("");
-    }, execDelay / speed);
 
     return () => {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);

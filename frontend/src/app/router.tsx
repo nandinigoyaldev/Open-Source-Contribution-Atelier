@@ -158,6 +158,12 @@ const BountiesPage = lazy(() =>
   })),
 );
 
+const GoodFirstIssueFinderPage = lazy(() =>
+  import("../pages/GoodFirstIssueFinderPage").then((module) => ({
+    default: module.GoodFirstIssueFinderPage,
+  })),
+);
+
 /*
  * These pages use default exports, so they can be passed directly
  * to React.lazy().
@@ -339,6 +345,15 @@ export function AppRouter() {
             element={
               <ProtectedRoute>
                 <BountiesPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/good-first-issues"
+            element={
+              <ProtectedRoute>
+                <GoodFirstIssueFinderPage />
               </ProtectedRoute>
             }
           />

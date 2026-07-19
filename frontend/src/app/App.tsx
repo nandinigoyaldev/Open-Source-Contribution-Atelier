@@ -10,6 +10,9 @@ import ReportIssueButton from "../components/ui/ReportIssueButton";
 import { ErrorBoundary } from "../components/ui/ErrorBoundary";
 import { NotificationProvider } from "../features/notifications/NotificationContext";
 import { WebSocketStatusIndicator } from "../components/WebSocketStatus/WebSocketStatusIndicator";
+import { OfflineBanner } from "../components/ui/OfflineBanner";
+import { InstallAppBanner } from "../components/ui/InstallAppBanner";
+import { ConflictResolutionModal } from "../components/ui/ConflictResolutionModal";
 
 // Pure React Onboarding Tour Step Definition Type Map
 interface TourStep {
@@ -121,6 +124,9 @@ export function App({ children }: { children?: React.ReactNode }) {
       <NotificationProvider>
         <ErrorBoundary>
         <div className="min-h-screen bg-white dark:bg-slate-900 text-gray-900 dark:text-gray-100 transition-colors duration-300">
+          <OfflineBanner />
+          <InstallAppBanner />
+          <ConflictResolutionModal />
           {/* Global Toast Configuration */}
           <Toaster
             position="top-right"
