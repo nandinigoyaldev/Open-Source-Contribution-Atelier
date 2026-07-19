@@ -148,11 +148,8 @@ Now for the exciting part — sending your changes back to the original project!
 > [!TIP]
 >
 > - **Keep PRs Small**: A good pull request does exactly one thing. If you spot other small issues while working, resist the urge to fix them in the same PR. Open a new issue and a new branch instead.
->
 > - **Use Draft PRs**: If your work isn't finished but you'd like early feedback, click the dropdown next to "Create pull request" and select **Create draft pull request**. This tells maintainers "not ready yet, but feel free to peek."
->
 > - **Clean Up Your Commits**: Try to squash tiny "oops" commits (like "fix typo" or "test 2") before requesting a review. A clean history makes it easier for maintainers to understand your changes.
->
 > - **NEVER Commit Secrets**: Passwords, API keys, access tokens — never, ever commit these to GitHub. Double-check your files before staging.
 
 ---

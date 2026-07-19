@@ -7,9 +7,15 @@ type UseWebSocketManagerOptions = {
   onMessage?: (data: unknown) => void;
 };
 
-export function useWebSocketManager({ url, token, onMessage }: UseWebSocketManagerOptions) {
+export function useWebSocketManager({
+  url,
+  token,
+  onMessage,
+}: UseWebSocketManagerOptions) {
   const [isConnected, setIsConnected] = useState(false);
-  const [state, setState] = useState<'CONNECTING' | 'OPEN' | 'CLOSING' | 'CLOSED' | 'RECONNECTING'>('CLOSED');
+  const [state, setState] = useState<
+    "CONNECTING" | "OPEN" | "CLOSING" | "CLOSED" | "RECONNECTING"
+  >("CLOSED");
   const [lastMessage, setLastMessage] = useState<unknown | null>(null);
   const [error, setError] = useState<any | null>(null);
 
@@ -25,7 +31,7 @@ export function useWebSocketManager({ url, token, onMessage }: UseWebSocketManag
     const conn = manager.getOrCreateConnection(url, token);
     connRef.current = conn;
 
-    setIsConnected(conn.state === 'OPEN');
+    setIsConnected(conn.state === "OPEN");
     setState(conn.state);
 
     const handleOpen = () => {
@@ -50,23 +56,23 @@ export function useWebSocketManager({ url, token, onMessage }: UseWebSocketManag
 
     const handleStateChange = (newState: typeof conn.state) => {
       setState(newState);
-      setIsConnected(newState === 'OPEN');
+      setIsConnected(newState === "OPEN");
     };
 
-    conn.on('open', handleOpen);
-    conn.on('message', handleMessage);
-    conn.on('close', handleClose);
-    conn.on('error', handleError);
-    conn.on('stateChange', handleStateChange);
+    conn.on("open", handleOpen);
+    conn.on("message", handleMessage);
+    conn.on("close", handleClose);
+    conn.on("error", handleError);
+    conn.on("stateChange", handleStateChange);
 
     conn.connect();
 
     return () => {
-      conn.off('open', handleOpen);
-      conn.off('message', handleMessage);
-      conn.off('close', handleClose);
-      conn.off('error', handleError);
-      conn.off('stateChange', handleStateChange);
+      conn.off("open", handleOpen);
+      conn.off("message", handleMessage);
+      conn.off("close", handleClose);
+      conn.off("error", handleError);
+      conn.off("stateChange", handleStateChange);
     };
   }, [url, token]);
 

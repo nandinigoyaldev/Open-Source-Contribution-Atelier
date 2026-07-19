@@ -96,7 +96,10 @@ export function PrDiffSummarizer({
           aria-describedby="pr-diff-hint"
         />
       </label>
-      <p id="pr-diff-hint" className="text-[11px] text-muted font-bold dark:text-[#c4bbae] -mt-2">
+      <p
+        id="pr-diff-hint"
+        className="text-[11px] text-muted font-bold dark:text-[#c4bbae] -mt-2"
+      >
         Accepts plain paths, <code className="font-mono">git status</code>, or{" "}
         <code className="font-mono">git diff --name-only</code>.
       </p>
@@ -107,7 +110,9 @@ export function PrDiffSummarizer({
           <input
             type="text"
             value={issueNumber}
-            onChange={(e) => setIssueNumber(e.target.value.replace(/[^\d]/g, ""))}
+            onChange={(e) =>
+              setIssueNumber(e.target.value.replace(/[^\d]/g, ""))
+            }
             placeholder="1822"
             className="mt-2 w-full border-4 border-black px-3 py-2 rounded-xl font-mono text-sm bg-white text-black dark:bg-[#151411] dark:border-[#2e2924] dark:text-[#f0ebe2] focus:outline-none focus:ring-2 focus:ring-accent"
           />
@@ -136,15 +141,18 @@ export function PrDiffSummarizer({
 
       {!raw.trim() && (
         <p className="text-xs text-muted font-bold dark:text-[#c4bbae]">
-          Waiting for file paths… Detection covers{" "}
-          <strong>backend/</strong>, <strong>frontend/</strong>,{" "}
-          <strong>docs/</strong>, <strong>*.md</strong>, and migrations.
+          Waiting for file paths… Detection covers <strong>backend/</strong>,{" "}
+          <strong>frontend/</strong>, <strong>docs/</strong>,{" "}
+          <strong>*.md</strong>, and migrations.
         </p>
       )}
 
       {hasFiles && (
         <>
-          <div className="flex flex-wrap gap-2" aria-label="Detected change areas">
+          <div
+            className="flex flex-wrap gap-2"
+            aria-label="Detected change areas"
+          >
             {(Object.keys(summary.counts) as ChangeArea[]).map((area) => (
               <span
                 key={area}
@@ -212,7 +220,9 @@ export function PrDiffSummarizer({
           </button>
         </div>
         <pre className="w-full max-h-64 overflow-auto border-4 border-black rounded-xl p-3 font-mono text-[11px] leading-relaxed bg-surface-low text-black dark:bg-[#0f0e0c] dark:border-[#2e2924] dark:text-[#f0ebe2] whitespace-pre-wrap">
-          {hasFiles ? prBody : "Paste changed files to generate a PR description…"}
+          {hasFiles
+            ? prBody
+            : "Paste changed files to generate a PR description…"}
         </pre>
       </div>
     </div>

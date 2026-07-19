@@ -21,6 +21,7 @@ A branch is your own private workspace. You can make changes here without affect
 ## 🧠 An Analogy: A Tree
 
 Think of your project as a tree:
+
 - The **trunk** (`main` branch) is the stable version
 - Each **branch** is like a limb growing in a different direction
 - Branches can grow back into the trunk (merging)
@@ -58,11 +59,11 @@ git switch main
 
 Good branch names are descriptive:
 
-| Instead of... | Use... |
-|---|---|
-| `my-branch` | `feat/add-login-button` |
-| `fix` | `fix/nav-not-working` |
-| `stuff` | `docs/update-readme` |
+| Instead of... | Use...                  |
+| ------------- | ----------------------- |
+| `my-branch`   | `feat/add-login-button` |
+| `fix`         | `fix/nav-not-working`   |
+| `stuff`       | `docs/update-readme`    |
 
 Prefixes like `feat/`, `fix/`, `docs/` help everyone understand what the branch is for.
 
@@ -79,6 +80,7 @@ Always create a branch, do your work there, then merge it back. This keeps `main
 ## 🧪 Try It Yourself
 
 In the sandbox terminal, try:
+
 1. Run `git switch -c my-first-branch`
 2. Switch back with `git switch main`
 3. Create another branch and explore

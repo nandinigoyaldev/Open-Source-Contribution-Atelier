@@ -21,9 +21,13 @@ export function InteractiveQuiz({ id }: InteractiveQuizProps) {
     queryKey: ["quiz", id],
     queryFn: async () => {
       try {
-        return await fetchApi(`/content/quizzes/${id}/`, { requireAuth: false });
+        return await fetchApi(`/content/quizzes/${id}/`, {
+          requireAuth: false,
+        });
       } catch (err) {
-        console.warn(`[InteractiveQuiz] Backend fetch failed for quiz ${id}, falling back to local file...`);
+        console.warn(
+          `[InteractiveQuiz] Backend fetch failed for quiz ${id}, falling back to local file...`,
+        );
         const res = await fetch("/content/content/quizzes.json");
         if (!res.ok) {
           // Try alternative local path
@@ -31,12 +35,14 @@ export function InteractiveQuiz({ id }: InteractiveQuizProps) {
           if (!altRes.ok) throw err;
           const allQuizzes = await altRes.json();
           const quizData = allQuizzes[id];
-          if (!quizData) throw new Error(`Quiz with ID ${id} not found in local file`);
+          if (!quizData)
+            throw new Error(`Quiz with ID ${id} not found in local file`);
           return quizData;
         }
         const allQuizzes = await res.json();
         const quizData = allQuizzes[id];
-        if (!quizData) throw new Error(`Quiz with ID ${id} not found in local file`);
+        if (!quizData)
+          throw new Error(`Quiz with ID ${id} not found in local file`);
         return quizData;
       }
     },

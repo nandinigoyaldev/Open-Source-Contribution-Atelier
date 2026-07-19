@@ -342,7 +342,8 @@ export function ContributorDashboard() {
               onClick={() => setShowProgressReport(true)}
               className={`flex items-center gap-2 px-4 py-2 bg-white text-slate-700 text-xs font-bold border border-slate-200 rounded-xl hover:-translate-y-0.5 transition-all shadow-sm whitespace-nowrap dark:bg-[#1a1a24] dark:text-[#eef2f6] dark:border-slate-800 ${FOCUS_RING}`}
             >
-              <Download className="w-3.5 h-3.5" aria-hidden="true" /> Export Progress (PDF)
+              <Download className="w-3.5 h-3.5" aria-hidden="true" /> Export
+              Progress (PDF)
             </button>
           </div>
         </div>

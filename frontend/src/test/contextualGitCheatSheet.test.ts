@@ -54,7 +54,11 @@ describe("resolveModuleId", () => {
 
 describe("resolveContextualCommands", () => {
   it("uses lesson-specific commands when available", () => {
-    const result = resolveContextualCommands("branches", "module-2", SAMPLE_MAP);
+    const result = resolveContextualCommands(
+      "branches",
+      "module-2",
+      SAMPLE_MAP,
+    );
     expect(result.source).toBe("lesson");
     expect(result.commands.map((c) => c.command)).toEqual([
       "git branch",
@@ -75,7 +79,11 @@ describe("resolveContextualCommands", () => {
   });
 
   it("falls back to defaults", () => {
-    const result = resolveContextualCommands("unknown-lesson", undefined, SAMPLE_MAP);
+    const result = resolveContextualCommands(
+      "unknown-lesson",
+      undefined,
+      SAMPLE_MAP,
+    );
     expect(result.source).toBe("default");
     expect(result.commands.map((c) => c.id)).toEqual([
       "git-status",

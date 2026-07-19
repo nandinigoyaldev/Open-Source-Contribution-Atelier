@@ -35,7 +35,8 @@ function toBase64Url(bytes: string): string {
 
 function fromBase64Url(b64url: string): string {
   const padded = b64url.replace(/-/g, "+").replace(/_/g, "/");
-  const pad = padded.length % 4 === 0 ? "" : "=".repeat(4 - (padded.length % 4));
+  const pad =
+    padded.length % 4 === 0 ? "" : "=".repeat(4 - (padded.length % 4));
   const b64 = padded + pad;
   if (typeof atob === "function") {
     return atob(b64);

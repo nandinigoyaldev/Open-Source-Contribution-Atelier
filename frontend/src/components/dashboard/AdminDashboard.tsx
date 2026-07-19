@@ -20,10 +20,13 @@ import type { AdminDashboardData, LeaderboardResponse } from "./types";
 
 export function AdminDashboard() {
   const { theme } = useTheme();
-  const [activePeers, setActivePeers] = useState<{ user_id: number; username: string; room_id: string }[]>([]);
+  const [activePeers, setActivePeers] = useState<
+    { user_id: number; username: string; room_id: string }[]
+  >([]);
 
   useEffect(() => {
-    const apiBase = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api";
+    const apiBase =
+      import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api";
     const wsHost = apiBase.replace(/^https?:\/\//, "").replace(/\/api$/, "");
     const wsScheme = apiBase.startsWith("https") ? "wss" : "ws";
     const wsUrl = `${wsScheme}://${wsHost}/ws/leaderboard/`;
@@ -36,17 +39,36 @@ export function AdminDashboard() {
         if (data.type === "leaderboard_update") {
           if (data.event === "peer_joined") {
             setActivePeers((prev) => {
-              if (prev.some((p) => p.user_id === data.user_id && p.room_id === data.room_id)) return prev;
-              return [...prev, { user_id: data.user_id, username: data.username, room_id: data.room_id }];
+              if (
+                prev.some(
+                  (p) =>
+                    p.user_id === data.user_id && p.room_id === data.room_id,
+                )
+              )
+                return prev;
+              return [
+                ...prev,
+                {
+                  user_id: data.user_id,
+                  username: data.username,
+                  room_id: data.room_id,
+                },
+              ];
             });
           } else if (data.event === "peer_left") {
             setActivePeers((prev) =>
-              prev.filter((p) => !(p.user_id === data.user_id && p.room_id === data.room_id))
+              prev.filter(
+                (p) =>
+                  !(p.user_id === data.user_id && p.room_id === data.room_id),
+              ),
             );
           }
         }
       } catch (err) {
-        console.error("Failed to parse admin dashboard websocket message:", err);
+        console.error(
+          "Failed to parse admin dashboard websocket message:",
+          err,
+        );
       }
     };
 
@@ -191,9 +213,16 @@ export function AdminDashboard() {
             {activePeers.length > 0 && (
               <div className="mt-2 p-2 bg-surface-low border-2 border-black rounded-lg max-h-24 overflow-y-auto space-y-1 dark:bg-[#151411] dark:border-[#2e2924]">
                 {activePeers.map((peer, idx) => (
-                  <div key={idx} className="flex justify-between items-center text-[10px] font-mono">
-                    <span className="text-text dark:text-[#f0ebe2]">@{peer.username}</span>
-                    <span className="text-muted text-[8px] uppercase">{peer.room_id.replace("submission_", "Review #")}</span>
+                  <div
+                    key={idx}
+                    className="flex justify-between items-center text-[10px] font-mono"
+                  >
+                    <span className="text-text dark:text-[#f0ebe2]">
+                      @{peer.username}
+                    </span>
+                    <span className="text-muted text-[8px] uppercase">
+                      {peer.room_id.replace("submission_", "Review #")}
+                    </span>
                   </div>
                 ))}
               </div>

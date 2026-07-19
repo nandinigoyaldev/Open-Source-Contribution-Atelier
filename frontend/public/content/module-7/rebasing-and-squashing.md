@@ -69,13 +69,13 @@ This grabs the latest `main`, then applies your commits on top.
 
 ## 🆚 Merge vs. Rebase vs. Squash
 
-| Feature | 🔗 Git Merge | 🔨 Git Rebase | 📥 Git Squash |
-|---|---|---|---|
-| **What it does** | Combines branches with a new merge commit | Moves your commits to a new starting point | Combines many commits into one |
-| **History impact** | Keeps all branch history | Rewrites commit IDs for a clean line | Drops individual commit messages |
-| **Best for** | Team branches you want to preserve | Keeping a clean, linear story | Cleaning up before merging |
-| **Pro** | Safe and easy to undo | Easy to read and debug | One clean commit per feature |
-| **Con** | Extra merge commits clutter history | Can cause conflicts (don't rebase shared branches!) | Harder to trace small changes |
+| Feature            | 🔗 Git Merge                              | 🔨 Git Rebase                                       | 📥 Git Squash                    |
+| ------------------ | ----------------------------------------- | --------------------------------------------------- | -------------------------------- |
+| **What it does**   | Combines branches with a new merge commit | Moves your commits to a new starting point          | Combines many commits into one   |
+| **History impact** | Keeps all branch history                  | Rewrites commit IDs for a clean line                | Drops individual commit messages |
+| **Best for**       | Team branches you want to preserve        | Keeping a clean, linear story                       | Cleaning up before merging       |
+| **Pro**            | Safe and easy to undo                     | Easy to read and debug                              | One clean commit per feature     |
+| **Con**            | Extra merge commits clutter history       | Can cause conflicts (don't rebase shared branches!) | Harder to trace small changes    |
 
 ---
 

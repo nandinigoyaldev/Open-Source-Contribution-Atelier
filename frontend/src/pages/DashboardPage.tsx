@@ -1,4 +1,4 @@
-import { AdminDashboard } from "../components/dashboard/AdminDashboard";
+import { AdminDashboard } from "../components/Dashboard/AdminDashboard";
 import { useAuth } from "../features/auth/AuthContext";
 import { useQuery } from "@tanstack/react-query";
 import { fetchApi } from "../lib/api";
@@ -11,7 +11,15 @@ import { useBookmarks } from "../hooks/useBookmarks";
 import { useOfflineReadyLessons } from "../hooks/useOfflineReadyLessons";
 import { useCurriculumLessons } from "../hooks/useCurriculum";
 import { BADGES } from "../constants/badges";
-import { Flame, ArrowRight, Bookmark, Lock, BookOpen, Award, Sparkles } from "lucide-react";
+import {
+  Flame,
+  ArrowRight,
+  Bookmark,
+  Lock,
+  BookOpen,
+  Award,
+  Sparkles,
+} from "lucide-react";
 import { AvailableOfflineBadge } from "../components/ui/AvailableOfflineBadge";
 import { CARD_FOCUS_RING } from "../lib/a11yFocus";
 
@@ -45,7 +53,11 @@ export function DashboardPage() {
 
   const { isLoading: contributorLoading } = useQuery({
     queryKey: ["contributorStats"],
-    queryFn: () => fetchApi("/dashboard/stats/", { suppressErrorToast: true, timeoutMs: 2000 }),
+    queryFn: () =>
+      fetchApi("/dashboard/stats/", {
+        suppressErrorToast: true,
+        timeoutMs: 2000,
+      }),
     enabled: !!user && !user.is_staff,
   });
 
@@ -58,11 +70,14 @@ export function DashboardPage() {
 
   const stats = mockStudentStats;
 
-  const completedLessonsCount = lessons.filter((l) => isLessonCompleted(l.slug)).length;
+  const completedLessonsCount = lessons.filter((l) =>
+    isLessonCompleted(l.slug),
+  ).length;
   const totalLessonsCount = lessons.length;
-  const completionPercentage = totalLessonsCount > 0 ? Math.round((completedLessonsCount / totalLessonsCount) * 100) : 0;
-
-
+  const completionPercentage =
+    totalLessonsCount > 0
+      ? Math.round((completedLessonsCount / totalLessonsCount) * 100)
+      : 0;
 
   const { data: certificateData } = useQuery({
     queryKey: ["userCertificate"],
@@ -94,16 +109,22 @@ export function DashboardPage() {
     return <AdminDashboard />;
   }
 
-  const moduleProgress = stats.currentModule.totalLessons > 0
-    ? Math.round((stats.currentModule.lessonsCompleted / stats.currentModule.totalLessons) * 100)
-    : 0;
+  const moduleProgress =
+    stats.currentModule.totalLessons > 0
+      ? Math.round(
+          (stats.currentModule.lessonsCompleted /
+            stats.currentModule.totalLessons) *
+            100,
+        )
+      : 0;
 
   return (
     <div className="max-w-5xl mx-auto px-4 pt-28 pb-12 space-y-8">
-
       {/* Welcome + Module Progress */}
       <section className="rounded-[2.5rem] border-4 border-black bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-400 p-8 sm:p-10 shadow-card relative overflow-hidden">
-        <div className="absolute -right-10 -bottom-10 text-[12rem] opacity-10 select-none">📖</div>
+        <div className="absolute -right-10 -bottom-10 text-[12rem] opacity-10 select-none">
+          📖
+        </div>
         <div className="relative z-10">
           <span className="font-black text-xs bg-white/90 text-black px-4 py-2 rounded-full border-2 border-black inline-block shadow-card-sm mb-4">
             Module {stats.currentModule.number} of {stats.totalModules}
@@ -116,7 +137,10 @@ export function DashboardPage() {
           </p>
           <div className="max-w-lg">
             <div className="flex justify-between text-sm font-bold text-white/80 mb-1">
-              <span>{stats.currentModule.lessonsCompleted} of {stats.currentModule.totalLessons} lessons done</span>
+              <span>
+                {stats.currentModule.lessonsCompleted} of{" "}
+                {stats.currentModule.totalLessons} lessons done
+              </span>
               <span>{moduleProgress}%</span>
             </div>
             <div className="w-full h-4 bg-white/30 border-2 border-black rounded-full overflow-hidden">
@@ -145,10 +169,15 @@ export function DashboardPage() {
                 {lessonQueue[0]?.title || "All done!"}
               </h3>
               <p className="text-sm font-bold text-gray-500 dark:text-[#c4bbae] mb-4">
-                {lessonQueue[0]?.description || "You've completed all lessons. Amazing!"}
+                {lessonQueue[0]?.description ||
+                  "You've completed all lessons. Amazing!"}
               </p>
               <Link
-                to={lessonQueue[0] ? `/lessons/${lessonQueue[0].slug}` : "/content"}
+                to={
+                  lessonQueue[0]
+                    ? `/lessons/${lessonQueue[0].slug}`
+                    : "/content"
+                }
                 aria-label={
                   lessonQueue[0]
                     ? `Start lesson: ${lessonQueue[0].title}`
@@ -187,7 +216,9 @@ export function DashboardPage() {
             <span className="font-black text-xs uppercase tracking-wider text-blue-600 dark:text-blue-400 mb-1 block">
               Concept of the Day — Explained Simply
             </span>
-            <h3 className="text-xl font-black dark:text-[#f0ebe2] mb-2">{tip.title}</h3>
+            <h3 className="text-xl font-black dark:text-[#f0ebe2] mb-2">
+              {tip.title}
+            </h3>
             <p className="text-sm font-bold text-gray-600 dark:text-[#c4bbae] leading-relaxed">
               {tip.explanation}
             </p>
@@ -277,7 +308,11 @@ export function DashboardPage() {
                       });
                     }}
                   >
-                    <Bookmark className="fill-primary text-primary hover:opacity-60 transition-opacity" size={20} aria-hidden="true" />
+                    <Bookmark
+                      className="fill-primary text-primary hover:opacity-60 transition-opacity"
+                      size={20}
+                      aria-hidden="true"
+                    />
                   </button>
                 </div>
                 <div className="flex justify-between items-center mt-auto pt-4">
@@ -315,8 +350,12 @@ export function DashboardPage() {
                 <div className={`text-4xl mb-2 ${isEarned ? "" : "grayscale"}`}>
                   {badge.icon}
                 </div>
-                <h4 className="font-black text-xs mb-1 dark:text-[#f0ebe2]">{badge.name}</h4>
-                <p className="text-[9px] font-bold text-gray-500 dark:text-[#c4bbae]">{badge.desc}</p>
+                <h4 className="font-black text-xs mb-1 dark:text-[#f0ebe2]">
+                  {badge.name}
+                </h4>
+                <p className="text-[9px] font-bold text-gray-500 dark:text-[#c4bbae]">
+                  {badge.desc}
+                </p>
                 {isEarned ? (
                   <span className="absolute top-1 right-1 bg-green-100 text-green-700 border-2 border-green-700 text-[7px] font-black px-1.5 py-0.5 rounded-full">
                     ✓
@@ -336,25 +375,33 @@ export function DashboardPage() {
       <section className="rounded-[2rem] border-4 border-black bg-gradient-to-r from-gray-50 to-gray-100 dark:from-[#1f1c18] dark:to-[#151411] dark:border-[#2e2924] p-6 shadow-card">
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-6 text-center">
           <div>
-            <span className="text-3xl font-black text-indigo-600 dark:text-indigo-400">{completedLessonsCount}</span>
+            <span className="text-3xl font-black text-indigo-600 dark:text-indigo-400">
+              {completedLessonsCount}
+            </span>
             <p className="font-black text-xs uppercase tracking-wider text-gray-500 dark:text-[#c4bbae] mt-1">
               Lessons Done
             </p>
           </div>
           <div>
-            <span className="text-3xl font-black text-green-600 dark:text-green-400">{stats.xp}</span>
+            <span className="text-3xl font-black text-green-600 dark:text-green-400">
+              {stats.xp}
+            </span>
             <p className="font-black text-xs uppercase tracking-wider text-gray-500 dark:text-[#c4bbae] mt-1">
               XP Earned
             </p>
           </div>
           <div>
-            <span className="text-3xl font-black text-orange-600 dark:text-orange-400">{stats.streakDays}</span>
+            <span className="text-3xl font-black text-orange-600 dark:text-orange-400">
+              {stats.streakDays}
+            </span>
             <p className="font-black text-xs uppercase tracking-wider text-gray-500 dark:text-[#c4bbae] mt-1">
               Day Streak
             </p>
           </div>
           <div>
-            <span className="text-3xl font-black text-purple-600 dark:text-purple-400">{stats.modulesCompleted}/{stats.totalModules}</span>
+            <span className="text-3xl font-black text-purple-600 dark:text-purple-400">
+              {stats.modulesCompleted}/{stats.totalModules}
+            </span>
             <p className="font-black text-xs uppercase tracking-wider text-gray-500 dark:text-[#c4bbae] mt-1">
               Modules Done
             </p>
@@ -386,7 +433,9 @@ export function DashboardPage() {
       {showCertificate && (
         <div className="fixed inset-0 bg-black/75 z-50 flex items-center justify-center p-4">
           <div className="w-full max-w-lg bg-white dark:bg-[#1f1c18] rounded-2xl border-4 border-black shadow-card p-8 text-center space-y-4">
-            <h2 className="text-3xl font-black dark:text-[#f0ebe2]">🎓 Certificate</h2>
+            <h2 className="text-3xl font-black dark:text-[#f0ebe2]">
+              🎓 Certificate
+            </h2>
             <p className="text-sm font-bold text-gray-500 dark:text-[#c4bbae]">
               {certificateData?.certificate?.verification_hash
                 ? `Hash: ${certificateData.certificate.verification_hash}`
@@ -406,11 +455,15 @@ export function DashboardPage() {
       {showProgressReport && (
         <div className="fixed inset-0 bg-black/75 z-50 flex items-center justify-center p-4">
           <div className="w-full max-w-lg bg-white dark:bg-[#1f1c18] rounded-2xl border-4 border-black shadow-card p-8 space-y-4">
-            <h2 className="text-3xl font-black text-center dark:text-[#f0ebe2]">📊 Progress</h2>
+            <h2 className="text-3xl font-black text-center dark:text-[#f0ebe2]">
+              📊 Progress
+            </h2>
             <div className="space-y-3">
               <div className="flex justify-between font-bold">
                 <span>Lessons Completed</span>
-                <span>{completedLessonsCount}/{totalLessonsCount}</span>
+                <span>
+                  {completedLessonsCount}/{totalLessonsCount}
+                </span>
               </div>
               <div className="flex justify-between font-bold">
                 <span>Total XP</span>
@@ -422,7 +475,9 @@ export function DashboardPage() {
               </div>
               <div className="flex justify-between font-bold">
                 <span>Badges Earned</span>
-                <span>{stats.earnedBadges.length}/{BADGES.length}</span>
+                <span>
+                  {stats.earnedBadges.length}/{BADGES.length}
+                </span>
               </div>
             </div>
             <button
@@ -440,7 +495,6 @@ export function DashboardPage() {
           </div>
         </div>
       )}
-
     </div>
   );
 }

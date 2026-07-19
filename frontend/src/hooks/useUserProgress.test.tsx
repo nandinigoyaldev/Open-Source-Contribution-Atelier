@@ -113,11 +113,11 @@ describe("useUserProgress", () => {
       await Promise.resolve();
     });
 
-    const bulkCall = vi.mocked(fetchApi).mock.calls.find(
-      (call) => call[0] === "/progress/bulk-update/"
-    );
+    const bulkCall = vi
+      .mocked(fetchApi)
+      .mock.calls.find((call) => call[0] === "/progress/bulk-update/");
     expect(bulkCall).toBeDefined();
-    const body = JSON.parse(bulkCall![1]!.body!);
+    const body = JSON.parse(bulkCall![1]!.body as string);
     expect(body.lessons).toEqual([
       {
         lesson_slug: "new-lesson",

@@ -118,7 +118,9 @@ export function useOfflineLesson(
         if (l.filePath) {
           try {
             const cache = await caches.open("content-runtime-cache");
-            const fallbackResponse = await cache.match(`/content/${l.filePath}`);
+            const fallbackResponse = await cache.match(
+              `/content/${l.filePath}`,
+            );
             if (!cancelled) {
               if (fallbackResponse) {
                 const text = await fallbackResponse.text();

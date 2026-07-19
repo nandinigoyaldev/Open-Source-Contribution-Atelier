@@ -13,7 +13,11 @@
   },
   "api": {
     "endpoints": [
-      { "path": "/api/content/lessons/", "p95Ms": 500, "maxDegradationPct": 20 },
+      {
+        "path": "/api/content/lessons/",
+        "p95Ms": 500,
+        "maxDegradationPct": 20
+      },
       { "path": "/api/dashboard/", "p95Ms": 500, "maxDegradationPct": 20 },
       { "path": "/api/leaderboard/", "p95Ms": 500, "maxDegradationPct": 20 },
       { "path": "/api/auth/me/", "p95Ms": 200, "maxDegradationPct": 20 },

@@ -1,8 +1,5 @@
 import { describe, expect, it, vi, afterEach } from "vitest";
-import {
-  formatGoogleOAuthError,
-  isDemoLoginEnabled,
-} from "../lib/googleOAuth";
+import { formatGoogleOAuthError, isDemoLoginEnabled } from "../lib/googleOAuth";
 
 describe("formatGoogleOAuthError", () => {
   it("explains popup / client config failures", () => {
@@ -12,15 +9,15 @@ describe("formatGoogleOAuthError", () => {
   });
 
   it("explains network failures against the API", () => {
-    const msg = formatGoogleOAuthError(
-      new Error("Failed to fetch"),
-      "backend",
-    );
+    const msg = formatGoogleOAuthError(new Error("Failed to fetch"), "backend");
     expect(msg).toMatch(/API|backend/i);
   });
 
   it("explains token rejection", () => {
-    const msg = formatGoogleOAuthError(new Error("401 Unauthorized"), "backend");
+    const msg = formatGoogleOAuthError(
+      new Error("401 Unauthorized"),
+      "backend",
+    );
     expect(msg).toMatch(/GOOGLE_CLIENT/);
   });
 

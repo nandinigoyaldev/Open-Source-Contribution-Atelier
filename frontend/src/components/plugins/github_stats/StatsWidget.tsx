@@ -2,12 +2,20 @@ import React, { useEffect, useState } from "react";
 import api from "../../../api";
 
 export default function StatsWidget() {
-  const [stats, setStats] = useState<{ stars: number; forks: number; contributors: number; status: string } | null>(null);
+  const [stats, setStats] = useState<{
+    stars: number;
+    forks: number;
+    contributors: number;
+    status: string;
+  } | null>(null);
 
   useEffect(() => {
-    api.get("/api/plugins/github_stats/info/")
+    api
+      .get("/api/plugins/github_stats/info/")
       .then((res) => setStats(res.data))
-      .catch((err) => console.error("Failed to fetch github stats from plugin view:", err));
+      .catch((err) =>
+        console.error("Failed to fetch github stats from plugin view:", err),
+      );
   }, []);
 
   if (!stats) {

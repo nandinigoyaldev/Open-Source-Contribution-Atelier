@@ -9,7 +9,7 @@ import { ThemeProvider } from "./hooks/useTheme";
 import { ToastProvider } from "./features/ui/ToastContext";
 import { syncOfflineQueue } from "./lib/offlineQueue";
 import { initKeepAlive } from "./lib/hfKeepAlive";
-import { QueryProvider } from './providers/QueryProvider';
+import { QueryProvider } from "./QueryProvider";
 import i18n from "./lib/i18n";
 import { I18nextProvider } from "react-i18next";
 import "./styles.css";
@@ -27,7 +27,9 @@ if (SENTRY_DSN) {
       Sentry.browserTracingIntegration(),
       Sentry.replayIntegration(),
     ],
-    tracesSampleRate: parseFloat(import.meta.env.VITE_SENTRY_TRACES_SAMPLE_RATE || "1.0"),
+    tracesSampleRate: parseFloat(
+      import.meta.env.VITE_SENTRY_TRACES_SAMPLE_RATE || "1.0",
+    ),
     replaysSessionSampleRate: 0.1,
     replaysOnErrorSampleRate: 1.0,
   });
@@ -70,17 +72,17 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
     <Provider store={store}>
       <I18nextProvider i18n={i18n}>
         <ThemeProvider>
-         <QueryProvider>
-          <AuthProvider>
-            <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
-              <ToastProvider>
-                <NetworkStatusProvider>
-                  <App />
-                </NetworkStatusProvider>
-              </ToastProvider>
-            </GoogleOAuthProvider>
-          </AuthProvider>
-        </QueryProvider>
+          <QueryProvider>
+            <AuthProvider>
+              <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
+                <ToastProvider>
+                  <NetworkStatusProvider>
+                    <App />
+                  </NetworkStatusProvider>
+                </ToastProvider>
+              </GoogleOAuthProvider>
+            </AuthProvider>
+          </QueryProvider>
         </ThemeProvider>
       </I18nextProvider>
     </Provider>

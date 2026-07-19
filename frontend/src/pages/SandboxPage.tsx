@@ -131,7 +131,10 @@ export function SandboxPage() {
           role="alert"
           className="flex items-start gap-3 rounded-2xl border-4 border-dashed border-amber-500 bg-amber-50 p-4 dark:bg-amber-950/20"
         >
-          <AlertCircle className="h-5 w-5 shrink-0 text-amber-700" aria-hidden />
+          <AlertCircle
+            className="h-5 w-5 shrink-0 text-amber-700"
+            aria-hidden
+          />
           <div className="flex-1">
             <p className="font-black text-amber-900 dark:text-amber-200">
               Couldn’t load shared replay

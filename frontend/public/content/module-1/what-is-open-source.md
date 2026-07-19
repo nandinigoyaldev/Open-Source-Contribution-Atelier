@@ -28,6 +28,7 @@ It sounds a little strange, right? "I spent months writing this code, and I'm ju
 Here's the secret: **open source is not about giving away — it's about building together.**
 
 When you share your code:
+
 - Others find bugs you missed (more eyes = fewer mistakes)
 - People add features you never thought of
 - The software gets better for everyone

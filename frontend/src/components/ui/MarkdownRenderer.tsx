@@ -100,10 +100,7 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
 
       if (part.startsWith("**") && part.endsWith("**")) {
         return [
-          <strong
-            key={i}
-            className="font-extrabold text-black dark:text-white"
-          >
+          <strong key={i} className="font-extrabold text-black dark:text-white">
             {renderGlossaryText(part.slice(2, -2), `b${i}`)}
           </strong>,
         ];
@@ -331,7 +328,9 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
                   <th
                     key={i}
                     className={`px-4 py-3 text-xs uppercase tracking-wider border-r-2 border-black last:border-r-0 dark:border-[#2e2924] dark:text-[#f0ebe2] ${
-                      i === 0 ? "sticky left-0 bg-surface-low dark:bg-[#151411] z-10 shadow-[2px_0_0_0_rgba(0,0,0,1)] dark:shadow-[2px_0_0_0_rgba(46,41,36,1)]" : ""
+                      i === 0
+                        ? "sticky left-0 bg-surface-low dark:bg-[#151411] z-10 shadow-[2px_0_0_0_rgba(0,0,0,1)] dark:shadow-[2px_0_0_0_rgba(46,41,36,1)]"
+                        : ""
                     }`}
                   >
                     {cell}
@@ -349,7 +348,9 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
                     <td
                       key={cellIndex}
                       className={`px-4 py-3 border-r-2 border-black last:border-r-0 dark:border-[#2e2924] dark:text-[#c4bbae] ${
-                        cellIndex === 0 ? "sticky left-0 bg-white dark:bg-[#1f1c18] z-10 shadow-[2px_0_0_0_rgba(0,0,0,1)] dark:shadow-[2px_0_0_0_rgba(46,41,36,1)]" : ""
+                        cellIndex === 0
+                          ? "sticky left-0 bg-white dark:bg-[#1f1c18] z-10 shadow-[2px_0_0_0_rgba(0,0,0,1)] dark:shadow-[2px_0_0_0_rgba(46,41,36,1)]"
+                          : ""
                       }`}
                     >
                       {parseInline(cell)}
@@ -453,7 +454,9 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
     }
 
     // 9b. HTML and Markdown Image Blocks
-    const imgHtmlMatch = line.trim().match(/<img\s+[^>]*src="([^"]+)"[^>]*\/?/i);
+    const imgHtmlMatch = line
+      .trim()
+      .match(/<img\s+[^>]*src="([^"]+)"[^>]*\/?/i);
     if (imgHtmlMatch) {
       const src = imgHtmlMatch[1];
       const altMatch = line.match(/alt="([^"]*)"/i);

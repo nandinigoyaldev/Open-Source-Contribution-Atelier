@@ -10,7 +10,12 @@ import {
 } from "../lib/curriculum";
 
 type CurriculumQueryOptions = Omit<
-  UseQueryOptions<CurriculumCatalog, Error, CurriculumCatalog, typeof CURRICULUM_QUERY_KEY>,
+  UseQueryOptions<
+    CurriculumCatalog,
+    Error,
+    CurriculumCatalog,
+    typeof CURRICULUM_QUERY_KEY
+  >,
   "queryKey" | "queryFn"
 >;
 

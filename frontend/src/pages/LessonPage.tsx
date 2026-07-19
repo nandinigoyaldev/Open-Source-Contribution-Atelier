@@ -1,4 +1,10 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate, useParams, Link } from "react-router-dom";
 import {
@@ -13,6 +19,8 @@ import {
   History,
   ArrowLeft,
   ArrowRight,
+  WifiOff,
+  HardDrive,
 } from "lucide-react";
 
 import SkeletonLesson from "../components/ui/skeletons/SkeletonLesson";
@@ -193,8 +201,14 @@ export function LessonPage() {
   const [showHint, setShowHint] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
 
-  const dummyShellState = useMemo(() => ({ cwd: ["/"], fs: {} } as unknown as ShellState), []);
-  const { suggestions, commonCompletionPrefix } = useTerminalAutocomplete(input, dummyShellState);
+  const dummyShellState = useMemo(
+    () => ({ cwd: ["/"], fs: {} }) as unknown as ShellState,
+    [],
+  );
+  const { suggestions, commonCompletionPrefix } = useTerminalAutocomplete(
+    input,
+    dummyShellState,
+  );
   const [showConfetti, setShowConfetti] = useState(false);
 
   // For Interactive Terminal Lessons
@@ -220,10 +234,10 @@ export function LessonPage() {
 
   // Read Time
   const calculateReadTime = (content: string) => {
-  const wordsPerMinute = 200;
-  const words = content.split(/\s+/).length;
-  const minutes = Math.ceil(words / wordsPerMinute);
-  return minutes;
+    const wordsPerMinute = 200;
+    const words = content.split(/\s+/).length;
+    const minutes = Math.ceil(words / wordsPerMinute);
+    return minutes;
   };
 
   // Note Panel
@@ -534,9 +548,9 @@ export function LessonPage() {
 
     if (isCorrect) {
       setFeedback("correct");
-      
+
       const wasCompleted = isLessonCompleted(lesson.slug);
-      
+
       syncProgress({
         lesson_slug: lesson.slug,
         score: lesson.points || 20,
@@ -792,768 +806,821 @@ export function LessonPage() {
           </div>
         </ResponsiveSidebar>
 
-      <div className="flex-1 flex flex-col h-full overflow-hidden">
-        <div className="h-2 w-full bg-surface-low border-b-2 border-black dark:bg-[#151411] dark:border-[#2e2924] relative flex-shrink-0">
-          <div
-            className="h-full bg-primary transition-all duration-150"
-            style={{ width: `${scrollProgress}%` }}
+        <div className="flex-1 flex flex-col h-full overflow-hidden">
+          <div className="h-2 w-full bg-surface-low border-b-2 border-black dark:bg-[#151411] dark:border-[#2e2924] relative flex-shrink-0">
+            <div
+              className="h-full bg-primary transition-all duration-150"
+              style={{ width: `${scrollProgress}%` }}
+            />
+          </div>
+          <ReadingProgressTracker
+            lessonSlug={lesson.slug}
+            containerSelector=".prose"
           />
-        </div>
-        <ReadingProgressTracker
-          lessonSlug={lesson.slug}
-          containerSelector=".prose"
-        />
 
-        <div
-          ref={mainContentRef}
-          className="flex-1 overflow-y-auto p-6 sm:p-10 space-y-8"
-        >
-          <div className="max-w-3xl mx-auto space-y-6">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div>
-                <div className="flex flex-wrap items-center gap-2">
-                  <span className="text-[10px] font-mono font-black bg-accent text-black px-3 py-1 rounded-full border-2 border-black rotate-[-1deg] inline-block shadow-card-sm uppercase">
-                    {lesson.difficulty || "beginner"}
-                  </span>
-                  <span className="text-[10px] font-mono font-black bg-surface-low text-text px-3 py-1 rounded-full border-2 border-black rotate-[1deg] inline-block shadow-card-sm uppercase dark:bg-[#1f1c18] dark:border-[#2e2924] dark:text-[#f0ebe2]">
-                    ⏱️ {calculateReadTime(markdownContent)} min read
-                  </span>
-                  <span className="text-[10px] font-mono font-black bg-surface-low text-muted px-3 py-1 rounded-full border-2 border-black rotate-[-0.5deg] inline-block shadow-card-sm uppercase dark:bg-[#1f1c18] dark:border-[#2e2924] dark:text-[#c4bbae]">
-                    📅 Updated: {new Date((lesson as any).updatedAt || (lesson as any).updated_at || new Date()).toLocaleDateString()}
-                  </span>
-                  {isCached && <AvailableOfflineBadge />}
-                  <OfflineStatusBadge
-                    source={contentSource}
-                    onRefresh={() => {
-                      refreshLessonContent();
-                      refreshOfflineReady();
-                    }}
-                    isRefreshing={contentLoading}
-                  />
+          <div
+            ref={mainContentRef}
+            className="flex-1 overflow-y-auto p-6 sm:p-10 space-y-8"
+          >
+            <div className="max-w-3xl mx-auto space-y-6">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <span className="text-[10px] font-mono font-black bg-accent text-black px-3 py-1 rounded-full border-2 border-black rotate-[-1deg] inline-block shadow-card-sm uppercase">
+                      {lesson.difficulty || "beginner"}
+                    </span>
+                    <span className="text-[10px] font-mono font-black bg-surface-low text-text px-3 py-1 rounded-full border-2 border-black rotate-[1deg] inline-block shadow-card-sm uppercase dark:bg-[#1f1c18] dark:border-[#2e2924] dark:text-[#f0ebe2]">
+                      ⏱️ {calculateReadTime(markdownContent)} min read
+                    </span>
+                    <span className="text-[10px] font-mono font-black bg-surface-low text-muted px-3 py-1 rounded-full border-2 border-black rotate-[-0.5deg] inline-block shadow-card-sm uppercase dark:bg-[#1f1c18] dark:border-[#2e2924] dark:text-[#c4bbae]">
+                      📅 Updated:{" "}
+                      {new Date(
+                        (lesson as any).updatedAt ||
+                          (lesson as any).updated_at ||
+                          new Date(),
+                      ).toLocaleDateString()}
+                    </span>
+                    {isCached && <AvailableOfflineBadge />}
+                    <OfflineStatusBadge
+                      source={contentSource}
+                      onRefresh={() => {
+                        refreshLessonContent();
+                        refreshOfflineReady();
+                      }}
+                      isRefreshing={contentLoading}
+                    />
+                  </div>
+                  <h1 className="text-4xl sm:text-5xl font-black text-text dark:text-[#f0ebe2] drop-shadow-[2.5px_2.5px_0_#FF3B30] mt-3">
+                    {lesson.title}
+                  </h1>
                 </div>
-                <h1 className="text-4xl sm:text-5xl font-black text-text dark:text-[#f0ebe2] drop-shadow-[2.5px_2.5px_0_#FF3B30] mt-3">
-                  {lesson.title}
-                </h1>
-              </div>
-              {isCompleted && (
-                <div className="self-start sm:self-center bg-green-100 text-green-700 px-4 py-1.5 rounded-2xl text-xs font-black border-4 border-black shadow-card-sm">
-                  COMPLETED ✅
-                </div>
-              )}
-              <div className="self-start sm:self-center ml-auto flex gap-2">
-                <button
-                  onClick={() => setShowHistory(true)}
-                  className="flex items-center justify-center p-2 rounded-xl border-4 border-black bg-surface-low hover:-translate-y-1 hover:shadow-card-sm transition-all"
-                  title="View History"
-                >
-                  <History className="text-text h-6 w-6" />
-                </button>
-                <button
-                  onClick={() =>
-                    toggleBookmark.mutate({
-                      slug: lesson.slug,
-                      isBookmarked: isBookmarked(lesson.slug),
-                    })
-                  }
-                  disabled={toggleBookmark.isPending}
-                  className="flex items-center justify-center p-2 rounded-xl border-4 border-black bg-surface-low hover:-translate-y-1 hover:shadow-card-sm transition-all"
-                  title={
-                    isBookmarked(lesson.slug)
-                      ? "Remove from Read Later"
-                      : "Save for later"
-                  }
-                >
-                  <Bookmark
-                    className={
-                      isBookmarked(lesson.slug)
-                        ? "fill-accent text-accent h-6 w-6"
-                        : "text-text h-6 w-6"
-                    }
-                  />
-                </button>
-              </div>
-            </div>
-
-            {driftReport && (
-              <CurriculumDriftBanner slug={lesson.slug} report={driftReport} />
-            )}
-
-            <p className="text-xl font-bold text-muted dark:text-[#c4bbae]">
-              {lesson.description}
-            </p>
-
-            <hr className="border-2 border-black/10 dark:border-[#2e2924]/40" />
-
-            <TextToSpeechControls content={markdownContent} />
-
-            {!isOnline && !isCached ? (
-              <OfflineBanner lessonTitle={lesson.title} isCached={false} />
-            ) : (
-              <>
-                {!isOnline && isCached && (
-                  <OfflineBanner lessonTitle={lesson.title} isCached />
+                {isCompleted && (
+                  <div className="self-start sm:self-center bg-green-100 text-green-700 px-4 py-1.5 rounded-2xl text-xs font-black border-4 border-black shadow-card-sm">
+                    COMPLETED ✅
+                  </div>
                 )}
-                <article className="prose max-w-none">
-                  <React.Suspense
-                    fallback={
-                      <div className="w-full h-64 animate-pulse rounded-2xl border-4 border-black/20 bg-surface-low dark:border-[#2e2924]/50 dark:bg-[#151411]" />
+                <div className="self-start sm:self-center ml-auto flex gap-2">
+                  <button
+                    onClick={() => setShowHistory(true)}
+                    className="flex items-center justify-center p-2 rounded-xl border-4 border-black bg-surface-low hover:-translate-y-1 hover:shadow-card-sm transition-all"
+                    title="View History"
+                  >
+                    <History className="text-text h-6 w-6" />
+                  </button>
+                  <button
+                    onClick={() =>
+                      toggleBookmark.mutate({
+                        slug: lesson.slug,
+                        isBookmarked: isBookmarked(lesson.slug),
+                      })
+                    }
+                    disabled={toggleBookmark.isPending}
+                    className="flex items-center justify-center p-2 rounded-xl border-4 border-black bg-surface-low hover:-translate-y-1 hover:shadow-card-sm transition-all"
+                    title={
+                      isBookmarked(lesson.slug)
+                        ? "Remove from Read Later"
+                        : "Save for later"
                     }
                   >
-                    <MarkdownRenderer content={markdownContent} />
-                  </React.Suspense>
-                </article>
-              </>
-            )}
-            <div className="mt-4 flex justify-end">
-              <button
-                onClick={() => alert("Thanks for reporting the typo")}
-                className="px-4 py-2 bg-red-500 text-white rounded-lg font-bold border-2 border-black hover:opacity-90 transition"
-              >
-                Report Typo 🐛
-              </button>
-            </div>
-
-            <div className="pt-8 space-y-6">
-              {(() => {
-                const plugin = lessonPluginRegistry.getPluginForLesson(lesson);
-                if (plugin) {
-                  const PluginComponent = plugin.component;
-                  return (
-                    <div className="mt-8">
-                      <PluginComponent
-                        lesson={lesson}
-                        onSuccess={(score) => {
-                          const wasCompleted = isCompleted;
-                          syncProgress({
-                            lesson_slug: lesson.slug,
-                            score: score || lesson.points || 20,
-                            completed: true,
-                          });
-                          if (!wasCompleted) {
-                            triggerConfetti();
-                          }
-                        }}
-                      />
-                    </div>
-                  );
-                }
-
-                return lesson.pythonExercise ? (
-                  <div className="mt-8">
-                    {new URLSearchParams(window.location.search).get(
-                      "session",
-                    ) ? (
-                      <CollabPythonSandbox
-                        exercise={lesson.pythonExercise}
-                        roomId={
-                          new URLSearchParams(window.location.search).get(
-                            "session",
-                          )!
-                        }
-                        onSuccess={() => {
-                          const wasCompleted = isCompleted;
-                          syncProgress({
-                            lesson_slug: lesson.slug,
-                            score: lesson.points || 20,
-                            completed: true,
-                          });
-                          if (!wasCompleted) {
-                            triggerConfetti();
-                          }
-                        }}
-                      />
-                    ) : (
-                      <PythonSandbox
-                        exercise={lesson.pythonExercise}
-                        onSuccess={() => {
-                          const wasCompleted = isCompleted;
-                          syncProgress({
-                            lesson_slug: lesson.slug,
-                            score: lesson.points || 20,
-                            completed: true,
-                          });
-                          if (!wasCompleted) {
-                            triggerConfetti();
-                          }
-                        }}
-                      />
-                    )}
-                  </div>
-                ) : lesson.jsExercise ? (
-                  <div className="mt-8">
-                    <JSSandbox
-                      exercise={lesson.jsExercise}
-                      onSuccess={() => {
-                        const wasCompleted = isCompleted;
-                        syncProgress({
-                          lesson_slug: lesson.slug,
-                          score: lesson.points || 20,
-                          completed: true,
-                        });
-                        if (!wasCompleted) {
-                          triggerConfetti();
-                        }
-                      }}
+                    <Bookmark
+                      className={
+                        isBookmarked(lesson.slug)
+                          ? "fill-accent text-accent h-6 w-6"
+                          : "text-text h-6 w-6"
+                      }
                     />
-                  </div>
-                ) : lesson.debugExercise ? (
-                  <div className="mt-8">
-                    <InteractiveDebugger
-                      exercise={lesson.debugExercise}
-                      onSuccess={() => {
-                        const wasCompleted = isCompleted;
-                        syncProgress({
-                          lesson_slug: lesson.slug,
-                          score: lesson.points || 30,
-                          completed: true,
-                        });
-                        if (!wasCompleted) {
-                          triggerConfetti();
-                        }
-                      }}
-                    />
-                  </div>
-                ) : hasQuiz ? (
-                  <div className="rounded-2xl border-4 border-black bg-white p-6 shadow-card dark:bg-[#1f1c18] dark:border-[#2e2924]">
-                    <div className="flex items-center justify-between mb-4">
-                      <span className="font-mono text-xs text-primary uppercase tracking-widest font-black">
-                        Knowledge Check: Question {currentQuizIndex + 1} of{" "}
-                        {lesson.quizzes!.length}
-                      </span>
-                      <div className="flex items-center gap-3">
-                        {timeLeft !== null && (
-                          <div
-                            className={`text-xs font-black px-2 py-0.5 rounded-full border-2 ${
-                              timeLeft <= 5
-                                ? "bg-red-100 text-red-600 border-red-600 animate-pulse"
-                                : "bg-surface text-text border-black dark:border-[#2e2924] dark:text-[#f0ebe2]"
-                            }`}
-                          >
-                            ⏱{" "}
-                            {Math.floor(timeLeft / 60)
-                              .toString()
-                              .padStart(2, "0")}
-                            :{(timeLeft % 60).toString().padStart(2, "0")}
-                          </div>
-                        )}
-                        <span className="text-xs font-black text-accent bg-black text-white px-2 py-0.5 rounded-full dark:bg-[#2e2924]">
-                          {lesson.points || 15} XP
-                        </span>
+                  </button>
+                </div>
+              </div>
+
+              {driftReport && (
+                <CurriculumDriftBanner
+                  slug={lesson.slug}
+                  report={driftReport}
+                />
+              )}
+
+              <p className="text-xl font-bold text-muted dark:text-[#c4bbae]">
+                {lesson.description}
+              </p>
+
+              <hr className="border-2 border-black/10 dark:border-[#2e2924]/40" />
+
+              <TextToSpeechControls content={markdownContent} />
+
+              {!isOnline && !isCached ? (
+                <div className="flex flex-col items-center justify-center p-8 bg-red-100 dark:bg-red-950/20 border-4 border-black rounded-2xl shadow-card-sm text-center my-6">
+                  <WifiOff className="w-12 h-12 text-red-500 mb-4 animate-pulse" />
+                  <h3 className="text-xl font-black text-black dark:text-[#f0ebe2] mb-2 uppercase">
+                    Lesson Unavailable Offline
+                  </h3>
+                  <p className="text-sm font-bold text-muted dark:text-[#9b8f80] max-w-md">
+                    "{lesson.title}" is not cached on your device. Please
+                    connect to the internet to download and view this lesson.
+                  </p>
+                </div>
+              ) : (
+                <>
+                  {!isOnline && isCached && (
+                    <div className="flex items-center gap-3 p-4 bg-amber-100 dark:bg-amber-950/20 border-4 border-black rounded-2xl shadow-card-sm my-6">
+                      <HardDrive className="w-6 h-6 text-amber-600 shrink-0 animate-pulse" />
+                      <div>
+                        <h4 className="text-sm font-black text-black dark:text-[#f0ebe2] uppercase">
+                          Viewing Offline Cached Copy
+                        </h4>
+                        <p className="text-xs font-bold text-muted dark:text-[#9b8f80]">
+                          You are currently offline. Serving a locally cached
+                          version of "{lesson.title}".
+                        </p>
                       </div>
                     </div>
+                  )}
+                  <article className="prose max-w-none">
+                    <React.Suspense
+                      fallback={
+                        <div className="w-full h-64 animate-pulse rounded-2xl border-4 border-black/20 bg-surface-low dark:border-[#2e2924]/50 dark:bg-[#151411]" />
+                      }
+                    >
+                      <MarkdownRenderer content={markdownContent} />
+                    </React.Suspense>
+                  </article>
+                </>
+              )}
+              <div className="mt-4 flex justify-end">
+                <button
+                  onClick={() => alert("Thanks for reporting the typo")}
+                  className="px-4 py-2 bg-red-500 text-white rounded-lg font-bold border-2 border-black hover:opacity-90 transition"
+                >
+                  Report Typo 🐛
+                </button>
+              </div>
 
-                    <h3 className="text-lg font-black mb-4 text-text dark:text-[#f0ebe2]">
-                      {lesson.quizzes![currentQuizIndex].question}
-                    </h3>
-
-                    <div className="space-y-3">
-                      {lesson.quizzes![currentQuizIndex].options.map(
-                        (option, idx) => {
-                          const isSelected = selectedOption === idx;
-                          const currentQuiz = lesson.quizzes![currentQuizIndex];
-                          const isCorrectOption = idx === currentQuiz.answer;
-
-                          // Determine background color based on quiz state
-                          let bgColor = "";
-                          if (quizFeedback !== null) {
-                            // After answer submitted: show green for correct, red for incorrect
-                            if (isCorrectOption) {
-                              bgColor =
-                                "bg-green-600 border-green-800 text-white";
-                            } else if (
-                              isSelected &&
-                              quizFeedback === "incorrect"
-                            ) {
-                              bgColor = "bg-red-600 border-red-800 text-white";
+              <div className="pt-8 space-y-6">
+                {(() => {
+                  const plugin =
+                    lessonPluginRegistry.getPluginForLesson(lesson);
+                  if (plugin) {
+                    const PluginComponent = plugin.component;
+                    return (
+                      <div className="mt-8">
+                        <PluginComponent
+                          lesson={lesson}
+                          onSuccess={(score) => {
+                            const wasCompleted = isCompleted;
+                            syncProgress({
+                              lesson_slug: lesson.slug,
+                              score: score || lesson.points || 20,
+                              completed: true,
+                            });
+                            if (!wasCompleted) {
+                              triggerConfetti();
                             }
-                          }
+                          }}
+                        />
+                      </div>
+                    );
+                  }
 
-                          if (!bgColor) {
-                            bgColor = isSelected
-                              ? "bg-accent shadow-card-sm -translate-y-0.5"
-                              : "bg-surface hover:bg-surface-low dark:bg-[#151411]";
+                  return lesson.pythonExercise ? (
+                    <div className="mt-8">
+                      {new URLSearchParams(window.location.search).get(
+                        "session",
+                      ) ? (
+                        <CollabPythonSandbox
+                          exercise={lesson.pythonExercise}
+                          roomId={
+                            new URLSearchParams(window.location.search).get(
+                              "session",
+                            )!
                           }
-
-                          return (
-                            <button
-                              key={idx}
-                              onClick={() => {
-                                if (quizFeedback !== null) return;
-                                setSelectedOption(idx);
-                              }}
-                              disabled={quizFeedback !== null}
-                              className={`w-full text-left p-4 rounded-lg border-4 border-black font-bold text-sm transition-all flex items-center justify-between ${bgColor}`}
-                            >
-                              <span>{option}</span>
-                              <div
-                                className={`w-4 h-4 rounded-full border-2 border-black flex items-center justify-center ${
-                                  isSelected ? "bg-black" : ""
-                                }`}
-                              />
-                            </button>
-                          );
-                        },
+                          onSuccess={() => {
+                            const wasCompleted = isCompleted;
+                            syncProgress({
+                              lesson_slug: lesson.slug,
+                              score: lesson.points || 20,
+                              completed: true,
+                            });
+                            if (!wasCompleted) {
+                              triggerConfetti();
+                            }
+                          }}
+                        />
+                      ) : (
+                        <PythonSandbox
+                          exercise={lesson.pythonExercise}
+                          onSuccess={() => {
+                            const wasCompleted = isCompleted;
+                            syncProgress({
+                              lesson_slug: lesson.slug,
+                              score: lesson.points || 20,
+                              completed: true,
+                            });
+                            if (!wasCompleted) {
+                              triggerConfetti();
+                            }
+                          }}
+                        />
                       )}
                     </div>
-
-                    {quizFeedback === "correct" && (
-                      <div
-                        role="alert"
-                        aria-live="assertive"
-                        className="mt-4 p-4 bg-green-50 text-green-800 border-4 border-green-600 rounded-lg font-bold text-sm"
-                      >
-                        🎉 Correct!{" "}
-                        {lesson.quizzes![currentQuizIndex].explanation}
+                  ) : lesson.jsExercise ? (
+                    <div className="mt-8">
+                      <JSSandbox
+                        exercise={lesson.jsExercise}
+                        onSuccess={() => {
+                          const wasCompleted = isCompleted;
+                          syncProgress({
+                            lesson_slug: lesson.slug,
+                            score: lesson.points || 20,
+                            completed: true,
+                          });
+                          if (!wasCompleted) {
+                            triggerConfetti();
+                          }
+                        }}
+                      />
+                    </div>
+                  ) : lesson.debugExercise ? (
+                    <div className="mt-8">
+                      <InteractiveDebugger
+                        exercise={lesson.debugExercise}
+                        onSuccess={() => {
+                          const wasCompleted = isCompleted;
+                          syncProgress({
+                            lesson_slug: lesson.slug,
+                            score: lesson.points || 30,
+                            completed: true,
+                          });
+                          if (!wasCompleted) {
+                            triggerConfetti();
+                          }
+                        }}
+                      />
+                    </div>
+                  ) : hasQuiz ? (
+                    <div className="rounded-2xl border-4 border-black bg-white p-6 shadow-card dark:bg-[#1f1c18] dark:border-[#2e2924]">
+                      <div className="flex items-center justify-between mb-4">
+                        <span className="font-mono text-xs text-primary uppercase tracking-widest font-black">
+                          Knowledge Check: Question {currentQuizIndex + 1} of{" "}
+                          {lesson.quizzes!.length}
+                        </span>
+                        <div className="flex items-center gap-3">
+                          {timeLeft !== null && (
+                            <div
+                              className={`text-xs font-black px-2 py-0.5 rounded-full border-2 ${
+                                timeLeft <= 5
+                                  ? "bg-red-100 text-red-600 border-red-600 animate-pulse"
+                                  : "bg-surface text-text border-black dark:border-[#2e2924] dark:text-[#f0ebe2]"
+                              }`}
+                            >
+                              ⏱{" "}
+                              {Math.floor(timeLeft / 60)
+                                .toString()
+                                .padStart(2, "0")}
+                              :{(timeLeft % 60).toString().padStart(2, "0")}
+                            </div>
+                          )}
+                          <span className="text-xs font-black text-accent bg-black text-white px-2 py-0.5 rounded-full dark:bg-[#2e2924]">
+                            {lesson.points || 15} XP
+                          </span>
+                        </div>
                       </div>
-                    )}
 
-                    {quizFeedback === "incorrect" && (
-                      <div
-                        role="alert"
-                        aria-live="assertive"
-                        className="mt-4 p-4 bg-red-50 text-red-800 border-4 border-red-600 rounded-lg font-bold text-sm"
-                      >
-                        ❌ Incorrect. Try reviewing the lesson material again.
+                      <h3 className="text-lg font-black mb-4 text-text dark:text-[#f0ebe2]">
+                        {lesson.quizzes![currentQuizIndex].question}
+                      </h3>
+
+                      <div className="space-y-3">
+                        {lesson.quizzes![currentQuizIndex].options.map(
+                          (option, idx) => {
+                            const isSelected = selectedOption === idx;
+                            const currentQuiz =
+                              lesson.quizzes![currentQuizIndex];
+                            const isCorrectOption = idx === currentQuiz.answer;
+
+                            // Determine background color based on quiz state
+                            let bgColor = "";
+                            if (quizFeedback !== null) {
+                              // After answer submitted: show green for correct, red for incorrect
+                              if (isCorrectOption) {
+                                bgColor =
+                                  "bg-green-600 border-green-800 text-white";
+                              } else if (
+                                isSelected &&
+                                quizFeedback === "incorrect"
+                              ) {
+                                bgColor =
+                                  "bg-red-600 border-red-800 text-white";
+                              }
+                            }
+
+                            if (!bgColor) {
+                              bgColor = isSelected
+                                ? "bg-accent shadow-card-sm -translate-y-0.5"
+                                : "bg-surface hover:bg-surface-low dark:bg-[#151411]";
+                            }
+
+                            return (
+                              <button
+                                key={idx}
+                                onClick={() => {
+                                  if (quizFeedback !== null) return;
+                                  setSelectedOption(idx);
+                                }}
+                                disabled={quizFeedback !== null}
+                                className={`w-full text-left p-4 rounded-lg border-4 border-black font-bold text-sm transition-all flex items-center justify-between ${bgColor}`}
+                              >
+                                <span>{option}</span>
+                                <div
+                                  className={`w-4 h-4 rounded-full border-2 border-black flex items-center justify-center ${
+                                    isSelected ? "bg-black" : ""
+                                  }`}
+                                />
+                              </button>
+                            );
+                          },
+                        )}
                       </div>
-                    )}
 
-                    {quizFeedback === "timeout" && (
-                      <div
-                        role="alert"
-                        aria-live="assertive"
-                        className="mt-4 p-4 bg-orange-50 text-orange-800 border-4 border-orange-600 rounded-lg font-bold text-sm"
-                      >
-                        ⏳ Time's Up! You ran out of time for this question.
-                      </div>
-                    )}
+                      {quizFeedback === "correct" && (
+                        <div
+                          role="alert"
+                          aria-live="assertive"
+                          className="mt-4 p-4 bg-green-50 text-green-800 border-4 border-green-600 rounded-lg font-bold text-sm"
+                        >
+                          🎉 Correct!{" "}
+                          {lesson.quizzes![currentQuizIndex].explanation}
+                        </div>
+                      )}
 
-                    <div className="mt-6 flex justify-end">
-                      {quizFeedback === "correct" ? (
-                        currentQuizIndex < lesson.quizzes!.length - 1 ? (
-                          <button
-                            onClick={handleNextQuizQuestion}
-                            className="px-5 py-2.5 bg-accent text-black font-black text-sm rounded-lg border-4 border-black shadow-card-sm hover:-translate-y-0.5 transition-all cursor-pointer"
-                          >
-                            Next Question
-                          </button>
+                      {quizFeedback === "incorrect" && (
+                        <div
+                          role="alert"
+                          aria-live="assertive"
+                          className="mt-4 p-4 bg-red-50 text-red-800 border-4 border-red-600 rounded-lg font-bold text-sm"
+                        >
+                          ❌ Incorrect. Try reviewing the lesson material again.
+                        </div>
+                      )}
+
+                      {quizFeedback === "timeout" && (
+                        <div
+                          role="alert"
+                          aria-live="assertive"
+                          className="mt-4 p-4 bg-orange-50 text-orange-800 border-4 border-orange-600 rounded-lg font-bold text-sm"
+                        >
+                          ⏳ Time's Up! You ran out of time for this question.
+                        </div>
+                      )}
+
+                      <div className="mt-6 flex justify-end">
+                        {quizFeedback === "correct" ? (
+                          currentQuizIndex < lesson.quizzes!.length - 1 ? (
+                            <button
+                              onClick={handleNextQuizQuestion}
+                              className="px-5 py-2.5 bg-accent text-black font-black text-sm rounded-lg border-4 border-black shadow-card-sm hover:-translate-y-0.5 transition-all cursor-pointer"
+                            >
+                              Next Question
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => {
+                                const wasCompleted = isCompleted;
+                                syncProgress({
+                                  lesson_slug: lesson.slug,
+                                  score: lesson.points || 15,
+                                  completed: true,
+                                });
+                                if (!wasCompleted) {
+                                  triggerConfetti();
+                                }
+                              }}
+                              className="px-6 py-2 bg-black text-white font-bold rounded-lg border-2 border-black shadow-brutal transition-transform active:translate-y-0.5"
+                            >
+                              Finish Lesson
+                            </button>
+                          )
                         ) : (
                           <button
-                            onClick={() => {
-                              const wasCompleted = isCompleted;
-                              syncProgress({
-                                lesson_slug: lesson.slug,
-                                score: lesson.points || 15,
-                                completed: true,
-                              });
-                              if (!wasCompleted) {
-                                triggerConfetti();
-                              }
-                            }}
-                            className="px-6 py-2 bg-black text-white font-bold rounded-lg border-2 border-black shadow-brutal transition-transform active:translate-y-0.5"
+                            onClick={handleQuizOptionCheck}
+                            disabled={selectedOption === null}
+                            className="px-5 py-2.5 bg-primary text-black font-black text-sm rounded-lg border-4 border-black shadow-card-sm hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-card-sm disabled:opacity-50 transition-all cursor-pointer"
                           >
-                            Finish Lesson
+                            Submit Answer
                           </button>
-                        )
-                      ) : (
+                        )}
+                      </div>
+                    </div>
+                  ) : repoState.conflicts.length !== 0 ? (
+                    <div className="rounded-2xl border-4 bg-surface-low p-6 shadow-card dark:bg-[#1f1c18] dark:border-[#2e2924] border-black mt-8">
+                      <h3 className="text-xl font-black mb-4 flex items-center gap-2 text-text dark:text-[#f0ebe2]">
+                        <span>📝</span> Resolve Merge Conflict
+                      </h3>
+                      <p className="text-sm text-muted mb-4 dark:text-[#c4bbae]">
+                        Edit the file below to resolve the conflict markers,
+                        then save your changes.
+                      </p>
+                      <textarea
+                        value={conflictContent}
+                        onChange={(e) => setConflictContent(e.target.value)}
+                        className="w-full h-64 p-4 font-mono text-sm bg-surface-lowest text-text border-2 border-black rounded-lg outline-none mb-4 whitespace-pre"
+                        spellCheck={false}
+                      />
+                      <div className="flex justify-end">
                         <button
-                          onClick={handleQuizOptionCheck}
-                          disabled={selectedOption === null}
-                          className="px-5 py-2.5 bg-primary text-black font-black text-sm rounded-lg border-4 border-black shadow-card-sm hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-card-sm disabled:opacity-50 transition-all cursor-pointer"
+                          onClick={() => {
+                            if (
+                              conflictContent.includes("<<<<<<<") ||
+                              conflictContent.includes("=======") ||
+                              conflictContent.includes(">>>>>>>")
+                            ) {
+                              setFeedback("error");
+                              return;
+                            }
+                            setRepoState((prev) => ({
+                              ...prev,
+                              conflicts: [],
+                            }));
+                            setFeedback("correct");
+                          }}
+                          className="px-5 py-2.5 bg-primary text-black font-black text-sm rounded-lg border-4 border-black shadow-card-sm hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-card-sm transition-all cursor-pointer"
                         >
-                          Submit Answer
+                          Save & Mark Resolved
                         </button>
+                      </div>
+                      {feedback === "error" && (
+                        <div className="mt-4 text-red-700 font-bold bg-red-50 p-3 rounded-lg border-2 border-red-600">
+                          ❌ Please remove all conflict markers
+                          (&lt;&lt;&lt;&lt;&lt;&lt;&lt;, =======,
+                          &gt;&gt;&gt;&gt;&gt;&gt;&gt;).
+                        </div>
                       )}
                     </div>
-                  </div>
-                ) : repoState.conflicts.length !== 0 ? (
-                  <div className="rounded-2xl border-4 bg-surface-low p-6 shadow-card dark:bg-[#1f1c18] dark:border-[#2e2924] border-black mt-8">
-                    <h3 className="text-xl font-black mb-4 flex items-center gap-2 text-text dark:text-[#f0ebe2]">
-                      <span>📝</span> Resolve Merge Conflict
-                    </h3>
-                    <p className="text-sm text-muted mb-4 dark:text-[#c4bbae]">
-                      Edit the file below to resolve the conflict markers, then save your changes.
-                    </p>
-                    <textarea
-                      value={conflictContent}
-                      onChange={(e) => setConflictContent(e.target.value)}
-                      className="w-full h-64 p-4 font-mono text-sm bg-surface-lowest text-text border-2 border-black rounded-lg outline-none mb-4 whitespace-pre"
-                      spellCheck={false}
-                    />
-                    <div className="flex justify-end">
-                      <button
-                        onClick={() => {
-                          if (conflictContent.includes("<<<<<<<") || conflictContent.includes("=======") || conflictContent.includes(">>>>>>>")) {
-                            setFeedback("error");
-                            return;
-                          }
-                          setRepoState((prev) => ({ ...prev, conflicts: [] }));
-                          setFeedback("correct");
-                        }}
-                        className="px-5 py-2.5 bg-primary text-black font-black text-sm rounded-lg border-4 border-black shadow-card-sm hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-card-sm transition-all cursor-pointer"
+                  ) : hasConflict && feedback === "correct" ? (
+                    <div className="mt-8">
+                      <div
+                        role="status"
+                        className="mt-6 text-green-700 font-bold bg-green-50 p-4 rounded-lg border-4 border-green-600 animate-bounce"
                       >
-                        Save & Mark Resolved
-                      </button>
-                    </div>
-                    {feedback === "error" && (
-                      <div className="mt-4 text-red-700 font-bold bg-red-50 p-3 rounded-lg border-2 border-red-600">
-                        ❌ Please remove all conflict markers (&lt;&lt;&lt;&lt;&lt;&lt;&lt;, =======, &gt;&gt;&gt;&gt;&gt;&gt;&gt;).
+                        ✅ Correct! You successfully resolved the merge
+                        conflict.
                       </div>
-                    )}
-                  </div>
-                ) : hasConflict && feedback === "correct" ? (
-                  <div className="mt-8">
-                    <div
-                      role="status"
-                      className="mt-6 text-green-700 font-bold bg-green-50 p-4 rounded-lg border-4 border-green-600 animate-bounce"
-                    >
-                      ✅ Correct! You successfully resolved the merge conflict.
                     </div>
-                  </div>
-                ) : (
-                  <div
-                    className={`rounded-2xl border-4 bg-surface-low p-6 shadow-card dark:bg-[#1f1c18] dark:border-[#2e2924]
+                  ) : (
+                    <div
+                      className={`rounded-2xl border-4 bg-surface-low p-6 shadow-card dark:bg-[#1f1c18] dark:border-[#2e2924]
                     ${
                       feedback === "error"
                         ? "border-red-600 shake-error"
                         : "border-black"
                     }`}
-                  >
-                    <h3 className="text-xl font-black mb-4 flex items-center gap-2 text-text dark:text-[#f0ebe2]">
-                      <span>💻</span> Sandbox terminal check
-                      <span className="ml-auto">
-                        <ContextualGitCheatSheet
-                          lessonSlug={lesson.slug}
-                          moduleId={
-                            moduleIdFromFilePath(lesson.filePath) ||
-                            (lesson.category?.startsWith("module-")
-                              ? lesson.category
-                              : undefined)
-                          }
-                          onInsertCommand={(command) => setInput(command)}
-                        />
-                      </span>
-                    </h3>
-
-                    <GitGraph state={repoState} />
-
-                    <p className="text-xs text-muted mb-4 dark:text-[#c4bbae]">
-                      Solve the drill by executing the appropriate git command
-                      below:
-                    </p>
-
-                    <form onSubmit={handleCommandSubmit} className="space-y-4">
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono text-primary font-black">
-                          $
+                    >
+                      <h3 className="text-xl font-black mb-4 flex items-center gap-2 text-text dark:text-[#f0ebe2]">
+                        <span>💻</span> Sandbox terminal check
+                        <span className="ml-auto">
+                          <ContextualGitCheatSheet
+                            lessonSlug={lesson.slug}
+                            moduleId={
+                              moduleIdFromFilePath(lesson.filePath) ||
+                              (lesson.category?.startsWith("module-")
+                                ? lesson.category
+                                : undefined)
+                            }
+                            onInsertCommand={(command) => setInput(command)}
+                          />
                         </span>
-                        <input
-                          className="flex-1 min-w-0 rounded-lg border-4 border-black bg-surface-lowest px-4 py-2.5 text-text font-bold outline-none placeholder:text-muted/40 dark:bg-[#151411] dark:border-[#2e2924]"
-                          placeholder={
-                            lesson.hint || "Type your git command here"
-                          }
-                          value={input}
-                          onChange={(e) => setInput(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === "Tab") {
-                              e.preventDefault();
-                              if (suggestions.length === 1) {
-                                setInput(suggestions[0].completionText);
-                              } else if (commonCompletionPrefix && commonCompletionPrefix.length > input.length) {
-                                setInput(commonCompletionPrefix);
-                              }
-                            }
-                            if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
-                              e.preventDefault();
-                              handleCommandSubmit(
-                                e as unknown as React.FormEvent,
-                              );
-                            }
-                          }}
-                          disabled={feedback === "correct" || isExecuting}
-                          autoFocus
-                        />
-                        <button
-                          type="submit"
-                          className="px-5 py-2.5 bg-primary text-black font-black text-sm rounded-lg border-4 border-black shadow-card-sm hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-card-sm disabled:opacity-50 transition-all cursor-pointer flex items-center justify-center gap-2 min-w-[72px]"
-                          disabled={
-                            feedback === "correct" ||
-                            !input.trim() ||
-                            isExecuting
-                          }
-                        >
-                          {isExecuting ? (
-                            <span
-                              className="flex items-center gap-1 inline-flex"
-                              aria-hidden="true"
-                            >
-                              <span className="w-1.5 h-1.5 bg-current rounded-full animate-bounce [animation-delay:-0.3s]" />
-                              <span className="w-1.5 h-1.5 bg-current rounded-full animate-bounce [animation-delay:-0.15s]" />
-                              <span className="w-1.5 h-1.5 bg-current rounded-full animate-bounce" />
-                            </span>
-                          ) : (
-                            "Run"
-                          )}
-                        </button>
-                      </div>
+                      </h3>
 
-                      {terminalOutput && (
-                        <pre className="p-4 bg-[#151411] text-[#f0ebe2] font-mono text-xs rounded-lg border-4 border-black whitespace-pre-wrap overflow-x-auto shadow-inner">
-                          {terminalOutput}
-                        </pre>
-                      )}
+                      <GitGraph state={repoState} />
 
-                      {feedback === "correct" && (
-                        <div
-                          role="status"
-                          aria-live="assertive"
-                          className="text-green-700 font-bold bg-green-50 p-4 rounded-lg border-4 border-green-600 animate-bounce"
-                        >
-                          ✅ Correct! Progress synchronized to the Atelier
-                          server.
-                        </div>
-                      )}
+                      <p className="text-xs text-muted mb-4 dark:text-[#c4bbae]">
+                        Solve the drill by executing the appropriate git command
+                        below:
+                      </p>
 
-                      {feedback === "error" && (
-                        <div
-                          role="alert"
-                          aria-live="assertive"
-                          className="text-red-700 font-bold bg-red-50 p-4 rounded-lg border-4 border-red-600"
-                        >
-                          ❌ Not quite. Command output did not match sandbox
-                          expectations.
-                        </div>
-                      )}
-
-                      <button
-                        type="button"
-                        onClick={() => setShowHint(!showHint)}
-                        className="text-xs underline text-muted font-black dark:text-[#c4bbae] block"
+                      <form
+                        onSubmit={handleCommandSubmit}
+                        className="space-y-4"
                       >
-                        {showHint ? "Hide Hints" : "Need a hint?"}
-                      </button>
-
-                      {showHint && (
-                        <div className="p-4 bg-white rounded-lg border-4 border-black italic text-xs font-bold dark:bg-[#151411] dark:border-[#2e2924] shadow-card-sm">
-                          💡 {lesson.hint}
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono text-primary font-black">
+                            $
+                          </span>
+                          <input
+                            className="flex-1 min-w-0 rounded-lg border-4 border-black bg-surface-lowest px-4 py-2.5 text-text font-bold outline-none placeholder:text-muted/40 dark:bg-[#151411] dark:border-[#2e2924]"
+                            placeholder={
+                              lesson.hint || "Type your git command here"
+                            }
+                            value={input}
+                            onChange={(e) => setInput(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === "Tab") {
+                                e.preventDefault();
+                                if (suggestions.length === 1) {
+                                  setInput(suggestions[0].completionText);
+                                } else if (
+                                  commonCompletionPrefix &&
+                                  commonCompletionPrefix.length > input.length
+                                ) {
+                                  setInput(commonCompletionPrefix);
+                                }
+                              }
+                              if (
+                                (e.metaKey || e.ctrlKey) &&
+                                e.key === "Enter"
+                              ) {
+                                e.preventDefault();
+                                handleCommandSubmit(
+                                  e as unknown as React.FormEvent,
+                                );
+                              }
+                            }}
+                            disabled={feedback === "correct" || isExecuting}
+                            autoFocus
+                          />
+                          <button
+                            type="submit"
+                            className="px-5 py-2.5 bg-primary text-black font-black text-sm rounded-lg border-4 border-black shadow-card-sm hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-card-sm disabled:opacity-50 transition-all cursor-pointer flex items-center justify-center gap-2 min-w-[72px]"
+                            disabled={
+                              feedback === "correct" ||
+                              !input.trim() ||
+                              isExecuting
+                            }
+                          >
+                            {isExecuting ? (
+                              <span
+                                className="flex items-center gap-1 inline-flex"
+                                aria-hidden="true"
+                              >
+                                <span className="w-1.5 h-1.5 bg-current rounded-full animate-bounce [animation-delay:-0.3s]" />
+                                <span className="w-1.5 h-1.5 bg-current rounded-full animate-bounce [animation-delay:-0.15s]" />
+                                <span className="w-1.5 h-1.5 bg-current rounded-full animate-bounce" />
+                              </span>
+                            ) : (
+                              "Run"
+                            )}
+                          </button>
                         </div>
-                      )}
-                    </form>
-                  </div>
-                );
-              })()}
-            </div>
 
-            {/* Course Navigation Footer */}
-            <div className="flex flex-col items-center gap-4 sm:flex-row sm:justify-between sm:gap-0 pt-10 pb-12">
-              {previousLesson ? (
-                <Link
-                  to={`/lessons/${previousLesson.slug}`}
-                  className="flex items-center gap-1 font-black text-sm uppercase px-4 py-2 bg-white border-4 border-black rounded-lg shadow-card-sm hover:-translate-y-0.5 transition-all"
-                >
-                  <ChevronLeft size={16} />
-                  Prev: {previousLesson.title}
-                </Link>
-              ) : (
-                <div className="hidden sm:block" />
-              )}
+                        {terminalOutput && (
+                          <pre className="p-4 bg-[#151411] text-[#f0ebe2] font-mono text-xs rounded-lg border-4 border-black whitespace-pre-wrap overflow-x-auto shadow-inner">
+                            {terminalOutput}
+                          </pre>
+                        )}
 
-              {nextLesson ? (
-                <Link
-                  to={`/lessons/${nextLesson.slug}`}
-                  className={`flex items-center gap-1 font-black text-sm uppercase px-4 py-2 border-4 border-black rounded-lg shadow-card-sm hover:-translate-y-0.5 transition-all ${
-                    isCompleted
-                      ? "bg-accent text-black"
-                      : "bg-[#e2e8f0] text-black/50 border-black/35 cursor-not-allowed opacity-75"
-                  }`}
-                  onClick={(e) => {
-                    if (!isCompleted) {
-                      e.preventDefault();
-                      alert(
-                        "Complete the current lesson first to unlock the next module!",
-                      );
-                    }
-                  }}
-                >
-                  Next: {nextLesson.title}
-                  {isCompleted ? (
-                    <ChevronRight size={16} />
-                  ) : (
-                    <Lock size={14} className="ml-1" />
-                  )}
-                </Link>
-              ) : (
-                <Link
-                  to="/dashboard"
-                  className="flex items-center gap-1 font-black text-sm uppercase px-4 py-2 bg-green-500 text-white border-4 border-black rounded-lg shadow-card-sm hover:-translate-y-0.5 transition-all"
-                >
-                  Graduate to Dashboard 🎓
-                </Link>
-              )}
+                        {feedback === "correct" && (
+                          <div
+                            role="status"
+                            aria-live="assertive"
+                            className="text-green-700 font-bold bg-green-50 p-4 rounded-lg border-4 border-green-600 animate-bounce"
+                          >
+                            ✅ Correct! Progress synchronized to the Atelier
+                            server.
+                          </div>
+                        )}
+
+                        {feedback === "error" && (
+                          <div
+                            role="alert"
+                            aria-live="assertive"
+                            className="text-red-700 font-bold bg-red-50 p-4 rounded-lg border-4 border-red-600"
+                          >
+                            ❌ Not quite. Command output did not match sandbox
+                            expectations.
+                          </div>
+                        )}
+
+                        <button
+                          type="button"
+                          onClick={() => setShowHint(!showHint)}
+                          className="text-xs underline text-muted font-black dark:text-[#c4bbae] block"
+                        >
+                          {showHint ? "Hide Hints" : "Need a hint?"}
+                        </button>
+
+                        {showHint && (
+                          <div className="p-4 bg-white rounded-lg border-4 border-black italic text-xs font-bold dark:bg-[#151411] dark:border-[#2e2924] shadow-card-sm">
+                            💡 {lesson.hint}
+                          </div>
+                        )}
+                      </form>
+                    </div>
+                  );
+                })()}
+              </div>
+
+              {/* Course Navigation Footer */}
+              <div className="flex flex-col items-center gap-4 sm:flex-row sm:justify-between sm:gap-0 pt-10 pb-12">
+                {previousLesson ? (
+                  <Link
+                    to={`/lessons/${previousLesson.slug}`}
+                    className="flex items-center gap-1 font-black text-sm uppercase px-4 py-2 bg-white border-4 border-black rounded-lg shadow-card-sm hover:-translate-y-0.5 transition-all"
+                  >
+                    <ChevronLeft size={16} />
+                    Prev: {previousLesson.title}
+                  </Link>
+                ) : (
+                  <div className="hidden sm:block" />
+                )}
+
+                {nextLesson ? (
+                  <Link
+                    to={`/lessons/${nextLesson.slug}`}
+                    className={`flex items-center gap-1 font-black text-sm uppercase px-4 py-2 border-4 border-black rounded-lg shadow-card-sm hover:-translate-y-0.5 transition-all ${
+                      isCompleted
+                        ? "bg-accent text-black"
+                        : "bg-[#e2e8f0] text-black/50 border-black/35 cursor-not-allowed opacity-75"
+                    }`}
+                    onClick={(e) => {
+                      if (!isCompleted) {
+                        e.preventDefault();
+                        alert(
+                          "Complete the current lesson first to unlock the next module!",
+                        );
+                      }
+                    }}
+                  >
+                    Next: {nextLesson.title}
+                    {isCompleted ? (
+                      <ChevronRight size={16} />
+                    ) : (
+                      <Lock size={14} className="ml-1" />
+                    )}
+                  </Link>
+                ) : (
+                  <Link
+                    to="/dashboard"
+                    className="flex items-center gap-1 font-black text-sm uppercase px-4 py-2 bg-green-500 text-white border-4 border-black rounded-lg shadow-card-sm hover:-translate-y-0.5 transition-all"
+                  >
+                    Graduate to Dashboard 🎓
+                  </Link>
+                )}
+              </div>
             </div>
+          </div>
+
+          {/* Mentor Help Trigger Row */}
+          <div className="border-t-4 border-black p-4 bg-white dark:bg-[#151411] dark:border-[#2e2924] flex justify-end gap-4 flex-shrink-0 flex-wrap">
+            <button
+              onClick={() => {
+                setIsCommitCoachOpen(!isCommitCoachOpen);
+                if (!isCommitCoachOpen) setIsNotePanelOpen(false);
+              }}
+              className="px-4 py-2 bg-white text-text dark:bg-[#151411] dark:text-[#f0ebe2] font-black text-xs rounded-lg border-4 border-black shadow-card-sm hover:-translate-y-0.5 cursor-pointer"
+            >
+              {isCommitCoachOpen ? "Close Commit Coach" : "Commit Coach"}
+            </button>
+            <button
+              onClick={() => {
+                setIsNotePanelOpen(!isNotePanelOpen);
+                if (!isNotePanelOpen) setIsCommitCoachOpen(false);
+              }}
+              className="px-4 py-2 bg-white text-text dark:bg-[#151411] dark:text-[#f0ebe2] font-black text-xs rounded-lg border-4 border-black shadow-card-sm hover:-translate-y-0.5 cursor-pointer"
+            >
+              {isNotePanelOpen ? "Close Notes 📝" : "Notes 📝"}
+            </button>
+            <button
+              onClick={() => {
+                setIsHelpPanelOpen(true);
+                setHelpSuccessMessage("");
+              }}
+              className="px-4 py-2 bg-white text-text dark:bg-[#151411] dark:text-[#f0ebe2] font-black text-xs rounded-lg border-4 border-black shadow-card-sm hover:-translate-y-0.5 cursor-pointer"
+            >
+              Request Mentor Support 📬
+            </button>
           </div>
         </div>
 
-        {/* Mentor Help Trigger Row */}
-        <div className="border-t-4 border-black p-4 bg-white dark:bg-[#151411] dark:border-[#2e2924] flex justify-end gap-4 flex-shrink-0 flex-wrap">
-          <button
-            onClick={() => {
-              setIsCommitCoachOpen(!isCommitCoachOpen);
-              if (!isCommitCoachOpen) setIsNotePanelOpen(false);
-            }}
-            className="px-4 py-2 bg-white text-text dark:bg-[#151411] dark:text-[#f0ebe2] font-black text-xs rounded-lg border-4 border-black shadow-card-sm hover:-translate-y-0.5 cursor-pointer"
-          >
-            {isCommitCoachOpen ? "Close Commit Coach" : "Commit Coach"}
-          </button>
-          <button
-            onClick={() => {
-              setIsNotePanelOpen(!isNotePanelOpen);
-              if (!isNotePanelOpen) setIsCommitCoachOpen(false);
-            }}
-            className="px-4 py-2 bg-white text-text dark:bg-[#151411] dark:text-[#f0ebe2] font-black text-xs rounded-lg border-4 border-black shadow-card-sm hover:-translate-y-0.5 cursor-pointer"
-          >
-            {isNotePanelOpen ? "Close Notes 📝" : "Notes 📝"}
-          </button>
-          <button
-            onClick={() => {
-              setIsHelpPanelOpen(true);
-              setHelpSuccessMessage("");
-            }}
-            className="px-4 py-2 bg-white text-text dark:bg-[#151411] dark:text-[#f0ebe2] font-black text-xs rounded-lg border-4 border-black shadow-card-sm hover:-translate-y-0.5 cursor-pointer"
-          >
-            Request Mentor Support 📬
-          </button>
-        </div>
-      </div>
-
-      {isNotePanelOpen && lesson && (
-        <NotePanel
-          lessonSlug={lesson.slug}
-          onClose={() => setIsNotePanelOpen(false)}
-        />
-      )}
-
-      {isCommitCoachOpen && (
-        <div className="fixed inset-0 z-50 flex justify-end bg-black/40">
-          <button
-            type="button"
-            aria-label="Close commit message coach"
-            className="flex-1 cursor-default"
-            onClick={() => setIsCommitCoachOpen(false)}
+        {isNotePanelOpen && lesson && (
+          <NotePanel
+            lessonSlug={lesson.slug}
+            onClose={() => setIsNotePanelOpen(false)}
           />
-          <aside className="h-full w-full max-w-md overflow-y-auto bg-surface-lowest border-l-4 border-black p-6 shadow-card space-y-4 dark:bg-[#0f0e0c] dark:border-[#2e2924]">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <h2 className="text-2xl font-black text-text dark:text-[#f0ebe2]">
-                  Practice your commit
-                </h2>
-                <p className="text-xs text-muted mt-1 dark:text-[#c4bbae]">
-                  Draft a Conventional Commit while you learn — then copy it
-                  into your real PR.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsCommitCoachOpen(false)}
-                className="px-3 py-1 border-2 border-black rounded-lg font-black text-xs hover:bg-surface-low dark:border-[#2e2924] dark:text-[#f0ebe2]"
-              >
-                Close
-              </button>
-            </div>
-            <CommitMessageCoach />
-          </aside>
-        </div>
-      )}
+        )}
 
-      {isHelpPanelOpen && (
-        <div className="fixed inset-0 z-50 flex justify-end bg-black/40">
-          <button
-            type="button"
-            aria-label="Close help request panel"
-            className="flex-1 cursor-default"
-            onClick={() => setIsHelpPanelOpen(false)}
+        {isCommitCoachOpen && (
+          <div className="fixed inset-0 z-50 flex justify-end bg-black/40">
+            <button
+              type="button"
+              aria-label="Close commit message coach"
+              className="flex-1 cursor-default"
+              onClick={() => setIsCommitCoachOpen(false)}
+            />
+            <aside className="h-full w-full max-w-md overflow-y-auto bg-surface-lowest border-l-4 border-black p-6 shadow-card space-y-4 dark:bg-[#0f0e0c] dark:border-[#2e2924]">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h2 className="text-2xl font-black text-text dark:text-[#f0ebe2]">
+                    Practice your commit
+                  </h2>
+                  <p className="text-xs text-muted mt-1 dark:text-[#c4bbae]">
+                    Draft a Conventional Commit while you learn — then copy it
+                    into your real PR.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsCommitCoachOpen(false)}
+                  className="px-3 py-1 border-2 border-black rounded-lg font-black text-xs hover:bg-surface-low dark:border-[#2e2924] dark:text-[#f0ebe2]"
+                >
+                  Close
+                </button>
+              </div>
+              <CommitMessageCoach />
+            </aside>
+          </div>
+        )}
+
+        {isHelpPanelOpen && (
+          <div className="fixed inset-0 z-50 flex justify-end bg-black/40">
+            <button
+              type="button"
+              aria-label="Close help request panel"
+              className="flex-1 cursor-default"
+              onClick={() => setIsHelpPanelOpen(false)}
+            />
+            <aside className="h-full w-full max-w-md bg-surface-lowest border-l-4 border-black p-6 shadow-card space-y-4 dark:bg-[#0f0e0c] dark:border-[#2e2924]">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <h2 className="text-2xl font-black">
+                    Need assistance on this issue?
+                  </h2>
+                  <p className="text-xs text-muted mt-1 dark:text-[#c4bbae]">
+                    Submit details to core maintainers, and we&apos;ll look at
+                    your local repo staging problems.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsHelpPanelOpen(false)}
+                  className="text-xs font-black underline"
+                >
+                  Close
+                </button>
+              </div>
+
+              <form className="space-y-3" onSubmit={handleHelpRequestSubmit}>
+                <label
+                  htmlFor="help-message"
+                  className="block text-xs font-black"
+                >
+                  Describe the conflict or checkout issue:
+                </label>
+                <RichTextEditor
+                  id="help-message"
+                  className="w-full rounded-lg border-4 border-black bg-white px-3 py-2 text-xs outline-none min-h-36 dark:bg-[#151411] dark:border-[#2e2924]"
+                  placeholder="Example: I'm stuck trying to stage feat/add-readme-badges, git status throws pathspec errors."
+                  value={helpMessage}
+                  onChange={setHelpMessage}
+                  disabled={helpRequestMutation.isPending}
+                  maxLength={MAX_HELP_CHARS}
+                />
+
+                {helpRequestMutation.isError && (
+                  <div
+                    role="alert"
+                    aria-live="assertive"
+                    className="text-red-700 text-xs font-black bg-red-50 p-2 rounded-lg border-2 border-red-700"
+                  >
+                    Couldn&apos;t submit request. Re-run backend server checks.
+                  </div>
+                )}
+
+                {helpSuccessMessage && (
+                  <div
+                    role="status"
+                    className="text-green-700 text-xs font-black bg-green-50 p-2 rounded-lg border-2 border-green-700"
+                  >
+                    {helpSuccessMessage}
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  className="w-full px-4 py-2 bg-primary text-black font-bold rounded-lg border-4 border-black shadow-card hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-card-sm transition-all disabled:opacity-60"
+                  disabled={
+                    !helpMessage.trim() || helpRequestMutation.isPending
+                  }
+                >
+                  {helpRequestMutation.isPending
+                    ? "Connecting..."
+                    : "Submit to cohort queue"}
+                </button>
+              </form>
+            </aside>
+          </div>
+        )}
+
+        {/* Lesson Feedback Widget */}
+        {lesson && isCompleted && (
+          <LessonFeedbackWidget lessonSlug={lesson.slug} />
+        )}
+
+        {showHistory && (
+          <LessonHistoryModal
+            lessonId={lesson.id}
+            currentContent={markdownContent}
+            onClose={() => setShowHistory(false)}
           />
-          <aside className="h-full w-full max-w-md bg-surface-lowest border-l-4 border-black p-6 shadow-card space-y-4 dark:bg-[#0f0e0c] dark:border-[#2e2924]">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <h2 className="text-2xl font-black">
-                  Need assistance on this issue?
-                </h2>
-                <p className="text-xs text-muted mt-1 dark:text-[#c4bbae]">
-                  Submit details to core maintainers, and we&apos;ll look at
-                  your local repo staging problems.
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={() => setIsHelpPanelOpen(false)}
-                className="text-xs font-black underline"
-              >
-                Close
-              </button>
-            </div>
-
-            <form className="space-y-3" onSubmit={handleHelpRequestSubmit}>
-              <label
-                htmlFor="help-message"
-                className="block text-xs font-black"
-              >
-                Describe the conflict or checkout issue:
-              </label>
-              <RichTextEditor
-                id="help-message"
-                className="w-full rounded-lg border-4 border-black bg-white px-3 py-2 text-xs outline-none min-h-36 dark:bg-[#151411] dark:border-[#2e2924]"
-                placeholder="Example: I'm stuck trying to stage feat/add-readme-badges, git status throws pathspec errors."
-                value={helpMessage}
-                onChange={setHelpMessage}
-                disabled={helpRequestMutation.isPending}
-                maxLength={MAX_HELP_CHARS}
-              />
-
-              {helpRequestMutation.isError && (
-                <div
-                  role="alert"
-                  aria-live="assertive"
-                  className="text-red-700 text-xs font-black bg-red-50 p-2 rounded-lg border-2 border-red-700"
-                >
-                  Couldn&apos;t submit request. Re-run backend server checks.
-                </div>
-              )}
-
-              {helpSuccessMessage && (
-                <div
-                  role="status"
-                  className="text-green-700 text-xs font-black bg-green-50 p-2 rounded-lg border-2 border-green-700"
-                >
-                  {helpSuccessMessage}
-                </div>
-              )}
-
-              <button
-                type="submit"
-                className="w-full px-4 py-2 bg-primary text-black font-bold rounded-lg border-4 border-black shadow-card hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-card-sm transition-all disabled:opacity-60"
-                disabled={!helpMessage.trim() || helpRequestMutation.isPending}
-              >
-                {helpRequestMutation.isPending
-                  ? "Connecting..."
-                  : "Submit to cohort queue"}
-              </button>
-            </form>
-          </aside>
-        </div>
-      )}
-
-      {/* Lesson Feedback Widget */}
-      {lesson && isCompleted && (
-        <LessonFeedbackWidget lessonSlug={lesson.slug} />
-      )}
-
-      {showHistory && (
-        <LessonHistoryModal
-          lessonId={lesson.id}
-          currentContent={markdownContent}
-          onClose={() => setShowHistory(false)}
-        />
-      )}
+        )}
       </div>
     </div>
   );

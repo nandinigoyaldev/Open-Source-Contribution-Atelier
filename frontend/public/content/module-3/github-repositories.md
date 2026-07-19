@@ -11,6 +11,7 @@ If Git is the engine that tracks changes to your code (like a time machine for y
 When you visit a project on GitHub, the first thing you'll see is the **Code** tab. Think of it like the front window of a store — it shows you everything inside.
 
 You'll see:
+
 - A file explorer with the project's folders and files
 - The branch you're currently looking at (usually `main`)
 - The **README** — that's like the welcome mat, telling you what the project does

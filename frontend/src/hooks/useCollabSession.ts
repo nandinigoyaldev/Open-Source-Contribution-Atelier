@@ -1,5 +1,9 @@
 import { useState, useEffect, useCallback } from "react";
-import { joinCollabSession, deleteCollabSession, CollabSession } from "../lib/api";
+import {
+  joinCollabSession,
+  deleteCollabSession,
+  CollabSession,
+} from "../lib/api";
 
 export interface ProjectFile {
   id: string;

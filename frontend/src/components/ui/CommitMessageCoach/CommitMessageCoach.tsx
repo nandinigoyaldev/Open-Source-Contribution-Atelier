@@ -230,8 +230,13 @@ export function CommitMessageCoach({
                   }
                   className="w-full text-left px-2 py-1.5 rounded-lg border-2 border-black/10 dark:border-[#2e2924] hover:border-black dark:hover:border-[#c4bbae] text-xs transition-colors"
                 >
-                  <span className="font-mono font-black text-accent">{type}</span>
-                  <span className="text-muted dark:text-[#c4bbae]"> — {hint}</span>
+                  <span className="font-mono font-black text-accent">
+                    {type}
+                  </span>
+                  <span className="text-muted dark:text-[#c4bbae]">
+                    {" "}
+                    — {hint}
+                  </span>
                 </button>
               </li>
             ))}

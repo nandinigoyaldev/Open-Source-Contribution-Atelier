@@ -1,5 +1,12 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { RotateCcw, Terminal, ChevronRight, BookOpen, Link2, Check } from "lucide-react";
+import {
+  RotateCcw,
+  Terminal,
+  ChevronRight,
+  BookOpen,
+  Link2,
+  Check,
+} from "lucide-react";
 import { useGitShell } from "../../hooks/useGitShell";
 import type { TerminalLine } from "../../hooks/useGitShell";
 import { useTerminalAutocomplete } from "../../hooks/useTerminalAutocomplete";
@@ -97,8 +104,12 @@ export function GitTerminal({
   } = useGitShell({ onObjectiveComplete: handleComplete });
 
   const [showSuggestions, setShowSuggestions] = useState(false);
-  const { suggestions, selectedIndex, setSelectedIndex, commonCompletionPrefix } =
-    useTerminalAutocomplete(inputVal, shellState);
+  const {
+    suggestions,
+    selectedIndex,
+    setSelectedIndex,
+    commonCompletionPrefix,
+  } = useTerminalAutocomplete(inputVal, shellState);
 
   useEffect(() => {
     if (suggestions.length > 0 && inputVal.trim().length > 0) {
@@ -241,7 +252,10 @@ export function GitTerminal({
         e.preventDefault();
         if (suggestions.length === 1) {
           setInputVal(suggestions[0].completionText);
-        } else if (commonCompletionPrefix && commonCompletionPrefix.length > inputVal.length) {
+        } else if (
+          commonCompletionPrefix &&
+          commonCompletionPrefix.length > inputVal.length
+        ) {
           setInputVal(commonCompletionPrefix);
         } else {
           // IDE fallback for visual selection

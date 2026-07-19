@@ -154,13 +154,12 @@ export const SearchWithFilters: React.FC<SearchWithFiltersProps> = ({
       )}
 
       {/* Live region announcing state changes to screen readers */}
-      <div
-        className="search-results"
-        aria-live="polite"
-        aria-busy={isLoading}
-      >
+      <div className="search-results" aria-live="polite" aria-busy={isLoading}>
         {isLoading ? (
-          <div className="search-skeleton-list" aria-label="Loading search results">
+          <div
+            className="search-skeleton-list"
+            aria-label="Loading search results"
+          >
             {Array.from({ length: SKELETON_COUNT }).map((_, i) => (
               <div className="result-skeleton" key={i}>
                 <div className="skeleton-line skeleton-title" />

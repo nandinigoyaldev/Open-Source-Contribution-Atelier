@@ -9,7 +9,8 @@ export function NotificationPreferencesPage() {
           Notification Settings
         </h1>
         <p className="text-gray-500 dark:text-[#c4bbae]">
-          Configure your channels and opt-in preferences for contributions, peer reviews, and gamification.
+          Configure your channels and opt-in preferences for contributions, peer
+          reviews, and gamification.
         </p>
       </div>
 

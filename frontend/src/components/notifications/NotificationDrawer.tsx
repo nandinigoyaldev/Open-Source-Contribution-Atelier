@@ -1,5 +1,13 @@
 import React, { useEffect } from "react";
-import { X, Check, Bell, Trophy, MessageSquare, AlertCircle, Info } from "lucide-react";
+import {
+  X,
+  Check,
+  Bell,
+  Trophy,
+  MessageSquare,
+  AlertCircle,
+  Info,
+} from "lucide-react";
 import { Link } from "react-router-dom";
 import { AppNotification } from "../../features/notifications/notificationSlice";
 
@@ -79,7 +87,9 @@ export function NotificationDrawer({
         {/* Header */}
         <div className="flex items-center justify-between p-4 border-b-4 border-black dark:border-[#2e2924]">
           <div className="flex items-center gap-2">
-            <h2 className="text-lg font-black uppercase text-black dark:text-white">Notifications</h2>
+            <h2 className="text-lg font-black uppercase text-black dark:text-white">
+              Notifications
+            </h2>
             {unreadCount > 0 && (
               <span className="bg-accent text-black font-black text-xs px-2 py-0.5 rounded-full border border-black">
                 {unreadCount} new
@@ -110,8 +120,12 @@ export function NotificationDrawer({
           {notifications.length === 0 ? (
             <div className="h-full flex flex-col items-center justify-center p-8 text-center text-gray-500 dark:text-[#c4bbae]">
               <Bell size={48} className="opacity-20 mb-4 animate-bounce" />
-              <p className="font-bold text-lg text-black dark:text-white">No notifications yet</p>
-              <p className="text-sm mt-1">We'll alert you when something important happens.</p>
+              <p className="font-bold text-lg text-black dark:text-white">
+                No notifications yet
+              </p>
+              <p className="text-sm mt-1">
+                We'll alert you when something important happens.
+              </p>
             </div>
           ) : (
             <div className="space-y-3">
@@ -133,7 +147,9 @@ export function NotificationDrawer({
                     <div className="mt-1 flex-shrink-0">{getIcon(notif)}</div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-2">
-                        <p className={`text-sm ${!notif.is_read ? "font-black text-black dark:text-white" : "font-bold text-gray-500 dark:text-[#c4bbae]"}`}>
+                        <p
+                          className={`text-sm ${!notif.is_read ? "font-black text-black dark:text-white" : "font-bold text-gray-500 dark:text-[#c4bbae]"}`}
+                        >
                           {notif.title}
                         </p>
                         {!notif.is_read && (
@@ -144,12 +160,15 @@ export function NotificationDrawer({
                         {notif.message}
                       </p>
                       <p className="text-[9px] text-gray-500/60 dark:text-[#c4bbae]/50 mt-3 font-mono uppercase">
-                        {new Date(notif.created_at).toLocaleDateString(undefined, {
-                          month: "short",
-                          day: "numeric",
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
+                        {new Date(notif.created_at).toLocaleDateString(
+                          undefined,
+                          {
+                            month: "short",
+                            day: "numeric",
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          },
+                        )}
                       </p>
                     </div>
                   </div>

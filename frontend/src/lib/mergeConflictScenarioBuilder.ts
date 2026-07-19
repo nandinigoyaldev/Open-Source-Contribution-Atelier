@@ -30,7 +30,10 @@ export interface MergeConflictScenarioDocument {
   conflictScenario: ConflictScenarioExport;
 }
 
-export type ScenarioDraft = Omit<MergeConflictScenarioDocument, "conflictScenario">;
+export type ScenarioDraft = Omit<
+  MergeConflictScenarioDocument,
+  "conflictScenario"
+>;
 
 export type ScenarioValidationIssue = {
   field: keyof ScenarioDraft | "general";
@@ -47,8 +50,7 @@ export const DEFAULT_SCENARIO_DRAFT: ScenarioDraft = {
   featureBranchName: "feat/api-v3",
   base: "function init() {",
   ours: "  const fetchUsers = () => api.get('/v2/users');",
-  theirs:
-    "  const fetchUsers = () => api.get('/v3/users', { timeout: 5000 });",
+  theirs: "  const fetchUsers = () => api.get('/v3/users', { timeout: 5000 });",
   after: "}",
 };
 
@@ -99,7 +101,10 @@ export function validateScenarioDraft(
   const issues: ScenarioValidationIssue[] = [];
 
   if (!draft.id.trim()) {
-    issues.push({ field: "id", message: "Scenario id is required (kebab-case)." });
+    issues.push({
+      field: "id",
+      message: "Scenario id is required (kebab-case).",
+    });
   } else if (!/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(draft.id.trim())) {
     issues.push({
       field: "id",
@@ -128,7 +133,8 @@ export function validateScenarioDraft(
   if (!draft.ours.trim()) {
     issues.push({
       field: "ours",
-      message: "Ours (HEAD) content cannot be empty — this is the current change.",
+      message:
+        "Ours (HEAD) content cannot be empty — this is the current change.",
     });
   }
 
@@ -147,10 +153,15 @@ export function validateScenarioDraft(
     });
   }
 
-  if (draft.ours.trim() && draft.theirs.trim() && draft.ours.trim() === draft.theirs.trim()) {
+  if (
+    draft.ours.trim() &&
+    draft.theirs.trim() &&
+    draft.ours.trim() === draft.theirs.trim()
+  ) {
     issues.push({
       field: "general",
-      message: "Ours and theirs are identical — there is nothing to conflict over.",
+      message:
+        "Ours and theirs are identical — there is nothing to conflict over.",
     });
   }
 
@@ -176,7 +187,9 @@ export function buildScenarioDocument(
   };
 }
 
-export function scenarioToPrettyJson(doc: MergeConflictScenarioDocument): string {
+export function scenarioToPrettyJson(
+  doc: MergeConflictScenarioDocument,
+): string {
   return `${JSON.stringify(doc, null, 2)}\n`;
 }
 

@@ -76,7 +76,11 @@ export function ConflictResolutionModal() {
         </div>
 
         <p className="text-xs font-bold text-muted dark:text-[#c4bbae] mb-6 leading-relaxed">
-          While you were offline, you completed the lesson <span className="text-black dark:text-white underline">"{conflict.lesson_slug}"</span>. However, the server has a different progress record for this lesson.
+          While you were offline, you completed the lesson{" "}
+          <span className="text-black dark:text-white underline">
+            "{conflict.lesson_slug}"
+          </span>
+          . However, the server has a different progress record for this lesson.
         </p>
 
         <div className="grid grid-cols-2 gap-4 mb-6">
@@ -88,7 +92,8 @@ export function ConflictResolutionModal() {
               Score: {conflict.serverData?.score ?? "N/A"}
             </p>
             <p className="text-xs font-bold dark:text-[#f0ebe2]">
-              Status: {conflict.serverData?.completed ? "Completed" : "In Progress"}
+              Status:{" "}
+              {conflict.serverData?.completed ? "Completed" : "In Progress"}
             </p>
           </div>
 
@@ -100,7 +105,8 @@ export function ConflictResolutionModal() {
               Score: {conflict.localData?.score ?? "N/A"}
             </p>
             <p className="text-xs font-bold dark:text-[#f0ebe2]">
-              Status: {conflict.localData?.completed ? "Completed" : "In Progress"}
+              Status:{" "}
+              {conflict.localData?.completed ? "Completed" : "In Progress"}
             </p>
           </div>
         </div>

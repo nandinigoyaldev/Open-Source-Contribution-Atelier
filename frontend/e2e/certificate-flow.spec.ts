@@ -62,7 +62,9 @@ test.describe("Certificate Generation Flow", () => {
     });
   });
 
-  test("User can generate and view their completion certificate", async ({ authPage }) => {
+  test("User can generate and view their completion certificate", async ({
+    authPage,
+  }) => {
     await authPage.goto("/dashboard");
 
     // Ensure dashboard loads
@@ -70,14 +72,18 @@ test.describe("Certificate Generation Flow", () => {
     await expect(authPage.getByText(/Completion Certificate/i)).toBeVisible();
 
     // Check that the download button is present (meaning 100% completion)
-    const downloadBtn = authPage.locator("button:has-text('Download Certificate')");
+    const downloadBtn = authPage.locator(
+      "button:has-text('Download Certificate')",
+    );
     await expect(downloadBtn).toBeVisible({ timeout: 10000 });
 
     // Click the download button to open the modal
     await downloadBtn.click();
 
     // Wait for the modal to appear
-    const modalHeading = authPage.getByText("Certificate of Completion", { exact: true });
+    const modalHeading = authPage.getByText("Certificate of Completion", {
+      exact: true,
+    });
     await expect(modalHeading).toBeVisible({ timeout: 5000 });
 
     // Verify certificate details are rendered in the modal

@@ -22,6 +22,7 @@ Organizations make it easier to manage large projects by offering:
 
 > [!NOTE]
 > Here are some famous open source organizations you might recognize:
+>
 > - `facebook` — home of React
 > - `vercel` — home of Next.js
 > - `django` — the Django web framework

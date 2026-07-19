@@ -11,7 +11,9 @@ export function InstallAppBanner() {
     <div className="bg-[#ffb5e8] text-black border-b-4 border-black font-black px-4 py-3.5 flex flex-col sm:flex-row items-center justify-between gap-3 z-50">
       <div className="flex items-center gap-2 text-sm uppercase">
         <Download size={16} />
-        <span>Install Atelier App for full offline access & a faster experience!</span>
+        <span>
+          Install Atelier App for full offline access & a faster experience!
+        </span>
       </div>
       <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
         <button

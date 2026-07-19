@@ -46,7 +46,9 @@ describe("useUnsavedChanges", () => {
   it("allows navigation when the form is clean", async () => {
     renderRouter();
     fireEvent.click(screen.getByRole("link", { name: "Continue" }));
-    expect(await screen.findByRole("heading", { name: "Next page" })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { name: "Next page" }),
+    ).toBeInTheDocument();
   });
 
   it("blocks dirty navigation and lets the user stay", () => {
@@ -70,7 +72,9 @@ describe("useUnsavedChanges", () => {
     fireEvent.click(screen.getByRole("link", { name: "Continue" }));
     fireEvent.click(screen.getByRole("button", { name: "Discard changes" }));
 
-    expect(await screen.findByRole("heading", { name: "Next page" })).toBeInTheDocument();
+    expect(
+      await screen.findByRole("heading", { name: "Next page" }),
+    ).toBeInTheDocument();
   });
 
   it("registers and removes beforeunload for dirty state", () => {
@@ -79,10 +83,9 @@ describe("useUnsavedChanges", () => {
 
     const { unmount } = render(
       <RouterProvider
-        router={createMemoryRouter(
-          [{ path: "/", element: <DirtyPage /> }],
-          { initialEntries: ["/"] },
-        )}
+        router={createMemoryRouter([{ path: "/", element: <DirtyPage /> }], {
+          initialEntries: ["/"],
+        })}
       />,
     );
 
@@ -92,6 +95,9 @@ describe("useUnsavedChanges", () => {
 
     expect(addSpy).toHaveBeenCalledWith("beforeunload", expect.any(Function));
     unmount();
-    expect(removeSpy).toHaveBeenCalledWith("beforeunload", expect.any(Function));
+    expect(removeSpy).toHaveBeenCalledWith(
+      "beforeunload",
+      expect.any(Function),
+    );
   });
 });

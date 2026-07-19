@@ -35,7 +35,11 @@ export const LearningPathPage: React.FC = () => {
   const { earnedBadges, isLessonsLoading } = useEarnedBadges();
   const driftReport = useCurriculumDriftReport();
 
-  const { data: rawData, isLoading, error } = useQuery<LearningPathResponse>({
+  const {
+    data: rawData,
+    isLoading,
+    error,
+  } = useQuery<LearningPathResponse>({
     queryKey: ["learningPath"],
     queryFn: () => fetchApi("/users/me/learning-path/"),
   });

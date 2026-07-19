@@ -1,8 +1,5 @@
 import { useEffect, useState } from "react";
-import {
-  ACCESS_TOKEN_CHANGED_EVENT,
-  getAccessToken,
-} from "../lib/authToken";
+import { ACCESS_TOKEN_CHANGED_EVENT, getAccessToken } from "../lib/authToken";
 
 /**
  * Reactive access token for WebSocket reconnect-on-refresh.

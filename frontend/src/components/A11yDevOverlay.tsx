@@ -19,31 +19,32 @@ export default function A11yDevOverlay() {
     runRef.current = true;
 
     // Dynamically import axe-core to avoid production bundle impact
-    import("axe-core").then((axe) => {
-      axe.default.run(document, { runOnly: ["wcag2a", "wcag2aa"] }).then((results) => {
-        if (results.violations.length > 0) {
-          setViolations(results.violations as Violation[]);
-          console.warn(
-            `[A11y] ${results.violations.length} accessibility violation(s) found. Open the A11y overlay to review.`
-          );
-        }
+    import("axe-core")
+      .then((axe) => {
+        axe.default
+          .run(document, { runOnly: ["wcag2a", "wcag2aa"] })
+          .then((results) => {
+            if (results.violations.length > 0) {
+              setViolations(results.violations as Violation[]);
+              console.warn(
+                `[A11y] ${results.violations.length} accessibility violation(s) found. Open the A11y overlay to review.`,
+              );
+            }
+          });
+      })
+      .catch(() => {
+        // axe-core not installed — silently fail
       });
-    }).catch(() => {
-      // axe-core not installed — silently fail
-    });
   }, []);
 
   if (import.meta.env.PROD || violations.length === 0) return null;
 
   const criticalCount = violations.filter(
-    (v) => v.impact === "critical" || v.impact === "serious"
+    (v) => v.impact === "critical" || v.impact === "serious",
   ).length;
 
   return (
-    <div
-      style={{ zIndex: 9999 }}
-      className="fixed bottom-4 right-4"
-    >
+    <div style={{ zIndex: 9999 }} className="fixed bottom-4 right-4">
       <button
         onClick={() => setOpen((o) => !o)}
         className="flex items-center gap-2 px-4 py-2 bg-red-600 text-white font-bold rounded-full shadow-xl border-2 border-red-800 hover:bg-red-700 transition-colors"

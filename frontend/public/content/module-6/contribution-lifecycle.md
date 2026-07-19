@@ -66,7 +66,7 @@ Run the project's test suite to make sure you haven't broken anything. If there 
 
 ### 7. Open a Pull Request
 
-Push your branch and open a PR. Explain *why* the change is needed and *how* you implemented it.
+Push your branch and open a PR. Explain _why_ the change is needed and _how_ you implemented it.
 
 ---
 

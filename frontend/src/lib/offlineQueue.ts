@@ -299,7 +299,9 @@ if (typeof window !== "undefined") {
         }
       } else if (event.data && event.data.type === "SYNC_CONFLICT") {
         const { lesson_slug, serverData, localData } = event.data;
-        console.warn(`[OfflineQueue] Sync conflict detected for ${lesson_slug}`);
+        console.warn(
+          `[OfflineQueue] Sync conflict detected for ${lesson_slug}`,
+        );
         eventBus.emit("sync:conflict", { lesson_slug, serverData, localData });
       }
     });
@@ -320,13 +322,8 @@ export async function removeQueuedAction(id: string, lessonSlug: string) {
     const pending = JSON.parse(
       localStorage.getItem("atelier_pending_sync") || "[]",
     );
-    const filtered = pending.filter(
-      (p: any) => p.lesson_slug !== lessonSlug,
-    );
-    localStorage.setItem(
-      "atelier_pending_sync",
-      JSON.stringify(filtered),
-    );
+    const filtered = pending.filter((p: any) => p.lesson_slug !== lessonSlug);
+    localStorage.setItem("atelier_pending_sync", JSON.stringify(filtered));
     console.log(`[OfflineQueue] Successfully removed queued action ${id}`);
   } catch (err) {
     console.error("[OfflineQueue] Error removing queued action:", err);

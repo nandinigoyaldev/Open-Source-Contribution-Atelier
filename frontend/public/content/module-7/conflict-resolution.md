@@ -23,7 +23,8 @@ When a conflict happens, Git pauses and writes special markers into the file:
 Our changes here (on the target branch)
 =======
 Their changes here (on the feature branch)
->>>>>>> feature-branch-name
+
+> > > > > > > feature-branch-name
 ```
 
 Think of these markers like **Post-it notes** that Git leaves for you, saying: "Here's my version, here's their version — you pick which one to keep (or write something new)."

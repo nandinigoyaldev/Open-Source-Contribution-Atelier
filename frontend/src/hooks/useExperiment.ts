@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { fetchApi } from '../lib/api';
+import { useState, useEffect } from "react";
+import { fetchApi } from "../lib/api";
 
 export function useExperiment(experimentName: string) {
   const [variant, setVariant] = useState<string | null>(null);
@@ -8,10 +8,12 @@ export function useExperiment(experimentName: string) {
   useEffect(() => {
     const fetchVariant = async () => {
       try {
-        const data = await fetchApi(`/experiments/assignment/?name=${experimentName}`);
-        setVariant(data.variant || 'control');
+        const data = await fetchApi(
+          `/experiments/assignment/?name=${experimentName}`,
+        );
+        setVariant(data.variant || "control");
       } catch {
-        setVariant('control');
+        setVariant("control");
       } finally {
         setLoading(false);
       }
@@ -20,14 +22,14 @@ export function useExperiment(experimentName: string) {
   }, [experimentName]);
 
   const trackEvent = (eventType: string, metadata = {}) => {
-    fetchApi('/experiments/event/', {
-      method: 'POST',
+    fetchApi("/experiments/event/", {
+      method: "POST",
       body: JSON.stringify({
         experiment: experimentName,
         variant,
         event_type: eventType,
-        metadata
-      })
+        metadata,
+      }),
     });
   };
 

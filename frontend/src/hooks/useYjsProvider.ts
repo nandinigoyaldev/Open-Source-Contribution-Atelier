@@ -20,8 +20,13 @@ function getWsUrl(sessionId: string): string {
 
 function randomColor(): string {
   const colors = [
-    "#f87171", "#fb923c", "#fbbf24", "#34d399",
-    "#60a5fa", "#a78bfa", "#f472b6",
+    "#f87171",
+    "#fb923c",
+    "#fbbf24",
+    "#34d399",
+    "#60a5fa",
+    "#a78bfa",
+    "#f472b6",
   ];
   return colors[Math.floor(Math.random() * colors.length)];
 }
@@ -32,7 +37,11 @@ interface UseYjsProviderOptions {
   onTextMessage?: (data: any) => void;
 }
 
-export function useYjsProvider({ sessionId, username, onTextMessage }: UseYjsProviderOptions) {
+export function useYjsProvider({
+  sessionId,
+  username,
+  onTextMessage,
+}: UseYjsProviderOptions) {
   const ydocRef = useRef<Y.Doc | null>(null);
   const providerRef = useRef<WebsocketProvider | null>(null);
   const [connected, setConnected] = useState(false);
@@ -117,7 +126,10 @@ export function useYjsProvider({ sessionId, username, onTextMessage }: UseYjsPro
   };
 
   const sendTextMessage = (msg: any) => {
-    if (providerRef.current?.ws && providerRef.current.ws.readyState === WebSocket.OPEN) {
+    if (
+      providerRef.current?.ws &&
+      providerRef.current.ws.readyState === WebSocket.OPEN
+    ) {
       providerRef.current.ws.send(JSON.stringify(msg));
     }
   };

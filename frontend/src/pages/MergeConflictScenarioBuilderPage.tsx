@@ -56,7 +56,10 @@ export function MergeConflictScenarioBuilderPage() {
     [draft, isValid],
   );
 
-  const update = <K extends keyof ScenarioDraft>(key: K, value: ScenarioDraft[K]) => {
+  const update = <K extends keyof ScenarioDraft>(
+    key: K,
+    value: ScenarioDraft[K],
+  ) => {
     setDraft((prev) => ({ ...prev, [key]: value }));
   };
 
@@ -122,7 +125,9 @@ export function MergeConflictScenarioBuilderPage() {
       <div className="grid gap-8 lg:grid-cols-2">
         {/* Form */}
         <section className="space-y-4 rounded-[2rem] border-4 border-black bg-white p-5 shadow-card dark:bg-[#1f1c18] dark:border-[#2e2924]">
-          <h2 className="text-lg font-black dark:text-[#f0ebe2]">Scenario form</h2>
+          <h2 className="text-lg font-black dark:text-[#f0ebe2]">
+            Scenario form
+          </h2>
 
           <div className="grid gap-3 sm:grid-cols-2">
             <div className="space-y-1.5">
@@ -135,9 +140,10 @@ export function MergeConflictScenarioBuilderPage() {
                   setDraft((prev) => ({
                     ...prev,
                     title,
-                    id: prev.id === slugifyScenarioId(prev.title) || !prev.id
-                      ? slugifyScenarioId(title)
-                      : prev.id,
+                    id:
+                      prev.id === slugifyScenarioId(prev.title) || !prev.id
+                        ? slugifyScenarioId(title)
+                        : prev.id,
                   }));
                 }}
                 className="w-full rounded-xl border-2 border-black bg-surface-low px-3 py-2 text-sm font-bold dark:bg-[#151411] dark:border-[#2e2924]"
@@ -271,7 +277,9 @@ export function MergeConflictScenarioBuilderPage() {
               </p>
               <ul className="list-disc space-y-1 pl-5 text-xs font-bold text-amber-800 dark:text-amber-300">
                 {issues.map((issue) => (
-                  <li key={`${issue.field}-${issue.message}`}>{issue.message}</li>
+                  <li key={`${issue.field}-${issue.message}`}>
+                    {issue.message}
+                  </li>
                 ))}
               </ul>
             </div>

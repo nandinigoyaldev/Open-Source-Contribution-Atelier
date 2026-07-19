@@ -53,12 +53,17 @@ export function useGoodFirstIssues(
         setFromCache(result.fromCache);
         setTotalCount(result.totalCount);
       } catch (err) {
-        if (cancelled || (err instanceof DOMException && err.name === "AbortError")) {
+        if (
+          cancelled ||
+          (err instanceof DOMException && err.name === "AbortError")
+        ) {
           return;
         }
         if (!cancelled) {
           setIssues([]);
-          setError(err instanceof Error ? err.message : "Failed to search GitHub");
+          setError(
+            err instanceof Error ? err.message : "Failed to search GitHub",
+          );
         }
       } finally {
         if (!cancelled) setIsLoading(false);

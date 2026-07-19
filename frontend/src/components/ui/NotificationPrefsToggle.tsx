@@ -6,24 +6,27 @@ import {
   type NotificationPrefs,
 } from "../../lib/notificationsApi";
 
-const PREF_LABELS: { key: keyof NotificationPrefs; label: string; hint: string }[] =
-  [
-    {
-      key: "email",
-      label: "Email notifications",
-      hint: "Digest and important alerts by email",
-    },
-    {
-      key: "in_app",
-      label: "In-app alerts",
-      hint: "Bell menu and toast messages in the app",
-    },
-    {
-      key: "websocket",
-      label: "Live WebSocket updates",
-      hint: "Realtime inbox updates when connected",
-    },
-  ];
+const PREF_LABELS: {
+  key: keyof NotificationPrefs;
+  label: string;
+  hint: string;
+}[] = [
+  {
+    key: "email",
+    label: "Email notifications",
+    hint: "Digest and important alerts by email",
+  },
+  {
+    key: "in_app",
+    label: "In-app alerts",
+    hint: "Bell menu and toast messages in the app",
+  },
+  {
+    key: "websocket",
+    label: "Live WebSocket updates",
+    hint: "Realtime inbox updates when connected",
+  },
+];
 
 const DEFAULT_PREFS: NotificationPrefs = {
   email: true,
@@ -34,10 +37,16 @@ const DEFAULT_PREFS: NotificationPrefs = {
 /**
  * Minimal load/save toggles for GET/PUT /api/notifications/prefs/.
  */
-export function NotificationPrefsToggle({ className = "" }: { className?: string }) {
+export function NotificationPrefsToggle({
+  className = "",
+}: {
+  className?: string;
+}) {
   const [prefs, setPrefs] = useState<NotificationPrefs>(DEFAULT_PREFS);
   const [loading, setLoading] = useState(true);
-  const [savingKey, setSavingKey] = useState<keyof NotificationPrefs | null>(null);
+  const [savingKey, setSavingKey] = useState<keyof NotificationPrefs | null>(
+    null,
+  );
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {

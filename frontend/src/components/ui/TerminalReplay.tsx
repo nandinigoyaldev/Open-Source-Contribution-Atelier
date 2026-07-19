@@ -203,7 +203,9 @@ export function TerminalReplay({
       <div className="flex items-center justify-between px-4 py-2 border-b border-gray-800 bg-[#252525]">
         <div className="flex items-center gap-2 min-w-0">
           <TerminalIcon className="w-4 h-4 text-emerald-500 shrink-0" />
-          <span className="font-bold text-gray-200 truncate">{sessionName}</span>
+          <span className="font-bold text-gray-200 truncate">
+            {sessionName}
+          </span>
           {status === "playing" && (
             <span className="flex h-2 w-2 relative ml-2 shrink-0">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>

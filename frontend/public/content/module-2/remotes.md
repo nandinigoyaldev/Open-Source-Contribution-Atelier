@@ -9,6 +9,7 @@ Right now, your repository only exists on YOUR computer. No one else can see it.
 A **remote** is a link between your local repository and a repository hosted online. Think of it as a bridge that lets you send and receive code.
 
 You can have multiple remotes:
+
 - **`origin`** — your personal copy on GitHub (where you push your changes)
 - **`upstream`** — the original project you forked from (where you get updates)
 
@@ -27,22 +28,27 @@ You can have multiple remotes:
 ## 🛠️ Common Remote Commands
 
 **See your remotes:**
+
 ```bash
 git remote -v
 ```
+
 This lists all remotes and their URLs.
 
 **Add a new remote:**
+
 ```bash
 git remote add origin https://github.com/your-username/your-repo.git
 ```
 
 **Send your code to a remote:**
+
 ```bash
 git push origin main
 ```
 
 **Get updates from a remote:**
+
 ```bash
 git pull origin main
 ```
@@ -78,6 +84,7 @@ Your Computer  →  origin (your GitHub)  →  upstream (their GitHub)
 ## 🧪 Try It Yourself
 
 In the sandbox terminal:
+
 ```bash
 git remote -v
 ```

@@ -40,13 +40,7 @@
       "git-status",
       "git-remote"
     ],
-    "module-6": [
-      "git-status",
-      "git-pull",
-      "git-push",
-      "git-log",
-      "git-diff"
-    ],
+    "module-6": ["git-status", "git-pull", "git-push", "git-log", "git-diff"],
     "module-7": [
       "git-rebase",
       "git-status",
@@ -74,7 +68,13 @@
       "git-log"
     ],
     "merging": ["git-merge", "git-status", "git-log", "git-diff"],
-    "remotes": ["git-remote", "git-fetch", "git-pull", "git-push", "git-status"],
+    "remotes": [
+      "git-remote",
+      "git-fetch",
+      "git-pull",
+      "git-push",
+      "git-status"
+    ],
     "git-workflow": [
       "git-status",
       "git-add",

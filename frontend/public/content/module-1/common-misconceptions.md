@@ -9,6 +9,7 @@ A lot of people never contribute to open source — not because they can't, but 
 **Reality:** Most open source contributions are surprisingly small.
 
 Think about it: big, complex features are rare. Most projects spend their time on:
+
 - Fixing typos in documentation 📝
 - Updating outdated guides
 - Fixing small, labeled bugs 🐛
@@ -34,6 +35,7 @@ The size of your contribution doesn't matter. What matters is that you **started
 **Reality:** You know more than you think.
 
 If you've completed the lessons in this module, you already understand:
+
 - What open source is and why it matters
 - How licenses work
 - How to communicate respectfully
@@ -49,15 +51,15 @@ And most importantly: you know how to **find answers**. The ability to search, r
 
 Here's a partial list of what open source projects need:
 
-| Contribution Type | Examples | Do You Need to Code? |
-|---|---|---|
-| 📝 Documentation | Writing guides, fixing errors, adding examples | No |
-| 🎨 Design | Logos, icons, UI mockups, accessibility | No |
-| 🌍 Translation | Translating the project into other languages | No |
-| 🧪 Testing | Trying new features, reporting bugs | Minimal |
-| 👋 Community | Answering questions, welcoming newcomers | No |
-| 🐛 Bug Reports | Finding and clearly describing bugs | No |
-| 💻 Code | Writing features, fixing bugs | Yes |
+| Contribution Type | Examples                                       | Do You Need to Code? |
+| ----------------- | ---------------------------------------------- | -------------------- |
+| 📝 Documentation  | Writing guides, fixing errors, adding examples | No                   |
+| 🎨 Design         | Logos, icons, UI mockups, accessibility        | No                   |
+| 🌍 Translation    | Translating the project into other languages   | No                   |
+| 🧪 Testing        | Trying new features, reporting bugs            | Minimal              |
+| 👋 Community      | Answering questions, welcoming newcomers       | No                   |
+| 🐛 Bug Reports    | Finding and clearly describing bugs            | No                   |
+| 💻 Code           | Writing features, fixing bugs                  | Yes                  |
 
 If you can write clearly, you can contribute. If you can spot a broken link, you can contribute. If you can be friendly and helpful, you can contribute.
 
@@ -68,6 +70,7 @@ If you can write clearly, you can contribute. If you can spot a broken link, you
 **Reality:** Maintainers want you to succeed.
 
 Here's what actually happens when you submit a pull request:
+
 1. A maintainer sees your contribution
 2. They leave constructive feedback (not criticism)
 3. You make some changes

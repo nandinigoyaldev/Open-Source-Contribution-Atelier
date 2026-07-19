@@ -88,15 +88,13 @@ export const mockLessonQueue: LessonItem[] = [
   {
     number: 4,
     title: "What is a commit?",
-    description:
-      "Learn how to save your work with meaningful checkpoints",
+    description: "Learn how to save your work with meaningful checkpoints",
     slug: "what-is-a-commit",
   },
   {
     number: 5,
     title: "Your first git add + commit",
-    description:
-      "Practice staging and committing changes like a pro",
+    description: "Practice staging and committing changes like a pro",
     slug: "first-commit",
   },
   {
@@ -128,10 +126,12 @@ const mockModules: ModuleData[] = [
   {
     id: "module-1",
     title: "Why Open Source?",
-    description: "Understand the philosophy, history, and community behind open source software.",
+    description:
+      "Understand the philosophy, history, and community behind open source software.",
     status: "completed",
     score: 95,
-    explanation: "You aced this module! Great foundation in open source principles.",
+    explanation:
+      "You aced this module! Great foundation in open source principles.",
     lessons_count: 6,
     completed_lessons_count: 6,
     firstLessonSlug: "what-is-open-source",
@@ -139,10 +139,12 @@ const mockModules: ModuleData[] = [
   {
     id: "module-2",
     title: "Git Basics — Version Control for Beginners",
-    description: "Learn how Git tracks changes, what commits are, and how to save your work.",
+    description:
+      "Learn how Git tracks changes, what commits are, and how to save your work.",
     status: "in progress",
     score: 72,
-    explanation: "You're making great progress! Focus on understanding git add vs commit to strengthen your foundation.",
+    explanation:
+      "You're making great progress! Focus on understanding git add vs commit to strengthen your foundation.",
     lessons_count: 6,
     completed_lessons_count: 3,
     firstLessonSlug: "repositories-and-commits",
@@ -150,10 +152,12 @@ const mockModules: ModuleData[] = [
   {
     id: "module-3",
     title: "GitHub — Your Open Source Playground",
-    description: "Work with branches, understand merging, and collaborate without conflicts.",
+    description:
+      "Work with branches, understand merging, and collaborate without conflicts.",
     status: "not started",
     score: 0,
-    explanation: "Complete Git Basics first — branches build directly on commit concepts.",
+    explanation:
+      "Complete Git Basics first — branches build directly on commit concepts.",
     lessons_count: 6,
     completed_lessons_count: 0,
     firstLessonSlug: "github-repositories",
@@ -161,10 +165,12 @@ const mockModules: ModuleData[] = [
   {
     id: "module-4",
     title: "Open Source Etiquette",
-    description: "Learn how to open PRs, review code, and contribute to any project.",
+    description:
+      "Learn how to open PRs, review code, and contribute to any project.",
     status: "not started",
     score: 0,
-    explanation: "Once you're comfortable with branches, PRs are the next natural step.",
+    explanation:
+      "Once you're comfortable with branches, PRs are the next natural step.",
     lessons_count: 4,
     completed_lessons_count: 0,
     firstLessonSlug: "respect-and-communication",
@@ -172,7 +178,8 @@ const mockModules: ModuleData[] = [
   {
     id: "module-5",
     title: "Your First Contribution",
-    description: "How to communicate, follow conventions, and be a welcome community member.",
+    description:
+      "How to communicate, follow conventions, and be a welcome community member.",
     status: "not started",
     score: 0,
     explanation: "Essential skills before contributing to real projects.",
@@ -183,10 +190,12 @@ const mockModules: ModuleData[] = [
   {
     id: "module-6",
     title: "The Full Contribution Lifecycle",
-    description: "Find beginner-friendly issues and make your first open source contribution.",
+    description:
+      "Find beginner-friendly issues and make your first open source contribution.",
     status: "not started",
     score: 0,
-    explanation: "This is where theory meets practice — exciting milestone ahead!",
+    explanation:
+      "This is where theory meets practice — exciting milestone ahead!",
     lessons_count: 1,
     completed_lessons_count: 0,
     firstLessonSlug: "contribution-lifecycle",
@@ -205,7 +214,8 @@ const mockModules: ModuleData[] = [
   {
     id: "module-8",
     title: "Finding the Right Project",
-    description: "Review PRs, manage issues, and grow your own open source project.",
+    description:
+      "Review PRs, manage issues, and grow your own open source project.",
     status: "not started",
     score: 0,
     explanation: "The final step — you'll be ready to lead your own project!",

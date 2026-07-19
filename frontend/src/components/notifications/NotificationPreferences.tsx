@@ -25,7 +25,7 @@ export function NotificationPreferences() {
     if (saving) return;
     setSaving(true);
     const updated = { ...prefs, [key]: !prefs[key] };
-    
+
     // Optimistic Update
     setPrefs(updated);
 
@@ -48,7 +48,10 @@ export function NotificationPreferences() {
     return (
       <div className="space-y-4">
         {[1, 2, 3].map((n) => (
-          <div key={n} className="h-16 w-full animate-pulse rounded-2xl bg-gray-200 dark:bg-gray-800" />
+          <div
+            key={n}
+            className="h-16 w-full animate-pulse rounded-2xl bg-gray-200 dark:bg-gray-800"
+          />
         ))}
       </div>
     );
@@ -61,7 +64,8 @@ export function NotificationPreferences() {
           Preferences
         </h2>
         <p className="text-sm text-gray-500 dark:text-[#c4bbae] mb-6">
-          Choose how you would like to be notified about badges, achievements, comments, and other notifications.
+          Choose how you would like to be notified about badges, achievements,
+          comments, and other notifications.
         </p>
 
         <div className="space-y-4">
@@ -69,8 +73,12 @@ export function NotificationPreferences() {
             <div className="flex items-center gap-3">
               <Mail className="text-[#4f46e5]" size={20} />
               <div>
-                <span className="font-bold text-sm block text-black dark:text-white">Email Notifications</span>
-                <span className="text-xs text-gray-500 dark:text-[#c4bbae]">Receive notification digests and alerts in your inbox</span>
+                <span className="font-bold text-sm block text-black dark:text-white">
+                  Email Notifications
+                </span>
+                <span className="text-xs text-gray-500 dark:text-[#c4bbae]">
+                  Receive notification digests and alerts in your inbox
+                </span>
               </div>
             </div>
             <input
@@ -86,8 +94,12 @@ export function NotificationPreferences() {
             <div className="flex items-center gap-3">
               <Bell className="text-accent" size={20} />
               <div>
-                <span className="font-bold text-sm block text-black dark:text-white">In-App Alerts</span>
-                <span className="text-xs text-gray-500 dark:text-[#c4bbae]">Show notifications in the global navigation drawer</span>
+                <span className="font-bold text-sm block text-black dark:text-white">
+                  In-App Alerts
+                </span>
+                <span className="text-xs text-gray-500 dark:text-[#c4bbae]">
+                  Show notifications in the global navigation drawer
+                </span>
               </div>
             </div>
             <input
@@ -103,8 +115,12 @@ export function NotificationPreferences() {
             <div className="flex items-center gap-3">
               <RefreshCw className="text-green-500" size={20} />
               <div>
-                <span className="font-bold text-sm block text-black dark:text-white">WebSocket Real-Time Updates</span>
-                <span className="text-xs text-gray-500 dark:text-[#c4bbae]">Receive real-time popups and badge count updates instantly</span>
+                <span className="font-bold text-sm block text-black dark:text-white">
+                  WebSocket Real-Time Updates
+                </span>
+                <span className="text-xs text-gray-500 dark:text-[#c4bbae]">
+                  Receive real-time popups and badge count updates instantly
+                </span>
               </div>
             </div>
             <input

@@ -16,11 +16,11 @@ That's it. Everything else is just variations on these three steps.
 
 ## 🧠 An Analogy: Cooking
 
-| Step | Git | Cooking |
-|---|---|---|
-| 1 | Edit files | Chop vegetables |
-| 2 | `git add` | Put veggies in a bowl |
-| 3 | `git commit` | Put the bowl in the fridge |
+| Step | Git          | Cooking                    |
+| ---- | ------------ | -------------------------- |
+| 1    | Edit files   | Chop vegetables            |
+| 2    | `git add`    | Put veggies in a bowl      |
+| 3    | `git commit` | Put the bowl in the fridge |
 
 You can keep adding more veggies to the bowl before you put it in the fridge. Once it's in the fridge (committed), it's safely saved.
 
@@ -35,6 +35,7 @@ git status
 ```
 
 This is the most important command. Run it constantly. It tells you:
+
 - Which files you've changed
 - Which files are staged (ready to commit)
 - Which files Git isn't tracking yet
@@ -62,6 +63,7 @@ git commit -m "Add login button to homepage"
 ```
 
 The `-m` flag lets you write a message explaining what you did. Good commit messages are:
+
 - **Present tense**: "Add button" not "Added button"
 - **Specific**: "Fix crash on login page" not "Fix stuff"
 - **Concise**: Short and sweet
@@ -92,12 +94,12 @@ git commit -m "Update homepage layout and colors"
 
 ## ⚠️ Common Beginner Mistakes
 
-| Mistake | The Fix |
-|---|---|
-| Committing without staging first | Git will tell you — just `git add` then commit again |
-| Writing vague commit messages | "Fix stuff" → be specific: "Fix broken link on about page" |
-| `git add .` without checking | Run `git status` before `git add` to see what'll be included |
-| Forgetting to commit | Your changes are safe in your editor, but not in Git. Commit often! |
+| Mistake                          | The Fix                                                             |
+| -------------------------------- | ------------------------------------------------------------------- |
+| Committing without staging first | Git will tell you — just `git add` then commit again                |
+| Writing vague commit messages    | "Fix stuff" → be specific: "Fix broken link on about page"          |
+| `git add .` without checking     | Run `git status` before `git add` to see what'll be included        |
+| Forgetting to commit             | Your changes are safe in your editor, but not in Git. Commit often! |
 
 ---
 
@@ -112,6 +114,7 @@ Small, frequent commits are better than one huge commit. They're easier to under
 ## 🧪 Try It Yourself
 
 In the sandbox terminal:
+
 1. Run `git status`
 2. Create a file
 3. Run `git status` again — see the difference?

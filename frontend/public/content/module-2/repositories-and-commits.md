@@ -13,6 +13,7 @@ A **repository** (or "repo") is just a folder for your project — but with supe
 When you turn a regular folder into a repository, Git adds a hidden folder called `.git` that secretly tracks every change you make. Think of it like having a tiny historian living in your project who writes down everything you do.
 
 A typical repo contains:
+
 - **Your code files** — the actual work
 - **`.git` folder** — the hidden historian (never touch this!)
 - **`README.md`** — a friendly "what is this project?" description
@@ -25,11 +26,13 @@ A typical repo contains:
 A **commit** is a snapshot of your project at a specific moment. It's like saving a checkpoint in a video game.
 
 Here's why commits are magical:
+
 - You can **go back in time** to any previous commit
 - You can **see exactly what changed** between any two commits
 - You can **undo mistakes** without losing work
 
 Every commit has:
+
 - A **message** describing what changed ("Fixed the login button")
 - An **author** (you!)
 - A **timestamp**
@@ -41,13 +44,14 @@ Every commit has:
 
 Git has three areas where your files can live:
 
-| Area | What it is | Analogy |
-|---|---|---|
-| **Working Directory** | Your actual files, being edited | Clothes scattered on your bedroom floor |
-| **Staging Area** | Files you've marked for the next commit | Clothes you've folded and put in your suitcase |
-| **Repository** | Files safely committed | Suitcase is zipped and loaded in the car |
+| Area                  | What it is                              | Analogy                                        |
+| --------------------- | --------------------------------------- | ---------------------------------------------- |
+| **Working Directory** | Your actual files, being edited         | Clothes scattered on your bedroom floor        |
+| **Staging Area**      | Files you've marked for the next commit | Clothes you've folded and put in your suitcase |
+| **Repository**        | Files safely committed                  | Suitcase is zipped and loaded in the car       |
 
 The workflow is:
+
 1. **Edit** files → clothes on the floor
 2. **`git add`** files → fold and pack in the suitcase
 3. **`git commit`** → zip the suitcase and load the car

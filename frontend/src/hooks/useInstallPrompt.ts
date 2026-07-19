@@ -10,7 +10,8 @@ export interface BeforeInstallPromptEvent extends Event {
 }
 
 export function useInstallPrompt() {
-  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
+  const [deferredPrompt, setDeferredPrompt] =
+    useState<BeforeInstallPromptEvent | null>(null);
   const [showBanner, setShowBanner] = useState(false);
 
   useEffect(() => {
@@ -44,7 +45,10 @@ export function useInstallPrompt() {
         setShowBanner(true);
       } else {
         // Schedule displaying the prompt after the remaining duration of 5 minutes
-        const remainingTime = Math.max(0, 5 * 60 * 1000 - (Date.now() - firstVisitTime));
+        const remainingTime = Math.max(
+          0,
+          5 * 60 * 1000 - (Date.now() - firstVisitTime),
+        );
         const timer = setTimeout(() => {
           setShowBanner(true);
         }, remainingTime);
@@ -55,7 +59,10 @@ export function useInstallPrompt() {
     window.addEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
 
     return () => {
-      window.removeEventListener("beforeinstallprompt", handleBeforeInstallPrompt);
+      window.removeEventListener(
+        "beforeinstallprompt",
+        handleBeforeInstallPrompt,
+      );
     };
   }, []);
 

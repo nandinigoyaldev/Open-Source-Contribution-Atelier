@@ -27,7 +27,9 @@ describe("ThemeToggle a11y", () => {
 
   it("exposes a named theme group and labeled controls", () => {
     render(<ThemeToggle />);
-    expect(screen.getByRole("group", { name: "Color theme" })).toBeInTheDocument();
+    expect(
+      screen.getByRole("group", { name: "Color theme" }),
+    ).toBeInTheDocument();
     expect(
       screen.getByRole("button", { name: "Switch to dark mode" }),
     ).toBeInTheDocument();
@@ -52,7 +54,9 @@ describe("ThemeToggle a11y", () => {
 
   it("invokes theme handlers on click", () => {
     render(<ThemeToggle />);
-    fireEvent.click(screen.getByRole("button", { name: "Switch to dark mode" }));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Switch to dark mode" }),
+    );
     expect(mockToggleTheme).toHaveBeenCalled();
     fireEvent.click(
       screen.getByRole("button", { name: "Turn on high contrast mode" }),

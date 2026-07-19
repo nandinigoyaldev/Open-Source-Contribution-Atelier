@@ -55,7 +55,7 @@ export function splitTextWithGlossary(
     }
   }
 
-  // Longest phrases first so "pull request" wins over "PR" inside longer matches… 
+  // Longest phrases first so "pull request" wins over "PR" inside longer matches…
   // (PR is separate; "good first issue" before "issue")
   patterns.sort((a, b) => b.phrase.length - a.phrase.length);
 
@@ -63,8 +63,12 @@ export function splitTextWithGlossary(
   let remaining = text;
 
   while (remaining.length > 0) {
-    let earliest: { index: number; length: number; entry: GlossaryEntry; matched: string } | null =
-      null;
+    let earliest: {
+      index: number;
+      length: number;
+      entry: GlossaryEntry;
+      matched: string;
+    } | null = null;
 
     for (const { entry, regex } of patterns) {
       regex.lastIndex = 0;

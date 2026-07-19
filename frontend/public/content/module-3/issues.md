@@ -9,6 +9,7 @@ Think of an Issue like a **sticky note on a community bulletin board**. Someone 
 ## ❓ What is an Issue?
 
 An **Issue** is a tracking ticket. It's used to:
+
 - Report a bug
 - Suggest a new feature
 - Request documentation improvements
@@ -26,19 +27,19 @@ Every issue has a few helpful parts:
 
 - **Title**: A short name for the issue, set by whoever created it.
 - **Issue Number**: A unique ID (like `#42`) that GitHub assigns automatically. You'll use this number to reference the issue in commits and PRs.
-  
+
   <img width="648" height="74" alt="image" src="https://github.com/user-attachments/assets/b7dd959a-46a5-4692-a2e6-b4a599692063" />
 
 - **🏷️ Labels**: Color-coded tags that categorize the issue — like `bug`, `enhancement`, `good first issue`, or `documentation`. These help you find the type of work you're looking for.
-  
+
   <img width="400" height=auto alt="image" src="https://github.com/user-attachments/assets/07c5f4c0-6bdc-493b-82ed-cc5ffd7e9fe9" />
 
 - **👤 Assignee**: The person who's currently working on this issue. If nobody is assigned, it's up for grabs!
-  
+
   <img width="400" height=auto alt="image" src="https://github.com/user-attachments/assets/1284154b-eb18-44a4-a3aa-24e0dc8b4e90" />
 
 - **📍 Milestones**: Target release goals that group related issues together — like "v2.0 launch."
-  
+
   <img width="2010" height="488" alt="image" src="https://github.com/user-attachments/assets/4665dd3b-4a7e-4787-a8b0-7e77bc284f1b" />
 
 ---

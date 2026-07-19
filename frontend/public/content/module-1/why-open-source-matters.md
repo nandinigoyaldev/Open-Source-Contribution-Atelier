@@ -53,13 +53,13 @@ Think of open source like a **public library**:
 
 Here's a quick look at what's open source under the hood of your daily life:
 
-| Service | What It Runs On | Is It Open Source? |
-|---------|----------------|-------------------|
-| Google Search | Linux servers, Chromium browser | ✅ Yes |
-| Android phones | Linux kernel, AOSP | ✅ Yes |
-| Netflix | Node.js, React (frontend), Linux servers | ✅ Yes |
-| VS Code | Code editor you might be using! | ✅ Yes |
-| Python/JavaScript | Programming languages | ✅ Yes |
+| Service           | What It Runs On                          | Is It Open Source? |
+| ----------------- | ---------------------------------------- | ------------------ |
+| Google Search     | Linux servers, Chromium browser          | ✅ Yes             |
+| Android phones    | Linux kernel, AOSP                       | ✅ Yes             |
+| Netflix           | Node.js, React (frontend), Linux servers | ✅ Yes             |
+| VS Code           | Code editor you might be using!          | ✅ Yes             |
+| Python/JavaScript | Programming languages                    | ✅ Yes             |
 
 ---
 

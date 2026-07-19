@@ -31,13 +31,15 @@ describe("terminalReplayShare", () => {
     expect(parseReplayHash("").ok).toBe(false);
     expect(parseReplayHash("#").ok).toBe(false);
     expect(parseReplayHash("#replay=").ok).toBe(false);
-    expect(parseReplayHash("#other=1").error).toMatch(/No replay hash/i);
+    expect((parseReplayHash("#other=1") as any).error).toMatch(
+      /No replay hash/i,
+    );
   });
 
   it("rejects corrupted base64 payloads", () => {
     const result = parseReplayHash("#replay=%%%not-valid%%%");
     expect(result.ok).toBe(false);
-    expect(result.error).toMatch(/decode|corrupt/i);
+    expect((result as any).error).toMatch(/decode|corrupt/i);
   });
 
   it("sanitizes blank commands and caps length", () => {

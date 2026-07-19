@@ -1,6 +1,13 @@
 // @refresh reset
 /* eslint-disable react-refresh/only-export-components */
-import React, { createContext, useContext, useEffect, useCallback, useMemo, useState } from "react";
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useCallback,
+  useMemo,
+  useState,
+} from "react";
 import Confetti from "react-confetti";
 import { useAppDispatch, useAppSelector } from "../../store/hooks";
 import { useAuth } from "../auth/AuthContext";
@@ -32,22 +39,34 @@ interface NotificationContextType {
   triggerConfetti: () => void;
   loadMore: () => void;
   hasMore: boolean;
+  isWsConnected: boolean;
+  isPollingFallback: boolean;
 }
 
-const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
+const NotificationContext = createContext<NotificationContextType | undefined>(
+  undefined,
+);
 
 function getNotificationsWsUrl(): string {
-  const apiBase = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api";
+  const apiBase =
+    import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api";
   const host = apiBase.replace(/^https?:\/\//, "").replace(/\/api\/?$/, "");
   const scheme = apiBase.startsWith("https") ? "wss" : "ws";
   return `${scheme}://${host}/ws/notifications/`;
 }
 
-export function NotificationProvider({ children }: { children: React.ReactNode }) {
+export function NotificationProvider({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
   const { user } = useAuth();
   const dispatch = useAppDispatch();
-  const { notifications, wsUnreadCount, isLoading, nextPage } = useAppSelector((state) => state.notifications);
-  const { toasts, addToast, addDynamicToast, dismissToast } = useBadgeToast(BADGES);
+  const { notifications, wsUnreadCount, isLoading, nextPage } = useAppSelector(
+    (state) => state.notifications,
+  );
+  const { toasts, addToast, addDynamicToast, dismissToast } =
+    useBadgeToast(BADGES);
 
   const [showConfetti, setShowConfetti] = useState(false);
   const [page, setPage] = useState(1);
@@ -79,23 +98,27 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
   const unreadCount = useMemo(() => {
     return Math.max(
       wsUnreadCount,
-      notifications.filter((n) => !n.is_read).length
+      notifications.filter((n) => !n.is_read).length,
     );
   }, [wsUnreadCount, notifications]);
 
   // Auth token for WS
   const token = getAccessToken();
 
-  const { send: sendMessage } = useWebSocketManager({
+  const { send: sendMessage, isConnected } = useWebSocketManager({
     url: getNotificationsWsUrl(),
     token: user && !user.is_staff ? token : null,
     onMessage: (data: unknown) => {
       const msg = data as Record<string, unknown>;
-      
+
       if (msg?.type === "connection_established") {
-        dispatch(setWsUnreadCount(typeof msg.unread_count === "number" ? msg.unread_count : 0));
+        dispatch(
+          setWsUnreadCount(
+            typeof msg.unread_count === "number" ? msg.unread_count : 0,
+          ),
+        );
       }
-      
+
       if (msg?.type === "notification") {
         const notif = msg.notification as AppNotification;
         dispatch(addNotification(notif));
@@ -121,7 +144,7 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
           }
         }
       }
-      
+
       if (msg?.type === "marked_read") {
         const id = msg.notification_id as number;
         dispatch(markReadLocally(id));
@@ -129,27 +152,30 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     },
   });
 
-  const markAsRead = useCallback(async (id: number) => {
-    if (!user || user.is_staff) return;
-    
-    // Optimistic update
-    dispatch(markReadLocally(id));
+  const markAsRead = useCallback(
+    async (id: number) => {
+      if (!user || user.is_staff) return;
 
-    try {
-      // Use WS to mark read if possible, fallback to REST
-      sendMessage({ action: "mark_read", notification_id: id });
-      await fetchApi(`/notifications/${id}/mark-read/`, {
-        method: "PATCH",
-      });
-    } catch (error) {
-      console.error("Failed to mark notification as read", error);
-      dispatch(fetchNotifications(1));
-    }
-  }, [user, sendMessage, dispatch]);
+      // Optimistic update
+      dispatch(markReadLocally(id));
+
+      try {
+        // Use WS to mark read if possible, fallback to REST
+        sendMessage({ action: "mark_read", notification_id: id });
+        await fetchApi(`/notifications/${id}/mark-read/`, {
+          method: "PATCH",
+        });
+      } catch (error) {
+        console.error("Failed to mark notification as read", error);
+        dispatch(fetchNotifications(1));
+      }
+    },
+    [user, sendMessage, dispatch],
+  );
 
   const markAllAsRead = useCallback(async () => {
     if (!user || user.is_staff) return;
-    
+
     // Optimistic update
     dispatch(markAllReadLocally());
 
@@ -174,13 +200,30 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     triggerConfetti,
     loadMore,
     hasMore,
+    isWsConnected: isConnected,
+    isPollingFallback: !isConnected,
   };
 
   return (
     <NotificationContext.Provider value={value}>
       {showConfetti && (
-        <div style={{ position: "fixed", top: 0, left: 0, width: "100%", height: "100%", zIndex: 9999, pointerEvents: "none" }}>
-          <Confetti width={window.innerWidth} height={window.innerHeight} recycle={false} numberOfPieces={400} />
+        <div
+          style={{
+            position: "fixed",
+            top: 0,
+            left: 0,
+            width: "100%",
+            height: "100%",
+            zIndex: 9999,
+            pointerEvents: "none",
+          }}
+        >
+          <Confetti
+            width={window.innerWidth}
+            height={window.innerHeight}
+            recycle={false}
+            numberOfPieces={400}
+          />
         </div>
       )}
       {children}
@@ -191,7 +234,9 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 export function useNotifications() {
   const context = useContext(NotificationContext);
   if (context === undefined) {
-    throw new Error("useNotifications must be used within a NotificationProvider");
+    throw new Error(
+      "useNotifications must be used within a NotificationProvider",
+    );
   }
   return context;
 }

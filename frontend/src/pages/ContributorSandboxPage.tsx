@@ -233,15 +233,15 @@ export function ContributorSandboxPage() {
                   onSubmit={handleCommand}
                   className="mt-4 flex items-center border-t border-green-900 pt-2"
                 >
-                <span className="text-green-500 font-black mr-2">$</span>
-                <input
-                  type="text"
-                  value={terminalInput}
-                  onChange={(e) => setTerminalInput(e.target.value)}
-                  className="bg-transparent border-none outline-none text-green-400 font-mono w-full focus:ring-0 touch-target-min py-2"
-                  placeholder="Type clone..."
-                  autoFocus
-                />
+                  <span className="text-green-500 font-black mr-2">$</span>
+                  <input
+                    type="text"
+                    value={terminalInput}
+                    onChange={(e) => setTerminalInput(e.target.value)}
+                    className="bg-transparent border-none outline-none text-green-400 font-mono w-full focus:ring-0 touch-target-min py-2"
+                    placeholder="Type clone..."
+                    autoFocus
+                  />
                 </form>
               </div>
 
@@ -460,8 +460,8 @@ export function ContributorSandboxPage() {
                   Practice writing your PR description
                 </p>
                 <p className="text-xs text-muted dark:text-[#c4bbae] font-bold">
-                  Paste changed files to generate a checklist-ready PR body. Full
-                  tool:{" "}
+                  Paste changed files to generate a checklist-ready PR body.
+                  Full tool:{" "}
                   <Link
                     to="/pr-diff-summarizer"
                     className="underline text-accent hover:opacity-80"

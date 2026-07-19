@@ -14,8 +14,8 @@ export function PrDiffSummarizerPage() {
           <code className="bg-surface-low dark:bg-black px-1.5 py-0.5 rounded font-mono">
             git diff --name-only
           </code>
-          ) and get a beginner-friendly PR checklist + description template —
-          no API keys, fully client-side.
+          ) and get a beginner-friendly PR checklist + description template — no
+          API keys, fully client-side.
         </p>
       </SectionCard>
 

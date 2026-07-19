@@ -14,7 +14,7 @@ const CRITICAL_ROUTES = [
 ];
 
 const baselineViolationIds = new Set(
-  baseline.violations.map((v: { id: string }) => v.id)
+  baseline.violations.map((v: { id: string }) => v.id),
 );
 
 test.describe("Accessibility Audit (axe-core)", () => {
@@ -32,15 +32,17 @@ test.describe("Accessibility Audit (axe-core)", () => {
       const newViolations = results.violations.filter(
         (v) =>
           !baselineViolationIds.has(v.id) &&
-          (v.impact === "critical" || v.impact === "serious")
+          (v.impact === "critical" || v.impact === "serious"),
       );
 
       if (newViolations.length > 0) {
         console.log(
-          `Found ${newViolations.length} new critical/serious violations on ${route}:`
+          `Found ${newViolations.length} new critical/serious violations on ${route}:`,
         );
         newViolations.forEach((v) => {
-          console.log(`  [${v.impact?.toUpperCase()}] ${v.id}: ${v.description}`);
+          console.log(
+            `  [${v.impact?.toUpperCase()}] ${v.id}: ${v.description}`,
+          );
           v.nodes.forEach((node) => {
             console.log(`    Selector: ${node.target.join(", ")}`);
           });

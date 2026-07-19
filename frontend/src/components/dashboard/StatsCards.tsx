@@ -24,7 +24,11 @@ export function StatsCards({
         aria-label={`${personalStats.streak_days} streak days, longest ${personalStats.longest_streak || personalStats.streak_days}`}
         className="relative rounded-[2rem] border-4 border-black bg-white p-6 shadow-card flex flex-col justify-center items-center text-center dark:bg-[#1f1c18] dark:border-[#2e2924] dark:shadow-none hover:-translate-y-0.5 transition-transform"
       >
-        <div className="relative w-12 h-12 mb-2" style={{ color: "#ff7a18" }} aria-hidden="true">
+        <div
+          className="relative w-12 h-12 mb-2"
+          style={{ color: "#ff7a18" }}
+          aria-hidden="true"
+        >
           <StreakFlame
             animate={personalStats.streak_days >= 3}
             className="absolute inset-0 m-auto"
@@ -51,7 +55,10 @@ export function StatsCards({
         aria-label={`Atelier rank number ${personalStats.rank}`}
         className="rounded-[2rem] border-4 border-black bg-white p-6 shadow-card flex flex-col justify-center items-center text-center dark:bg-[#1f1c18] dark:border-[#2e2924] dark:shadow-none hover:-translate-y-0.5 transition-transform"
       >
-        <Trophy className="w-12 h-12 text-accent mb-2 animate-bounce" aria-hidden="true" />
+        <Trophy
+          className="w-12 h-12 text-accent mb-2 animate-bounce"
+          aria-hidden="true"
+        />
         <span className="text-4xl font-black text-accent drop-shadow-[2px_2px_0_#000] dark:drop-shadow-none">
           #{personalStats.rank}
         </span>
@@ -79,7 +86,10 @@ export function StatsCards({
         aria-label={`${personalStats.prs_merged} pull requests merged`}
         className="rounded-[2rem] border-4 border-black bg-white p-6 shadow-card flex flex-col justify-center items-center text-center dark:bg-[#1f1c18] dark:border-[#2e2924] dark:shadow-none hover:-translate-y-0.5 transition-transform"
       >
-        <CheckCircle2 className="w-12 h-12 text-green-500 mb-2" aria-hidden="true" />
+        <CheckCircle2
+          className="w-12 h-12 text-green-500 mb-2"
+          aria-hidden="true"
+        />
         <span className="text-4xl font-black text-green-600">
           {personalStats.prs_merged}
         </span>

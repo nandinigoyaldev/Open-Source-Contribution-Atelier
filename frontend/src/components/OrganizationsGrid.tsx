@@ -113,34 +113,15 @@ const OrganizationsGrid: React.FC = () => {
         </div>
       </div>
 
-      <div className="grid gap-3 grid-cols-2 md:grid-cols-3">
-      <div className="org-card coming-soon">
-      
-        {organizations.map((org) => (
+      <div className="mt-10 p-5 bg-[#C3C0FF] text-black border-4 border-black rounded-2xl flex items-start gap-3.5 max-w-2xl mx-auto shadow-card-sm">
+        <span className="text-xl">💡</span>
+        <p className="text-sm font-bold leading-relaxed m-0 text-black">
+          Interested in featuring your organization? Contact us at{" "}
           <a
             href="mailto:partners@atelier.dev"
             className="text-black hover:underline transition font-black"
           >
-            <OptimizedImage
-              src={normalizeImageUrl(
-                org.logo_url ||
-                  org.logoUrl ||
-                  `https://github.com/${org.slug}.png?size=80`,
-                API_BASE,
-              )}
-              alt={`${org.name} avatar`}
-              width={32}
-              height={32}
-              loading="eager"
-              className="w-8 h-8 rounded-lg object-cover border border-black/20"
-            />
-            <div className="truncate min-w-0">
-              <div className="font-bold text-xs truncate uppercase tracking-tight">
-                {org.name}
-              </div>
-              <div className="text-[10px] text-muted truncate">GitHub</div>
-            </div>
-           </div>
+            partners@atelier.dev
           </a>
         </p>
       </div>

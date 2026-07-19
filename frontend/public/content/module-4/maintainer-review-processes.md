@@ -20,7 +20,7 @@ When a maintainer reviews your PR, they can give one of these responses:
 
 **1. Don't Take It Personally**
 
-A review of your code is not a review of *you*. Maintainers are trying to make the project better, and that includes helping you improve.
+A review of your code is not a review of _you_. Maintainers are trying to make the project better, and that includes helping you improve.
 
 Think of it like a coach giving feedback on your swing. They're not saying you're a bad player — they're helping you play better.
 

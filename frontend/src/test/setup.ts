@@ -56,4 +56,3 @@ if (typeof globalThis.caches === "undefined") {
     match: vi.fn().mockResolvedValue(undefined),
   });
 }
-

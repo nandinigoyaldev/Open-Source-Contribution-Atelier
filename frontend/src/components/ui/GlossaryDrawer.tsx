@@ -36,7 +36,10 @@ export function GlossaryDrawer({ entry, onClose }: GlossaryDrawerProps) {
   return (
     <AnimatePresence>
       {entry && (
-        <div className="fixed inset-0 z-50 flex flex-col justify-end sm:flex-row sm:justify-end" role="presentation">
+        <div
+          className="fixed inset-0 z-50 flex flex-col justify-end sm:flex-row sm:justify-end"
+          role="presentation"
+        >
           <motion.button
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -108,8 +111,8 @@ export function GlossaryDrawer({ entry, onClose }: GlossaryDrawerProps) {
             )}
 
             <p className="text-xs font-bold text-muted dark:text-[#c4bbae] pt-2 border-t-2 border-black/10 dark:border-[#2e2924]">
-              Tip: glossary terms are underlined with dots in lesson text. Press Esc
-              to close.
+              Tip: glossary terms are underlined with dots in lesson text. Press
+              Esc to close.
             </p>
           </motion.aside>
         </div>

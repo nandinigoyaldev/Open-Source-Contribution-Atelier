@@ -14,7 +14,8 @@ import { NetworkStatusProvider } from "./context/NetworkStatusContext";
 
 import { ServerRouter } from "./app/ServerRouter";
 
-const GOOGLE_CLIENT_ID = "27042928964-pbolsldqvdv2hfipblmrcf332evg83v8.apps.googleusercontent.com";
+const GOOGLE_CLIENT_ID =
+  "27042928964-pbolsldqvdv2hfipblmrcf332evg83v8.apps.googleusercontent.com";
 
 export function render(url: string) {
   return ReactDOMServer.renderToString(
@@ -38,6 +39,6 @@ export function render(url: string) {
           </ThemeProvider>
         </I18nextProvider>
       </Provider>
-    </React.StrictMode>
+    </React.StrictMode>,
   );
 }

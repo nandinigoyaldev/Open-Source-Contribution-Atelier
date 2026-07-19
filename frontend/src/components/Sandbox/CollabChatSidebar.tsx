@@ -38,7 +38,9 @@ export function CollabChatSidebar({
   return (
     <div className="flex h-full flex-col gap-2 rounded-lg border border-white/10 bg-white/5 p-3">
       <div className="flex items-center justify-between text-xs text-white/50">
-        <span className="font-semibold uppercase tracking-wide">Session Chat</span>
+        <span className="font-semibold uppercase tracking-wide">
+          Session Chat
+        </span>
         <span
           className={`h-1.5 w-1.5 rounded-full ${isConnected ? "bg-green-400" : "bg-yellow-400"}`}
         />

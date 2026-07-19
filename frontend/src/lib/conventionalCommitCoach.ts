@@ -51,7 +51,11 @@ const MAX_SUBJECT_LENGTH = 72;
 export function validateCommitMessage(raw: string): ValidationResult {
   const message = raw.replace(/\r\n/g, "\n").trim();
   const issues: ValidationIssue[] = [];
-  const parsed = { type: null as string | null, scope: null as string | null, subject: null as string | null };
+  const parsed = {
+    type: null as string | null,
+    scope: null as string | null,
+    subject: null as string | null,
+  };
 
   if (!message) {
     return {
@@ -59,7 +63,8 @@ export function validateCommitMessage(raw: string): ValidationResult {
       issues: [
         {
           code: "empty",
-          message: "Commit message is empty. Start with a type like feat or fix.",
+          message:
+            "Commit message is empty. Start with a type like feat or fix.",
         },
       ],
       parsed,
@@ -111,12 +116,14 @@ export function validateCommitMessage(raw: string): ValidationResult {
     if (!scope.trim()) {
       issues.push({
         code: "scope",
-        message: "Scope is empty. Either remove the parentheses or add a short scope like (auth).",
+        message:
+          "Scope is empty. Either remove the parentheses or add a short scope like (auth).",
       });
     } else if (/\s/.test(scope)) {
       issues.push({
         code: "scope",
-        message: "Scope should be a short kebab-case word without spaces (e.g. auth, api, ui).",
+        message:
+          "Scope should be a short kebab-case word without spaces (e.g. auth, api, ui).",
       });
     }
   }
@@ -130,7 +137,8 @@ export function validateCommitMessage(raw: string): ValidationResult {
     if (/^[A-Z]/.test(subject)) {
       issues.push({
         code: "subject_case",
-        message: "Subject should start with a lowercase letter (e.g. \"add login form\").",
+        message:
+          'Subject should start with a lowercase letter (e.g. "add login form").',
       });
     }
     if (subject.endsWith(".")) {
@@ -170,19 +178,24 @@ export function suggestCommitRewrite(raw: string): string {
 
   if (match?.groups) {
     const rawType = (match.groups.type ?? "").toLowerCase();
-    type = (ALLOWED_TYPES as readonly string[]).includes(rawType) ? rawType : "chore";
+    type = (ALLOWED_TYPES as readonly string[]).includes(rawType)
+      ? rawType
+      : "chore";
     const rawScope = match.groups.scope;
     if (rawScope && rawScope.trim() && !/\s/.test(rawScope.trim())) {
       scope = rawScope.trim().toLowerCase();
     }
-    subject = (match.groups.subject ?? "").trim() || "describe your change here";
+    subject =
+      (match.groups.subject ?? "").trim() || "describe your change here";
   } else {
     // Heuristic: first word might be a type
     const parts = trimmed.split(/\s+/);
     const maybeType = parts[0]?.toLowerCase().replace(/:$/, "");
     if ((ALLOWED_TYPES as readonly string[]).includes(maybeType)) {
       type = maybeType;
-      subject = parts.slice(1).join(" ").replace(/^:\s*/, "").trim() || "describe your change here";
+      subject =
+        parts.slice(1).join(" ").replace(/^:\s*/, "").trim() ||
+        "describe your change here";
     } else {
       subject = trimmed;
     }
@@ -221,7 +234,10 @@ export const COMMIT_TYPE_HINTS: { type: CommitType; hint: string }[] = [
   { type: "fix", hint: "A bug fix" },
   { type: "docs", hint: "Documentation only" },
   { type: "style", hint: "Formatting, no logic change" },
-  { type: "refactor", hint: "Code change that neither fixes a bug nor adds a feature" },
+  {
+    type: "refactor",
+    hint: "Code change that neither fixes a bug nor adds a feature",
+  },
   { type: "perf", hint: "Performance improvement" },
   { type: "test", hint: "Adding or fixing tests" },
   { type: "build", hint: "Build system or dependencies" },

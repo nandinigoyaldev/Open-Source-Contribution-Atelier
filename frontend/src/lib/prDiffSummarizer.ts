@@ -61,7 +61,11 @@ export function parseChangedFiles(raw: string): string[] {
 
     // Renames: "a -> b" or "a => b"
     if (/\s->\s|\s=>\s/.test(trimmed)) {
-      trimmed = trimmed.split(/\s->\s|\s=>\s/).pop()?.trim() ?? trimmed;
+      trimmed =
+        trimmed
+          .split(/\s->\s|\s=>\s/)
+          .pop()
+          ?.trim() ?? trimmed;
     }
 
     // Strip surrounding quotes
@@ -276,7 +280,9 @@ export function buildPrDescription(
 
   const fileList =
     summary.files.length > 0
-      ? summary.files.map((f) => `- \`${f.path}\` (${f.areas.join(", ")})`).join("\n")
+      ? summary.files
+          .map((f) => `- \`${f.path}\` (${f.areas.join(", ")})`)
+          .join("\n")
       : "- <!-- paste changed files after generating -->";
 
   const typeChecks = [

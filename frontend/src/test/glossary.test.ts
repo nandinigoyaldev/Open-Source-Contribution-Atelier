@@ -122,14 +122,15 @@ describe("splitIgnoringInlineCode", () => {
     const plainTerms = splitTextWithGlossary(plain, TERMS).filter(
       (s) => s.type === "term",
     );
-    const codeTerms = splitTextWithGlossary(code.replace(/`/g, ""), TERMS).filter(
-      (s) => s.type === "term",
-    );
+    const codeTerms = splitTextWithGlossary(
+      code.replace(/`/g, ""),
+      TERMS,
+    ).filter((s) => s.type === "term");
 
     // After skipping code spans, only the prose "fork" should be treated as glossary
-    expect(plainTerms.some((t) => t.type === "term" && t.entry.id === "fork")).toBe(
-      true,
-    );
+    expect(
+      plainTerms.some((t) => t.type === "term" && t.entry.id === "fork"),
+    ).toBe(true);
     // Document that callers must not glossarize code chunks (MarkdownRenderer skips them)
     expect(code).toContain("fork");
     expect(codeTerms.length).toBeGreaterThanOrEqual(0);

@@ -56,7 +56,8 @@ export function CollabReviewSidebar({
             </p>
             {activeThreads.some((t) => t.line_number === selectedLine) ? (
               <p className="text-xs text-white/50">
-                A review thread is already active on this line. Use the list below to reply.
+                A review thread is already active on this line. Use the list
+                below to reply.
               </p>
             ) : (
               <div className="space-y-2">
@@ -151,7 +152,8 @@ export function CollabReviewSidebar({
                   }))
                 }
                 onKeyDown={(e) =>
-                  e.key === "Enter" && handleAddReply(thread.id, thread.line_number)
+                  e.key === "Enter" &&
+                  handleAddReply(thread.id, thread.line_number)
                 }
               />
               <button

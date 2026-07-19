@@ -1,12 +1,12 @@
 /**
  * Accessibility report generator.
- * 
+ *
  * @file report-generator.ts
  * @location frontend/tests/accessibility/report-generator.ts
  */
 
-import fs from 'fs';
-import path from 'path';
+import fs from "fs";
+import path from "path";
 
 interface Violation {
   id: string;
@@ -37,7 +37,7 @@ interface Report {
 export class AccessibilityReportGenerator {
   private reportDir: string;
 
-  constructor(reportDir: string = './playwright-report/accessibility') {
+  constructor(reportDir: string = "./playwright-report/accessibility") {
     this.reportDir = reportDir;
   }
 
@@ -57,18 +57,18 @@ export class AccessibilityReportGenerator {
 
     // Count violations by impact
     violations.forEach((v) => {
-      const impact = v.impact || 'unknown';
+      const impact = v.impact || "unknown";
       switch (impact) {
-        case 'critical':
+        case "critical":
           report.summary.critical++;
           break;
-        case 'serious':
+        case "serious":
           report.summary.serious++;
           break;
-        case 'moderate':
+        case "moderate":
           report.summary.moderate++;
           break;
-        case 'minor':
+        case "minor":
           report.summary.minor++;
           break;
       }
@@ -77,21 +77,27 @@ export class AccessibilityReportGenerator {
     return report;
   }
 
-  saveReport(report: Report, filename: string = 'accessibility-report.json'): void {
+  saveReport(
+    report: Report,
+    filename: string = "accessibility-report.json",
+  ): void {
     // Create directory if it doesn't exist
     if (!fs.existsSync(this.reportDir)) {
       fs.mkdirSync(this.reportDir, { recursive: true });
     }
 
     const filePath = path.join(this.reportDir, filename);
-    fs.writeFileSync(filePath, JSON.stringify(report, null, 2), 'utf-8');
+    fs.writeFileSync(filePath, JSON.stringify(report, null, 2), "utf-8");
     console.log(`✅ Accessibility report saved to: ${filePath}`);
   }
 
-  saveHTMLReport(report: Report, filename: string = 'accessibility-report.html'): void {
+  saveHTMLReport(
+    report: Report,
+    filename: string = "accessibility-report.html",
+  ): void {
     const html = this.generateHTML(report);
     const filePath = path.join(this.reportDir, filename);
-    fs.writeFileSync(filePath, html, 'utf-8');
+    fs.writeFileSync(filePath, html, "utf-8");
     console.log(`✅ Accessibility HTML report saved to: ${filePath}`);
   }
 
@@ -226,13 +232,17 @@ export class AccessibilityReportGenerator {
       </div>
     </div>
 
-    <h2>Overall Status: ${report.totalViolations === 0 ? '✅ PASS' : '❌ FAIL'}</h2>
-    <p>${report.totalViolations === 0 ? 'No accessibility violations detected! 🎉' : 'Please fix the violations listed below.'}</p>
+    <h2>Overall Status: ${report.totalViolations === 0 ? "✅ PASS" : "❌ FAIL"}</h2>
+    <p>${report.totalViolations === 0 ? "No accessibility violations detected! 🎉" : "Please fix the violations listed below."}</p>
 
-    ${report.violations.length > 0 ? `
+    ${
+      report.violations.length > 0
+        ? `
       <h2>Violations (${report.violations.length})</h2>
-      ${report.violations.map((v) => `
-        <div class="violation ${v.impact || 'moderate'}">
+      ${report.violations
+        .map(
+          (v) => `
+        <div class="violation ${v.impact || "moderate"}">
           <div class="violation-title">${v.id}</div>
           <div class="violation-desc">${v.description}</div>
           <div class="violation-help">
@@ -241,19 +251,27 @@ export class AccessibilityReportGenerator {
           <div class="violation-nodes">
             <strong>Affected elements:</strong>
             <ul>
-              ${v.nodes.map((n) => `
+              ${v.nodes
+                .map(
+                  (n) => `
                 <li>
-                  <code>${n.target.join(' ')}</code>
+                  <code>${n.target.join(" ")}</code>
                   <br>${n.failureSummary}
                 </li>
-              `).join('')}
+              `,
+                )
+                .join("")}
             </ul>
           </div>
         </div>
-      `).join('')}
-    ` : `
+      `,
+        )
+        .join("")}
+    `
+        : `
       <div class="status-pass">✅ No violations found! All accessibility checks passed.</div>
-    `}
+    `
+    }
 
     <div class="timestamp">Report generated: ${report.timestamp}</div>
   </div>

@@ -27,6 +27,7 @@ Enter **Richard Stallman**. He was a brilliant programmer at MIT who got frustra
 He decided: **enough is enough.**
 
 Stallman launched the **GNU Project** in 1983, with the goal of creating a completely free operating system. He believed software should respect four essential freedoms:
+
 1. Run it for any purpose
 2. Study how it works (need the source code for this)
 3. Redistribute copies to help others
@@ -39,9 +40,11 @@ He created the **Free Software Foundation** and a special license called the **G
 ## 🐧 Act 4: The Penguin That Changed Everything (1991)
 
 In 1991, a Finnish student named **Linus Torvalds** posted a message online:
+
 > "I'm doing a (free) operating system (just a hobby, won't be big and professional like GNU)..."
 
 That "hobby" became the **Linux kernel** — the heart of what we now call Linux. Thousands of developers around the world started contributing. Today, Linux runs:
+
 - 90%+ of the world's cloud servers
 - All Android phones
 - Most supercomputers

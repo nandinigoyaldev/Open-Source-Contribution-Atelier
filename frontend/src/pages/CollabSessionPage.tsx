@@ -39,7 +39,9 @@ export function CollabSessionPage() {
       setReviewThreads((prev) => {
         const index = prev.findIndex((t) => t.id === updatedThread.id);
         if (index !== -1) {
-          return prev.map((t) => (t.id === updatedThread.id ? updatedThread : t));
+          return prev.map((t) =>
+            t.id === updatedThread.id ? updatedThread : t,
+          );
         } else {
           return [...prev, updatedThread];
         }
@@ -53,12 +55,18 @@ export function CollabSessionPage() {
       currentUserId: user?.id ?? null,
     });
 
-  const { ydoc, provider, connected, collaborators, setActiveFile, sendTextMessage } =
-    useYjsProvider({
-      sessionId: sessionId ?? "",
-      username: user?.username ?? "Anonymous",
-      onTextMessage: handleTextMessage,
-    });
+  const {
+    ydoc,
+    provider,
+    connected,
+    collaborators,
+    setActiveFile,
+    sendTextMessage,
+  } = useYjsProvider({
+    sessionId: sessionId ?? "",
+    username: user?.username ?? "Anonymous",
+    onTextMessage: handleTextMessage,
+  });
 
   const [activeFile, setActiveFileState] = useState<ProjectFile | null>(null);
   const [showChat, setShowChat] = useState(true);
@@ -74,7 +82,11 @@ export function CollabSessionPage() {
     navigate("/contributor-sandbox");
   };
 
-  const handleAddComment = (line: number, content: string, threadId?: string) => {
+  const handleAddComment = (
+    line: number,
+    content: string,
+    threadId?: string,
+  ) => {
     sendTextMessage({
       action: "add_comment",
       thread_id: threadId || null,

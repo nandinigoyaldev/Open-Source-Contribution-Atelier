@@ -93,7 +93,8 @@ const HOSTILE_RE =
 const ENTITLED_RE =
   /\b(why\s+hasn'?t|why\s+haven'?t|you\s+should\s+have|i\s+deserve|merge\s+my\s+pr\s+now)\b/i;
 
-const COURTESY_RE = /\b(please|thanks|thank\s+you|appreciate|grateful|kindly)\b/i;
+const COURTESY_RE =
+  /\b(please|thanks|thank\s+you|appreciate|grateful|kindly)\b/i;
 
 const CONTEXT_HINT_RE =
   /\b(error|tried|attempt|steps?|repro|reproduce|version|os|windows|linux|macos|node|python|log|stack|because|when|after|before)\b/i;
@@ -175,7 +176,8 @@ export function analyzeMaintainerReply(raw: string): ToneAnalysis {
       code: "all_caps",
       severity: "warning",
       title: "ALL CAPS",
-      message: "All-caps messages feel like shouting. Use normal sentence case.",
+      message:
+        "All-caps messages feel like shouting. Use normal sentence case.",
     });
   }
 
@@ -238,7 +240,10 @@ export function suggestReplyRewrite(raw: string): string {
   if (ANY_UPDATE_RE.test(text) || /any\s+update/.test(lower)) {
     return ETIQUETTE_EXAMPLES[0].good;
   }
-  if (/doesn'?t work|not working|broken/.test(lower) && text.split(/\s+/).length < 12) {
+  if (
+    /doesn'?t work|not working|broken/.test(lower) &&
+    text.split(/\s+/).length < 12
+  ) {
     return ETIQUETTE_EXAMPLES[1].good;
   }
   if (HOSTILE_RE.test(text) || DEMANDING_RE.test(text)) {

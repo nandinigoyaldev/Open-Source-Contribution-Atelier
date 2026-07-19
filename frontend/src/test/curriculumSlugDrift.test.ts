@@ -43,10 +43,11 @@ describe("curriculumSlugDrift", () => {
   });
 
   it("diffs missing-in-api and missing-in-curriculum", () => {
-    const diff = diffCurriculumSlugs(
-      extractCurriculumSlugs(curriculum),
-      ["what-is-open-source", "git-workflow", "only-in-api"],
-    );
+    const diff = diffCurriculumSlugs(extractCurriculumSlugs(curriculum), [
+      "what-is-open-source",
+      "git-workflow",
+      "only-in-api",
+    ]);
     expect(diff.missingInApi).toEqual(["only-in-curriculum"]);
     expect(diff.missingInCurriculum).toEqual(["only-in-api"]);
     expect(diff.hasDrift).toBe(true);

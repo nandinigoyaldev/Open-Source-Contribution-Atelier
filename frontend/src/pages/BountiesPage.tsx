@@ -71,7 +71,8 @@ export function BountiesPage() {
             Help Wanted Bounties
           </h1>
           <p className="mt-2 text-muted dark:text-[#d7cec0]">
-            Claim dummy open-source issues, fix them in the sandbox, and earn XP and badges!
+            Claim dummy open-source issues, fix them in the sandbox, and earn XP
+            and badges!
           </p>
         </div>
       </div>
@@ -91,8 +92,8 @@ export function BountiesPage() {
                       bounty.status === "Open"
                         ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400"
                         : bounty.status === "Claimed"
-                        ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"
-                        : "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
+                          ? "bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-400"
+                          : "bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400"
                     }`}
                   >
                     {bounty.status}
@@ -122,7 +123,8 @@ export function BountiesPage() {
                     ) : null}
                     Claim Bounty
                   </button>
-                ) : bounty.status === "Claimed" && bounty.claimed_by === user?.id ? (
+                ) : bounty.status === "Claimed" &&
+                  bounty.claimed_by === user?.id ? (
                   <div className="flex w-full gap-2">
                     <Link
                       to="/sandbox"

@@ -136,7 +136,9 @@ export function useUserProgress() {
         const queue = Array.from(pendingSyncQueue.current.values());
         if (queue.length > 0) {
           if (!navigator.onLine) {
-            console.log("[useUserProgress] Offline, queueing updates via useOfflineSync");
+            console.log(
+              "[useUserProgress] Offline, queueing updates via useOfflineSync",
+            );
             for (const item of queue) {
               await queueOfflineSyncProgress({
                 lesson_slug: item.lesson_slug,

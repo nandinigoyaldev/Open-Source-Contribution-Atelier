@@ -8,7 +8,10 @@ interface ThemeToggleProps {
   buttonClassName?: string;
 }
 
-export { FOCUS_RING as THEME_FOCUS_RING, FOCUS_RING as CARD_FOCUS_RING } from "../../lib/a11yFocus";
+export {
+  FOCUS_RING as THEME_FOCUS_RING,
+  FOCUS_RING as CARD_FOCUS_RING,
+} from "../../lib/a11yFocus";
 
 function themeToggleLabel(theme: string): string {
   if (theme === "dark") return "Switch to light mode";
@@ -38,7 +41,9 @@ export function ThemeToggle({
         onClick={toggleTheme}
         aria-label={themeToggleLabel(theme)}
         aria-pressed={isDark}
-        title={isDark ? "Dark mode (click for light)" : "Light mode (click for dark)"}
+        title={
+          isDark ? "Dark mode (click for light)" : "Light mode (click for dark)"
+        }
       >
         {isDark || isHighContrast ? (
           <Sun size={iconSize} aria-hidden="true" />

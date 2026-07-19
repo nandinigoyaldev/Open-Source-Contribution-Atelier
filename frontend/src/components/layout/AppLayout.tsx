@@ -53,9 +53,19 @@ export function AppLayout() {
         <main
           id="main-content"
           tabIndex={-1}
-          className={location.pathname.startsWith("/lessons/") ? "w-full min-h-screen" : "lg:pl-[240px]"}
+          className={
+            location.pathname.startsWith("/lessons/")
+              ? "w-full min-h-screen"
+              : "lg:pl-[240px]"
+          }
         >
-          <div className={location.pathname.startsWith("/lessons/") ? "w-full h-screen overflow-hidden" : "px-4 pb-24 pt-24 sm:px-6 sm:pb-28 lg:px-8 lg:pb-10"}>
+          <div
+            className={
+              location.pathname.startsWith("/lessons/")
+                ? "w-full h-screen overflow-hidden"
+                : "px-4 pb-24 pt-24 sm:px-6 sm:pb-28 lg:px-8 lg:pb-10"
+            }
+          >
             <Outlet />
           </div>
         </main>
@@ -66,4 +76,3 @@ export function AppLayout() {
     </>
   );
 }
-

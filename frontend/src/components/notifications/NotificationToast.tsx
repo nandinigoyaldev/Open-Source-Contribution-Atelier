@@ -2,7 +2,11 @@ import React from "react";
 import toast from "react-hot-toast";
 import { Info, Trophy, MessageSquare, AlertCircle } from "lucide-react";
 
-export function showNotificationToast(title: string, message: string, type: string) {
+export function showNotificationToast(
+  title: string,
+  message: string,
+  type: string,
+) {
   const getIcon = () => {
     switch (type) {
       case "badge":
@@ -40,6 +44,6 @@ export function showNotificationToast(title: string, message: string, type: stri
         </div>
       </div>
     ),
-    { duration: 5000 }
+    { duration: 5000 },
   );
 }

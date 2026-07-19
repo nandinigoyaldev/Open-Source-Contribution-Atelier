@@ -45,10 +45,8 @@ describe("notificationsApi (MSW)", () => {
   });
 
   it("loads and updates notification prefs", async () => {
-    const {
-      fetchNotificationPrefs,
-      updateNotificationPrefs,
-    } = await import("../lib/notificationsApi");
+    const { fetchNotificationPrefs, updateNotificationPrefs } =
+      await import("../lib/notificationsApi");
 
     const prefs = await fetchNotificationPrefs();
     expect(prefs).toEqual({ email: true, in_app: true, websocket: true });
@@ -79,6 +77,8 @@ describe("notificationSlice unread sync", () => {
       ],
       wsUnreadCount: 1,
       isLoading: false,
+      nextPage: null,
+      count: 1,
     };
 
     let next = notificationSlice.reducer(state, markReadLocally(1));
@@ -113,6 +113,8 @@ describe("notificationSlice unread sync", () => {
       ],
       wsUnreadCount: 2,
       isLoading: false,
+      nextPage: null,
+      count: 2,
     };
 
     const next = notificationSlice.reducer(state, markAllReadLocally());

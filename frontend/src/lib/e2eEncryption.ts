@@ -38,11 +38,11 @@ export async function generateAndStoreKeyPair(): Promise<{
 
   const publicKeyB64 = sodium.to_base64(
     keyPair.publicKey,
-    sodium.base64_variants.ORIGINAL
+    sodium.base64_variants.ORIGINAL,
   );
   const privateKeyB64 = sodium.to_base64(
     keyPair.privateKey,
-    sodium.base64_variants.ORIGINAL
+    sodium.base64_variants.ORIGINAL,
   );
 
   localStorage.setItem(PUBLIC_KEY_STORAGE_KEY, publicKeyB64);
@@ -73,18 +73,18 @@ export async function getOrCreateKeyPair(): Promise<{
  */
 export async function encryptMessage(
   plaintext: string,
-  recipientPublicKeyB64: string
+  recipientPublicKeyB64: string,
 ): Promise<{ encryptedContent: string; nonce: string }> {
   const sodium = await getSodium();
   const { privateKey: senderPrivateKeyB64 } = await getOrCreateKeyPair();
 
   const recipientPublicKey = sodium.from_base64(
     recipientPublicKeyB64,
-    sodium.base64_variants.ORIGINAL
+    sodium.base64_variants.ORIGINAL,
   );
   const senderPrivateKey = sodium.from_base64(
     senderPrivateKeyB64,
-    sodium.base64_variants.ORIGINAL
+    sodium.base64_variants.ORIGINAL,
   );
 
   const nonce = sodium.randombytes_buf(sodium.crypto_box_NONCEBYTES);
@@ -94,13 +94,13 @@ export async function encryptMessage(
     messageBytes,
     nonce,
     recipientPublicKey,
-    senderPrivateKey
+    senderPrivateKey,
   );
 
   return {
     encryptedContent: sodium.to_base64(
       ciphertext,
-      sodium.base64_variants.ORIGINAL
+      sodium.base64_variants.ORIGINAL,
     ),
     nonce: sodium.to_base64(nonce, sodium.base64_variants.ORIGINAL),
   };
@@ -118,34 +118,36 @@ export async function encryptMessage(
 export async function decryptMessage(
   encryptedContentB64: string,
   nonceB64: string,
-  senderPublicKeyB64: string
+  senderPublicKeyB64: string,
 ): Promise<string> {
   const sodium = await getSodium();
   const { privateKey: recipientPrivateKeyB64 } = await getOrCreateKeyPair();
 
   const ciphertext = sodium.from_base64(
     encryptedContentB64,
-    sodium.base64_variants.ORIGINAL
+    sodium.base64_variants.ORIGINAL,
   );
   const nonce = sodium.from_base64(nonceB64, sodium.base64_variants.ORIGINAL);
   const senderPublicKey = sodium.from_base64(
     senderPublicKeyB64,
-    sodium.base64_variants.ORIGINAL
+    sodium.base64_variants.ORIGINAL,
   );
   const recipientPrivateKey = sodium.from_base64(
     recipientPrivateKeyB64,
-    sodium.base64_variants.ORIGINAL
+    sodium.base64_variants.ORIGINAL,
   );
 
   const decrypted = sodium.crypto_box_open_easy(
     ciphertext,
     nonce,
     senderPublicKey,
-    recipientPrivateKey
+    recipientPrivateKey,
   );
 
   if (!decrypted) {
-    throw new Error("Decryption failed — message may be corrupted or tampered.");
+    throw new Error(
+      "Decryption failed — message may be corrupted or tampered.",
+    );
   }
 
   return sodium.to_string(decrypted);

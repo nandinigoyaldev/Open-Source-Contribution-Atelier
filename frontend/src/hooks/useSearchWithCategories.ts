@@ -74,72 +74,70 @@ export function useSearchWithCategories(): UseSearchWithCategoriesResult {
     fetchCategories();
   }, []);
 
-  const search = useCallback(
-    async (query: string, category: string | null) => {
-      lastSearchRef.current = { query, category };
+  const search = useCallback(async (query: string, category: string | null) => {
+    lastSearchRef.current = { query, category };
 
-      // Cancel any in-flight request so a slow earlier response can't
-      // clobber the results of a newer one.
-      abortControllerRef.current?.abort();
-      const controller = new AbortController();
-      abortControllerRef.current = controller;
+    // Cancel any in-flight request so a slow earlier response can't
+    // clobber the results of a newer one.
+    abortControllerRef.current?.abort();
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
 
-      setIsLoading(true);
-      setError(null);
+    setIsLoading(true);
+    setError(null);
 
-      try {
-        const params: Record<string, string> = {};
-        if (query) params.q = query;
-        if (category) params.category = category;
+    try {
+      const params: Record<string, string> = {};
+      if (query) params.q = query;
+      if (category) params.category = category;
 
-        const response = await axios.get("/api/search/", {
-          params,
-          signal: controller.signal,
-        });
+      const response = await axios.get("/api/search/", {
+        params,
+        signal: controller.signal,
+      });
 
-        setResults(response.data.results || []);
-        // Best-effort: if the backend ever reports which search tier
-        // served the response (e.g. Meilisearch down, Postgres fallback
-        // used), surface it. Safe no-op if the field isn't present yet.
-        const source: string | undefined = response.data?.meta?.source;
-        setIsDegraded(
-          Boolean(response.data?.degraded) ||
-            (typeof source === "string" && source !== "meilisearch"),
-        );
-      } catch (err) {
-        if (axios.isCancel(err)) {
-          // A newer search superseded this one — not a real error.
-          return;
-        }
-
-        if (axios.isAxiosError(err)) {
-          if (!err.response) {
-            setError(
-              "Couldn't reach the search service. Check your connection and try again.",
-            );
-          } else if (err.response.status >= 500) {
-            setError(
-              "Search is temporarily unavailable. Our team has been notified.",
-            );
-          } else {
-            setError(
-              err.response.data?.detail || "Something went wrong with your search.",
-            );
-          }
-        } else {
-          setError(err instanceof Error ? err.message : "Search failed");
-        }
-
-        setResults([]);
-        setIsDegraded(false);
-      } finally {
-        if (abortControllerRef.current === controller) {
-          setIsLoading(false);
-        }
+      setResults(response.data.results || []);
+      // Best-effort: if the backend ever reports which search tier
+      // served the response (e.g. Meilisearch down, Postgres fallback
+      // used), surface it. Safe no-op if the field isn't present yet.
+      const source: string | undefined = response.data?.meta?.source;
+      setIsDegraded(
+        Boolean(response.data?.degraded) ||
+          (typeof source === "string" && source !== "meilisearch"),
+      );
+    } catch (err) {
+      if (axios.isCancel(err)) {
+        // A newer search superseded this one — not a real error.
+        return;
       }
-    },
-    [],
-  );
+
+      if (axios.isAxiosError(err)) {
+        if (!err.response) {
+          setError(
+            "Couldn't reach the search service. Check your connection and try again.",
+          );
+        } else if (err.response.status >= 500) {
+          setError(
+            "Search is temporarily unavailable. Our team has been notified.",
+          );
+        } else {
+          setError(
+            err.response.data?.detail ||
+              "Something went wrong with your search.",
+          );
+        }
+      } else {
+        setError(err instanceof Error ? err.message : "Search failed");
+      }
+
+      setResults([]);
+      setIsDegraded(false);
+    } finally {
+      if (abortControllerRef.current === controller) {
+        setIsLoading(false);
+      }
+    }
+  }, []);
 
   const retry = useCallback(() => {
     const { query, category } = lastSearchRef.current;

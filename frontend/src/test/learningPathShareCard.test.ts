@@ -36,7 +36,9 @@ describe("learningPathShareCard", () => {
   it("treats zero progress as not shareable", () => {
     const empty = computeShareStats({
       username: "new",
-      modules: [{ status: "not started", lessons_count: 3, completed_lessons_count: 0 }],
+      modules: [
+        { status: "not started", lessons_count: 3, completed_lessons_count: 0 },
+      ],
       streakDays: 0,
       badgeCount: 0,
     });

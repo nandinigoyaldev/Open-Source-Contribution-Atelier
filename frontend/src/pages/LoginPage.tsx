@@ -102,12 +102,18 @@ export function LoginPage() {
 
   const getFeedbackBubble = () => {
     if (isPasswordFocused) {
-      if (password.length === 0) return { emoji: "🔒", text: "Keep it secret, keep it safe!" };
-      if (password.length < 6) return { emoji: "⚠️", text: "Weak password! (Try adding more characters)" };
+      if (password.length === 0)
+        return { emoji: "🔒", text: "Keep it secret, keep it safe!" };
+      if (password.length < 6)
+        return {
+          emoji: "⚠️",
+          text: "Weak password! (Try adding more characters)",
+        };
       return { emoji: "😎", text: "Fortress security! Excellent password." };
     }
     if (isEmailFocused) {
-      if (username.length === 0) return { emoji: "✍️", text: "Type your legendary username!" };
+      if (username.length === 0)
+        return { emoji: "✍️", text: "Type your legendary username!" };
       return { emoji: "🚀", text: "Ready to merge some pull requests?" };
     }
     return { emoji: "👋", text: "Welcome back, contributor!" };
@@ -124,16 +130,32 @@ export function LoginPage() {
       <form className="space-y-5" onSubmit={handleSubmit}>
         {/* Draggable Stickers scattered in the background */}
         <div className="hidden lg:block select-none pointer-events-auto">
-          <DraggableSticker initialX={-280} initialY={-80} className="bg-[#FF6B6B] text-white rotate-[-6deg]">
+          <DraggableSticker
+            initialX={-280}
+            initialY={-80}
+            className="bg-[#FF6B6B] text-white rotate-[-6deg]"
+          >
             Bug Hunter 🐛
           </DraggableSticker>
-          <DraggableSticker initialX={-320} initialY={300} className="bg-[#4D96FF] text-white rotate-[8deg]">
+          <DraggableSticker
+            initialX={-320}
+            initialY={300}
+            className="bg-[#4D96FF] text-white rotate-[8deg]"
+          >
             git commit -m "success" 🚀
           </DraggableSticker>
-          <DraggableSticker initialX={450} initialY={-120} className="bg-[#6BCB77] text-black rotate-[4deg]">
+          <DraggableSticker
+            initialX={450}
+            initialY={-120}
+            className="bg-[#6BCB77] text-black rotate-[4deg]"
+          >
             100% Merged ✅
           </DraggableSticker>
-          <DraggableSticker initialX={470} initialY={320} className="bg-[#FFD93D] text-black rotate-[-10deg]">
+          <DraggableSticker
+            initialX={470}
+            initialY={320}
+            className="bg-[#FFD93D] text-black rotate-[-10deg]"
+          >
             Git expert 👑
           </DraggableSticker>
         </div>

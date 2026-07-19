@@ -33,8 +33,9 @@ export function CurriculumDriftBanner({
         <p className="font-black">Curriculum / API slug drift</p>
         <p className="mt-1 font-bold leading-relaxed opacity-90">
           This lesson (<code className="rounded bg-black/10 px-1">{slug}</code>)
-          is in <code className="rounded bg-black/10 px-1">curriculum.json</code>{" "}
-          but not in the seeded API lessons. You can still read it; progress or
+          is in{" "}
+          <code className="rounded bg-black/10 px-1">curriculum.json</code> but
+          not in the seeded API lessons. You can still read it; progress or
           roadmap sync may be incomplete until maintainers run{" "}
           <code className="rounded bg-black/10 px-1">
             python manage.py check_curriculum_slugs
@@ -44,7 +45,8 @@ export function CurriculumDriftBanner({
         {report.missingInApi.length > 1 && (
           <p className="mt-2 text-xs font-bold opacity-80">
             {report.missingInApi.length} curriculum slug
-            {report.missingInApi.length === 1 ? "" : "s"} missing from API total.
+            {report.missingInApi.length === 1 ? "" : "s"} missing from API
+            total.
           </p>
         )}
       </div>
@@ -82,8 +84,8 @@ export function CurriculumDriftSummaryBanner({
     >
       <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden />
       <p className="min-w-0 flex-1 font-bold leading-relaxed">
-        Curriculum slug drift detected: {report.missingInApi.length} missing from
-        API
+        Curriculum slug drift detected: {report.missingInApi.length} missing
+        from API
         {report.missingInCurriculum.length > 0
           ? `, ${report.missingInCurriculum.length} missing from curriculum.json`
           : ""}

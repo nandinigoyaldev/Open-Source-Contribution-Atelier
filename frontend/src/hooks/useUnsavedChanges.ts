@@ -1,8 +1,5 @@
 import { useCallback, useEffect, useMemo } from "react";
-import {
-  useBlocker,
-  type BlockerFunction,
-} from "react-router-dom";
+import { useBlocker, type BlockerFunction } from "react-router-dom";
 
 export interface UseUnsavedChangesOptions {
   isDirty: boolean;

@@ -1,10 +1,7 @@
 {
   "module": "module-4",
   "title": "Maintainer reply tone examples",
-  "sourceLessons": [
-    "respect-and-communication",
-    "professional-prs-and-issues"
-  ],
+  "sourceLessons": ["respect-and-communication", "professional-prs-and-issues"],
   "examples": [
     {
       "id": "any-update",

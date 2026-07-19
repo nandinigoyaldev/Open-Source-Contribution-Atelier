@@ -166,7 +166,11 @@ export function resolveContextualCommands(
   lessonSlug: string | undefined,
   moduleId: string | undefined,
   map: GitCheatSheetMap,
-): { commands: ContextualGitCommand[]; source: "lesson" | "module" | "default"; resolvedModuleId?: string } {
+): {
+  commands: ContextualGitCommand[];
+  source: "lesson" | "module" | "default";
+  resolvedModuleId?: string;
+} {
   if (lessonSlug && map.lessons[lessonSlug]?.length) {
     return {
       commands: idsToCommands(map.lessons[lessonSlug]),

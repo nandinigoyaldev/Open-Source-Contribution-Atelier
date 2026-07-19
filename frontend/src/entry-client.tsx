@@ -26,7 +26,9 @@ if (SENTRY_DSN) {
       Sentry.browserTracingIntegration(),
       Sentry.replayIntegration(),
     ],
-    tracesSampleRate: parseFloat(import.meta.env.VITE_SENTRY_TRACES_SAMPLE_RATE || "1.0"),
+    tracesSampleRate: parseFloat(
+      import.meta.env.VITE_SENTRY_TRACES_SAMPLE_RATE || "1.0",
+    ),
     replaysSessionSampleRate: 0.1,
     replaysOnErrorSampleRate: 1.0,
   });
@@ -84,5 +86,5 @@ ReactDOM.hydrateRoot(
         </ThemeProvider>
       </I18nextProvider>
     </Provider>
-  </React.StrictMode>
+  </React.StrictMode>,
 );

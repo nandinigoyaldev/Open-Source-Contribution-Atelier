@@ -15,8 +15,14 @@ import { ConnectionStatusIndicator } from "../components/ui/ConnectionStatusIndi
 
 function getAvatarColor(name: string): string {
   const colors = [
-    "bg-red-500", "bg-blue-500", "bg-green-500", "bg-yellow-500",
-    "bg-purple-500", "bg-pink-500", "bg-indigo-500", "bg-teal-500",
+    "bg-red-500",
+    "bg-blue-500",
+    "bg-green-500",
+    "bg-yellow-500",
+    "bg-purple-500",
+    "bg-pink-500",
+    "bg-indigo-500",
+    "bg-teal-500",
   ];
   let hash = 0;
   for (let i = 0; i < name.length; i++) {
@@ -36,7 +42,6 @@ export function ChatPage() {
   const [showMobileSidebar, setShowMobileSidebar] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-
   const { roomId: paramRoomId } = useParams<{ roomId?: string }>();
   const roomId = paramRoomId || "general";
 
@@ -49,7 +54,9 @@ export function ChatPage() {
     room_id: string;
     dm_user?: string;
   }
-  const dmRooms = (rooms as ChatRoom[]).filter((r) => r.room_id.startsWith("dm_"));
+  const dmRooms = (rooms as ChatRoom[]).filter((r) =>
+    r.room_id.startsWith("dm_"),
+  );
 
   const {
     messages,
@@ -76,7 +83,7 @@ export function ChatPage() {
           Rooms
         </span>
         <div className="mt-1.5 space-y-1">
-          <Link 
+          <Link
             to="/chat/general"
             onClick={() => setShowMobileSidebar(false)}
             className={`w-full flex items-center gap-2 px-3 py-2 ${roomId === "general" ? "bg-[#C3C0FF]/15 text-[#8884d8]" : "text-slate-600 dark:text-slate-400 hover:bg-black/5 dark:hover:bg-white/5"} font-bold text-xs rounded-xl transition-all`}
@@ -93,13 +100,15 @@ export function ChatPage() {
           </span>
           <div className="mt-1.5 space-y-1">
             {dmRooms.map((room) => (
-              <Link 
+              <Link
                 key={room.room_id}
                 to={`/chat/${room.room_id}`}
                 onClick={() => setShowMobileSidebar(false)}
                 className={`w-full flex items-center gap-2 px-3 py-2 ${roomId === room.room_id ? "bg-[#C3C0FF]/15 text-[#8884d8]" : "text-slate-600 dark:text-slate-400 hover:bg-black/5 dark:hover:bg-white/5"} font-bold text-xs rounded-xl transition-all`}
               >
-                <div className={`w-4 h-4 rounded-full flex items-center justify-center text-[8px] uppercase ${getAvatarColor(room.dm_user || "?")}`}>
+                <div
+                  className={`w-4 h-4 rounded-full flex items-center justify-center text-[8px] uppercase ${getAvatarColor(room.dm_user || "?")}`}
+                >
                   {getInitials(room.dm_user || "?")}
                 </div>
                 {room.dm_user || "Unknown"}
@@ -190,7 +199,10 @@ export function ChatPage() {
                   DM
                 </div>
               ) : (
-                <Hash size={18} className="text-slate-400 dark:text-slate-500 flex-shrink-0" />
+                <Hash
+                  size={18}
+                  className="text-slate-400 dark:text-slate-500 flex-shrink-0"
+                />
               )}
               <h2 className="text-base md:text-lg font-black text-slate-800 dark:text-white truncate">
                 {roomId.startsWith("dm_") ? "Direct Message" : roomId}
@@ -203,7 +215,9 @@ export function ChatPage() {
           <div className="flex-1 overflow-y-auto min-h-0 space-y-3 px-1 mb-3 custom-scrollbar">
             {messages.length === 0 && (
               <p className="text-center text-xs text-slate-400 py-12">
-                No messages in {roomId.startsWith("dm_") ? "this DM" : `#${roomId}`} yet. Say hello! 👋
+                No messages in{" "}
+                {roomId.startsWith("dm_") ? "this DM" : `#${roomId}`} yet. Say
+                hello! 👋
               </p>
             )}
             {messages.map((msg) => (

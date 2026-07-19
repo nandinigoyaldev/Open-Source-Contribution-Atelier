@@ -9,8 +9,14 @@ export default function ReportIssueButton() {
     setMounted(true);
   }, []);
 
-  const pathname = typeof window !== "undefined" ? window.location.pathname : "";
-  if (!mounted || pathname === "/" || pathname === "/login" || pathname === "/signup") {
+  const pathname =
+    typeof window !== "undefined" ? window.location.pathname : "";
+  if (
+    !mounted ||
+    pathname === "/" ||
+    pathname === "/login" ||
+    pathname === "/signup"
+  ) {
     return null;
   }
 

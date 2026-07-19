@@ -34,7 +34,10 @@ export function CollabAwarenessBar({
       <span className="text-white/20">|</span>
 
       {/* Online collaborators */}
-      <div className="flex items-center gap-2" aria-label="Online collaborators">
+      <div
+        className="flex items-center gap-2"
+        aria-label="Online collaborators"
+      >
         {collaborators.length === 0 ? (
           <span className="text-white/40 italic">Only you here</span>
         ) : (

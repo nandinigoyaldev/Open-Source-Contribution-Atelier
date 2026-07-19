@@ -19,7 +19,9 @@ export function PluginComponent({
   pluginName,
   componentName,
   props = {},
-  fallback = <div className="animate-pulse bg-gray-100 dark:bg-gray-800 h-10 w-full rounded-md" />,
+  fallback = (
+    <div className="animate-pulse bg-gray-100 dark:bg-gray-800 h-10 w-full rounded-md" />
+  ),
 }: PluginComponentProps) {
   const [isActive, setIsActive] = useState(false);
 
@@ -32,7 +34,9 @@ export function PluginComponent({
 
   const PluginComp = componentMap[pluginName]?.[componentName];
   if (!PluginComp) {
-    console.warn(`Plugin component ${pluginName}/${componentName} not found in client mapping.`);
+    console.warn(
+      `Plugin component ${pluginName}/${componentName} not found in client mapping.`,
+    );
     return null;
   }
 

@@ -8,7 +8,14 @@ import {
   saveFiltersToStorage,
 } from "../lib/goodFirstIssueFinder";
 import { useGoodFirstIssues } from "../hooks/useGoodFirstIssues";
-import { ExternalLink, Filter, Search, Sparkles, Star, AlertCircle } from "lucide-react";
+import {
+  ExternalLink,
+  Filter,
+  Search,
+  Sparkles,
+  Star,
+  AlertCircle,
+} from "lucide-react";
 import { Link } from "react-router-dom";
 
 function ScorePill({ score }: { score: number }) {
@@ -45,7 +52,8 @@ function IssueSkeleton() {
 }
 
 export function GoodFirstIssueFinderPage() {
-  const [filters, setFilters] = useState<GoodFirstIssueFilters>(DEFAULT_FILTERS);
+  const [filters, setFilters] =
+    useState<GoodFirstIssueFilters>(DEFAULT_FILTERS);
   const [hydrated, setHydrated] = useState(false);
 
   useEffect(() => {
@@ -86,8 +94,8 @@ export function GoodFirstIssueFinderPage() {
             Good First Issue Finder
           </h1>
           <p className="mt-2 max-w-2xl text-sm font-bold text-muted dark:text-[#d7cec0]">
-            Find beginner-friendly issues on GitHub for Git/GitHub learning tracks.
-            This is separate from internal{" "}
+            Find beginner-friendly issues on GitHub for Git/GitHub learning
+            tracks. This is separate from internal{" "}
             <Link
               to="/bounties"
               className="underline decoration-2 underline-offset-2 hover:text-primary"
@@ -209,7 +217,11 @@ export function GoodFirstIssueFinderPage() {
 
       {/* Results */}
       {isLoading && (
-        <div className="grid gap-4 md:grid-cols-2" role="status" aria-busy="true">
+        <div
+          className="grid gap-4 md:grid-cols-2"
+          role="status"
+          aria-busy="true"
+        >
           <span className="sr-only">Searching GitHub issues…</span>
           <IssueSkeleton />
           <IssueSkeleton />

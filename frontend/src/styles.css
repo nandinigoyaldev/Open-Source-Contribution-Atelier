@@ -797,7 +797,10 @@ body.custom-cursor-active * {
   height: 32px;
   border: 2px solid #000000;
   background-color: rgba(255, 181, 232, 0.2);
-  transition: width 0.2s ease, height 0.2s ease, background-color 0.2s ease;
+  transition:
+    width 0.2s ease,
+    height 0.2s ease,
+    background-color 0.2s ease;
 }
 
 .custom-cursor-ring--hover {

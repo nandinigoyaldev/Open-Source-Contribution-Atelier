@@ -1,6 +1,6 @@
-import { useState} from "react";
+import { useState } from "react";
 import { fetchApi } from "../lib/api";
-import { useQuery,} from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { CodeDiffViewer } from "../components/ui/CodeDiffViewer";
 import { ReportDialog } from "../components/moderation/ReportDialog";
 import { AudioRoom } from "../components/ui/AudioRoom";
@@ -10,12 +10,7 @@ import { useUnsavedChanges } from "../hooks/useUnsavedChanges";
 import { UnsavedChangesDialog } from "../components/ui/UnsavedChangesDialog";
 import { useUserProgress } from "../hooks/useUserProgress";
 import { toast } from "react-hot-toast";
-import {
-  Code2,
-  Terminal,
-  Shield,
-  Zap,
-} from "lucide-react";
+import { Code2, Terminal, Shield, Zap } from "lucide-react";
 
 interface CodeSubmission {
   id: number;
@@ -29,7 +24,9 @@ interface CodeSubmission {
 }
 
 export function PeerReviewPage() {
-  const [activeTab, setActiveTab] = useState<"ai_review" | "review_queue">("ai_review");
+  const [activeTab, setActiveTab] = useState<"ai_review" | "review_queue">(
+    "ai_review",
+  );
   const [isAudioRoomActive, setIsAudioRoomActive] = useState(false);
   const { syncProgress } = useUserProgress();
 
@@ -55,7 +52,8 @@ export function PeerReviewPage() {
   const [xpClaimed, setXpClaimed] = useState(false);
 
   // Review Tab State
-  const [selectedSubmission, setSelectedSubmission] = useState<CodeSubmission | null>(null);
+  const [selectedSubmission, setSelectedSubmission] =
+    useState<CodeSubmission | null>(null);
   const [feedback, setFeedback] = useState("");
   const [rating, setRating] = useState(5);
   const [isReviewing, setIsReviewing] = useState(false);
@@ -106,9 +104,9 @@ export function PeerReviewPage() {
       setIsSubmitting(false);
 
       setTitle("");
-setOriginalCodeSnippet("");
-setCodeSnippet("");
-setDescription("");
+      setOriginalCodeSnippet("");
+      setCodeSnippet("");
+      setDescription("");
     }
 
     setIsSubmitting(false);
@@ -166,27 +164,24 @@ setDescription("");
   };
 
   const hasUnsavedPatch =
-  title.trim().length > 0 ||
-  originalCodeSnippet.trim().length > 0 ||
-  codeSnippet.trim().length > 0 ||
-  description.trim().length > 0 ||
-  feedback.trim().length > 0;
+    title.trim().length > 0 ||
+    originalCodeSnippet.trim().length > 0 ||
+    codeSnippet.trim().length > 0 ||
+    description.trim().length > 0 ||
+    feedback.trim().length > 0;
 
-const unsavedChanges = useUnsavedChanges({
-  isDirty:
-    hasUnsavedPatch &&
-    !isSubmitting &&
-    !isReviewing,
-  message:
-    "Your code patch or review feedback has not been submitted. Discard it and leave?",
-  onDiscard: () => {
-    setTitle("");
-    setOriginalCodeSnippet("");
-    setCodeSnippet("");
-    setDescription("");
-    setFeedback("");
-  },
-});
+  const unsavedChanges = useUnsavedChanges({
+    isDirty: hasUnsavedPatch && !isSubmitting && !isReviewing,
+    message:
+      "Your code patch or review feedback has not been submitted. Discard it and leave?",
+    onDiscard: () => {
+      setTitle("");
+      setOriginalCodeSnippet("");
+      setCodeSnippet("");
+      setDescription("");
+      setFeedback("");
+    },
+  });
 
   const handleSubmitReview = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -245,7 +240,9 @@ const unsavedChanges = useUnsavedChanges({
             AI Peer Review Simulator
           </h1>
           <p className="text-lg font-medium text-black/70 dark:text-white/70 max-w-3xl">
-            Simulate the open source code review lifecycle. Submit your patches below to get instant AI structural feedback, ratings, and XP multipliers!
+            Simulate the open source code review lifecycle. Submit your patches
+            below to get instant AI structural feedback, ratings, and XP
+            multipliers!
           </p>
         </div>
 
@@ -283,12 +280,16 @@ const unsavedChanges = useUnsavedChanges({
             <div className="bg-surface-low border-4 border-black rounded-2xl p-6 shadow-card dark:bg-[#1a1816] dark:border-[#2e2924] space-y-6">
               <div className="flex items-center gap-2 border-b-2 border-black pb-3">
                 <Code2 className="text-primary" size={24} />
-                <h2 className="text-xl font-black uppercase">Submit Code Patch</h2>
+                <h2 className="text-xl font-black uppercase">
+                  Submit Code Patch
+                </h2>
               </div>
 
               <form onSubmit={handleSubmitCode} className="space-y-4">
                 <div>
-                  <label className="block font-black text-xs uppercase mb-2">Title</label>
+                  <label className="block font-black text-xs uppercase mb-2">
+                    Title
+                  </label>
                   <input
                     type="text"
                     required
@@ -340,7 +341,9 @@ const unsavedChanges = useUnsavedChanges({
                   disabled={isSubmitting || aiLoading}
                   className="w-full py-4 bg-primary text-black font-black uppercase rounded-xl border-4 border-black hover:-translate-y-0.5 hover:shadow-card active:translate-y-0.5 active:shadow-card-sm transition-all disabled:opacity-50 text-sm cursor-pointer"
                 >
-                  {isSubmitting ? "Uploading Patch..." : "Analyze with AI Peer 🤖"}
+                  {isSubmitting
+                    ? "Uploading Patch..."
+                    : "Analyze with AI Peer 🤖"}
                 </button>
               </form>
             </div>
@@ -350,7 +353,9 @@ const unsavedChanges = useUnsavedChanges({
               <div className="flex items-center justify-between border-b-2 border-black pb-3 mb-6">
                 <div className="flex items-center gap-2">
                   <Terminal className="text-accent" size={24} />
-                  <h2 className="text-xl font-black uppercase">AI Review Console</h2>
+                  <h2 className="text-xl font-black uppercase">
+                    AI Review Console
+                  </h2>
                 </div>
                 <span className="font-mono text-[10px] bg-black text-white px-2 py-0.5 rounded uppercase">
                   Live Terminal
@@ -362,14 +367,23 @@ const unsavedChanges = useUnsavedChanges({
                 <div className="flex-1 flex flex-col items-center justify-center space-y-6">
                   <div className="relative w-16 h-16 border-4 border-black rounded-full border-t-primary animate-spin" />
                   <div className="font-mono text-xs text-center space-y-2 max-w-xs">
-                    <p className={`${aiStep >= 1 ? "text-green-600 dark:text-green-400 font-bold" : "text-muted"}`}>
-                      {aiStep >= 1 ? "✓" : "⚙"} [1/3] Parsing syntax tree & symbols...
+                    <p
+                      className={`${aiStep >= 1 ? "text-green-600 dark:text-green-400 font-bold" : "text-muted"}`}
+                    >
+                      {aiStep >= 1 ? "✓" : "⚙"} [1/3] Parsing syntax tree &
+                      symbols...
                     </p>
-                    <p className={`${aiStep >= 2 ? "text-green-600 dark:text-green-400 font-bold" : "text-muted"}`}>
-                      {aiStep >= 2 ? "✓" : "⚙"} [2/3] Simulating space complexity bounds...
+                    <p
+                      className={`${aiStep >= 2 ? "text-green-600 dark:text-green-400 font-bold" : "text-muted"}`}
+                    >
+                      {aiStep >= 2 ? "✓" : "⚙"} [2/3] Simulating space
+                      complexity bounds...
                     </p>
-                    <p className={`${aiStep >= 3 ? "text-green-600 dark:text-green-400 font-bold" : "text-muted"}`}>
-                      {aiStep >= 3 ? "✓" : "⚙"} [3/3] Scanning memory leak vulnerabilities...
+                    <p
+                      className={`${aiStep >= 3 ? "text-green-600 dark:text-green-400 font-bold" : "text-muted"}`}
+                    >
+                      {aiStep >= 3 ? "✓" : "⚙"} [3/3] Scanning memory leak
+                      vulnerabilities...
                     </p>
                   </div>
                 </div>
@@ -382,13 +396,23 @@ const unsavedChanges = useUnsavedChanges({
                     {/* Score / Status Row */}
                     <div className="flex flex-wrap gap-4 items-center justify-between">
                       <div className="border-4 border-black bg-white dark:bg-black px-4 py-2 rounded-xl flex items-center gap-2">
-                        <span className="text-xs font-black uppercase">Review Score:</span>
-                        <span className="text-xl font-black text-primary">{aiReview.score} / 5.0</span>
+                        <span className="text-xs font-black uppercase">
+                          Review Score:
+                        </span>
+                        <span className="text-xl font-black text-primary">
+                          {aiReview.score} / 5.0
+                        </span>
                       </div>
-                      <span className={`px-4 py-2 rounded-xl border-4 border-black font-black text-xs uppercase ${
-                        aiReview.approved ? "bg-green-100 text-green-700" : "bg-yellow-100 text-yellow-700"
-                      }`}>
-                        {aiReview.approved ? "Approved ✅" : "Revision Needed ⚠️"}
+                      <span
+                        className={`px-4 py-2 rounded-xl border-4 border-black font-black text-xs uppercase ${
+                          aiReview.approved
+                            ? "bg-green-100 text-green-700"
+                            : "bg-yellow-100 text-yellow-700"
+                        }`}
+                      >
+                        {aiReview.approved
+                          ? "Approved ✅"
+                          : "Revision Needed ⚠️"}
                       </span>
                     </div>
 
@@ -406,10 +430,15 @@ const unsavedChanges = useUnsavedChanges({
 
                     {/* Feedback report list */}
                     <div className="space-y-3">
-                      <h3 className="font-black text-xs uppercase text-muted tracking-wider">AI Evaluation Logs</h3>
+                      <h3 className="font-black text-xs uppercase text-muted tracking-wider">
+                        AI Evaluation Logs
+                      </h3>
                       <ul className="space-y-1.5">
                         {aiReview.issues.map((issue, idx) => (
-                          <li key={idx} className="flex gap-2 items-start text-xs font-bold">
+                          <li
+                            key={idx}
+                            className="flex gap-2 items-start text-xs font-bold"
+                          >
                             <span className="text-green-500">✓</span>
                             <span>{issue}</span>
                           </li>
@@ -419,10 +448,17 @@ const unsavedChanges = useUnsavedChanges({
 
                     {/* Security Info */}
                     <div className="p-3 bg-red-50 dark:bg-red-950/20 border-2 border-red-200 dark:border-red-900/30 rounded-xl flex gap-2 items-start">
-                      <Shield className="text-red-500 flex-shrink-0" size={16} />
+                      <Shield
+                        className="text-red-500 flex-shrink-0"
+                        size={16}
+                      />
                       <div>
-                        <h4 className="font-black text-[10px] uppercase text-red-700 dark:text-red-400">Security Audit</h4>
-                        <p className="text-xs text-red-800 dark:text-red-300 font-medium mt-0.5">{aiReview.security}</p>
+                        <h4 className="font-black text-[10px] uppercase text-red-700 dark:text-red-400">
+                          Security Audit
+                        </h4>
+                        <p className="text-xs text-red-800 dark:text-red-300 font-medium mt-0.5">
+                          {aiReview.security}
+                        </p>
                       </div>
                     </div>
 
@@ -430,8 +466,12 @@ const unsavedChanges = useUnsavedChanges({
                     <div className="p-3 bg-blue-50 dark:bg-blue-950/20 border-2 border-blue-200 dark:border-blue-900/30 rounded-xl flex gap-2 items-start">
                       <Zap className="text-blue-500 flex-shrink-0" size={16} />
                       <div>
-                        <h4 className="font-black text-[10px] uppercase text-blue-700 dark:text-blue-400">Complexity & Performance</h4>
-                        <p className="text-xs text-blue-800 dark:text-blue-300 font-medium mt-0.5">{aiReview.optimization}</p>
+                        <h4 className="font-black text-[10px] uppercase text-blue-700 dark:text-blue-400">
+                          Complexity & Performance
+                        </h4>
+                        <p className="text-xs text-blue-800 dark:text-blue-300 font-medium mt-0.5">
+                          {aiReview.optimization}
+                        </p>
                       </div>
                     </div>
                   </div>
@@ -447,7 +487,9 @@ const unsavedChanges = useUnsavedChanges({
                           : "bg-accent text-black hover:-translate-y-0.5 animate-pulse"
                       }`}
                     >
-                      {xpClaimed ? "XP Bounties Claimed 🏆" : "Claim XP Bounties (+10 XP) 🏆"}
+                      {xpClaimed
+                        ? "XP Bounties Claimed 🏆"
+                        : "Claim XP Bounties (+10 XP) 🏆"}
                     </button>
                   </div>
                 </div>
@@ -460,9 +502,13 @@ const unsavedChanges = useUnsavedChanges({
                     🤖
                   </div>
                   <div>
-                    <h3 className="font-black text-lg">AI Peer Evaluation Ready</h3>
+                    <h3 className="font-black text-lg">
+                      AI Peer Evaluation Ready
+                    </h3>
                     <p className="text-xs text-muted max-w-xs mt-1 dark:text-[#c4bbae] font-bold">
-                      Submit your local code changes on the left to invoke simulated real-time peer reviews and secure execution audits.
+                      Submit your local code changes on the left to invoke
+                      simulated real-time peer reviews and secure execution
+                      audits.
                     </p>
                   </div>
                 </div>
@@ -629,14 +675,12 @@ const unsavedChanges = useUnsavedChanges({
       />
 
       <UnsavedChangesDialog
-  open={unsavedChanges.isBlocked}
-  message={unsavedChanges.message}
-  onStay={unsavedChanges.stay}
-  onDiscard={unsavedChanges.discard}
-/>
+        open={unsavedChanges.isBlocked}
+        message={unsavedChanges.message}
+        onStay={unsavedChanges.stay}
+        onDiscard={unsavedChanges.discard}
+      />
     </div>
-
-
   );
 }
 

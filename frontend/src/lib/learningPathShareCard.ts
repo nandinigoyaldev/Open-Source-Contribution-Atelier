@@ -77,11 +77,14 @@ export function buildLearningPathShareSvg(
   stats: LearningPathShareStats,
   options?: { generatedAt?: Date },
 ): string {
-  const date = (options?.generatedAt ?? new Date()).toLocaleDateString("en-US", {
-    year: "numeric",
-    month: "short",
-    day: "numeric",
-  });
+  const date = (options?.generatedAt ?? new Date()).toLocaleDateString(
+    "en-US",
+    {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+    },
+  );
   const user = escapeXml(`@${stats.username}`);
   const barWidth = Math.max(0, Math.min(100, stats.completionPercent)) * 7.2; // max 720
 

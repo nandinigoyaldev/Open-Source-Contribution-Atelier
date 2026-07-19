@@ -2,12 +2,10 @@
   "ci": {
     "collect": {
       "numberOfRuns": 3,
-       "startServerCommand": "npm run preview -- --host 0.0.0.0 --port 4173",
-       "startServerReadyPattern": "Local",
-       "startServerReadyTimeout": 120000,
-       "url": [
-         "http://127.0.0.1:4173"
-      ]
+      "startServerCommand": "npm run preview -- --host 0.0.0.0 --port 4173",
+      "startServerReadyPattern": "Local",
+      "startServerReadyTimeout": 120000,
+      "url": ["http://127.0.0.1:4173"]
     },
     "assert": {
       "assertions": {

@@ -6,7 +6,10 @@ interface NotificationBellProps {
   onClick: () => void;
 }
 
-export function NotificationBell({ unreadCount, onClick }: NotificationBellProps) {
+export function NotificationBell({
+  unreadCount,
+  onClick,
+}: NotificationBellProps) {
   return (
     <button
       onClick={onClick}

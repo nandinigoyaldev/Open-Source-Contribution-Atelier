@@ -15,7 +15,7 @@ Think of it like this: you borrowed a friend's recipe book and photocopied a pag
 Every PR has a few key parts:
 
 - **Title**: A clear, short summary of what you changed. Example: `feat: implement dark mode switcher`
-- **Description**: Explains the *why* and *how*. Include links to related issues (e.g. `Closes #42` — this tells GitHub to automatically close issue #42 when the PR is merged).
+- **Description**: Explains the _why_ and _how_. Include links to related issues (e.g. `Closes #42` — this tells GitHub to automatically close issue #42 when the PR is merged).
 - **Files Changed**: A side-by-side view showing exactly what lines you added, changed, or removed.
 - **Reviewers**: Other contributors who will look at your code, ask questions, and either approve or request changes.
 

@@ -57,8 +57,8 @@ export default function AccessibilityDashboard() {
         acc[s.severity] = (acc[s.severity] || 0) + s.count;
         return acc;
       },
-      {} as Record<string, number>
-    )
+      {} as Record<string, number>,
+    ),
   ).map(([severity, count]) => ({ severity, count }));
 
   const statusSummary = Object.entries(
@@ -67,8 +67,8 @@ export default function AccessibilityDashboard() {
         acc[s.status] = (acc[s.status] || 0) + s.count;
         return acc;
       },
-      {} as Record<string, number>
-    )
+      {} as Record<string, number>,
+    ),
   ).map(([name, value]) => ({ name, value }));
 
   const STATUS_COLORS = ["#22c55e", "#ef4444", "#94a3b8"];

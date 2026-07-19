@@ -1,6 +1,10 @@
 import { precacheAndRoute, cleanupOutdatedCaches } from "workbox-precaching";
 import { registerRoute } from "workbox-routing";
-import { CacheFirst, NetworkFirst, StaleWhileRevalidate } from "workbox-strategies";
+import {
+  CacheFirst,
+  NetworkFirst,
+  StaleWhileRevalidate,
+} from "workbox-strategies";
 import { ExpirationPlugin } from "workbox-expiration";
 
 cleanupOutdatedCaches();
@@ -204,7 +208,7 @@ async function syncProgressQueue() {
 
           if (response.ok || response.status === 400) {
             console.log(
-              `[ServiceWorker] Action ${action.id} synced successfully (Status: ${response.status})`
+              `[ServiceWorker] Action ${action.id} synced successfully (Status: ${response.status})`,
             );
 
             // Delete from IndexedDB
@@ -220,10 +224,13 @@ async function syncProgressQueue() {
             });
           } else if (response.status === 409) {
             console.warn(
-              `[ServiceWorker] Conflict detected on server for action ${action.id}`
+              `[ServiceWorker] Conflict detected on server for action ${action.id}`,
             );
             // On 409 Conflict, notify client of the conflict to open resolution UI, do not delete from store yet
-            const serverData = await response.clone().json().catch(() => ({}));
+            const serverData = await response
+              .clone()
+              .json()
+              .catch(() => ({}));
             let localData = {};
             try {
               localData = JSON.parse(action.body);

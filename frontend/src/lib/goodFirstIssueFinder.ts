@@ -74,7 +74,9 @@ export function normalizeFilters(
       : DEFAULT_FILTERS.language;
   const labels = Array.isArray(input.labels)
     ? input.labels
-        .filter((l): l is string => typeof l === "string" && l.trim().length > 0)
+        .filter(
+          (l): l is string => typeof l === "string" && l.trim().length > 0,
+        )
         .map((l) => l.trim())
     : [...DEFAULT_FILTERS.labels];
 
@@ -152,10 +154,16 @@ export function computeBeginnerScore(issue: GitHubSearchIssue): number {
   const labelNames = issue.labels.map((l) => l.name.toLowerCase());
   let score = 20;
 
-  if (labelNames.some((n) => n.includes("good first issue") || n === "good-first-issue")) {
+  if (
+    labelNames.some(
+      (n) => n.includes("good first issue") || n === "good-first-issue",
+    )
+  ) {
     score += 40;
   }
-  if (labelNames.some((n) => n.includes("help wanted") || n === "help-wanted")) {
+  if (
+    labelNames.some((n) => n.includes("help wanted") || n === "help-wanted")
+  ) {
     score += 20;
   }
   if (
@@ -193,8 +201,7 @@ export function rankAndFilterIssues(
     }))
     .filter((issue) => issue.beginnerScore >= f.minBeginnerScore)
     .sort(
-      (a, b) =>
-        b.beginnerScore - a.beginnerScore || a.comments - b.comments,
+      (a, b) => b.beginnerScore - a.beginnerScore || a.comments - b.comments,
     );
 }
 
@@ -288,7 +295,9 @@ export async function searchGitHubIssues(
   }
 
   if (!res.ok) {
-    throw new Error(`GitHub search failed (${res.status}). Try adjusting filters.`);
+    throw new Error(
+      `GitHub search failed (${res.status}). Try adjusting filters.`,
+    );
   }
 
   const data = (await res.json()) as {
@@ -300,7 +309,8 @@ export async function searchGitHubIssues(
 
   return {
     items,
-    totalCount: typeof data.total_count === "number" ? data.total_count : items.length,
+    totalCount:
+      typeof data.total_count === "number" ? data.total_count : items.length,
     fromCache: false,
   };
 }

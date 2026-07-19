@@ -47,7 +47,7 @@ const CommitNode = ({ data }: NodeProps) => {
       className={clsx(
         "relative flex flex-col items-center justify-center p-2 rounded-lg border-2 bg-white dark:bg-[#2e2924] shadow-sm cursor-pointer transition-transform hover:scale-105 min-w-[120px]",
         isSelected ? "border-blue-500 shadow-md" : "border-black",
-        isConflict ? "animate-pulse ring-4 ring-red-500/50" : ""
+        isConflict ? "animate-pulse ring-4 ring-red-500/50" : "",
       )}
       style={{
         borderTopColor: branchColor,
@@ -55,7 +55,7 @@ const CommitNode = ({ data }: NodeProps) => {
       }}
     >
       <Handle type="target" position={Position.Left} className="opacity-0" />
-      
+
       {isHead && (
         <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-yellow-400 text-black text-[10px] font-black px-1.5 rounded border border-black shadow-[1px_1px_0_0_rgba(0,0,0,1)]">
           HEAD
@@ -67,11 +67,16 @@ const CommitNode = ({ data }: NodeProps) => {
         </div>
       )}
 
-      <div className="text-xs font-mono font-bold">{String(data.id).substring(0, 7)}</div>
-      <div className="text-[10px] text-gray-500 mt-1 truncate w-full text-center px-1" title={message}>
+      <div className="text-xs font-mono font-bold">
+        {String(data.id).substring(0, 7)}
+      </div>
+      <div
+        className="text-[10px] text-gray-500 mt-1 truncate w-full text-center px-1"
+        title={message}
+      >
         {message}
       </div>
-      
+
       <Handle type="source" position={Position.Right} className="opacity-0" />
     </div>
   );
@@ -84,7 +89,7 @@ const nodeTypes = {
 const getLayoutedElements = (nodes: Node[], edges: Edge[]) => {
   const dagreGraph = new dagre.graphlib.Graph();
   dagreGraph.setDefaultEdgeLabel(() => ({}));
-  
+
   // Left to right layout
   dagreGraph.setGraph({ rankdir: "LR", ranksep: 60, nodesep: 50 });
 
@@ -118,11 +123,16 @@ export const GitGraph: React.FC<GitGraphProps> = ({
   highlightedCommits = [],
 }) => {
   const hasConflicts = state.conflicts.length > 0;
-  
+
   const { nodes, edges } = useMemo(() => {
     const initialNodes: Node[] = state.commits.map((commit) => {
-      const isHead = state.branches.find((b) => b.name === state.HEAD)?.target === commit.id || state.HEAD === commit.id;
-      const isConflict = commit.parents.length > 1 || highlightedCommits.includes(commit.id) || (hasConflicts && highlightedCommits.includes(commit.id));
+      const isHead =
+        state.branches.find((b) => b.name === state.HEAD)?.target ===
+          commit.id || state.HEAD === commit.id;
+      const isConflict =
+        commit.parents.length > 1 ||
+        highlightedCommits.includes(commit.id) ||
+        (hasConflicts && highlightedCommits.includes(commit.id));
 
       return {
         id: commit.id,
@@ -141,17 +151,23 @@ export const GitGraph: React.FC<GitGraphProps> = ({
     const initialEdges: Edge[] = [];
     state.commits.forEach((commit) => {
       commit.parents.forEach((parentId) => {
-        const isConflict = commit.parents.length > 1 || highlightedCommits.includes(commit.id) || highlightedCommits.includes(parentId);
-        
+        const isConflict =
+          commit.parents.length > 1 ||
+          highlightedCommits.includes(commit.id) ||
+          highlightedCommits.includes(parentId);
+
         initialEdges.push({
           id: `e-${parentId}-${commit.id}`,
           source: parentId,
           target: commit.id,
           animated: isConflict,
-          style: { stroke: isConflict ? '#EF4444' : getBranchColor(commit.branch), strokeWidth: 3 },
+          style: {
+            stroke: isConflict ? "#EF4444" : getBranchColor(commit.branch),
+            strokeWidth: 3,
+          },
           markerEnd: {
             type: MarkerType.ArrowClosed,
-            color: isConflict ? '#EF4444' : getBranchColor(commit.branch),
+            color: isConflict ? "#EF4444" : getBranchColor(commit.branch),
           },
         });
       });
@@ -166,7 +182,7 @@ export const GitGraph: React.FC<GitGraphProps> = ({
         onSelectCommit(node.id);
       }
     },
-    [onSelectCommit]
+    [onSelectCommit],
   );
 
   return (

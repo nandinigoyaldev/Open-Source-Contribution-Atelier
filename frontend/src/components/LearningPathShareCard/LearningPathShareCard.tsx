@@ -73,7 +73,8 @@ export function LearningPathShareCard({
         </h2>
         <p className="mx-auto mt-2 max-w-md text-sm font-bold text-muted dark:text-[#c4bbae]">
           Complete a lesson or keep a streak going, then come back to export a
-          learning-path progress card (separate from your graduation certificate).
+          learning-path progress card (separate from your graduation
+          certificate).
         </p>
       </section>
     );
@@ -91,7 +92,8 @@ export function LearningPathShareCard({
             Share your learning path
           </h2>
           <p className="mt-1 text-xs font-bold text-muted dark:text-[#c4bbae]">
-            Social progress card — modules, streak, and badges (not a certificate).
+            Social progress card — modules, streak, and badges (not a
+            certificate).
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
@@ -120,12 +122,17 @@ export function LearningPathShareCard({
         <div
           className="w-full [&_svg]:h-auto [&_svg]:w-full"
           // Preview the same SVG that gets downloaded
-          dangerouslySetInnerHTML={{ __html: svgMarkup.replace(/^<\?xml[^>]*>\s*/i, "") }}
+          dangerouslySetInnerHTML={{
+            __html: svgMarkup.replace(/^<\?xml[^>]*>\s*/i, ""),
+          }}
         />
       </div>
 
       <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <StatChip label="Modules" value={`${stats.modulesCompleted}/${stats.modulesTotal}`} />
+        <StatChip
+          label="Modules"
+          value={`${stats.modulesCompleted}/${stats.modulesTotal}`}
+        />
         <StatChip label="Streak" value={`${stats.streakDays}d`} />
         <StatChip label="Badges" value={`${stats.badgeCount}`} />
         <StatChip label="Complete" value={`${stats.completionPercent}%`} />

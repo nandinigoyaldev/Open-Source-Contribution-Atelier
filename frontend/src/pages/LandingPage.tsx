@@ -25,11 +25,11 @@ function getErrorMessage(error: unknown, fallback: string) {
 }
 
 export function LandingPage() {
-  let login: (tokens: { access: string; refresh: string }) => void = () => { };
+  let login: (tokens: { access: string; refresh: string }) => void = () => {};
   try {
     const auth = useAuth();
     login = auth.login;
-  } catch { }
+  } catch {}
 
   const { theme, toggleTheme } = useTheme();
   const [authRole, setAuthRole] = useState<"student" | "admin">("student");
@@ -89,12 +89,18 @@ export function LandingPage() {
 
   const getFeedbackBubble = () => {
     if (isPasswordFocused) {
-      if (password.length === 0) return { emoji: "🔒", text: "Keep it secret, keep it safe!" };
-      if (password.length < 6) return { emoji: "⚠️", text: "Weak password! (Try adding more characters)" };
+      if (password.length === 0)
+        return { emoji: "🔒", text: "Keep it secret, keep it safe!" };
+      if (password.length < 6)
+        return {
+          emoji: "⚠️",
+          text: "Weak password! (Try adding more characters)",
+        };
       return { emoji: "😎", text: "Fortress security! Excellent password." };
     }
     if (isEmailFocused) {
-      if (email.length === 0) return { emoji: "✍️", text: "Type your legendary username!" };
+      if (email.length === 0)
+        return { emoji: "✍️", text: "Type your legendary username!" };
       return { emoji: "🚀", text: "Ready to merge some pull requests?" };
     }
     return { emoji: "👋", text: "Welcome back to the Atelier!" };
@@ -106,16 +112,32 @@ export function LandingPage() {
     <div className="min-h-screen md:h-screen md:overflow-hidden bg-surface-lowest dark:bg-[#0a0a0f] text-text transition-colors duration-300 relative flex items-center justify-center p-3 sm:p-6">
       {/* Draggable Stickers scattered in the background */}
       <div className="hidden lg:block select-none pointer-events-auto">
-        <DraggableSticker initialX={80} initialY={100} className="bg-[#FF6B6B] text-white rotate-[-6deg]">
+        <DraggableSticker
+          initialX={80}
+          initialY={100}
+          className="bg-[#FF6B6B] text-white rotate-[-6deg]"
+        >
           Bug Hunter 🐛
         </DraggableSticker>
-        <DraggableSticker initialX={100} initialY={650} className="bg-[#4D96FF] text-white rotate-[8deg]">
+        <DraggableSticker
+          initialX={100}
+          initialY={650}
+          className="bg-[#4D96FF] text-white rotate-[8deg]"
+        >
           git commit -m "success" 🚀
         </DraggableSticker>
-        <DraggableSticker initialX={850} initialY={120} className="bg-[#6BCB77] text-black rotate-[4deg]">
+        <DraggableSticker
+          initialX={850}
+          initialY={120}
+          className="bg-[#6BCB77] text-black rotate-[4deg]"
+        >
           100% Merged ✅
         </DraggableSticker>
-        <DraggableSticker initialX={900} initialY={620} className="bg-[#FFD93D] text-black rotate-[-10deg]">
+        <DraggableSticker
+          initialX={900}
+          initialY={620}
+          className="bg-[#FFD93D] text-black rotate-[-10deg]"
+        >
           Git expert 👑
         </DraggableSticker>
       </div>
@@ -160,19 +182,21 @@ export function LandingPage() {
           <div className="flex p-1 bg-surface-low dark:bg-[#0f0e0c] rounded-2xl border-2 border-black dark:border-[#4a4238] mb-6">
             <button
               onClick={() => setAuthRole("student")}
-              className={`flex-1 py-3 px-4 text-center font-black rounded-xl transition-all text-sm border-2 menu-tab ${authRole === "student"
+              className={`flex-1 py-3 px-4 text-center font-black rounded-xl transition-all text-sm border-2 menu-tab ${
+                authRole === "student"
                   ? "bg-white dark:bg-[#1f1c18] border-black dark:border-[#4a4238] shadow-card-sm -translate-y-0.5 text-black dark:text-[#f0ebe2]"
                   : "border-transparent text-muted dark:text-[#9b8f80] hover:text-text dark:hover:text-[#f0ebe2]"
-                }`}
+              }`}
             >
               Contributor
             </button>
             <button
               onClick={() => setAuthRole("admin")}
-              className={`flex-1 py-3 px-4 text-center font-black rounded-xl transition-all text-sm border-2 menu-tab ${authRole === "admin"
+              className={`flex-1 py-3 px-4 text-center font-black rounded-xl transition-all text-sm border-2 menu-tab ${
+                authRole === "admin"
                   ? "bg-white dark:bg-[#1f1c18] border-black dark:border-[#4a4238] shadow-card-sm -translate-y-0.5 text-black dark:text-[#f0ebe2]"
                   : "border-transparent text-muted dark:text-[#9b8f80] hover:text-text dark:hover:text-[#f0ebe2]"
-                }`}
+              }`}
             >
               Maintainer
             </button>

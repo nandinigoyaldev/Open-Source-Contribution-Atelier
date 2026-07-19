@@ -1,5 +1,11 @@
 import { NavLink } from "react-router-dom";
-import { LayoutGrid, BookOpen, TerminalSquare, MessageSquare, Settings } from "lucide-react";
+import {
+  LayoutGrid,
+  BookOpen,
+  TerminalSquare,
+  MessageSquare,
+  Settings,
+} from "lucide-react";
 
 export function MobileBottomNav() {
   const navItems = [

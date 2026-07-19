@@ -69,9 +69,9 @@ describe("contentCacheCheck", () => {
     vi.unstubAllGlobals();
     // @ts-expect-error intentional
     delete globalThis.caches;
-    await expect(isUrlInCacheStorage("http://localhost/content/x.md")).resolves.toBe(
-      false,
-    );
+    await expect(
+      isUrlInCacheStorage("http://localhost/content/x.md"),
+    ).resolves.toBe(false);
   });
 
   it("marks lessons offline-ready from IndexedDB or SW cache", async () => {

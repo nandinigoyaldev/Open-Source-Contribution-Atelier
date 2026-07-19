@@ -103,7 +103,10 @@ export function MaintainerReplyToneCoach({
         <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
           <div>
             <h2 className="flex items-center gap-2 text-xl font-black dark:text-[#f0ebe2]">
-              <MessageSquareHeart className="h-5 w-5 text-primary" aria-hidden />
+              <MessageSquareHeart
+                className="h-5 w-5 text-primary"
+                aria-hidden
+              />
               Draft your issue / PR reply
             </h2>
             <p className="mt-1 text-xs font-bold text-muted dark:text-[#c4bbae]">
@@ -211,7 +214,11 @@ export function MaintainerReplyToneCoach({
                 onClick={() => void copySuggestion()}
                 className="inline-flex items-center gap-1 rounded-xl border-2 border-black bg-white px-4 py-2 text-xs font-black dark:bg-[#151411] dark:border-[#2e2924]"
               >
-                {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
+                {copied ? (
+                  <Check className="h-3.5 w-3.5" />
+                ) : (
+                  <Copy className="h-3.5 w-3.5" />
+                )}
                 {copied ? "Copied" : "Copy"}
               </button>
             </div>

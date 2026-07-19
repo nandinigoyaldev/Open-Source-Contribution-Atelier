@@ -37,6 +37,7 @@ Git will combine the changes and create a **merge commit** — a special commit 
 ## 🧠 An Analogy: Team Editing
 
 Imagine two people editing separate copies of the same book:
+
 - Person A works on Chapter 5 (their branch)
 - Person B works on Chapter 6 (main branch)
 
@@ -49,6 +50,7 @@ When Person A finishes, they "merge" their chapter back into the main book. Now 
 Sometimes Git can't automatically merge — this is called a **merge conflict**.
 
 This happens when:
+
 - You and someone else edited the **same line** of the **same file**
 - Git doesn't know whose version to keep
 
@@ -67,6 +69,7 @@ Don't panic! Conflicts are normal. We'll learn how to fix them in a later module
 ## 🧪 Try It Yourself
 
 In the sandbox:
+
 1. Switch to main: `git switch main`
 2. Merge a branch: `git merge feat/add-readme`
 

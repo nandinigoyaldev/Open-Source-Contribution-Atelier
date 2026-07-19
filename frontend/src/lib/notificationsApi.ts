@@ -45,7 +45,9 @@ export async function markNotificationRead(
   return (res.data as AppNotification) ?? null;
 }
 
-export async function markAllNotificationsRead(): Promise<{ marked_read: number }> {
+export async function markAllNotificationsRead(): Promise<{
+  marked_read: number;
+}> {
   const res = await api.post("/notifications/mark-all-read/");
   return (res.data as { marked_read: number }) ?? { marked_read: 0 };
 }
