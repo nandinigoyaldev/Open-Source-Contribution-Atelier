@@ -11,37 +11,8 @@ from django.utils.deprecation import MiddlewareMixin
 from django.db import connection
 from django.conf import settings
 from django.core.cache import cache
-import threading
 
 logger = logging.getLogger(__name__)
-
-
-class ProfileData:
-    """Thread-local storage for profile data."""
-    _local = threading.local()
-
-    @classmethod
-    def get(cls):
-        if not hasattr(cls._local, 'data'):
-            cls._local.data = {
-                'start_time': None,
-                'queries': [],
-                'sql_time': 0,
-                'serializer_time': 0,
-                'template_time': 0,
-            }
-        return cls._local.data
-
-    @classmethod
-    def reset(cls):
-        if hasattr(cls._local, 'data'):
-            cls._local.data = {
-                'start_time': None,
-                'queries': [],
-                'sql_time': 0,
-                'serializer_time': 0,
-                'template_time': 0,
-            }
 
 
 class SlowEndpointProfiler(MiddlewareMixin):
@@ -58,10 +29,6 @@ class SlowEndpointProfiler(MiddlewareMixin):
         """Start profiling for the request."""
         if not self.enabled:
             return None
-
-        # Reset profile data
-        ProfileData.reset()
-        ProfileData.get()['start_time'] = time.time()
 
         # Store request info
         request._profile_data = {
@@ -107,8 +74,7 @@ class SlowEndpointProfiler(MiddlewareMixin):
         logger.warning(
             f"⚠️ Slow endpoint detected: {request.method} {request.path} "
             f"({total_time:.3f}s) - {profile_data.get('sql_time', 0):.3f}s SQL, "
-            f"{profile_data.get('serializer_time', 0):.3f}s Serializer, "
-            f"{profile_data.get('template_time', 0):.3f}s Template"
+            f"{profile_data.get('serializer_time', 0):.3f}s Serializer/Template"
         )
 
         # Add response header
@@ -147,14 +113,13 @@ class SlowEndpointProfiler(MiddlewareMixin):
         data['query_count'] = len(queries)
         data['slow_queries'] = [q for q in queries if q['time'] > 0.1]
 
-        # Serializer time (estimated from view)
+        # Serializer/rendering time: everything between view start and now
+        # that isn't accounted for by SQL. This backend is a DRF API (no
+        # Django template rendering step), so this is reported as
+        # 'serializer_time' rather than a separate (never-real) 'template_time'.
         view_start = request._profile_data.get('view_start', request._profile_data.get('start_time'))
         serializer_time = (time.time() - view_start) - sql_time
         data['serializer_time'] = max(0, serializer_time)
-
-        # Template time (if applicable)
-        if hasattr(response, 'renderer_context'):
-            data['template_time'] = getattr(response, 'template_time', 0)
 
         # Response size
         if hasattr(response, 'content'):
@@ -174,26 +139,3 @@ class SlowEndpointProfiler(MiddlewareMixin):
 
         cache.set(cache_key, profiles, timeout=3600)  # 1 hour
 
-
-class SlowQueryLogger:
-    """
-    Log slow database queries.
-    """
-
-    def __init__(self, threshold=0.1):
-        self.threshold = threshold
-        self.queries = []
-
-    def log_query(self, sql, time):
-        """Log a query if it's slow."""
-        if time > self.threshold:
-            self.queries.append({
-                'sql': sql,
-                'time': time,
-                'timestamp': datetime.now().isoformat(),
-            })
-            logger.warning(f"🐌 Slow query ({time:.3f}s): {sql[:200]}...")
-
-    def get_slow_queries(self):
-        """Get all logged slow queries."""
-        return self.queries

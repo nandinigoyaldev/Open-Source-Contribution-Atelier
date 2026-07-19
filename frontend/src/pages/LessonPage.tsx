@@ -25,11 +25,16 @@ import { useOfflineLesson } from "../hooks/useOfflineLesson";
 import { useOfflineReadyLessons } from "../hooks/useOfflineReadyLessons";
 import { useNetworkStatus } from "../context/useNetworkStatus";
 import { fetchApi } from "../lib/api";
-import { Lesson, fetchLessonsApi } from "../lib/lessons";
+import { Lesson, fetchLessonsApiResult } from "../lib/lessons";
+import {
+  buildDriftReport,
+  type CurriculumDriftReport,
+} from "../lib/curriculumSlugDrift";
 import { RecentlyViewedLessonsWidget } from "../components/ui/RecentlyViewedLessonsWidget";
 import { AvailableOfflineBadge } from "../components/ui/AvailableOfflineBadge";
 import { OfflineStatusBadge } from "../components/ui/OfflineStatusBadge";
 import { OfflineBanner } from "../components/ui/OfflineBanner";
+import { CurriculumDriftBanner } from "../components/ui/CurriculumDriftBanner";
 
 const SESSION_KEY_RECENT = "recentlyViewedLessonsV1";
 const MAX_RECENT_ITEMS = 3;
@@ -113,6 +118,9 @@ export function LessonPage() {
   const [lessonsList, setLessonsList] = useState<Lesson[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [driftReport, setDriftReport] = useState<CurriculumDriftReport | null>(
+    null,
+  );
   const { isOnline } = useNetworkStatus();
 
   // Curriculum modules list for sidebar
@@ -285,11 +293,19 @@ export function LessonPage() {
         return null;
       });
 
-    const lessonsPromise = fetchLessonsApi();
+    const lessonsPromise = fetchLessonsApiResult();
 
     Promise.all([curriculumPromise, lessonsPromise])
-      .then(([curriculumJson, lessonsData]) => {
+      .then(([curriculumJson, lessonsResult]) => {
+        const lessonsData = lessonsResult.lessons;
         setLessonsList(lessonsData);
+        setDriftReport(
+          buildDriftReport({
+            curriculum: curriculumJson,
+            apiLessons: lessonsData,
+            apiAvailable: lessonsResult.fromApi,
+          }),
+        );
 
         if (curriculumJson && curriculumJson.modules) {
           setModules(curriculumJson.modules);
@@ -885,6 +901,10 @@ export function LessonPage() {
                 </button>
               </div>
             </div>
+
+            {driftReport && (
+              <CurriculumDriftBanner slug={lesson.slug} report={driftReport} />
+            )}
 
             <p className="text-xl font-bold text-muted dark:text-[#c4bbae]">
               {lesson.description}

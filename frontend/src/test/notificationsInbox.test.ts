@@ -43,6 +43,24 @@ describe("notificationsApi (MSW)", () => {
       "wss://api.example.com/ws/notifications/",
     );
   });
+
+  it("loads and updates notification prefs", async () => {
+    const {
+      fetchNotificationPrefs,
+      updateNotificationPrefs,
+    } = await import("../lib/notificationsApi");
+
+    const prefs = await fetchNotificationPrefs();
+    expect(prefs).toEqual({ email: true, in_app: true, websocket: true });
+
+    const updated = await updateNotificationPrefs({
+      email: false,
+      in_app: true,
+      websocket: false,
+    });
+    expect(updated.email).toBe(false);
+    expect(updated.websocket).toBe(false);
+  });
 });
 
 describe("notificationSlice unread sync", () => {
