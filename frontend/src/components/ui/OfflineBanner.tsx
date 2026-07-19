@@ -1,69 +1,44 @@
-/**
- * OfflineBanner.tsx
- * Full-width informational banner displayed when:
- *  - User is offline AND the lesson has never been cached, OR
- *  - User is online but an error occurred fetching the lesson.
- */
-import React from "react";
-import { WifiOff, BookOpen } from "lucide-react";
+import React, { useState, useEffect } from "react";
+import { useNetworkStatus } from "../../context/useNetworkStatus";
+import { WifiOff, X } from "lucide-react";
 
-interface OfflineBannerProps {
-  lessonTitle?: string;
-  /** When true, the lesson is cached and we show a softer "you're offline" message */
-  isCached?: boolean;
-}
+export function OfflineBanner() {
+  const { isOnline } = useNetworkStatus();
+  const [visible, setVisible] = useState(false);
+  const [dismissed, setDismissed] = useState(false);
 
-export function OfflineBanner({
-  lessonTitle,
-  isCached = false,
-}: OfflineBannerProps) {
-  if (isCached) {
-    // Soft banner — user is offline but can still read
-    return (
-      <div className="flex items-start gap-3 p-4 mb-4 rounded-xl border border-amber-300 bg-amber-50 dark:bg-amber-900/20 dark:border-amber-700 text-amber-800 dark:text-amber-200 text-sm">
-        <WifiOff className="w-4 h-4 mt-0.5 flex-shrink-0" />
-        <div>
-          <span className="font-semibold">You&apos;re offline. </span>
-          Showing cached version of{" "}
-          {lessonTitle ? (
-            <span className="font-semibold">{lessonTitle}</span>
-          ) : (
-            "this lesson"
-          )}
-          . Reconnect to get the latest content.
-        </div>
-      </div>
-    );
-  }
+  useEffect(() => {
+    if (isOnline) {
+      setVisible(false);
+      setDismissed(false);
+    } else {
+      // Offline banner appears within 2 seconds of network loss
+      const timer = setTimeout(() => {
+        if (!dismissed) {
+          setVisible(true);
+        }
+      }, 2000);
+      return () => clearTimeout(timer);
+    }
+  }, [isOnline, dismissed]);
 
-  // Hard banner — lesson not in cache
+  if (!visible) return null;
+
   return (
-    <div className="flex flex-col items-center justify-center gap-4 p-10 rounded-2xl border-2 border-dashed border-gray-300 dark:border-gray-600 text-center bg-gray-50 dark:bg-gray-800/40">
-      <div className="w-16 h-16 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center">
-        <WifiOff className="w-8 h-8 text-gray-400" />
+    <div className="bg-amber-400 text-black border-b-4 border-black font-black px-4 py-3 flex items-center justify-between z-50">
+      <div className="flex items-center gap-2 text-sm uppercase">
+        <WifiOff size={16} className="animate-pulse" />
+        <span>You are offline. Changes will sync when connected.</span>
       </div>
-      <div>
-        <h3 className="text-lg font-bold text-gray-700 dark:text-gray-200 mb-1">
-          You&apos;re offline
-        </h3>
-        <p className="text-sm text-gray-500 dark:text-gray-400 max-w-sm">
-          {lessonTitle ? (
-            <>
-              <span className="font-semibold text-gray-700 dark:text-gray-200">
-                {lessonTitle}
-              </span>{" "}
-              hasn&apos;t been cached yet.
-            </>
-          ) : (
-            "This lesson hasn't been cached yet."
-          )}{" "}
-          Open this lesson while online first so it&apos;s available offline.
-        </p>
-      </div>
-      <div className="flex items-center gap-2 text-xs text-gray-400 dark:text-gray-500">
-        <BookOpen className="w-3.5 h-3.5" />
-        <span>Previously viewed lessons are automatically cached</span>
-      </div>
+      <button
+        onClick={() => setDismissed(true)}
+        className="border-2 border-black bg-white hover:bg-gray-100 p-1 rounded-lg transition"
+        aria-label="Dismiss offline banner"
+      >
+        <X size={14} />
+      </button>
     </div>
   );
 }
+
+export default OfflineBanner;
