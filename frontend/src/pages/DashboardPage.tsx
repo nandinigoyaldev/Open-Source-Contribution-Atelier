@@ -2,14 +2,23 @@ import { AdminDashboard } from "../components/dashboard/AdminDashboard";
 import { useAuth } from "../features/auth/AuthContext";
 import { useQuery } from "@tanstack/react-query";
 import { fetchApi } from "../lib/api";
-import { mockStudentStats, mockLessonQueue, getTipOfTheDay } from "../lib/dashboardMockData";
+import { mockStudentStats, getTipOfTheDay } from "../lib/dashboardMockData";
 import { Link } from "react-router-dom";
 import SkeletonAdminDashboard from "../components/ui/skeletons/SkeletonAdminDashboard";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { useUserProgress } from "../hooks/useUserProgress";
 import { useBookmarks } from "../hooks/useBookmarks";
+import { useOfflineReadyLessons } from "../hooks/useOfflineReadyLessons";
 import { BADGES } from "../constants/badges";
 import { Flame, ArrowRight, Bookmark, Lock, BookOpen, Award, Sparkles } from "lucide-react";
+import { AvailableOfflineBadge } from "../components/ui/AvailableOfflineBadge";
+
+type CurriculumLesson = {
+  slug: string;
+  title: string;
+  description: string;
+  filePath?: string;
+};
 
 export function DashboardPage() {
   const { user } = useAuth();
@@ -21,12 +30,35 @@ export function DashboardPage() {
     queryFn: () =>
       fetch("/content/curriculum.json")
         .then((r) => r.json())
-        .then((json: { modules: { lessons: { slug: string; title: string; description: string }[] }[] }) =>
-          json.modules.flatMap((m) => m.lessons.map((l) => ({ ...l, filePath: "" }))),
+        .then(
+          (json: {
+            modules: { lessons: CurriculumLesson[] }[];
+          }) => json.modules.flatMap((m) => m.lessons),
         )
-        .catch(() => []),
+        .catch(() => [] as CurriculumLesson[]),
   });
   const lessons = lessonsData;
+
+  const lessonRefs = useMemo(
+    () =>
+      lessons.map((l) => ({
+        slug: l.slug,
+        filePath: l.filePath,
+      })),
+    [lessons],
+  );
+  const { isOfflineReady } = useOfflineReadyLessons(lessonRefs);
+
+  const lessonQueue = useMemo(() => {
+    const incomplete = lessons.filter((l) => !isLessonCompleted(l.slug));
+    return incomplete.slice(0, 3).map((l, index) => ({
+      number: index + 1,
+      title: l.title,
+      description: l.description,
+      slug: l.slug,
+      filePath: l.filePath,
+    }));
+  }, [lessons, isLessonCompleted]);
 
   const { isLoading: contributorLoading } = useQuery({
     queryKey: ["contributorStats"],
@@ -42,7 +74,6 @@ export function DashboardPage() {
   const [showProgressReport, setShowProgressReport] = useState(false);
 
   const stats = mockStudentStats;
-  const lessonQueue = mockLessonQueue;
 
   const completedLessonsCount = lessons.filter((l) => isLessonCompleted(l.slug)).length;
   const totalLessonsCount = lessons.length;
@@ -198,18 +229,30 @@ export function DashboardPage() {
               to={`/lessons/${lesson.slug}`}
               className="flex items-center justify-between p-5 rounded-lg border-4 border-black bg-gray-50 dark:bg-[#151411] dark:border-[#2e2924] shadow-card-sm hover:shadow-card hover:-translate-y-0.5 transition-all"
             >
-              <div className="flex items-center gap-4">
+              <div className="flex items-center gap-4 min-w-0">
                 <span className="w-8 h-8 rounded-full bg-black text-white font-black text-sm flex items-center justify-center flex-shrink-0 dark:bg-[#2e2924]">
                   {lesson.number}
                 </span>
-                <div>
-                  <h3 className="font-black text-lg dark:text-[#f0ebe2]">{lesson.title}</h3>
-                  <p className="text-sm font-bold text-gray-500 dark:text-[#c4bbae]">{lesson.description}</p>
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h3 className="font-black text-lg dark:text-[#f0ebe2]">
+                      {lesson.title}
+                    </h3>
+                    {isOfflineReady(lesson.slug) && <AvailableOfflineBadge />}
+                  </div>
+                  <p className="text-sm font-bold text-gray-500 dark:text-[#c4bbae]">
+                    {lesson.description}
+                  </p>
                 </div>
               </div>
               <ArrowRight className="w-5 h-5 text-gray-400 flex-shrink-0" />
             </Link>
           ))}
+          {lessonQueue.length === 0 && (
+            <p className="text-sm font-bold text-gray-500 dark:text-[#c4bbae] text-center py-4">
+              All queued lessons complete — browse the full curriculum below.
+            </p>
+          )}
           <Link
             to="/content"
             className="block text-center rounded-lg border-4 border-black bg-gray-100 dark:bg-[#151411] dark:border-[#2e2924] py-3 font-black text-sm hover:-translate-y-0.5 transition-all dark:text-[#f0ebe2]"
