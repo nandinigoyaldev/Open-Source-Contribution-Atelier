@@ -747,7 +747,7 @@ html.high-contrast [tabindex]:focus-visible {
 }
 
 /* Fix any absolute positioned buttons */
-button:not([class*="menu"]):not([class*="toggle"]) {
+button:not([class*="menu"]):not([class*="toggle"]):not(.w-full) {
   position: relative !important;
   float: none !important;
   display: inline-flex !important;
