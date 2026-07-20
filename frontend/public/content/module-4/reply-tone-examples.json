@@ -1,0 +1,47 @@
+{
+  "module": "module-4",
+  "title": "Maintainer reply tone examples",
+  "sourceLessons": ["respect-and-communication", "professional-prs-and-issues"],
+  "examples": [
+    {
+      "id": "any-update",
+      "label": "Respect maintainers' time",
+      "bad": "any update???",
+      "good": "Hi! Just checking in when you have a moment — happy to provide more details if needed. No rush.",
+      "lessonSlug": "respect-and-communication",
+      "tip": "Most maintainers are volunteers. Avoid “any updates?” pings; wait patiently."
+    },
+    {
+      "id": "helpful-question",
+      "label": "Write helpful messages",
+      "bad": "it doesnt work",
+      "good": "Hi! I'm trying to run `npm test` on Node 20 / Windows 11. I get `Error: Cannot find module 'xyz'`. I already tried deleting node_modules and reinstalling. Any pointers?",
+      "lessonSlug": "respect-and-communication",
+      "tip": "Include what you tried, what went wrong, and environment details."
+    },
+    {
+      "id": "feedback-focus",
+      "label": "Be kind and professional",
+      "bad": "This code is bad. Fix it ASAP.",
+      "good": "Thanks for the review context — I think this approach might cause performance issues under large inputs. Would you be open to an alternative that batches the work?",
+      "lessonSlug": "respect-and-communication",
+      "tip": "Critique the approach, not the person."
+    },
+    {
+      "id": "assignment",
+      "label": "Ask before claiming work",
+      "bad": "I'm taking this. Don't assign anyone else.",
+      "good": "I'd like to work on this if it's still available. Happy to open a draft PR once assigned.",
+      "lessonSlug": "professional-prs-and-issues",
+      "tip": "Comment to request assignment instead of demanding ownership."
+    },
+    {
+      "id": "pr-conversation",
+      "label": "Stay for the conversation",
+      "bad": "Merged my changes. Done.",
+      "good": "Thanks for the feedback! I've updated the branch to address the naming suggestions — let me know if anything else should change.",
+      "lessonSlug": "professional-prs-and-issues",
+      "tip": "A PR is a conversation, not a delivery drop-off."
+    }
+  ]
+}

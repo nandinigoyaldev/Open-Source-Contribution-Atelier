@@ -53,7 +53,7 @@ export function useLocalSync() {
     (slug: string) => {
       return pending.some((p) => p.lesson_slug === slug && p.completed);
     },
-    [pending]
+    [pending],
   );
 
   const getPendingXP = useCallback(
@@ -61,7 +61,7 @@ export function useLocalSync() {
       let pendingXP = 0;
       pending.forEach((p) => {
         const inBackend = backendProgress.some(
-          (bp) => bp.lesson_slug === p.lesson_slug
+          (bp) => bp.lesson_slug === p.lesson_slug,
         );
         if (!inBackend) {
           pendingXP += p.score || 0;
@@ -69,7 +69,7 @@ export function useLocalSync() {
       });
       return pendingXP;
     },
-    [pending]
+    [pending],
   );
 
   return {
@@ -81,8 +81,11 @@ export function useLocalSync() {
 }
 export function useLocalSyncGeneric<T>(key: string, initialData: T) {
   const [data, setData] = useState<T>(() => {
-    const stored = localStorage.getItem(key);
-    return stored ? JSON.parse(stored) : initialData;
+    if (typeof window !== "undefined") {
+      const stored = localStorage.getItem(key);
+      return stored ? JSON.parse(stored) : initialData;
+    }
+    return initialData;
   });
 
   const [isSyncing, setIsSyncing] = useState(false);
@@ -93,7 +96,7 @@ export function useLocalSyncGeneric<T>(key: string, initialData: T) {
       localStorage.setItem(key, JSON.stringify(newData));
       setData(newData);
     },
-    [key]
+    [key],
   );
 
   const sync = useCallback(async () => {

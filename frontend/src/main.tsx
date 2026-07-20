@@ -9,9 +9,34 @@ import { ThemeProvider } from "./hooks/useTheme";
 import { ToastProvider } from "./features/ui/ToastContext";
 import { syncOfflineQueue } from "./lib/offlineQueue";
 import { initKeepAlive } from "./lib/hfKeepAlive";
+import { QueryProvider } from "./QueryProvider";
 import i18n from "./lib/i18n";
 import { I18nextProvider } from "react-i18next";
 import "./styles.css";
+import "./plugins/coreLessonPlugins";
+import { NetworkStatusProvider } from "./context/NetworkStatusContext";
+import { initializeTracing } from "./tracing";
+import * as Sentry from "@sentry/react";
+
+// Initialize Sentry before rendering if DSN is set
+const SENTRY_DSN = import.meta.env.VITE_SENTRY_DSN;
+if (SENTRY_DSN) {
+  Sentry.init({
+    dsn: SENTRY_DSN,
+    integrations: [
+      Sentry.browserTracingIntegration(),
+      Sentry.replayIntegration(),
+    ],
+    tracesSampleRate: parseFloat(
+      import.meta.env.VITE_SENTRY_TRACES_SAMPLE_RATE || "1.0",
+    ),
+    replaysSessionSampleRate: 0.1,
+    replaysOnErrorSampleRate: 1.0,
+  });
+}
+
+// Initialize OpenTelemetry tracing before rendering
+initializeTracing();
 
 const GOOGLE_CLIENT_ID =
   import.meta.env.VITE_GOOGLE_CLIENT_ID ||
@@ -47,13 +72,17 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
     <Provider store={store}>
       <I18nextProvider i18n={i18n}>
         <ThemeProvider>
-          <AuthProvider>
-            <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
-              <ToastProvider>
-                <App />
-              </ToastProvider>
-            </GoogleOAuthProvider>
-          </AuthProvider>
+          <QueryProvider>
+            <AuthProvider>
+              <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
+                <ToastProvider>
+                  <NetworkStatusProvider>
+                    <App />
+                  </NetworkStatusProvider>
+                </ToastProvider>
+              </GoogleOAuthProvider>
+            </AuthProvider>
+          </QueryProvider>
         </ThemeProvider>
       </I18nextProvider>
     </Provider>

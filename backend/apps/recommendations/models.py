@@ -2,6 +2,25 @@ from django.contrib.auth.models import User
 from django.db import models
 
 
+class OSSIssue(models.Model):
+    repo_name = models.CharField(max_length=255)
+    issue_number = models.IntegerField()
+    title = models.CharField(max_length=512)
+    url = models.URLField(max_length=1024)
+    labels = models.JSONField(default=list)
+    difficulty = models.CharField(max_length=50, blank=True, null=True)
+    is_open = models.BooleanField(default=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        unique_together = ("repo_name", "issue_number")
+
+    def __str__(self):
+        return f"{self.repo_name} #{self.issue_number}: {self.title}"
+
+
 class Recommendation(models.Model):
     objects = models.Manager()
 
@@ -9,6 +28,7 @@ class Recommendation(models.Model):
         LESSON = "lesson", "Lesson"
         CHALLENGE = "challenge", "Challenge"
         QUIZ = "quiz", "Quiz"
+        OSS_ISSUE = "oss_issue", "OSS Issue"
 
     user = models.ForeignKey(
         User, on_delete=models.CASCADE, related_name="recommendations"
@@ -21,6 +41,12 @@ class Recommendation(models.Model):
     is_dismissed = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+    github_id = models.CharField(max_length=100, unique=True, null=True, blank=True)
+    gitlab_id = models.CharField(max_length=100, unique=True, null=True, blank=True)
+    labels = models.JSONField(default=list)
+    language = models.CharField(max_length=50, blank=True)
+    difficulty = models.CharField(max_length=20, blank=True)
+
 
     class Meta:
         ordering = ["-priority_score", "-created_at"]

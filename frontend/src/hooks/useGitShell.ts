@@ -39,9 +39,16 @@ export interface GitRepo {
   unmerged?: Record<string, boolean>;
 }
 
+import { VfsState, TerminalLine as VfsTerminalLine } from "../lib/vfs/types";
+import { CommandParser } from "../lib/vfs/CommandParser";
+import { VfsPersistence } from "../lib/vfs/Persistence";
+import { VirtualFileSystem } from "../lib/vfs/FileSystem";
+import { VfsAdapter } from "../lib/vfs/Adapter";
+
 export interface ShellState {
-  cwd: string[]; // path segments, e.g. ["~", "myrepo"]
-  fs: Record<string, FsNode>; // flat map keyed by "/"-joined path
+  cwd: string[]; // Keep for compatibility with components, but sync with vfs.cwd
+  fs: Record<string, FsNode>; // Keep flat map synced for git commands
+  vfs: VfsState; // New tree-based VFS
   git: GitRepo;
   editorState?: { file: string; content: string } | null;
 }
@@ -91,13 +98,13 @@ function listDir(fs: Record<string, FsNode>, cwd: string[]): string[] {
 
 // ─── Initial State ────────────────────────────────────────────────────────────
 
-function makeInitialState(): ShellState {
-  const home: string[] = ["~"];
+export function makeInitialState(): ShellState {
+  const vfs = VfsPersistence.load();
+  const fs = VfsAdapter.toFlat(vfs) as any;
   return {
-    cwd: home,
-    fs: {
-      "~": { type: "dir", children: {} },
-    },
+    cwd: vfs.cwd,
+    vfs,
+    fs,
     git: {
       initialized: false,
       currentBranch: "main",
@@ -122,7 +129,7 @@ type CommandResult = {
   completed?: boolean;
 };
 
-function runCommand(
+export function runCommand(
   raw: string,
   state: ShellState,
   lineId: { v: number },
@@ -145,111 +152,47 @@ function runCommand(
     (trimmed.match(/(?:[^\s"']+|"[^"]*"|'[^']*')+/g) as string[]) ?? [];
   const cmd = argv[0]?.toLowerCase() ?? "";
 
-  // ── pwd ──
-  if (cmd === "pwd") {
-    const display = s.cwd.join("/").replace("~", "/home/user");
-    return { lines: [out(display)], newState: s };
-  }
+  // DELEGATE FS COMMANDS TO NEW VFS PARSER
+  if (
+    [
+      "pwd",
+      "cd",
+      "ls",
+      "mkdir",
+      "touch",
+      "echo",
+      "cat",
+      "rm",
+      "cp",
+      "mv",
+      "clear",
+    ].includes(cmd)
+  ) {
+    const vfsResult = CommandParser.parse(trimmed, state.vfs);
 
-  // ── ls / ls -la ──
-  if (cmd === "ls") {
-    const entries = listDir(s.fs, s.cwd);
-    if (entries.length === 0) {
-      return { lines: [out("(empty directory)")], newState: s };
-    }
-    const showHidden =
-      argv.includes("-la") || argv.includes("-a") || argv.includes("-al");
-    const toShow = showHidden
-      ? [...(s.git.initialized ? [".git"] : []), ...entries]
-      : entries;
-    return { lines: [out(toShow.join("  "))], newState: s };
-  }
+    // Convert VFS TerminalLines to GitTerminalLines
+    const lines = vfsResult.lines.map((l) => ({ ...l, id: nextId() }));
 
-  // ── cd ──
-  if (cmd === "cd") {
-    const target = argv[1];
-    if (!target || target === "~") {
-      return { lines: [], newState: { ...s, cwd: ["~"] } };
-    }
-    if (target === "..") {
-      if (s.cwd.length <= 1)
-        return { lines: [out("Already at root.")], newState: s };
-      return { lines: [], newState: { ...s, cwd: s.cwd.slice(0, -1) } };
-    }
-    const newCwd = [...s.cwd, target];
-    const node = getNode(s.fs, newCwd);
-    if (!node || node.type !== "dir") {
+    if (cmd === "clear") {
       return {
-        lines: [out(`cd: ${target}: No such directory`, "error")],
-        newState: s,
+        lines,
+        newState: {
+          ...s,
+          vfs: vfsResult.newState,
+          cwd: vfsResult.newState.cwd,
+          fs: VfsAdapter.toFlat(vfsResult.newState) as any,
+        },
       };
     }
-    return { lines: [], newState: { ...s, cwd: newCwd } };
-  }
 
-  // ── mkdir ──
-  if (cmd === "mkdir") {
-    const name = argv[1];
-    if (!name)
-      return { lines: [out("Usage: mkdir <dirname>", "error")], newState: s };
-    const newPath = [...s.cwd, name];
-    const key = joinPath(newPath);
-    if (s.fs[key])
-      return {
-        lines: [out(`mkdir: ${name}: already exists`, "error")],
-        newState: s,
-      };
-    const newFs = { ...s.fs, [key]: { type: "dir" as const, children: {} } };
-    return { lines: [], newState: { ...s, fs: newFs } };
-  }
-
-  // ── touch ──
-  if (cmd === "touch") {
-    const name = argv[1];
-    if (!name)
-      return { lines: [out("Usage: touch <filename>", "error")], newState: s };
-    const key = joinPath([...s.cwd, name]);
-    const newFs = { ...s.fs, [key]: { type: "file" as const, content: "" } };
-    return { lines: [], newState: { ...s, fs: newFs } };
-  }
-
-  // ── echo (with redirection) ──
-  if (cmd === "echo") {
-    const fullCmd = trimmed.slice(5);
-    const redirIdx = fullCmd.indexOf(">");
-    if (redirIdx !== -1) {
-      const text = fullCmd
-        .slice(0, redirIdx)
-        .trim()
-        .replace(/^['"]|['"]$/g, "");
-      const file = fullCmd.slice(redirIdx + 1).trim();
-      const key = joinPath([...s.cwd, file]);
-      const newFs = {
-        ...s.fs,
-        [key]: { type: "file" as const, content: text + "\n" },
-      };
-      return { lines: [], newState: { ...s, fs: newFs } };
-    }
-    const text = fullCmd.trim().replace(/^['"]|['"]$/g, "");
-    return { lines: [out(text)], newState: s };
-  }
-
-  // ── cat ──
-  if (cmd === "cat") {
-    const name = argv[1];
-    if (!name)
-      return { lines: [out("Usage: cat <filename>", "error")], newState: s };
-    const key = joinPath([...s.cwd, name]);
-    const node = s.fs[key];
-    if (!node || node.type !== "file") {
-      return {
-        lines: [out(`cat: ${name}: No such file`, "error")],
-        newState: s,
-      };
-    }
     return {
-      lines: [out((node as FileEntry).content || "(empty file)")],
-      newState: s,
+      lines,
+      newState: {
+        ...s,
+        vfs: vfsResult.newState,
+        cwd: vfsResult.newState.cwd,
+        fs: VfsAdapter.toFlat(vfsResult.newState) as any,
+      },
     };
   }
 
@@ -258,28 +201,27 @@ function runCommand(
     const name = argv[1];
     if (!name)
       return { lines: [out(`Usage: ${cmd} <filename>`, "error")], newState: s };
-    const key = joinPath([...s.cwd, name]);
-    let content = "";
-    if (s.fs[key]) {
-      const node = s.fs[key];
-      if (node.type !== "file") {
+
+    const resolved = VirtualFileSystem.resolvePath(state.vfs.cwd, name);
+    const node = VirtualFileSystem.getNode(state.vfs, resolved);
+
+    let fileContent = "";
+    if (node) {
+      if (node.type !== "file")
         return {
           lines: [out(`${cmd}: ${name} is a directory`, "error")],
           newState: s,
         };
-      }
-      content = (node as FileEntry).content;
+      fileContent = (node as any).content;
     }
-    // Set the editorState to open the UI overlay
+
     return {
       lines: [],
-      newState: { ...s, editorState: { file: key, content } },
+      newState: {
+        ...s,
+        editorState: { file: resolved.join("/"), content: fileContent },
+      },
     };
-  }
-
-  // ── clear ──
-  if (cmd === "clear") {
-    return { lines: [out("__CLEAR__", "info")], newState: s };
   }
 
   // ── help ──
@@ -739,10 +681,11 @@ function runCommand(
         const prefix = cwdKey(s.cwd) + "/";
         const conflictKey = prefix + "app.js";
         const conflictContent = `<<<<<<< HEAD\nconsole.log("Main branch initialized");\n=======\nconsole.log("Feature branch initialized");\n>>>>>>> conflict-branch\n`;
-        const newFs = {
-          ...s.fs,
-          [conflictKey]: { type: "file" as const, content: conflictContent },
-        };
+        const newVfs = VirtualFileSystem.write(
+          s.vfs,
+          conflictKey,
+          conflictContent,
+        );
         const newUnmerged = { ...(s.git.unmerged || {}), [conflictKey]: true };
 
         return {
@@ -756,7 +699,8 @@ function runCommand(
           ],
           newState: {
             ...s,
-            fs: newFs,
+            vfs: newVfs,
+            fs: VfsAdapter.toFlat(newVfs) as any,
             git: {
               ...s.git,
               mergeState: true,
@@ -850,8 +794,13 @@ export interface UseGitShellOptions {
   requiresGitInit?: boolean;
 }
 
+import { useEffect as UseEffectAlias } from "react";
 export function useGitShell(options: UseGitShellOptions = {}) {
   const [shellState, setShellState] = useState<ShellState>(makeInitialState);
+
+  UseEffectAlias(() => {
+    VfsPersistence.save(shellState.vfs);
+  }, [shellState.vfs]);
   const [lines, setLines] = useState<TerminalLine[]>([
     {
       id: 0,
@@ -941,11 +890,13 @@ export function useGitShell(options: UseGitShellOptions = {}) {
     setShellState((prev) => {
       if (!prev.editorState) return prev;
       const fileKey = prev.editorState.file;
-      const newFs = {
-        ...prev.fs,
-        [fileKey]: { type: "file" as const, content },
+      const newVfs = VirtualFileSystem.write(prev.vfs, fileKey, content);
+      return {
+        ...prev,
+        vfs: newVfs,
+        fs: VfsAdapter.toFlat(newVfs) as any,
+        editorState: null,
       };
-      return { ...prev, fs: newFs, editorState: null };
     });
   }, []);
 

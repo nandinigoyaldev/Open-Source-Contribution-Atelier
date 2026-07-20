@@ -1,7 +1,20 @@
 import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Terminal, GitPullRequest, GitBranch, Code2, Award, ArrowRight, RotateCcw, CheckCircle } from "lucide-react";
+import {
+  Terminal,
+  GitPullRequest,
+  GitBranch,
+  Code2,
+  Award,
+  ArrowRight,
+  RotateCcw,
+  CheckCircle,
+} from "lucide-react";
 import { SectionCard } from "../components/ui/SectionCard";
+import { CommitMessageCoach } from "../components/ui/CommitMessageCoach";
+import { PrDiffSummarizer } from "../components/ui/PrDiffSummarizer";
+import { validateCommitMessage } from "../lib/conventionalCommitCoach";
+import { Link } from "react-router-dom";
 
 type Step = "setup" | "fix" | "commit" | "pr" | "success";
 
@@ -32,26 +45,34 @@ export function ContributorSandboxPage() {
 
     const lowerCmd = cmd.toLowerCase();
     if (lowerCmd === "help") {
-      appendToHistory("Available commands: clone, checkout, clear, status, help");
+      appendToHistory(
+        "Available commands: clone, checkout, clear, status, help",
+      );
     } else if (lowerCmd === "clear") {
       setTerminalHistory([]);
     } else if (lowerCmd === "clone" || lowerCmd.startsWith("git clone")) {
       appendToHistory("Cloning into 'Open-Source-Contribution-Atelier'...");
       setTimeout(() => {
         appendToHistory("Unpacking objects: 100% (1042/1042), done.");
-        appendToHistory("Project cloned successfully! Now enter the directory and create a branch.");
+        appendToHistory(
+          "Project cloned successfully! Now enter the directory and create a branch.",
+        );
         appendToHistory("Suggested: 'git checkout -b patch-1'");
       }, 800);
     } else if (lowerCmd === "checkout" || lowerCmd.startsWith("git checkout")) {
       const parts = cmd.split(" ");
       const branchName = parts[parts.length - 1];
       appendToHistory(`Switched to a new branch '${branchName}'`);
-      appendToHistory("Excellent! Step 1 Complete. Click 'Next Step' above to fix the bug.");
+      appendToHistory(
+        "Excellent! Step 1 Complete. Click 'Next Step' above to fix the bug.",
+      );
       setTimeout(() => {
         setCurrentStep("fix");
       }, 1000);
     } else {
-      appendToHistory(`Command not recognized: '${cmd}'. Try 'clone' or 'git checkout -b feature'`);
+      appendToHistory(
+        `Command not recognized: '${cmd}'. Try 'clone' or 'git checkout -b feature'`,
+      );
     }
   };
 
@@ -95,17 +116,21 @@ export function ContributorSandboxPage() {
     if (option?.correct) {
       setCurrentStep("commit");
     } else {
-      alert("Oops! That doesn't follow our project guidelines. We should log or raise specific exceptions instead of swallowing them.");
+      alert(
+        "Oops! That doesn't follow our project guidelines. We should log or raise specific exceptions instead of swallowing them.",
+      );
     }
   };
 
   const startLinterRun = () => {
     if (!commitMsg.trim()) return;
-    
-    // Check for conventional commit structure
-    const isConventional = /^(feat|fix|docs|refactor|chore)(\(.+\))?:/.test(commitMsg);
-    if (!isConventional) {
-      alert("Our project requires Conventional Commits! Format: 'feat: add feature' or 'fix: resolve issue'");
+
+    const validation = validateCommitMessage(commitMsg);
+    if (!validation.valid) {
+      alert(
+        validation.issues[0]?.message ??
+          "Our project requires Conventional Commits! Format: 'feat: add feature' or 'fix: resolve issue'",
+      );
       return;
     }
 
@@ -121,10 +146,15 @@ export function ContributorSandboxPage() {
 
   return (
     <div className="space-y-8 max-w-6xl mx-auto pb-16">
-      <SectionCard eyebrow="SSoC 2026 Simulator" title="Contributor Sandbox Playground">
+      <SectionCard
+        eyebrow="SSoC 2026 Simulator"
+        title="Contributor Sandbox Playground"
+      >
         <p className="max-w-3xl text-sm leading-6 text-muted dark:text-[#c4bbae] font-bold">
-          New to open-source contributions? Simulate the complete flow of contributing to our codebase. 
-          Learn our guidelines, fix a mock bug, run local linting, and open a mock PR to unlock your Contributor Badge!
+          New to open-source contributions? Simulate the complete flow of
+          contributing to our codebase. Learn our guidelines, fix a mock bug,
+          run local linting, and open a mock PR to unlock your Contributor
+          Badge!
         </p>
       </SectionCard>
 
@@ -138,7 +168,9 @@ export function ContributorSandboxPage() {
           { key: "success", label: "5. Contributor Badge", icon: Award },
         ].map((s, idx) => {
           const Icon = s.icon;
-          const isCompleted = ["setup", "fix", "commit", "pr", "success"].indexOf(currentStep) >= idx;
+          const isCompleted =
+            ["setup", "fix", "commit", "pr", "success"].indexOf(currentStep) >=
+            idx;
           const isActive = currentStep === s.key;
           return (
             <div
@@ -147,12 +179,14 @@ export function ContributorSandboxPage() {
                 isActive
                   ? "bg-accent border-black text-black scale-105 shadow-card-sm"
                   : isCompleted
-                  ? "bg-green-500/20 border-green-500 text-green-600 dark:text-green-400"
-                  : "bg-white dark:bg-[#1f1c18] border-black/10 dark:border-[#2e2924] text-muted"
+                    ? "bg-green-500/20 border-green-500 text-green-600 dark:text-green-400"
+                    : "bg-white dark:bg-[#1f1c18] border-black/10 dark:border-[#2e2924] text-muted"
               }`}
             >
               <Icon size={20} className="mb-2" />
-              <span className="text-xs font-black hidden md:inline">{s.label}</span>
+              <span className="text-xs font-black hidden md:inline">
+                {s.label}
+              </span>
             </div>
           );
         })}
@@ -175,8 +209,16 @@ export function ContributorSandboxPage() {
                   Step 1: Clone the Repo & Create a Feature Branch
                 </h3>
                 <p className="text-sm text-muted dark:text-[#c4bbae] mt-2">
-                  First, we need to clone the repository and switch to a custom branch where we will fix our issue.
-                  Type <code className="bg-surface-low dark:bg-black px-1.5 py-0.5 rounded font-mono">git clone</code> and then <code className="bg-surface-low dark:bg-black px-1.5 py-0.5 rounded font-mono">git checkout -b fix-token-handling</code> in the terminal simulator below.
+                  First, we need to clone the repository and switch to a custom
+                  branch where we will fix our issue. Type{" "}
+                  <code className="bg-surface-low dark:bg-black px-1.5 py-0.5 rounded font-mono">
+                    git clone
+                  </code>{" "}
+                  and then{" "}
+                  <code className="bg-surface-low dark:bg-black px-1.5 py-0.5 rounded font-mono">
+                    git checkout -b fix-token-handling
+                  </code>{" "}
+                  in the terminal simulator below.
                 </p>
               </div>
 
@@ -187,13 +229,16 @@ export function ContributorSandboxPage() {
                     <div key={idx}>{line}</div>
                   ))}
                 </div>
-                <form onSubmit={handleCommand} className="mt-4 flex items-center border-t border-green-900 pt-2">
+                <form
+                  onSubmit={handleCommand}
+                  className="mt-4 flex items-center border-t border-green-900 pt-2"
+                >
                   <span className="text-green-500 font-black mr-2">$</span>
                   <input
                     type="text"
                     value={terminalInput}
                     onChange={(e) => setTerminalInput(e.target.value)}
-                    className="bg-transparent border-none outline-none text-green-400 font-mono w-full focus:ring-0"
+                    className="bg-transparent border-none outline-none text-green-400 font-mono w-full focus:ring-0 touch-target-min py-2"
                     placeholder="Type clone..."
                     autoFocus
                   />
@@ -203,13 +248,17 @@ export function ContributorSandboxPage() {
               <div className="flex justify-end gap-3 mt-4">
                 <button
                   onClick={() => {
-                    appendToHistory("$ git clone https://github.com/nandinigoyaldev/Open-Source-Contribution-Atelier.git");
+                    appendToHistory(
+                      "$ git clone https://github.com/nandinigoyaldev/Open-Source-Contribution-Atelier.git",
+                    );
                     appendToHistory("Project cloned successfully!");
                     appendToHistory("$ git checkout -b fix-token-handling");
-                    appendToHistory("Switched to a new branch 'fix-token-handling'");
+                    appendToHistory(
+                      "Switched to a new branch 'fix-token-handling'",
+                    );
                     setTimeout(() => setCurrentStep("fix"), 1500);
                   }}
-                  className="px-4 py-2 border-2 border-black bg-surface-low dark:bg-[#151411] hover:bg-accent font-black rounded-lg transition-colors text-sm"
+                  className="px-4 py-2 border-2 border-black bg-surface-low dark:bg-[#151411] hover:bg-accent font-black rounded-lg transition-colors text-sm touch-target-min inline-flex items-center justify-center"
                 >
                   Skip Typing / Auto-Run ⚡
                 </button>
@@ -231,7 +280,9 @@ export function ContributorSandboxPage() {
                   Step 2: Fix the code smell in `token_service.py`
                 </h3>
                 <p className="text-sm text-muted dark:text-[#c4bbae] mt-2">
-                  We found a generic exception handler that catches all errors and ignores them. Choose the correct implementation to resolve this code smell.
+                  We found a generic exception handler that catches all errors
+                  and ignores them. Choose the correct implementation to resolve
+                  this code smell.
                 </p>
               </div>
 
@@ -254,7 +305,9 @@ export function ContributorSandboxPage() {
                         className="mt-1"
                       />
                       <div>
-                        <span className="font-black text-sm block mb-2">{opt.desc}</span>
+                        <span className="font-black text-sm block mb-2">
+                          {opt.desc}
+                        </span>
                         <pre className="bg-black text-white p-3 rounded-lg font-mono text-xs overflow-x-auto whitespace-pre-wrap">
                           {opt.code}
                         </pre>
@@ -267,14 +320,14 @@ export function ContributorSandboxPage() {
               <div className="flex justify-between items-center mt-6">
                 <button
                   onClick={() => setCurrentStep("setup")}
-                  className="px-4 py-2 border-2 border-black hover:bg-surface-low rounded-lg font-black text-sm"
+                  className="px-4 py-2 border-2 border-black hover:bg-surface-low rounded-lg font-black text-sm touch-target-min inline-flex items-center justify-center"
                 >
                   Back
                 </button>
                 <button
                   disabled={selectedFix === null}
                   onClick={handleFixSubmit}
-                  className="px-6 py-3 bg-black text-white dark:bg-[#ffc658] dark:text-black hover:bg-accent hover:text-black font-black rounded-xl transition-all shadow-card flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="px-6 py-3 bg-black text-white dark:bg-[#ffc658] dark:text-black hover:bg-accent hover:text-black font-black rounded-xl transition-all shadow-card flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed touch-target-min inline-flex items-center justify-center"
                 >
                   Submit Fix <ArrowRight size={16} />
                 </button>
@@ -296,33 +349,39 @@ export function ContributorSandboxPage() {
                   Step 3: Format & Write a Conventional Commit Message
                 </h3>
                 <p className="text-sm text-muted dark:text-[#c4bbae] mt-2">
-                  Our project enforces standard **Conventional Commits** (e.g. <code className="bg-surface-low dark:bg-black px-1 rounded font-mono">fix: log unexpected exception in token_service</code>). Enter your commit message below to trigger the linter check.
+                  Our project enforces standard **Conventional Commits** (e.g.{" "}
+                  <code className="bg-surface-low dark:bg-black px-1 rounded font-mono">
+                    fix: log unexpected exception in token_service
+                  </code>
+                  ). Enter your commit message below to trigger the linter
+                  check.
                 </p>
               </div>
 
               <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-black mb-2">Commit Message</label>
-                  <input
-                    type="text"
-                    value={commitMsg}
-                    onChange={(e) => setCommitMsg(e.target.value)}
-                    className="w-full border-4 border-black px-4 py-3 rounded-xl font-mono text-sm bg-white text-black shadow-card dark:bg-[#151411] dark:border-[#2e2924] dark:text-[#f0ebe2]"
-                    placeholder="e.g. fix: handle unexpected errors in token decoding"
-                  />
-                </div>
+                <CommitMessageCoach
+                  value={commitMsg}
+                  onChange={setCommitMsg}
+                  compact
+                  defaultValue=""
+                />
 
                 {isLinterRunning && (
                   <div className="bg-surface-low dark:bg-[#151411] p-4 rounded-xl border-2 border-black flex items-center gap-3">
                     <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-black dark:border-white" />
-                    <span className="text-sm font-black animate-pulse">Running black format check & eslint validation...</span>
+                    <span className="text-sm font-black animate-pulse">
+                      Running black format check & eslint validation...
+                    </span>
                   </div>
                 )}
 
                 {isLinterPassed && (
                   <div className="bg-green-500/10 text-green-600 dark:text-green-400 p-4 rounded-xl border-2 border-green-500 flex items-center gap-3">
                     <CheckCircle size={20} />
-                    <span className="text-sm font-black">All format and style checks passed! Proceeding to pull request.</span>
+                    <span className="text-sm font-black">
+                      All format and style checks passed! Proceeding to pull
+                      request.
+                    </span>
                   </div>
                 )}
               </div>
@@ -330,14 +389,14 @@ export function ContributorSandboxPage() {
               <div className="flex justify-between items-center mt-6">
                 <button
                   onClick={() => setCurrentStep("fix")}
-                  className="px-4 py-2 border-2 border-black hover:bg-surface-low rounded-lg font-black text-sm"
+                  className="px-4 py-2 border-2 border-black hover:bg-surface-low rounded-lg font-black text-sm touch-target-min inline-flex items-center justify-center"
                 >
                   Back
                 </button>
                 <button
                   disabled={!commitMsg.trim() || isLinterRunning}
                   onClick={startLinterRun}
-                  className="px-6 py-3 bg-black text-white dark:bg-[#ffc658] dark:text-black hover:bg-accent hover:text-black font-black rounded-xl transition-all shadow-card flex items-center gap-2 disabled:opacity-50"
+                  className="px-6 py-3 bg-black text-white dark:bg-[#ffc658] dark:text-black hover:bg-accent hover:text-black font-black rounded-xl transition-all shadow-card flex items-center gap-2 disabled:opacity-50 touch-target-min inline-flex items-center justify-center"
                 >
                   Run Code Checks 🛠️
                 </button>
@@ -359,7 +418,8 @@ export function ContributorSandboxPage() {
                   Step 4: Open a simulated Pull Request
                 </h3>
                 <p className="text-sm text-muted dark:text-[#c4bbae] mt-2">
-                  We'll now submit the PR. The GitHub automated bot will verify the commits and check if we are auto-assigning incorrectly.
+                  We'll now submit the PR. The GitHub automated bot will verify
+                  the commits and check if we are auto-assigning incorrectly.
                 </p>
               </div>
 
@@ -369,29 +429,57 @@ export function ContributorSandboxPage() {
                   <span className="text-sm font-black flex items-center gap-1.5 text-green-600 dark:text-green-400">
                     <GitPullRequest size={16} /> Open Pull Request
                   </span>
-                  <span className="text-xs text-muted">target: main &larr; source: fix-token-handling</span>
+                  <span className="text-xs text-muted">
+                    target: main &larr; source: fix-token-handling
+                  </span>
                 </div>
                 <div>
                   <h4 className="font-black text-md">{commitMsg}</h4>
-                  <p className="text-xs text-muted mt-1 font-mono">Author: contributor-sandbox-user</p>
+                  <p className="text-xs text-muted mt-1 font-mono">
+                    Author: contributor-sandbox-user
+                  </p>
                 </div>
                 <div className="border-t-2 border-black/10 dark:border-[#2e2924] pt-3 text-xs space-y-2">
                   <div className="flex items-center gap-2 text-green-600 font-bold">
-                    <CheckCircle size={14} /> build: Vercel Preview Build successful
+                    <CheckCircle size={14} /> build: Vercel Preview Build
+                    successful
                   </div>
                   <div className="flex items-center gap-2 text-green-600 font-bold">
-                    <CheckCircle size={14} /> test: Pytest backend verification passed
+                    <CheckCircle size={14} /> test: Pytest backend verification
+                    passed
                   </div>
                   <div className="flex items-center gap-2 text-green-600 font-bold">
-                    <CheckCircle size={14} /> security: No secrets or credentials leaked
+                    <CheckCircle size={14} /> security: No secrets or
+                    credentials leaked
                   </div>
                 </div>
+              </div>
+
+              <div className="space-y-2">
+                <p className="text-sm font-black text-text dark:text-[#f0ebe2]">
+                  Practice writing your PR description
+                </p>
+                <p className="text-xs text-muted dark:text-[#c4bbae] font-bold">
+                  Paste changed files to generate a checklist-ready PR body.
+                  Full tool:{" "}
+                  <Link
+                    to="/pr-diff-summarizer"
+                    className="underline text-accent hover:opacity-80"
+                  >
+                    /pr-diff-summarizer
+                  </Link>
+                </p>
+                <PrDiffSummarizer
+                  compact
+                  defaultIssueNumber=""
+                  className="shadow-none"
+                />
               </div>
 
               <div className="flex justify-end gap-3 mt-6">
                 <button
                   onClick={() => setCurrentStep("success")}
-                  className="px-6 py-3 bg-green-500 text-white hover:bg-green-600 font-black rounded-xl transition-all shadow-card flex items-center gap-2"
+                  className="px-6 py-3 bg-green-500 text-white hover:bg-green-600 font-black rounded-xl transition-all shadow-card flex items-center gap-2 touch-target-min inline-flex items-center justify-center"
                 >
                   Merge PR & Unlock Badge! 🏆
                 </button>
@@ -415,7 +503,9 @@ export function ContributorSandboxPage() {
                   🎉 Contribution Simulator Completed!
                 </h3>
                 <p className="text-sm text-muted dark:text-[#c4bbae] max-w-lg mx-auto mt-2 font-bold">
-                  Awesome job! You successfully simulated checking out a branch, fixing an exception swallow bug, writing a conventional commit message, passing local validation, and merging a PR!
+                  Awesome job! You successfully simulated checking out a branch,
+                  fixing an exception swallow bug, writing a conventional commit
+                  message, passing local validation, and merging a PR!
                 </p>
               </div>
 
@@ -425,8 +515,12 @@ export function ContributorSandboxPage() {
                   Official Sandbox Graduate
                 </span>
                 <div className="py-2">
-                  <h4 className="font-black text-xl">SSoC 2026 Sandbox Contributor</h4>
-                  <p className="text-xs font-bold text-black/60 mt-1">Open-Source Contribution Atelier</p>
+                  <h4 className="font-black text-xl">
+                    SSoC 2026 Sandbox Contributor
+                  </h4>
+                  <p className="text-xs font-bold text-black/60 mt-1">
+                    Open-Source Contribution Atelier
+                  </p>
                 </div>
                 <div className="border-t border-black/10 pt-4 text-xs font-mono flex justify-between">
                   <span>VALIDATION: ACTIVE</span>
@@ -437,7 +531,7 @@ export function ContributorSandboxPage() {
               <div className="flex justify-center gap-4 pt-4">
                 <button
                   onClick={resetAll}
-                  className="px-4 py-2 border-2 border-black hover:bg-surface-low rounded-lg font-black text-sm flex items-center gap-1.5"
+                  className="px-4 py-2 border-2 border-black hover:bg-surface-low rounded-lg font-black text-sm flex items-center gap-1.5 touch-target-min inline-flex items-center justify-center"
                 >
                   <RotateCcw size={14} /> Restart Simulator
                 </button>
@@ -449,3 +543,5 @@ export function ContributorSandboxPage() {
     </div>
   );
 }
+
+export default ContributorSandboxPage;

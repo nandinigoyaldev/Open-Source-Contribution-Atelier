@@ -47,14 +47,16 @@ describe("useEarnedBadges", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    
+
     vi.mocked(useAuth).mockReturnValue({
       user: { id: 1, username: "testuser", is_staff: false },
       isLoading: false,
       checkUser: vi.fn(),
     } as any);
-    
-    vi.mocked(fetchLessonsApi).mockResolvedValue(mockLessons as unknown as import("../lib/lessons").Lesson[]);
+
+    vi.mocked(fetchLessonsApi).mockResolvedValue(
+      mockLessons as unknown as import("../lib/lessons").Lesson[],
+    );
   });
 
   afterEach(() => {
@@ -81,7 +83,8 @@ describe("useEarnedBadges", () => {
 
   it("awards module badge and grad badge when all lessons completed", async () => {
     vi.mocked(useUserProgress).mockReturnValue({
-      isLessonCompleted: (slug: string) => ["lesson-1", "lesson-2"].includes(slug),
+      isLessonCompleted: (slug: string) =>
+        ["lesson-1", "lesson-2"].includes(slug),
     } as unknown as ReturnType<typeof useUserProgress>);
 
     const { result } = renderHook(() => useEarnedBadges(), {

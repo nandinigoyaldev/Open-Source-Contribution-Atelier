@@ -18,7 +18,12 @@ class SearchDocument(models.Model):
     content_object = GenericForeignKey("content_type", "object_id")
 
     title = models.CharField(max_length=255)
+    description = models.TextField(blank=True, default="")
+    tags = models.CharField(max_length=500, blank=True, default="")
     body_text = models.TextField()
+
+    # Denormalized content type name for fast filtering without a JOIN
+    content_type_name = models.CharField(max_length=100, blank=True, default="")
 
     # Store the pre-computed tsvector
     search_vector = SearchVectorField(null=True, blank=True)
@@ -59,7 +64,7 @@ class SearchAnalytics(models.Model):
         verbose_name_plural = "search analytics"
         ordering = ["-created_at"]
         indexes = [
-            models.Index(fields=["query", "created_at"]),
+            models.Index(fields=["query", "created_at"], name="idx_querycreated_at"),
         ]
 
     def __str__(self):

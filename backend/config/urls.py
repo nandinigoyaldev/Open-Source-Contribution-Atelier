@@ -17,60 +17,82 @@ from .views import CheckoutSessionView
 from .webhooks import stripe_webhook
 
 urlpatterns = [
+    # ── Admin ──────────────────────────────────────────────────────────────────
     path("admin/", admin.site.urls),
-    path("", include("django_prometheus.urls")),
-    path("health/", health_view, name="health"),
+    # ── Health Checks ──────────────────────────────────────────────────────────
+    path("health/", include("apps.health.urls")),
+    # ── Legacy Health (keep for backward compatibility) ──────────────────────
+    path("health/legacy/", health_view, name="health"),
+    # ── API Version ────────────────────────────────────────────────────────────
     path("api/version/", version_view, name="version"),
+    # ── Leaderboard ────────────────────────────────────────────────────────────
     path("api/leaderboard/", LeaderboardView.as_view(), name="leaderboard"),
+    # ── Authentication ─────────────────────────────────────────────────────────
     path("accounts/", include("allauth.urls")),
     path("api/auth/", include("apps.accounts.urls")),
     path("api/users/", include("apps.accounts.user_urls")),
+    # ── Core Apps ──────────────────────────────────────────────────────────────
     path("api/content/", include("apps.content.urls")),
+    path("api/billing/", include("apps.billing.urls")),
     path("api/progress/", include("apps.progress.urls")),
+    path("api/localization/", include("apps.localization.urls")),
     path("api/challenges/", include("apps.challenges.urls")),
     path("api/sandbox/", include("apps.sandbox.urls")),
+    path("api/gamification/", include("apps.gamification.urls")),
+    # ── Notifications & Real-time ─────────────────────────────────────────────
     path("api/notifications/", include("apps.notifications.urls")),
     path("api/dashboard/", include("apps.dashboard.urls")),
     path('create-checkout-session/', CheckoutSessionView.as_view()),
     path('webhook/', stripe_webhook),
     path("api/search/", include("apps.search.urls")),
-    path("api/webhooks/", include("apps.webhooks.urls")),
     path("api/notes/", include("apps.notes.urls")),
-    path("api/chat/", include("apps.chat.urls")),
     path("api/recommendations/", include("apps.recommendations.urls")),
-    path("api/moderation/", include("apps.moderation.urls")),
-    # ============================================================
-    # WEBHOOKS & UPLOADS
-    # ============================================================
+    # ── Webhooks & Uploads ─────────────────────────────────────────────────────
+    path("api/webhooks/", include("apps.webhooks.urls")),
     path("api/uploads/", include("apps.uploads.urls")),
-    # ============================================================
-    # RBAC (Role-Based Access Control)
-    # ============================================================
+    # ── RBAC ───────────────────────────────────────────────────────────────────
     path("api/rbac/", include("apps.rbac.urls")),
-    # ============================================================
-    # DOMAIN EVENTS
-    # ============================================================
+    # ── Errors ─────────────────────────────────────────────────────────────────
+    path("api/errors/", include("apps.errors.urls")),
+    # ── Audit Trail ────────────────────────────────────────────────────────────
+    path("api/audit/", include("apps.audit.urls")),
+    # ── Webhooks & Uploads ─────────────────────────────────────────────────────
+    path("api/webhooks/", include("apps.webhooks.urls")),
+    path("api/uploads/", include("apps.uploads.urls")),
+    # ── RBAC ───────────────────────────────────────────────────────────────────
+    path("api/rbac/", include("apps.rbac.urls")),
+    # ── Additional Apps ────────────────────────────────────────────────────────
+    path("api/moderation/", include("apps.moderation.urls")),
+    path("api/portfolio/", include("apps.portfolio.urls")),
+    path("api/organizations/", include("apps.organizations.urls")),
+    path("api/accessibility/", include("apps.accessibility.urls")),
+    # ── Issue Reporting ────────────────────────────────────────────────────────
+    path("api/issues/", include("apps.issues.urls")),
+    # ── Project Health Dashboard ───────────────────────────────────────────────
+    path("api/project-health/", include("apps.project_health.urls")),
+    # ── Plugins ────────────────────────────────────────────────────────────────
+    path("api/plugins/", include("apps.plugins.urls")),
+    # ── Events & GraphQL ──────────────────────────────────────────────────────
     # path("api/events/", include("apps.events.urls")),
-    # ============================================================
-    # GRAPHQL FEDERATION GATEWAY
-    # ============================================================
-    # path("api/graphql/", include("apps.graphql_gateway.urls")),
-    # ============================================================
-    # LEGACY GRAPHQL (Keep for backward compatibility)
-    # ============================================================
+    path("api/graphql/", include("apps.graphql_gateway.urls")),
     path("api/graphql/legacy/", csrf_exempt(GraphQLView.as_view(graphiql=True))),
-    # ============================================================
-    # API DOCUMENTATION
-    # ============================================================
+    # ── API Documentation ──────────────────────────────────────────────────────
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
     path(
         "api/docs/",
-        SpectacularSwaggerSplitView.as_view(url_name="schema"),
+        SpectacularSwaggerView.as_view(url_name="schema"),  # Fixed here
         name="swagger-ui",
     ),
-    path("api/graphql/", csrf_exempt(GraphQLView.as_view(graphiql=True))),
+    # ── Prometheus Metrics ─────────────────────────────────────────────────────
+    path("", include("django_prometheus.urls")),
+    path(
+        "api/redoc/",
+        SpectacularRedocView.as_view(url_name="schema"),
+        name="redoc-ui",
+    ),
 ]
 
+# ── Development URLs ──────────────────────────────────────────────────────────
 from django.conf import settings
 from django.conf.urls.static import static
 
@@ -80,11 +102,12 @@ if settings.DEBUG:
     urlpatterns += [
         path("api/organizations/", include("apps.organizations.urls")),
         path("api/feature-flags/", include("apps.feature_flags.urls")),
-        path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
         path(
-            "api/docs/",
-            SpectacularSwaggerSplitView.as_view(url_name="schema"),
-            name="swagger-ui",
+            "debug/feature-flags/", feature_flags_debug_view, name="debug-feature-flags"
         ),
-        path("graphql/", csrf_exempt(GraphQLView.as_view(graphiql=True))),
-    ]
+        path(
+            "api/feature-flags/debug/",
+            feature_flags_debug_view,
+            name="feature-flags-debug",
+        ),
+    ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)

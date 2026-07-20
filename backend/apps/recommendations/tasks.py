@@ -1,13 +1,7 @@
-from django.contrib.auth.models import User
-from django.core.exceptions import ObjectDoesNotExist
+from celery import shared_task
+from django.core.management import call_command
 
-from .engine import RecommendationEngine
-
-
-def generate_user_recommendations(user_id):
-    try:
-        user = User.objects.get(id=user_id)
-        engine = RecommendationEngine(user)
-        engine.generate_recommendations()
-    except ObjectDoesNotExist:
-        pass
+@shared_task
+def sync_oss_issues():
+    """Celery task to sync OSS issues."""
+    call_command('sync_oss_issues')

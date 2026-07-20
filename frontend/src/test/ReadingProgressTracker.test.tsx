@@ -32,27 +32,31 @@ describe("ReadingProgressTracker", () => {
     (fetchApi as any).mockResolvedValueOnce({ progress: 50 });
 
     render(<ReadingProgressTracker lessonSlug="test-lesson" />);
-    
+
     await act(async () => {
       vi.runAllTimers();
     });
-    
-    expect(fetchApi).toHaveBeenCalledWith("/api/progress/reading-position/?lesson=test-lesson");
+
+    expect(fetchApi).toHaveBeenCalledWith(
+      "/api/progress/reading-position/?lesson=test-lesson",
+    );
   });
 
   it("should render progress bar if progress > 0", async () => {
     (fetchApi as any).mockResolvedValueOnce({ progress: 75 });
-    
-    const { container } = render(<ReadingProgressTracker lessonSlug="test-lesson" />);
-    
-    await waitFor(() => {
-      expect(fetchApi).toHaveBeenCalled();
+
+    const { container } = render(
+      <ReadingProgressTracker lessonSlug="test-lesson" />,
+    );
+
+    await act(async () => {
+      await Promise.resolve();
     });
-    
-    act(() => {
-      vi.advanceTimersByTime(2000);
+
+    await act(async () => {
+      vi.runAllTimers();
     });
-    
+
     // The progress bar div with width style
     const bar = container.querySelector(".bg-emerald-500");
     expect(bar).toBeInTheDocument();
@@ -61,25 +65,35 @@ describe("ReadingProgressTracker", () => {
 
   it("should attempt to scroll to position if initial progress > 0", async () => {
     (fetchApi as any).mockResolvedValueOnce({ progress: 50 });
-    
+
     // Mock the container and children
     const mockChild = { scrollIntoView: vi.fn() };
-    const mockContainer = { children: [mockChild, mockChild, mockChild, mockChild] };
-    vi.spyOn(document, 'querySelector').mockReturnValue(mockContainer as any);
-    
-    render(<ReadingProgressTracker lessonSlug="test-lesson" />);
-    
-    await waitFor(() => {
-      expect(fetchApi).toHaveBeenCalled();
+    const mockContainer = {
+      children: [mockChild, mockChild, mockChild, mockChild],
+    };
+    const originalQuerySelector = document.querySelector.bind(document);
+    vi.spyOn(document, "querySelector").mockImplementation((selector) => {
+      if (selector === ".markdown-body") {
+        return mockContainer as any;
+      }
+      return originalQuerySelector(selector);
     });
 
-    // Fast forward the 1500ms init delay + 1000ms scroll delay
-    act(() => {
-      vi.advanceTimersByTime(3000);
+    render(<ReadingProgressTracker lessonSlug="test-lesson" />);
+
+    await act(async () => {
+      await Promise.resolve();
     });
-    
+
+    await act(async () => {
+      vi.runAllTimers();
+    });
+
     expect(document.querySelector).toHaveBeenCalledWith(".markdown-body");
     // Should have called scrollIntoView on the correct child (50% of 4 children = index 2)
-    expect(mockChild.scrollIntoView).toHaveBeenCalledWith({ behavior: "smooth", block: "start" });
+    expect(mockChild.scrollIntoView).toHaveBeenCalledWith({
+      behavior: "smooth",
+      block: "start",
+    });
   });
 });

@@ -3,7 +3,7 @@ import requests
 import time
 import os
 from typing import Optional
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from django.core.cache import cache
 
 
@@ -69,7 +69,7 @@ class GitHubAppAuth:
             # Cache token with 10 minute buffer
             if token and expires_at:
                 expires = datetime.fromisoformat(expires_at.replace("Z", "+00:00"))
-                ttl = int((expires - datetime.now()).total_seconds()) - 600
+                ttl = int((expires - datetime.now(timezone.utc)).total_seconds()) - 600
                 if ttl > 0:
                     cache.set(self.cache_key, token, ttl)
 

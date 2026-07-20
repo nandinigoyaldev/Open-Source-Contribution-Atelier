@@ -5,7 +5,6 @@ from apps.dashboard.views import (
     ContributorDashboardView,
     ModeratorAnalyticsView,
     PublicLandingStatsView,
-    BuyStreakFreezeView,
 )
 
 app_name = "dashboard"
@@ -15,5 +14,4 @@ urlpatterns = [
     path("contributor/", ContributorDashboardView.as_view(), name="contributor_stats"),
     path("stats-public/", PublicLandingStatsView.as_view(), name="public_stats"),
     path("analytics/", ModeratorAnalyticsView.as_view(), name="moderator_analytics"),
-    path("buy-streak-freeze/", BuyStreakFreezeView.as_view(), name="buy_streak_freeze"),
 ]

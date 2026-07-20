@@ -21,9 +21,10 @@ export default defineConfig({
   },
 });
 
-const dirname = typeof __dirname !== "undefined"
-  ? __dirname
-  : path.dirname(fileURLToPath(import.meta.url));
+const dirname =
+  typeof __dirname !== "undefined"
+    ? __dirname
+    : path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
   worker: {
@@ -46,14 +47,23 @@ export default defineConfig({
         short_name: "Atelier",
         theme_color: "#ffffff",
         display: "standalone",
+        icons: [
+          {
+            src: "/icons/icon-192x192.png",
+            sizes: "192x192",
+            type: "image/png",
+          },
+          {
+            src: "/icons/icon-512x512.png",
+            sizes: "512x512",
+            type: "image/png",
+          },
+        ],
       },
       devOptions: {
         enabled: true,
         type: "module",
       },
-    }),
-    storybookTest({
-      configDir: path.join(dirname, ".storybook"),
     }),
   ],
   resolve: {
@@ -64,14 +74,20 @@ export default defineConfig({
       {
         extends: true,
         test: {
+          name: "unit",
           environment: "jsdom",
           setupFiles: "./src/test/setup.ts",
-          include: ["src/test/**/*.test.{ts,tsx}"],
+          include: ["src/**/*.test.{ts,tsx}"],
           exclude: ["**/*.stories.{ts,tsx}", "**/*.stories.{js,jsx}"],
         },
       },
       {
         extends: true,
+        plugins: [
+          storybookTest({
+            configDir: path.join(dirname, ".storybook"),
+          }),
+        ],
         test: {
           name: "storybook",
           browser: {
@@ -84,7 +100,13 @@ export default defineConfig({
       },
     ],
     optimizeDeps: {
-      include: ["workbox-precaching", "workbox-routing", "workbox-strategies", "workbox-expiration"],
+      include: [
+        "workbox-precaching",
+        "workbox-routing",
+        "workbox-strategies",
+        "workbox-expiration",
+        "@sentry/react",
+      ],
     },
   },
-} as any);
+});

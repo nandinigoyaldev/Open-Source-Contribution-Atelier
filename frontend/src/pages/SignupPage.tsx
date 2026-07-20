@@ -1,14 +1,17 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { AuthPageShell } from "../features/auth/AuthPageShell";
 import { fetchApi } from "../lib/api";
 import { useAuth } from "../features/auth/AuthContext";
 import { useGoogleLogin } from "@react-oauth/google";
 import { GitBranch } from "lucide-react";
 import PasswordStrengthMeter from "../components/PasswordStrengthMeter";
+import { DemoLoginButton } from "../features/auth/DemoLoginButton";
+import { formatGoogleOAuthError } from "../lib/googleOAuth";
 
 const githubAuthUrl =
-  import.meta.env.VITE_GITHUB_OAUTH_URL ||
-  `${import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api"}/auth/github/`;
+  import.meta.env?.VITE_GITHUB_OAUTH_URL ||
+  `${import.meta.env?.VITE_API_BASE_URL || "http://localhost:8000/api"}/auth/github/`;
 
 function getErrorMessage(error: unknown, fallback: string) {
   return error instanceof Error ? error.message : fallback;
@@ -19,6 +22,7 @@ export function SignupPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const navigate = useNavigate();
   const { login } = useAuth();
 
   const handleGithubSignIn = () => {
@@ -32,15 +36,17 @@ export function SignupPage() {
           method: "POST",
           requireAuth: false,
           body: JSON.stringify({ access_token: tokenResponse.access_token }),
+          timeoutMs: 3000,
         });
         login(tokens);
-        window.location.href = "/dashboard";
+        sessionStorage.setItem("justLoggedIn", "true");
+        navigate("/dashboard");
       } catch (err: unknown) {
-        setError(getErrorMessage(err, "Google Auth Failed. Check Backend."));
+        setError(formatGoogleOAuthError(err, "backend"));
       }
     },
     onError: () => {
-      setError("Google Login Failed / Cancelled.");
+      setError(formatGoogleOAuthError(undefined, "popup"));
     },
   });
 
@@ -63,7 +69,8 @@ export function SignupPage() {
         body: JSON.stringify({ username, password }),
       });
       login(tokens);
-      window.location.href = "/dashboard";
+      sessionStorage.setItem("justLoggedIn", "true");
+      navigate("/dashboard");
     } catch (err: unknown) {
       setError(getErrorMessage(err, "Failed to create account"));
     }
@@ -129,6 +136,11 @@ export function SignupPage() {
           />
           <span className="relative">Sign up with GitHub</span>
         </button>
+
+        <DemoLoginButton
+          label="🚀 Demo Mode (No Signup Needed)"
+          className="w-full bg-green-200 border-4 border-black rounded-2xl p-4 flex items-center justify-center gap-3 font-bold hover:bg-green-300 transition-colors shadow-card-sm active:translate-y-1 active:shadow-none text-sm cursor-pointer"
+        />
 
         <div className="flex items-center gap-4 my-6">
           <div className="flex-1 h-1 bg-black"></div>
@@ -208,3 +220,5 @@ export function SignupPage() {
     </AuthPageShell>
   );
 }
+
+export default SignupPage;
