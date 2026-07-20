@@ -228,6 +228,7 @@ INSTALLED_APPS = [
     "apps.gamification",
     "apps.project_health",
     "django_q",
+    "apps.monitoring",
     "waffle",
     "apps.plugins.apps.PluginsConfig",
 ]

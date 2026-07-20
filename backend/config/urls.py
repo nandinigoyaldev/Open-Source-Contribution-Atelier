@@ -82,6 +82,7 @@ urlpatterns = [
         name="swagger-ui",
     ),
     # ── Prometheus Metrics ─────────────────────────────────────────────────────
+    path("api/monitoring/", include("apps.monitoring.urls")),
     path("", include("django_prometheus.urls")),
     path(
         "api/redoc/",

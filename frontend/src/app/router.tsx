@@ -92,6 +92,12 @@ const ModerationDashboard = lazy(() =>
   })),
 );
 
+const BackupDashboardPage = lazy(() =>
+  import("../pages/admin/BackupDashboardPage").then((module) => ({
+    default: module.default,
+  })),
+);
+
 const SandboxPage = lazy(() =>
   import("../pages/SandboxPage").then((module) => ({
     default: module.SandboxPage,
@@ -549,6 +555,15 @@ export function AppRouter() {
             element={
               <ProtectedRoute>
                 <ModerationDashboard />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/admin/backups"
+            element={
+              <ProtectedRoute>
+                <BackupDashboardPage />
               </ProtectedRoute>
             }
           />
