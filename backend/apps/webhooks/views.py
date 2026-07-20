@@ -71,3 +71,23 @@ class WebhookDeliveryViewSet(viewsets.ReadOnlyModelViewSet):
 
     def get_queryset(self):
         return WebhookDelivery.objects.filter(endpoint__user=self.request.user)
+
+    @action(detail=False, methods=["get"])
+    def health(self, request):
+        """
+        Returns the failed delivery ratio over the last 24 hours.
+        """
+        twenty_four_hours_ago = timezone.now() - timezone.timedelta(hours=24)
+        
+        # Consider the base WebhookDelivery to compute ratio
+        # Failed implies status is "failed" or "dead". Or we can just look at deliveries.
+        recent_deliveries = self.get_queryset().filter(created_at__gte=twenty_four_hours_ago)
+        total = recent_deliveries.count()
+        
+        if total == 0:
+            return Response({"failed_ratio": 0.0, "total": 0, "failed": 0})
+            
+        failed = recent_deliveries.filter(status__in=["failed", "dead", "retrying"]).count()
+        ratio = round((failed / total) * 100, 2)
+        
+        return Response({"failed_ratio": ratio, "total": total, "failed": failed})
