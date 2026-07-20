@@ -45,17 +45,6 @@ class NotificationPrefsView(APIView):
 
     def put(self, request):
         prefs, _ = NotificationPreference.objects.get_or_create(user=request.user)
-<<<<<<< HEAD
-        prefs.email_enabled = request.data.get('email', prefs.email_enabled)
-        prefs.in_app_enabled = request.data.get('in_app', prefs.in_app_enabled)
-        prefs.websocket_enabled = request.data.get('websocket', prefs.websocket_enabled)
-        prefs.save()
-        return Response({
-            'email': prefs.email_enabled,
-            'in_app': prefs.in_app_enabled,
-            'websocket': prefs.websocket_enabled,
-        })
-=======
         prefs.email_enabled = _coerce_bool(
             request.data.get("email"), prefs.email_enabled
         )
@@ -69,7 +58,7 @@ class NotificationPrefsView(APIView):
             update_fields=["email_enabled", "in_app_enabled", "websocket_enabled"]
         )
         return Response(_prefs_payload(prefs))
->>>>>>> main
+
 
     def patch(self, request):
         return self.put(request)

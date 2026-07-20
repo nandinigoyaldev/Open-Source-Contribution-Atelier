@@ -79,8 +79,13 @@ const navGroups = [
   },
   {
     title: "Account",
-    items: [{ to: "/profile", label: "Settings", icon: Settings }],
+    items: [
+      { to: "/profile", label: "Settings", icon: Settings },
+      { to: "/settings/connected-apps", label: "Connected Apps", icon: Shield },
+      { to: "/admin/oauth-clients", label: "OAuth Apps", icon: Key },
+    ],
   },
+
 ];
 
 export function Navigation() {

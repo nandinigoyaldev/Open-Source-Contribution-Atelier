@@ -10,8 +10,9 @@ def get_redis_connection():
     try:
         from django_redis import get_redis_connection as get_redis
         return get_redis("default")
-    except ImportError:
+    except (ImportError, NotImplementedError):
         return None
+
 
 class SlidingWindowThrottle(SimpleRateThrottle):
     """

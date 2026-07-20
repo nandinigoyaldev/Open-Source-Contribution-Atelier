@@ -219,6 +219,19 @@ const TemplateMarketplacePage = lazy(
 
 const PortfolioPage = lazy(() => import("../pages/PortfolioPage"));
 
+const OAuthClientsPage = lazy(() =>
+  import("../pages/admin/OAuthClients").then((module) => ({
+    default: module.OAuthClients,
+  })),
+);
+
+const ConnectedAppsPage = lazy(() =>
+  import("../pages/settings/ConnectedApps").then((module) => ({
+    default: module.ConnectedApps,
+  })),
+);
+
+
 function RouteLoadingFallback() {
   return (
     <div
@@ -598,7 +611,26 @@ export function AppRouter() {
             }
           />
 
+          <Route
+            path="/admin/oauth-clients"
+            element={
+              <ProtectedRoute>
+                <OAuthClientsPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/settings/connected-apps"
+            element={
+              <ProtectedRoute>
+                <ConnectedAppsPage />
+              </ProtectedRoute>
+            }
+          />
+
           <Route path="/pricing" element={<PricingPage />} />
+
 
           <Route path="/u/:username" element={<UserProfilePage />} />
         </Route>

@@ -22,8 +22,9 @@ class DynamicSaltAccessToken(AccessToken):
     Access token that uses user's password hash as part of signing.
     """
 
-        @classmethod
+    @classmethod
     def for_user(cls, user: User):
+
         token = cls()
         token["user_id"] = user.pk
         token["password_hash"] = cls._get_user_password_hash(user)
@@ -92,8 +93,9 @@ class DynamicSaltRefreshToken(RefreshToken):
     Refresh token that uses user-specific salt.
     """
 
-        @classmethod
+    @classmethod
     def for_user(cls, user: User):
+
         token = cls()
         token["user_id"] = user.pk
         token["password_hash"] = cls._get_user_password_hash(user)

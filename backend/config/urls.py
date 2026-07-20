@@ -45,8 +45,11 @@ urlpatterns = [
     path("api/search/", include("apps.search.urls")),
     path("api/notes/", include("apps.notes.urls")),
     path("api/recommendations/", include("apps.recommendations.urls")),
+    # ── OAuth 2.0 & OIDC ───────────────────────────────────────────────────────
+    path("", include("apps.oauth.urls")),
     # ── Webhooks & Uploads ─────────────────────────────────────────────────────
     path("api/webhooks/", include("apps.webhooks.urls")),
+
     path("api/uploads/", include("apps.uploads.urls")),
     # ── RBAC ───────────────────────────────────────────────────────────────────
     path("api/rbac/", include("apps.rbac.urls")),

@@ -230,7 +230,9 @@ INSTALLED_APPS = [
     "django_q",
     "waffle",
     "apps.plugins.apps.PluginsConfig",
+    "apps.oauth",
 ]
+
 # Cache backends are selected with channel layers below (Redis or LocMem fallback).
 
 # Rate Limit
