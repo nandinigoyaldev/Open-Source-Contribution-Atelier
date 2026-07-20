@@ -5,6 +5,21 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import process from "node:process";
 import { storybookTest } from "@storybook/addon-vitest/vitest-plugin";
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+
+export default defineConfig({
+  plugins: [react()],
+  test: {
+    environment: 'jsdom',
+    globals: true,
+    setupFiles: ['./src/test/setup.ts'],
+    coverage: {
+      provider: 'v8',
+      reporter: ['text', 'json', 'html'],
+    },
+  },
+});
 
 const dirname =
   typeof __dirname !== "undefined"

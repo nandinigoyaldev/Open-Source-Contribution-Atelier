@@ -1,28 +1,7 @@
 import logging
 import os
 import sys
-from datetime import timedelta
-from pathlib import Path
-
 import stripe
-
-BASE_DIR = Path(__file__).resolve().parent.parent
-PLUGINS_DIR = BASE_DIR / "plugins"
-
-# Safeguard for hosts where cryptography DLL fails to load (e.g. missing VC++ redist)
-try:
-    from cryptography.fernet import Fernet
-except ImportError as e:
-    if "DLL load failed" in str(e) or "specified module could not be found" in str(e):
-        from unittest.mock import MagicMock
-
-        mock_crypto = MagicMock()
-        sys.modules["cryptography"] = mock_crypto
-        sys.modules["cryptography.fernet"] = mock_crypto
-        sys.modules["cryptography.exceptions"] = mock_crypto
-        sys.modules["cryptography.hazmat"] = mock_crypto
-        sys.modules["cryptography.hazmat.primitives"] = mock_crypto
-        sys.modules["cryptography.hazmat.bindings"] = mock_crypto
 import dj_database_url
 
 # pyrefly: ignore [missing-import]
@@ -56,6 +35,13 @@ BaseContext.__copy__ = safe_context_copy
 STRIPE_PUBLISHABLE_KEY = os.getenv("STRIPE_PUBLISHABLE_KEY")
 STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY")
 STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")
+
+stripe.api_key = STRIPE_SECRET_KEY
+
+
+STRIPE_PUBLISHABLE_KEY = os.getenv('STRIPE_PUBLISHABLE_KEY')
+STRIPE_SECRET_KEY = os.getenv('STRIPE_SECRET_KEY')
+STRIPE_WEBHOOK_SECRET = os.getenv('STRIPE_WEBHOOK_SECRET')
 
 stripe.api_key = STRIPE_SECRET_KEY
 
