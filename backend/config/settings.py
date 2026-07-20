@@ -6,6 +6,9 @@ from pathlib import Path
 
 import stripe
 
+BASE_DIR = Path(__file__).resolve().parent.parent
+PLUGINS_DIR = BASE_DIR / "plugins"
+
 # Safeguard for hosts where cryptography DLL fails to load (e.g. missing VC++ redist)
 try:
     from cryptography.fernet import Fernet
@@ -50,9 +53,9 @@ def safe_context_copy(self):
 
 BaseContext.__copy__ = safe_context_copy
 
-STRIPE_PUBLISHABLE_KEY = os.getenv('STRIPE_PUBLISHABLE_KEY')
-STRIPE_SECRET_KEY = os.getenv('STRIPE_SECRET_KEY')
-STRIPE_WEBHOOK_SECRET = os.getenv('STRIPE_WEBHOOK_SECRET')
+STRIPE_PUBLISHABLE_KEY = os.getenv("STRIPE_PUBLISHABLE_KEY")
+STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY")
+STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")
 
 stripe.api_key = STRIPE_SECRET_KEY
 
@@ -211,7 +214,6 @@ INSTALLED_APPS = [
     "apps.accessibility",
     "apps.sandbox",
     "apps.organizations",
-    "apps.billing",
     "apps.webhooks",
     "apps.notes",
     "apps.recommendations",
@@ -248,6 +250,8 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "apps.core.middleware.tenant.TenantContextMiddleware",  # tenant scoping (issue #1940)
+    "apps.audit.middleware.AuditContextMiddleware",
     "apps.audit.middleware.AuditContextMiddleware",
     "config.raw_middleware.ReadAfterWriteMiddleware",
     "django.contrib.messages.middleware.MessageMiddleware",
@@ -288,21 +292,33 @@ TEMPLATES = [
 WSGI_APPLICATION = "config.wsgi.application"
 ASGI_APPLICATION = "config.asgi.application"
 
-DATABASES = {
-    "default": dj_database_url.config(
-        default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}",
-        conn_max_age=int(
-            os.getenv("CONN_MAX_AGE", "0")
-        ),  # PgBouncer uses transaction pooling, so conn_max_age=0
-        conn_health_checks=True,
-    ),
-    "replica": dj_database_url.config(
-        env="REPLICA_DATABASE_URL",
-        default=os.getenv("DATABASE_URL") or f"sqlite:///{BASE_DIR / 'db.sqlite3'}",
-        conn_max_age=int(os.getenv("CONN_MAX_AGE", "0")),
-        conn_health_checks=True,
-    ),
-}
+if TESTING:
+    DATABASES = {
+        "default": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "db.sqlite3",
+        },
+        "replica": {
+            "ENGINE": "django.db.backends.sqlite3",
+            "NAME": BASE_DIR / "db.sqlite3",
+        },
+    }
+else:
+    DATABASES = {
+        "default": dj_database_url.config(
+            default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}",
+            conn_max_age=int(
+                os.getenv("CONN_MAX_AGE", "0")
+            ),  # PgBouncer uses transaction pooling, so conn_max_age=0
+            conn_health_checks=True,
+        ),
+        "replica": dj_database_url.config(
+            env="REPLICA_DATABASE_URL",
+            default=os.getenv("DATABASE_URL") or f"sqlite:///{BASE_DIR / 'db.sqlite3'}",
+            conn_max_age=int(os.getenv("CONN_MAX_AGE", "0")),
+            conn_health_checks=True,
+        ),
+    }
 
 for db_name, db_config in DATABASES.items():
     if db_config.get("ENGINE") == "django.db.backends.postgresql":
@@ -576,8 +592,8 @@ CELERY_BEAT_SCHEDULE = {
     },
 }
 
-MEDIA_URL = '/media/'
-MEDIA_ROOT = os.path.join(BASE_DIR, 'media') 
+MEDIA_URL = "/media/"
+MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 
 # Cache timeout for Search API (in seconds) - Default: 1 hour
 SEARCH_CACHE_TIMEOUT = 60 * 60

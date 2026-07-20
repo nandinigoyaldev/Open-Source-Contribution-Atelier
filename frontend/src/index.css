@@ -62,3 +62,43 @@
 .dark .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: rgba(148, 163, 184, 0.5);
 }
+
+/* Custom animations for Git Reels */
+@keyframes typing {
+  from {
+    width: 0;
+  }
+  to {
+    width: 100%;
+  }
+}
+.animate-typing {
+  animation: typing 3s steps(35, end) infinite;
+}
+
+@keyframes float-heart {
+  0% {
+    transform: translateY(0) scale(1) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-140px) scale(1.5) rotate(20deg);
+    opacity: 0;
+  }
+}
+.animate-float-heart {
+  animation: float-heart 1s cubic-bezier(0.18, 0.89, 0.32, 1.28) forwards;
+}
+
+@keyframes marquee {
+  0% {
+    transform: translateX(10%);
+  }
+  100% {
+    transform: translateX(-100%);
+  }
+}
+.animate-marquee {
+  display: inline-block;
+  animation: marquee 12s linear infinite;
+}

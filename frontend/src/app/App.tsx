@@ -10,7 +10,6 @@ import { ErrorBoundary } from "../components/ui/ErrorBoundary";
 import { NotificationProvider } from "../features/notifications/NotificationContext";
 import { WebSocketStatusIndicator } from "../components/WebSocketStatus/WebSocketStatusIndicator";
 import { CustomCursor } from "../components/CustomCursor";
-import { ScrollToTop } from "../components/ui/ScrollToTop";
 import { OfflineBanner } from "../components/ui/OfflineBanner";
 import { InstallAppBanner } from "../components/ui/InstallAppBanner";
 import { ConflictResolutionModal } from "../components/ui/ConflictResolutionModal";
@@ -147,7 +146,6 @@ export function App({ children }: { children?: React.ReactNode }) {
             <ReportIssueButton />
             <CustomCursor />
             <WebSocketStatusIndicator url="" />
-            <ScrollToTop />
 
             {/* Pure React Onboarding Modals Highlight Tour Overlay Portal */}
             {currentStep >= 0 && coords && (

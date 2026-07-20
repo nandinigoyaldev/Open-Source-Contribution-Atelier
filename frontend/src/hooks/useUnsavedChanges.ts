@@ -1,5 +1,6 @@
-import { useCallback, useEffect, useMemo } from "react";
+import { useCallback, useEffect, useMemo, useContext } from "react";
 import { useBlocker, type BlockerFunction } from "react-router-dom";
+import { UNSAFE_DataRouterContext } from "react-router";
 
 export interface UseUnsavedChangesOptions {
   isDirty: boolean;
@@ -16,14 +17,16 @@ export interface UnsavedChangesGuard {
 
 /**
  * Protects dirty forms from both in-app navigation and hard page exits.
- *
- * Must be rendered inside the application's React Router provider.
+ * If not within a Data Router (e.g. legacy BrowserRouter), in-app blocking is bypassed
+ * to prevent react-router useBlocker runtime exceptions.
  */
 export function useUnsavedChanges({
   isDirty,
   message = "You have unsaved changes. Discard them and leave this page?",
   onDiscard,
 }: UseUnsavedChangesOptions): UnsavedChangesGuard {
+  const hasDataRouter = useContext(UNSAFE_DataRouterContext) != null;
+
   const shouldBlock = useCallback<BlockerFunction>(
     ({ currentLocation, nextLocation }) =>
       isDirty &&
@@ -33,10 +36,12 @@ export function useUnsavedChanges({
     [isDirty],
   );
 
-  const blocker = useBlocker(shouldBlock);
+  // eslint-disable-next-line react-hooks/rules-of-hooks
+  const blocker = hasDataRouter ? useBlocker(shouldBlock) : null;
 
   useEffect(() => {
-    if (!isDirty && blocker.state === "blocked") {
+    if (!blocker || !isDirty) return;
+    if (blocker.state === "blocked") {
       blocker.reset();
     }
   }, [blocker, isDirty]);
@@ -46,7 +51,8 @@ export function useUnsavedChanges({
 
     const handleBeforeUnload = (event: BeforeUnloadEvent) => {
       event.preventDefault();
-      event.returnValue = "";
+      event.returnValue = message;
+      return message;
     };
 
     window.addEventListener("beforeunload", handleBeforeUnload);
@@ -54,28 +60,30 @@ export function useUnsavedChanges({
     return () => {
       window.removeEventListener("beforeunload", handleBeforeUnload);
     };
-  }, [isDirty]);
+  }, [isDirty, message]);
 
   const stay = useCallback(() => {
-    if (blocker.state === "blocked") {
+    if (blocker && blocker.state === "blocked") {
       blocker.reset();
     }
   }, [blocker]);
 
   const discard = useCallback(() => {
-    if (blocker.state !== "blocked") return;
-
-    onDiscard?.();
-    blocker.proceed();
+    if (blocker && blocker.state === "blocked") {
+      onDiscard?.();
+      blocker.proceed();
+    } else {
+      onDiscard?.();
+    }
   }, [blocker, onDiscard]);
 
   return useMemo(
     () => ({
-      isBlocked: blocker.state === "blocked",
+      isBlocked: blocker ? blocker.state === "blocked" : false,
       message,
       stay,
       discard,
     }),
-    [blocker.state, discard, message, stay],
+    [blocker, message, stay, discard],
   );
 }
