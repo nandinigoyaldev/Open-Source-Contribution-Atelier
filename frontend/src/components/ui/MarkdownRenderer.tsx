@@ -11,6 +11,8 @@ import {
 
 interface MarkdownRendererProps {
   content: string;
+  /** For testing purposes, allows overriding the glossary loading function. */
+  loadGlossaryFn?: () => Promise<GlossaryEntry[]>;
 }
 
 // Helper to parse markdown table rows, ignoring pipes inside backticks or escaped pipes.
@@ -45,13 +47,16 @@ function splitTableRow(row: string): string[] {
   return cells;
 }
 
-export function MarkdownRenderer({ content }: MarkdownRendererProps) {
+export function MarkdownRenderer({
+  content,
+  loadGlossaryFn = loadGlossary,
+}: MarkdownRendererProps) {
   const [glossary, setGlossary] = useState<GlossaryEntry[]>([]);
   const [activeTerm, setActiveTerm] = useState<GlossaryEntry | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    loadGlossary()
+    loadGlossaryFn()
       .then((terms) => {
         if (!cancelled) setGlossary(terms);
       })
@@ -61,32 +66,46 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [loadGlossaryFn]);
 
-  const renderGlossaryText = useCallback(
-    (text: string, keyPrefix: string): React.ReactNode[] => {
-      if (!glossary.length) return [text];
-      return splitTextWithGlossary(text, glossary).map((seg, i) => {
-        if (seg.type === "text") {
-          return (
-            <React.Fragment key={`${keyPrefix}-t-${i}`}>
-              {seg.value}
-            </React.Fragment>
-          );
-        }
+  const renderedTermIds = new Set<string>();
+
+  const renderGlossaryText = (
+    text: string,
+    keyPrefix: string,
+  ): React.ReactNode[] => {
+    if (!glossary.length) return [text];
+    return splitTextWithGlossary(text, glossary).map((seg, i) => {
+      if (seg.type === "text") {
         return (
-          <GlossaryTerm
-            key={`${keyPrefix}-g-${i}-${seg.entry.id}`}
-            entry={seg.entry}
-            onOpen={setActiveTerm}
-          >
+          <React.Fragment key={`${keyPrefix}-t-${i}`}>
             {seg.value}
-          </GlossaryTerm>
+          </React.Fragment>
         );
-      });
-    },
-    [glossary],
-  );
+      }
+
+      // If term already rendered, just show text
+      if (renderedTermIds.has(seg.entry.id)) {
+        return (
+          <span key={`${keyPrefix}-g-${i}-${seg.entry.id}`}>
+            {seg.value}
+          </span>
+        );
+      }
+
+      // Otherwise, render the term and mark it as seen
+      renderedTermIds.add(seg.entry.id);
+      return (
+        <GlossaryTerm
+          key={`${keyPrefix}-g-${i}-${seg.entry.id}`}
+          entry={seg.entry}
+          onOpen={setActiveTerm}
+        >
+          {seg.value}
+        </GlossaryTerm>
+      );
+    });
+  };
 
   // Helper to parse inline formats: bold, inline code, links
   // Inline code is never glossarized (avoids false positives).
@@ -214,10 +233,13 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
     // Horizontal Rule: ---, ***, ___
     if (/^(\s*[-*_]\s*){3,}$/.test(line.trim())) {
       blocks.push(
-        <hr
-          key={index}
-          className="my-6 border-b-4 border-black/10 dark:border-[#2e2924]"
-        />,
+        <React.Fragment key={index}>
+          <br />
+          <hr
+            className="my-0 border-b-4 border-black/10 dark:border-[#2e2924]"
+          />
+          <br />
+        </React.Fragment>,
       );
       index++;
       continue;
