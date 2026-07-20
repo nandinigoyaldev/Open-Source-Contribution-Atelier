@@ -12,6 +12,76 @@ import { useWebPush } from "../../hooks/useWebPush";
 import { useUnsavedChanges } from "../../hooks/useUnsavedChanges";
 import { UnsavedChangesDialog } from "../../components/ui/UnsavedChangesDialog";
 
+interface UserSession {
+  session_id: string;
+  ip_address: string;
+  user_agent: string;
+  device_name: string;
+  last_activity: string;
+}
+
+function ActiveSessions() {
+  const [sessions, setSessions] = useState<UserSession[]>([]);
+  const { logout } = useAuth();
+  const { addToast } = useToast();
+
+  useEffect(() => {
+    fetchSessions();
+  }, []);
+
+  const fetchSessions = async () => {
+    try {
+      const data = await fetchApi("/auth/sessions/", { requireAuth: true });
+      setSessions(data);
+    } catch (error) {
+      console.error("Failed to fetch sessions", error);
+    }
+  };
+
+  const revokeSession = async (sessionId: string) => {
+    if (!window.confirm("Are you sure you want to revoke this session?")) return;
+    try {
+      await fetchApi(`/auth/sessions/${sessionId}/`, {
+        method: "DELETE",
+        requireAuth: true,
+      });
+      addToast("Session revoked", "success");
+      fetchSessions();
+    } catch (error: any) {
+      if (error?.status === 401) {
+         logout();
+      } else {
+         addToast("Failed to revoke session", "error");
+      }
+    }
+  };
+
+  return (
+    <div className="space-y-4 mt-8">
+      <h3 className="font-bold text-black ml-2 uppercase tracking-wide text-sm">
+        Active Sessions
+      </h3>
+      <div className="space-y-3">
+        {sessions.map((s) => (
+          <div key={s.session_id} className="flex justify-between items-center rounded-2xl border-4 border-black bg-white px-5 py-4 shadow-card-sm">
+            <div>
+              <p className="font-bold text-black">{s.device_name || s.user_agent || "Unknown Device"}</p>
+              <p className="text-sm text-gray-600 font-medium">IP: {s.ip_address} • Last active: {new Date(s.last_activity).toLocaleString()}</p>
+            </div>
+            <button
+              type="button"
+              onClick={() => revokeSession(s.session_id)}
+              className="px-4 py-2 border-2 border-black text-black rounded-xl font-bold bg-red-200 hover:bg-red-300 transition-colors uppercase text-sm"
+            >
+              Revoke
+            </button>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 const profileSchema = z.object({
   email: z.string().email({ message: "Please enter a valid email address" }),
   password: z
@@ -454,6 +524,10 @@ export function ProfileSettingsForm({ onChange }: ProfileSettingsFormProps) {
               </p>
             )}
           </div>
+
+          <hr className="border-2 border-black/10 my-8" />
+
+          <ActiveSessions />
 
           <hr className="border-2 border-black/10 my-8" />
 
