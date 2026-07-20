@@ -62,6 +62,9 @@ export function splitTextWithGlossary(
   const segments: GlossarySegment[] = [];
   let remaining = text;
 
+  // Keep track of glossary entries already linked.
+  const seenEntries = new Set<string>();
+
   while (remaining.length > 0) {
     let earliest: {
       index: number;
@@ -100,11 +103,20 @@ export function splitTextWithGlossary(
       });
     }
 
-    segments.push({
-      type: "term",
-      value: earliest.matched,
-      entry: earliest.entry,
-    });
+    if (!seenEntries.has(earliest.entry.id)) {
+      segments.push({
+        type: "term",
+        value: earliest.matched,
+        entry: earliest.entry,
+      });
+
+    seenEntries.add(earliest.entry.id);
+    } else {
+      segments.push({
+        type: "text",
+        value: earliest.matched,
+      });
+    }
 
     remaining = remaining.slice(earliest.index + earliest.length);
   }
