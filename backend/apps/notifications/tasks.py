@@ -133,3 +133,74 @@ def send_bulk_email(payload):
         email.attach("OSCA_Progress_Report.pdf", pdf_attachment, "application/pdf")
 
     email.send(fail_silently=False)
+
+try:
+    from celery import shared_task
+except ImportError:
+    shared_task = lambda x: x
+
+@shared_task
+def send_notification_digests():
+    """
+    Periodic task to send digest emails to users based on their timezone and preference.
+    """
+    from django.utils import timezone
+    from django.template.loader import render_to_string
+    from django.utils.html import strip_tags
+    import zoneinfo
+    from .models import NotificationPreference, Notification
+
+    prefs = NotificationPreference.objects.exclude(digest_frequency="none").select_related("user", "user__user_profile")
+    
+    for pref in prefs:
+        if not pref.digest_time:
+            continue
+            
+        user = pref.user
+        try:
+            tz = zoneinfo.ZoneInfo(user.user_profile.timezone)
+        except Exception:
+            tz = timezone.utc
+            
+        local_time = timezone.now().astimezone(tz)
+        
+        # Check if the current hour matches the user's preferred digest hour
+        if local_time.hour != pref.digest_time.hour:
+            continue
+            
+        # If weekly, only send on Monday (weekday() == 0)
+        if pref.digest_frequency == "weekly" and local_time.weekday() != 0:
+            continue
+            
+        # Fetch unread notifications
+        unread_notifs = Notification.objects.filter(recipient=user, is_read=False).order_by("-created_at")
+        if not unread_notifs.exists():
+            continue
+            
+        # Group notifications
+        grouped = {}
+        for notif in unread_notifs:
+            if notif.notif_type not in grouped:
+                grouped[notif.notif_type] = []
+            grouped[notif.notif_type].append(notif)
+            
+        # Send Email
+        context = {
+            "user": user,
+            "grouped_notifications": grouped,
+            "total_count": unread_notifs.count()
+        }
+        
+        subject = f"Your {pref.digest_frequency.title()} Notification Digest"
+        html_message = render_to_string('notifications/email/digest.html', context)
+        message = strip_tags(html_message)
+        from_email = getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@atelier.dev")
+        
+        email = EmailMultiAlternatives(
+            subject=subject,
+            body=message,
+            from_email=from_email,
+            to=[user.email]
+        )
+        email.attach_alternative(html_message, "text/html")
+        email.send(fail_silently=True)
