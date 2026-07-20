@@ -22,7 +22,7 @@ class DynamicSaltAccessToken(AccessToken):
     Access token that uses user's password hash as part of signing.
     """
 
-        @classmethod
+    @classmethod
     def for_user(cls, user: User):
         token = cls()
         token["user_id"] = user.pk
@@ -86,13 +86,33 @@ class DynamicSaltAccessToken(AccessToken):
         if token_version is not None and stored_version != token_version:
             raise DynamicSaltValidationError("Token has been revoked")
 
+        # Check session_id if present
+        session_id = self.get("session_id")
+        if session_id:
+            from .models import UserSession
+            from django.utils import timezone
+            from datetime import timedelta
+            try:
+                session = UserSession.objects.get(session_id=session_id)
+                now = timezone.now()
+                if now > session.last_activity + timedelta(days=7):
+                    session.delete()
+                    raise DynamicSaltValidationError("Session expired due to inactivity")
+                
+                # Update last_activity (debounced 5 mins)
+                if now > session.last_activity + timedelta(minutes=5):
+                    session.last_activity = now
+                    session.save(update_fields=['last_activity'])
+            except UserSession.DoesNotExist:
+                raise DynamicSaltValidationError("Session has been revoked")
+
 
 class DynamicSaltRefreshToken(RefreshToken):
     """
     Refresh token that uses user-specific salt.
     """
 
-        @classmethod
+    @classmethod
     def for_user(cls, user: User):
         token = cls()
         token["user_id"] = user.pk
@@ -141,3 +161,18 @@ class DynamicSaltRefreshToken(RefreshToken):
 
         if token_version is not None and stored_version != token_version:
             raise DynamicSaltValidationError("Refresh token has been revoked")
+
+        # Check session_id if present
+        session_id = self.get("session_id")
+        if session_id:
+            from .models import UserSession
+            from django.utils import timezone
+            from datetime import timedelta
+            try:
+                session = UserSession.objects.get(session_id=session_id)
+                now = timezone.now()
+                if now > session.last_activity + timedelta(days=7):
+                    session.delete()
+                    raise DynamicSaltValidationError("Session expired due to inactivity")
+            except UserSession.DoesNotExist:
+                raise DynamicSaltValidationError("Session has been revoked")

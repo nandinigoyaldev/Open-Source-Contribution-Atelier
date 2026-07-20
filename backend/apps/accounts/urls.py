@@ -23,6 +23,8 @@ from .views import (
     ShopStreakFreezeView,
     SignupView,
     UserListView,
+    UserSessionListView,
+    UserSessionDetailView,
     UserStatisticsView,
     UserSuggestionsView,
     AvatarUploadView,
@@ -43,6 +45,12 @@ urlpatterns = [
     path("stats/", UserStatisticsView.as_view(), name="user-stats"),
     path("users/", UserListView.as_view(), name="user-list"),
     path("users/suggestions/", UserSuggestionsView.as_view(), name="user-suggestions"),
+    path("sessions/", UserSessionListView.as_view(), name="session-list"),
+    path(
+        "sessions/<uuid:session_id>/",
+        UserSessionDetailView.as_view(),
+        name="session-detail",
+    ),
     path("profile/avatar/", AvatarUploadView.as_view(), name="avatar-upload"),
     path("logout/", LogoutView.as_view(), name="logout"),
     # ── OAuth ──────────────────────────────────────────────────────────────────

@@ -1,5 +1,3 @@
-
-
 import uuid
 
 from django.conf import settings
@@ -65,6 +63,7 @@ class PasswordResetToken(models.Model):
         timeout = getattr(settings, "PASSWORD_RESET_TIMEOUT_MINUTES", 15)
         return timezone.now() > self.created_at + timedelta(minutes=timeout)
 
+
 class OTPToken(models.Model):
     """
     Secure OTP token sent to a user's email for verification.
@@ -97,11 +96,11 @@ class OTPToken(models.Model):
         timeout = getattr(settings, "OTP_TIMEOUT_MINUTES", 10)
         return timezone.now() > self.created_at + timedelta(minutes=timeout)
 
-
     def is_expired(self) -> bool:
         """Return True if the token is older than OTP_TIMEOUT_MINUTES."""
         from datetime import timedelta
         from django.utils import timezone
+
         timeout = getattr(settings, "OTP_TIMEOUT_MINUTES", 15)
         return timezone.now() > self.created_at + timedelta(minutes=timeout)
 
@@ -163,7 +162,9 @@ class UserProfile(models.Model):
         max_length=255,
     )
     cover_image = models.ImageField(upload_to="covers/", null=True, blank=True)
-    last_password_change = models.DateTimeField(auto_now_add=True, null=True, blank=True)
+    last_password_change = models.DateTimeField(
+        auto_now_add=True, null=True, blank=True
+    )
     timezone = models.CharField(
         max_length=64,
         choices=get_timezone_choices(),
@@ -174,8 +175,7 @@ class UserProfile(models.Model):
     github_url = models.URLField(max_length=500, blank=True, default="")
     bio = models.TextField(max_length=500, blank=True, default="")
     receive_weekly_digest = models.BooleanField(
-        default=True, 
-        help_text="Receive automated weekly progress digest emails"
+        default=True, help_text="Receive automated weekly progress digest emails"
     )
 
     organization = models.ForeignKey(
@@ -191,7 +191,7 @@ class UserProfile(models.Model):
     # ============================================================
     jwt_token_version = models.IntegerField(
         default=1,
-        help_text="Incremented on password change to invalidate existing JWT tokens"
+        help_text="Incremented on password change to invalidate existing JWT tokens",
     )
 
     class Meta:
@@ -207,7 +207,7 @@ class UserProfile(models.Model):
         """
         self.jwt_token_version += 1
         self.last_password_change = timezone.now()
-        self.save(update_fields=['jwt_token_version', 'last_password_change'])
+        self.save(update_fields=["jwt_token_version", "last_password_change"])
 
     def _convert_to_webp(self, image_field):
         """Helper method to convert an ImageField to WebP format."""
@@ -236,3 +236,38 @@ class UserProfile(models.Model):
         self._convert_to_webp(self.avatar)
         self._convert_to_webp(self.cover_image)
         super().save(*args, **kwargs)
+
+
+class UserSession(models.Model):
+    """
+    Tracks active user sessions to enforce concurrent limits and allow remote revocation.
+    """
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="sessions",
+    )
+    session_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.CharField(max_length=512, blank=True)
+    device_name = models.CharField(max_length=255, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    last_activity = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-last_activity"]
+
+    def __str__(self):
+        return f"Session {self.session_id} for {self.user.username}"
+
+    def save(self, *args, **kwargs):
+        super().save(*args, **kwargs)
+        # Enforce max 5 sessions per user
+        sessions = UserSession.objects.filter(user=self.user).order_by("-last_activity")
+        if sessions.count() > 5:
+            # Keep the 5 most recently active sessions
+            ids_to_keep = list(sessions.values_list("pk", flat=True)[:5])
+            UserSession.objects.filter(user=self.user).exclude(
+                pk__in=ids_to_keep
+            ).delete()
