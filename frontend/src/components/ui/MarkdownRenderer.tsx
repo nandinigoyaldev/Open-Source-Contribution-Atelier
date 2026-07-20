@@ -216,7 +216,7 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
       blocks.push(
         <hr
           key={index}
-          className="my-10 border-b-4 border-black/10 dark:border-[#2e2924]"
+          className="!mt-10 mb-10 border-b-4 border-black/10 dark:border-[#2e2924]"
         />,
       );
       index++;
