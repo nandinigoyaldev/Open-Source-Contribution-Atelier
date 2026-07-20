@@ -128,6 +128,24 @@ const NotificationPreferencesPage = lazy(() =>
   })),
 );
 
+const PricingPage = lazy(() =>
+  import("../pages/PricingPage").then((module) => ({
+    default: module.PricingPage,
+  })),
+);
+
+const BillingPage = lazy(() =>
+  import("../pages/settings/BillingPage").then((module) => ({
+    default: module.BillingPage,
+  })),
+);
+
+const InvoiceHistoryPage = lazy(() =>
+  import("../pages/settings/InvoiceHistoryPage").then((module) => ({
+    default: module.InvoiceHistoryPage,
+  })),
+);
+
 const UserProfilePage = lazy(() =>
   import("../pages/UserProfilePage").then((module) => ({
     default: module.UserProfilePage,
@@ -561,6 +579,26 @@ export function AppRouter() {
               </ProtectedRoute>
             }
           />
+
+          <Route
+            path="/settings/billing"
+            element={
+              <ProtectedRoute>
+                <BillingPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/settings/invoices"
+            element={
+              <ProtectedRoute>
+                <InvoiceHistoryPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route path="/pricing" element={<PricingPage />} />
 
           <Route path="/u/:username" element={<UserProfilePage />} />
         </Route>
