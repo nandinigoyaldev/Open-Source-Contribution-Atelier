@@ -76,11 +76,11 @@ def send_bulk_email(payload):
 
     if template_id == "weekly_progress_summary":
         subject = f"Your Weekly Progress Summary, {data.get('username')} 📊"
-        if data.get('xp_earned', 0) > 0:
+        if data.get("xp_earned", 0) > 0:
             subject = f"Wow, {data['xp_earned']} XP this week, {data['username']}! 🚀"
-        elif data.get('current_streak', 0) > 0:
+        elif data.get("current_streak", 0) > 0:
             subject = f"Don't lose your {data['current_streak']}-day streak, {data['username']}! 🔥"
-            
+
         from django.template.loader import render_to_string
         from django.utils.html import strip_tags
         from apps.progress.services.pdf_report_service import PDFReportGenerator
@@ -88,10 +88,10 @@ def send_bulk_email(payload):
 
         User = get_user_model()
         user_email = recipients[0] if recipients else None
-        
-        html_message = render_to_string('notifications/weekly_digest.html', data)
+
+        html_message = render_to_string("notifications/weekly_digest.html", data)
         message = strip_tags(html_message)
-        
+
         # Generate PDF attachment if a single user is matched
         if user_email:
             user = User.objects.filter(email=user_email).first()
@@ -116,19 +116,16 @@ def send_bulk_email(payload):
         message = (
             f"Hi {username},\n\n"
             f"{reviewer_name} just left a review on your submission:\n\n"
-            f"\"{feedback}\"\n\n"
+            f'"{feedback}"\n\n'
             "Log in to the platform to see the full details!"
         )
     from_email = getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@atelier.dev")
     email = EmailMultiAlternatives(
-        subject=subject,
-        body=message,
-        from_email=from_email,
-        to=recipients
+        subject=subject, body=message, from_email=from_email, to=recipients
     )
     if html_message:
         email.attach_alternative(html_message, "text/html")
-    
+
     if pdf_attachment:
         email.attach("OSCA_Progress_Report.pdf", pdf_attachment, "application/pdf")
 

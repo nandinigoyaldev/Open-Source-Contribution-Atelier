@@ -421,3 +421,41 @@ class TriageAttemptSerializer(serializers.ModelSerializer):
             "badge_awarded",
             "created_at",
         ]
+
+
+# ============================================================
+# FEATURE: ADR Sandbox Simulator
+# ============================================================
+
+from .models import ADRScenario, ADROption, ADRAttempt
+
+
+class ADROptionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ADROption
+        fields = ["id", "title", "pros", "cons"]
+
+
+class ADRScenarioSerializer(serializers.ModelSerializer):
+    options = ADROptionSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = ADRScenario
+        fields = ["id", "title", "context", "constraints", "created_at", "options"]
+
+
+class ADRAttemptSerializer(serializers.ModelSerializer):
+    scenario = ADRScenarioSerializer(read_only=True)
+
+    class Meta:
+        model = ADRAttempt
+        fields = [
+            "id",
+            "user",
+            "scenario",
+            "selected_option",
+            "is_successful",
+            "feedback",
+            "created_at",
+        ]
+        read_only_fields = ["id", "user", "is_successful", "feedback", "created_at"]

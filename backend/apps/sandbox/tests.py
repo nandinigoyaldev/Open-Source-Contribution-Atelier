@@ -20,11 +20,9 @@ async def test_sandbox_websocket_consumer():
     connected2, _ = await communicator2.connect()
     assert connected2
 
-   
     await communicator1.send_json_to(
         {"action": "code_update", "code": "print('hello from 1')"}
     )
-
 
     response2 = await communicator2.receive_json_from()
     assert response2["action"] == "code_update"
@@ -69,7 +67,10 @@ async def test_sandbox_websocket_consumer():
 
 
 def test_sandbox_security_ast_violations():
-    from apps.sandbox.resource_manager import ResourceManagementEngine, SecurityViolation
+    from apps.sandbox.resource_manager import (
+        ResourceManagementEngine,
+        SecurityViolation,
+    )
 
     # Test dynamic lookup / builtin function assignment
     with pytest.raises(SecurityViolation):
@@ -91,10 +92,13 @@ def test_sandbox_security_ast_violations():
 @pytest.mark.asyncio
 async def test_collab_websocket_consumer():
     import uuid
+
     room_id = str(uuid.uuid4())
     headers = [(b"origin", b"http://localhost"), (b"host", b"localhost")]
-    
-    communicator1 = WebsocketCommunicator(application, f"/ws/collab/{room_id}/", headers=headers)
+
+    communicator1 = WebsocketCommunicator(
+        application, f"/ws/collab/{room_id}/", headers=headers
+    )
     connected1, _ = await communicator1.connect()
     assert connected1
 
@@ -106,7 +110,9 @@ async def test_collab_websocket_consumer():
     await communicator1.disconnect()
 
     # Reconnect and connect a second client
-    communicator1 = WebsocketCommunicator(application, f"/ws/collab/{room_id}/", headers=headers)
+    communicator1 = WebsocketCommunicator(
+        application, f"/ws/collab/{room_id}/", headers=headers
+    )
     connected1, _ = await communicator1.connect()
     assert connected1
 
@@ -114,7 +120,9 @@ async def test_collab_websocket_consumer():
     response_handshake = await communicator1.receive_from()
     assert response_handshake == test_update
 
-    communicator2 = WebsocketCommunicator(application, f"/ws/collab/{room_id}/", headers=headers)
+    communicator2 = WebsocketCommunicator(
+        application, f"/ws/collab/{room_id}/", headers=headers
+    )
     connected2, _ = await communicator2.connect()
     assert connected2
 
@@ -137,13 +145,15 @@ async def test_collab_websocket_consumer():
     # Verify document_state in the database
     from apps.sandbox.models import CollabSession
     from channels.db import database_sync_to_async
-    
+
     @database_sync_to_async
     def check_db():
         session = CollabSession.objects.filter(id=room_id).first()
-        return bytes(session.document_state) if session and session.document_state else None
-        
+        return (
+            bytes(session.document_state)
+            if session and session.document_state
+            else None
+        )
+
     db_state = await check_db()
     assert db_state == test_update + test_update2
-
-

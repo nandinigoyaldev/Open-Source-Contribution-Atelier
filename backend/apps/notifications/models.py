@@ -32,7 +32,9 @@ class Notification(models.Model):
 
     class Meta:
         ordering = ["-created_at"]
-        indexes = [models.Index(fields=["recipient", "is_read"], name="idx_recipientis_read")]
+        indexes = [
+            models.Index(fields=["recipient", "is_read"], name="idx_recipientis_read")
+        ]
 
     def __str__(self):
         return f"[{self.notif_type}] → {self.recipient} | {self.title}"
@@ -56,7 +58,7 @@ class NotificationPreference(models.Model):
 
     def __str__(self):
         return f"NotificationPreference(user={self.user_id})"
- 
+
 
 class PushSubscription(models.Model):
     user = models.ForeignKey(

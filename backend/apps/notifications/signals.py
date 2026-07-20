@@ -110,25 +110,27 @@ def on_badge_awarded(sender, instance, created, **kwargs):
 from apps.progress.models import PeerReview
 from django_q.tasks import async_task
 
+
 @receiver(post_save, sender=PeerReview, dispatch_uid="on_peer_review_submitted")
 def on_peer_review_submitted(sender, instance, created, **kwargs):
     if not created:
         return
     submission_owner = instance.submission.user
     if submission_owner == instance.reviewer:
-        return   # don't notify self
+        return  # don't notify self
     notif = Notification.objects.create(
-        recipient  = submission_owner,
-        sender     = instance.reviewer,
-        notif_type = "comment",
-        title      = "👀 New Peer Review",
-        message    = f"{instance.reviewer.username} reviewed your submission: \"{instance.feedback[:80]}\"",
-        meta       = {"submission_id": instance.submission.id, "review_id": instance.id},
+        recipient=submission_owner,
+        sender=instance.reviewer,
+        notif_type="comment",
+        title="👀 New Peer Review",
+        message=f'{instance.reviewer.username} reviewed your submission: "{instance.feedback[:80]}"',
+        meta={"submission_id": instance.submission.id, "review_id": instance.id},
     )
     _push_notification(notif)
 
     # Offload email notification to independent worker
     import sys
+
     if "test" in sys.argv or any("pytest" in arg for arg in sys.argv):
         return
 
