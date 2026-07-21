@@ -35,3 +35,7 @@ class WebSocketAuthMiddleware(BaseMiddleware):
             scope['user'] = AnonymousUser()
         
         return await super().__call__(scope, receive, send)
+
+
+JWTAuthMiddleware = WebSocketAuthMiddleware
+

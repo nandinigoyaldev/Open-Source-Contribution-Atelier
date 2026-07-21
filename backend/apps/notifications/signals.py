@@ -72,7 +72,9 @@ from apps.progress.models import UserBadge
 def on_badge_awarded(sender, instance, created, **kwargs):
     if not created:
         return
-    notif = Notification.objects.create(
+    from apps.notifications.tasks import dispatch_notification
+
+    dispatch_notification(
         recipient=instance.user,
         notif_type="badge",
         title="🏅 New Badge Earned!",
@@ -83,32 +85,12 @@ def on_badge_awarded(sender, instance, created, **kwargs):
             "badge_slug": instance.badge.slug,
         },
     )
-    _push_notification(notif)
-
-    # Offload bulk email or notification digest to the independent worker
-    import sys
-
-    if "test" in sys.argv or any("pytest" in arg for arg in sys.argv):
-        return
-
-    async_task(
-        "apps.notifications.tasks.send_bulk_email",
-        payload={
-            "template_id": "badge_earned_email",
-            "recipients": [instance.user.email],
-            "data": {
-                "badge_name": instance.badge.name,
-                "username": instance.user.username,
-            },
-        },
-    )
 
 
 # ------------------------------------------------------------------ #
 # PeerReview signal
 # ------------------------------------------------------------------ #
 from apps.progress.models import PeerReview
-from django_q.tasks import async_task
 
 @receiver(post_save, sender=PeerReview, dispatch_uid="on_peer_review_submitted")
 def on_peer_review_submitted(sender, instance, created, **kwargs):
@@ -117,32 +99,16 @@ def on_peer_review_submitted(sender, instance, created, **kwargs):
     submission_owner = instance.submission.user
     if submission_owner == instance.reviewer:
         return   # don't notify self
-    notif = Notification.objects.create(
-        recipient  = submission_owner,
-        sender     = instance.reviewer,
-        notif_type = "comment",
-        title      = "👀 New Peer Review",
-        message    = f"{instance.reviewer.username} reviewed your submission: \"{instance.feedback[:80]}\"",
-        meta       = {"submission_id": instance.submission.id, "review_id": instance.id},
-    )
-    _push_notification(notif)
 
-    # Offload email notification to independent worker
-    import sys
-    if "test" in sys.argv or any("pytest" in arg for arg in sys.argv):
-        return
+    from apps.notifications.tasks import dispatch_notification
 
-    async_task(
-        "apps.notifications.tasks.send_bulk_email",
-        payload={
-            "template_id": "comment_posted_email",
-            "recipients": [submission_owner.email],
-            "data": {
-                "reviewer_name": instance.reviewer.username,
-                "feedback": instance.feedback[:100],
-                "username": submission_owner.username,
-            },
-        },
+    dispatch_notification(
+        recipient=submission_owner,
+        sender=instance.reviewer,
+        notif_type="comment",
+        title="👀 New Peer Review",
+        message=f'{instance.reviewer.username} reviewed your submission: "{instance.feedback[:80]}"',
+        meta={"submission_id": instance.submission.id, "review_id": instance.id},
     )
 
 
@@ -152,13 +118,19 @@ def on_peer_review_submitted(sender, instance, created, **kwargs):
 def create_and_push_notification(
     recipient, notif_type, title, message, sender=None, meta=None
 ):
-    notif = Notification.objects.create(
+    from apps.notifications.tasks import dispatch_notification
+
+    deliveries = dispatch_notification(
         recipient=recipient,
-        sender=sender,
         notif_type=notif_type,
         title=title,
         message=message,
-        meta=meta or {},
+        sender=sender,
+        meta=meta,
     )
-    _push_notification(notif)
-    return notif
+    in_app_deliv = next((d for d in deliveries if d.channel == "in_app"), None)
+    if in_app_deliv and in_app_deliv.notification:
+        return in_app_deliv.notification
+
+    return Notification.objects.filter(recipient=recipient, notif_type=notif_type).first()
+

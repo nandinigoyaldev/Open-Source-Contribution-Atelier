@@ -5,6 +5,8 @@ import stripe
 import dj_database_url
 
 # pyrefly: ignore [missing-import]
+from datetime import timedelta
+from pathlib import Path
 from django.core.exceptions import ImproperlyConfigured
 
 from config.auth import TOKEN_BLACKLIST_ENABLED
@@ -113,7 +115,7 @@ if not DEBUG and not TESTING and not ALLOWED_HOSTS:
 
 CORS_ALLOWED_ORIGINS = [
     origin.strip()
-    for origin in os.getenv("CORS_ALLOWED_ORIGINS", "").split(",")
+    for origin in os.getenv("CORS_ALLOWED_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173").split(",")
     if origin.strip()
 ]
 
@@ -706,8 +708,10 @@ CURRICULUM_JSON_PATH = os.getenv(
     ),
 )
 
+CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "memory://")
 CELERY_TASK_ALWAYS_EAGER = True
 CELERY_TASK_STORE_EAGER_RESULT = True
+CELERY_TASK_EAGER_PROPAGATES = True
 
 # Waffle Feature Flags
 WAFFLE_CREATE_MISSING_FLAGS = True
@@ -788,3 +792,16 @@ CONTENT_SECURITY_POLICY = (
     "object-src 'none'; "
     "frame-ancestors 'none';"
 )
+
+# ──────────────────────────────────────────
+# Multi-Channel Notification Infrastructure
+# ──────────────────────────────────────────
+NOTIFICATION_CHANNELS = {
+    "in_app": "apps.notifications.channels.in_app_channel.InAppChannel",
+    "email": "apps.notifications.channels.email_channel.EmailChannel",
+    "push": "apps.notifications.channels.push_channel.PushChannel",
+    "sms": "apps.notifications.channels.sms_channel.SMSChannel",
+    "webhook": "apps.notifications.channels.webhook_channel.WebhookChannel",
+    "slack": "apps.notifications.channels.slack_channel.SlackChannel",
+}
+

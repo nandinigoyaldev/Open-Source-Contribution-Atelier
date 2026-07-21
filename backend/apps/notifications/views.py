@@ -3,7 +3,8 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework.pagination import PageNumberPagination
 
-from .models import Notification, NotificationPreference, PushSubscription
+from apps.notifications.channels import get_registered_channels
+from .models import Notification, NotificationDeadLetter, NotificationDelivery, NotificationPreference, PushSubscription
 from .serializers import NotificationSerializer, PushSubscriptionSerializer
 
 
@@ -12,8 +13,22 @@ def _prefs_payload(prefs: NotificationPreference) -> dict:
         "email": prefs.email_enabled,
         "in_app": prefs.in_app_enabled,
         "websocket": prefs.websocket_enabled,
+    }
+
+
+def _channels_payload(prefs: NotificationPreference) -> dict:
+    registered = list(get_registered_channels().keys())
+    return {
+        "email": prefs.email_enabled,
+        "in_app": prefs.in_app_enabled,
+        "websocket": prefs.websocket_enabled,
         "digest_frequency": prefs.digest_frequency,
         "digest_time": prefs.digest_time.strftime("%H:%M") if prefs.digest_time else None,
+        "channel_preferences": prefs.channel_preferences,
+        "webhook_url": prefs.webhook_url,
+        "webhook_secret": prefs.webhook_secret,
+        "phone_number": prefs.phone_number,
+        "available_channels": registered,
     }
 
 
@@ -29,7 +44,6 @@ def _coerce_bool(value, default: bool) -> bool:
     return default
 
 
-
 class NotificationPagination(PageNumberPagination):
     page_size = 10
     page_size_query_param = "page_size"
@@ -37,12 +51,14 @@ class NotificationPagination(PageNumberPagination):
 
 
 class NotificationPrefsView(APIView):
-    """GET/PUT /api/notifications/prefs/ — channel delivery preferences."""
+    """GET/PUT /api/notifications/prefs/ or /api/notifications/channels/ — channel delivery preferences."""
 
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
         prefs, _ = NotificationPreference.objects.get_or_create(user=request.user)
+        if "channels" in request.path or "preferences" in request.path:
+            return Response(_channels_payload(prefs))
         return Response(_prefs_payload(prefs))
 
     def put(self, request):
@@ -65,17 +81,24 @@ class NotificationPrefsView(APIView):
                 prefs.digest_time = datetime.datetime.strptime(digest_time_str, "%H:%M").time()
             except (ValueError, TypeError):
                 pass
-        prefs.save(
-            update_fields=["email_enabled", "in_app_enabled", "websocket_enabled", "digest_frequency", "digest_time"]
-        )
+        if "channel_preferences" in request.data and isinstance(request.data["channel_preferences"], dict):
+            prefs.channel_preferences = request.data["channel_preferences"]
+        if "webhook_url" in request.data:
+            prefs.webhook_url = request.data["webhook_url"]
+        if "webhook_secret" in request.data:
+            prefs.webhook_secret = request.data["webhook_secret"]
+        if "phone_number" in request.data:
+            prefs.phone_number = request.data["phone_number"]
+
+        prefs.save()
+        if "channels" in request.path or "preferences" in request.path:
+            return Response(_channels_payload(prefs))
         return Response(_prefs_payload(prefs))
-
-
-
 
 
     def patch(self, request):
         return self.put(request)
+
 
 
 class NotificationListView(generics.ListAPIView):
@@ -192,3 +215,128 @@ class DigestReadView(APIView):
             recipient=request.user, is_read=False
         ).update(is_read=True)
         return Response({"marked_read": updated}, status=status.HTTP_200_OK)
+
+
+class TrackOpenView(APIView):
+    """GET /api/notifications/track/open/<delivery_id>/"""
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request, delivery_id):
+        from django.http import HttpResponse
+        from django.utils import timezone
+
+        try:
+            delivery = NotificationDelivery.objects.get(pk=delivery_id)
+            if delivery.status not in ["opened", "clicked"]:
+                delivery.status = "opened"
+            delivery.opened_at = timezone.now()
+            delivery.save(update_fields=["status", "opened_at", "updated_at"])
+        except NotificationDelivery.DoesNotExist:
+            pass
+
+        pixel = b'GIF89a\x01\x00\x01\x00\x80\x00\x00\xff\xff\xff\x00\x00\x00!\xf9\x04\x01\x00\x00\x00\x00,\x00\x00\x00\x00\x01\x00\x01\x00\x00\x02\x02D\x01\x00;'
+        return HttpResponse(pixel, content_type="image/gif")
+
+
+class TrackClickView(APIView):
+    """GET /api/notifications/track/click/<delivery_id>/?target=<url>"""
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request, delivery_id):
+        from django.shortcuts import redirect
+        from django.utils import timezone
+
+        target = request.GET.get("target", "/")
+        try:
+            delivery = NotificationDelivery.objects.get(pk=delivery_id)
+            delivery.status = "clicked"
+            delivery.clicked_at = timezone.now()
+            if not delivery.opened_at:
+                delivery.opened_at = timezone.now()
+            delivery.save(update_fields=["status", "clicked_at", "opened_at", "updated_at"])
+        except NotificationDelivery.DoesNotExist:
+            pass
+
+        return redirect(target)
+
+
+class NotificationDeliveryLogView(generics.ListAPIView):
+    """GET /api/notifications/deliveries/"""
+    permission_classes = [permissions.IsAuthenticated]
+    pagination_class = NotificationPagination
+
+    def get_queryset(self):
+        user = self.request.user
+        if user.is_staff or user.is_superuser:
+            return NotificationDelivery.objects.all().select_related("recipient")
+        return NotificationDelivery.objects.filter(recipient=user)
+
+    def list(self, request, *args, **kwargs):
+        queryset = self.filter_queryset(self.get_queryset())
+        page = self.paginate_queryset(queryset)
+        items = page if page is not None else queryset
+        data = [
+            {
+                "id": d.id,
+                "notification_id": d.notification_id,
+                "recipient_id": d.recipient_id,
+                "recipient_username": d.recipient.username,
+                "channel": d.channel,
+                "status": d.status,
+                "retry_count": d.retry_count,
+                "error_message": d.error_message,
+                "created_at": d.created_at,
+                "sent_at": d.sent_at,
+                "opened_at": d.opened_at,
+                "clicked_at": d.clicked_at,
+            }
+            for d in items
+        ]
+        if page is not None:
+            return self.get_paginated_response(data)
+        return Response(data)
+
+
+class AdminNotificationMetricsView(APIView):
+    """GET /api/notifications/admin/metrics/"""
+    permission_classes = [permissions.IsAdminUser]
+
+    def get(self, request):
+        from django.db.models import Avg, Count, F, ExpressionWrapper, DurationField
+
+        total = NotificationDelivery.objects.count()
+        sent_count = NotificationDelivery.objects.filter(status__in=["sent", "opened", "clicked"]).count()
+        failed_count = NotificationDelivery.objects.filter(status="failed").count()
+        dead_letter_count = NotificationDeadLetter.objects.count()
+
+        success_rate = (sent_count / total * 100.0) if total > 0 else 100.0
+
+        avg_time = NotificationDelivery.objects.filter(
+            sent_at__isnull=False, created_at__isnull=False
+        ).annotate(
+            duration=ExpressionWrapper(F("sent_at") - F("created_at"), output_field=DurationField())
+        ).aggregate(avg_dur=Avg("duration"))["avg_dur"]
+
+        avg_delivery_seconds = avg_time.total_seconds() if avg_time else 0.0
+
+        channel_breakdown = {}
+        counts = NotificationDelivery.objects.values("channel", "status").annotate(count=Count("id"))
+        for item in counts:
+            ch = item["channel"]
+            st = item["status"]
+            if ch not in channel_breakdown:
+                channel_breakdown[ch] = {"total": 0, "sent": 0, "failed": 0, "opened": 0, "clicked": 0}
+            channel_breakdown[ch]["total"] += item["count"]
+            if st in channel_breakdown[ch]:
+                channel_breakdown[ch][st] += item["count"]
+
+        return Response({
+            "total_deliveries": total,
+            "successful_deliveries": sent_count,
+            "failed_deliveries": failed_count,
+            "dead_letter_count": dead_letter_count,
+            "success_rate_percentage": round(success_rate, 2),
+            "avg_delivery_seconds": round(avg_delivery_seconds, 3),
+            "channel_breakdown": channel_breakdown,
+        })
+
