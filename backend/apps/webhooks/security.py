@@ -105,4 +105,3 @@ def require_webhook_signature(secret, header_name="HTTP_X_SIGNATURE"):
         return _wrapped_view
 
     return decorator
-

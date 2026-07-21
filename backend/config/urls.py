@@ -13,6 +13,8 @@ from apps.dashboard.views import LeaderboardView
 
 from .health_view import health_view
 from .version_view import version_view
+from .views import CheckoutSessionView
+from .webhooks import stripe_webhook
 
 urlpatterns = [
     # ── Admin ──────────────────────────────────────────────────────────────────
@@ -40,13 +42,16 @@ urlpatterns = [
     # ── Notifications & Real-time ─────────────────────────────────────────────
     path("api/notifications/", include("apps.notifications.urls")),
     path("api/dashboard/", include("apps.dashboard.urls")),
-    path("api/chat/", include("apps.chat.urls")),
-    # ── Search & Collaboration ────────────────────────────────────────────────
+    path('create-checkout-session/', CheckoutSessionView.as_view()),
+    path('webhook/', stripe_webhook),
     path("api/search/", include("apps.search.urls")),
     path("api/notes/", include("apps.notes.urls")),
     path("api/recommendations/", include("apps.recommendations.urls")),
+    # ── OAuth 2.0 & OIDC ───────────────────────────────────────────────────────
+    path("", include("apps.oauth.urls")),
     # ── Webhooks & Uploads ─────────────────────────────────────────────────────
     path("api/webhooks/", include("apps.webhooks.urls")),
+
     path("api/uploads/", include("apps.uploads.urls")),
     # ── RBAC ───────────────────────────────────────────────────────────────────
     path("api/rbac/", include("apps.rbac.urls")),
@@ -82,6 +87,7 @@ urlpatterns = [
         name="swagger-ui",
     ),
     # ── Prometheus Metrics ─────────────────────────────────────────────────────
+    path("api/monitoring/", include("apps.monitoring.urls")),
     path("", include("django_prometheus.urls")),
     path(
         "api/redoc/",

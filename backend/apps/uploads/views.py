@@ -168,3 +168,27 @@ class UploadStatusView(views.APIView):
             "file_path": session.file_path if session.is_accessible else None,
         }
         return Response(payload)
+
+
+class DirectUploadView(views.APIView):
+    permission_classes = [permissions.AllowAny]
+
+    def post(self, request):
+        uploaded_file = request.FILES.get("file") or request.FILES.get("image")
+        if not uploaded_file:
+            return Response({"error": "No file uploaded"}, status=status.HTTP_400_BAD_REQUEST)
+
+        valid_name = get_valid_filename(uploaded_file.name)
+        media_root = Path(getattr(settings, "MEDIA_ROOT", settings.BASE_DIR / "media"))
+        upload_dir = media_root / "uploads"
+        upload_dir.mkdir(parents=True, exist_ok=True)
+
+        target_path = upload_dir / valid_name
+        with open(target_path, "wb+") as dest:
+            for chunk in uploaded_file.chunks():
+                dest.write(chunk)
+
+        media_url = getattr(settings, "MEDIA_URL", "/media/")
+        file_url = f"{media_url}uploads/{valid_name}"
+        return Response({"url": file_url, "filename": valid_name}, status=status.HTTP_201_CREATED)
+

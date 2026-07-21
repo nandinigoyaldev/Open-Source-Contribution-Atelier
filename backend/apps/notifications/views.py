@@ -12,6 +12,8 @@ def _prefs_payload(prefs: NotificationPreference) -> dict:
         "email": prefs.email_enabled,
         "in_app": prefs.in_app_enabled,
         "websocket": prefs.websocket_enabled,
+        "digest_frequency": prefs.digest_frequency,
+        "digest_time": prefs.digest_time.strftime("%H:%M") if prefs.digest_time else None,
     }
 
 
@@ -45,17 +47,6 @@ class NotificationPrefsView(APIView):
 
     def put(self, request):
         prefs, _ = NotificationPreference.objects.get_or_create(user=request.user)
-<<<<<<< HEAD
-        prefs.email_enabled = request.data.get('email', prefs.email_enabled)
-        prefs.in_app_enabled = request.data.get('in_app', prefs.in_app_enabled)
-        prefs.websocket_enabled = request.data.get('websocket', prefs.websocket_enabled)
-        prefs.save()
-        return Response({
-            'email': prefs.email_enabled,
-            'in_app': prefs.in_app_enabled,
-            'websocket': prefs.websocket_enabled,
-        })
-=======
         prefs.email_enabled = _coerce_bool(
             request.data.get("email"), prefs.email_enabled
         )
@@ -65,11 +56,23 @@ class NotificationPrefsView(APIView):
         prefs.websocket_enabled = _coerce_bool(
             request.data.get("websocket"), prefs.websocket_enabled
         )
+        if "digest_frequency" in request.data:
+            prefs.digest_frequency = request.data["digest_frequency"]
+        if "digest_time" in request.data:
+            digest_time_str = request.data["digest_time"]
+            import datetime
+            try:
+                prefs.digest_time = datetime.datetime.strptime(digest_time_str, "%H:%M").time()
+            except (ValueError, TypeError):
+                pass
         prefs.save(
-            update_fields=["email_enabled", "in_app_enabled", "websocket_enabled"]
+            update_fields=["email_enabled", "in_app_enabled", "websocket_enabled", "digest_frequency", "digest_time"]
         )
         return Response(_prefs_payload(prefs))
->>>>>>> main
+
+
+
+
 
     def patch(self, request):
         return self.put(request)
@@ -161,3 +164,31 @@ class UnsubscribePushView(APIView):
         return Response(
             {"detail": "Unsubscribed successfully."}, status=status.HTTP_200_OK
         )
+
+
+class DigestAPIView(APIView):
+    """GET /api/notifications/digest/ — returns grouped unread notifications"""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        unread = Notification.objects.filter(recipient=request.user, is_read=False).order_by("-created_at")
+        serializer = NotificationSerializer(unread, many=True)
+        # Group by notif_type
+        grouped = {}
+        for notif in serializer.data:
+            notif_type = notif["notif_type"]
+            if notif_type not in grouped:
+                grouped[notif_type] = []
+            grouped[notif_type].append(notif)
+        return Response({"grouped": grouped, "count": len(unread)})
+
+
+class DigestReadView(APIView):
+    """POST /api/notifications/digest/read/"""
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        updated = Notification.objects.filter(
+            recipient=request.user, is_read=False
+        ).update(is_read=True)
+        return Response({"marked_read": updated}, status=status.HTTP_200_OK)

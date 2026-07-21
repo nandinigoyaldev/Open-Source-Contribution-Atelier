@@ -38,11 +38,21 @@ class Notification(models.Model):
         return f"[{self.notif_type}] → {self.recipient} | {self.title}"
 
 
+import datetime
+
 class NotificationPreference(models.Model):
+    DIGEST_CHOICES = [
+        ("none", "None"),
+        ("daily", "Daily"),
+        ("weekly", "Weekly"),
+    ]
+
     user = models.OneToOneField(User, on_delete=models.CASCADE)
     email_enabled = models.BooleanField(default=True)
     in_app_enabled = models.BooleanField(default=True)
     websocket_enabled = models.BooleanField(default=True)
+    digest_frequency = models.CharField(max_length=10, choices=DIGEST_CHOICES, default="none")
+    digest_time = models.TimeField(default=datetime.time(8, 0))
 
     def __str__(self):
         return f"NotificationPreference(user={self.user_id})"

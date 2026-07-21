@@ -5,7 +5,9 @@ from .models import (
     OrganizationSponsor,
     Bounty,
     BountyClaim,
+    Invoice,
 )
+
 
 
 class OrganizationSponsorSerializer(serializers.ModelSerializer):

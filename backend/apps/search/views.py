@@ -1,21 +1,25 @@
 import logging
+
 from django.conf import settings
-from django.core.cache import cache
 from django.contrib.postgres.search import (
     SearchHeadline,
     SearchQuery,
     SearchRank,
     TrigramSimilarity,
 )
+from django.core.cache import cache
+from django.db import connection
+from django.db.models import Q
+from django.db.models.functions import Greatest
 from rest_framework import generics
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
+from .meili_client import get_meili_index
 from .models import SearchAnalytics, SearchDocument
 from .serializers import SearchAnalyticsSerializer, SearchDocumentSerializer
 from .utils import get_search_cache_version
-from .meili_client import get_meili_index
 
 logger = logging.getLogger(__name__)
 
@@ -137,19 +141,22 @@ class UnifiedSearchView(generics.ListAPIView):
                     "limit": 200,
                 }
                 if content_type_filter:
-                    search_options["filter"] = [f"content_type_name = '{content_type_filter}'"]
+                    search_options["filter"] = [
+                        f"content_type_name = '{content_type_filter}'"
+                    ]
 
                 res = index.search(q, search_options)
                 hits = res.get("hits", [])
-                
+
                 if hits:
                     doc_ids = [int(hit["id"]) for hit in hits]
                     docs = {
-                        doc.id: doc for doc in SearchDocument.objects.filter(
+                        doc.id: doc
+                        for doc in SearchDocument.objects.filter(
                             id__in=doc_ids
                         ).select_related("content_type")
                     }
-                    
+
                     ordered_docs = []
                     for hit in hits:
                         doc_id = int(hit["id"])
@@ -157,20 +164,35 @@ class UnifiedSearchView(generics.ListAPIView):
                             doc = docs[doc_id]
                             formatted = hit.get("_formatted", {})
                             doc.headline_title = formatted.get("title", doc.title)
-                            doc.headline_description = formatted.get("description", doc.description)
-                            doc.headline_body = formatted.get("body_text", doc.body_text)
+                            doc.headline_description = formatted.get(
+                                "description", doc.description
+                            )
+                            doc.headline_body = formatted.get(
+                                "body_text", doc.body_text
+                            )
                             ordered_docs.append(doc)
-                            
+
                     return ordered_docs
             except Exception as exc:
-                logger.warning("Meilisearch search failed, falling back to Postgres: %s", exc)
+                logger.warning(
+                    "Meilisearch search failed, falling back to Postgres: %s", exc
+                )
 
-        # 2. Postgres FTS / Trigram fallback paths
-        search_query = SearchQuery(q, search_type="websearch")
         base_qs = SearchDocument.objects.all()
 
         if content_type_filter:
             base_qs = base_qs.filter(content_type_name=content_type_filter)
+
+        # 2. SQLite fallback (local dev)
+        if connection.vendor == "sqlite":
+            return base_qs.filter(
+                Q(title__icontains=q)
+                | Q(description__icontains=q)
+                | Q(body_text__icontains=q)
+            ).distinct()
+
+        # 3. Postgres FTS / Trigram fallback paths
+        search_query = SearchQuery(q, search_type="websearch")
 
         # --- FTS path -------------------------------------------------------
         fts_qs = (
@@ -212,9 +234,12 @@ class UnifiedSearchView(generics.ListAPIView):
 
         # --- Trigram fallback (typo tolerance) ------------------------------
         return (
-            base_qs.annotate(similarity=TrigramSimilarity("title", q))
+            base_qs.annotate(
+                similarity=Greatest(
+                    TrigramSimilarity("title", q), TrigramSimilarity("description", q)
+                )
+            )
             .filter(similarity__gt=0.25)
             .distinct()
             .order_by("-similarity")
         )
-

@@ -293,3 +293,68 @@ class Profile(models.Model):
 
     def __str__(self):
         return f"Profile for {self.user.username}"
+
+
+class ModuleDraft(models.Model):
+    title = models.CharField(max_length=255)
+    slug = models.SlugField(unique=True)
+    description = models.TextField(blank=True)
+    order = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["order", "id"]
+
+    def __str__(self):
+        return self.title
+
+
+class LessonDraft(models.Model):
+    module = models.ForeignKey(
+        ModuleDraft,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="lessons",
+    )
+    title = models.CharField(max_length=255)
+    slug = models.SlugField(unique=True)
+    description = models.TextField(blank=True)
+    content = models.TextField(blank=True)
+    difficulty = models.CharField(max_length=32, default="beginner")
+    tags = models.JSONField(default=list, blank=True)
+    estimated_minutes = models.PositiveIntegerField(default=15)
+    order = models.PositiveIntegerField(default=0)
+    is_published = models.BooleanField(default=False)
+    learning_objectives = models.JSONField(default=list, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["order", "id"]
+
+    def __str__(self):
+        return self.title
+
+
+class QuizDraft(models.Model):
+    lesson = models.ForeignKey(
+        LessonDraft,
+        on_delete=models.CASCADE,
+        related_name="quizzes",
+    )
+    question = models.TextField()
+    options = models.JSONField(default=list)
+    answer = models.IntegerField(default=0)
+    explanation = models.TextField(blank=True)
+    order = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["order", "id"]
+
+    def __str__(self):
+        return f"Quiz question for {self.lesson.title}"
+

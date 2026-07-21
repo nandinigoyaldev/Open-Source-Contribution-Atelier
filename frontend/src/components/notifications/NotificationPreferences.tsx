@@ -4,7 +4,7 @@ import { Mail, Bell, RefreshCw } from "lucide-react";
 import toast from "react-hot-toast";
 
 export function NotificationPreferences() {
-  const [prefs, setPrefs] = useState<Record<string, boolean>>({
+  const [prefs, setPrefs] = useState<Record<string, any>>({
     email: true,
     in_app: true,
     websocket: true,
@@ -131,6 +131,62 @@ export function NotificationPreferences() {
               className="w-5 h-5 accent-primary cursor-pointer"
             />
           </label>
+        </div>
+
+        <div className="mt-8">
+          <h3 className="font-display text-lg font-black uppercase text-black dark:text-white mb-4">
+            Digest Delivery
+          </h3>
+          <p className="text-sm text-gray-500 dark:text-[#c4bbae] mb-4">
+            Receive a batched summary of notifications instead of instant alerts.
+          </p>
+          <div className="space-y-4 p-4 rounded-xl border-2 border-black dark:border-[#2e2924] bg-surface-low dark:bg-[#1f1c18]">
+            <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+              <div>
+                <span className="font-bold text-sm block text-black dark:text-white">
+                  Digest Frequency
+                </span>
+              </div>
+              <select
+                value={prefs.digest_frequency || "none"}
+                onChange={(e) => {
+                  const updated = { ...prefs, digest_frequency: e.target.value };
+                  setPrefs(updated);
+                  fetchApi("/notifications/channel-preferences/", { method: "PATCH", body: JSON.stringify(updated) });
+                }}
+                disabled={saving}
+                className="p-2 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-black dark:text-white"
+              >
+                <option value="none">None (Instant)</option>
+                <option value="daily">Daily</option>
+                <option value="weekly">Weekly</option>
+              </select>
+            </div>
+            
+            {prefs.digest_frequency !== "none" && (
+              <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between pt-4 border-t border-gray-200 dark:border-gray-800">
+                <div>
+                  <span className="font-bold text-sm block text-black dark:text-white">
+                    Delivery Time
+                  </span>
+                  <span className="text-xs text-gray-500 dark:text-[#c4bbae]">
+                    Time to send digest (in your timezone)
+                  </span>
+                </div>
+                <input
+                  type="time"
+                  value={prefs.digest_time || "08:00"}
+                  onChange={(e) => {
+                    const updated = { ...prefs, digest_time: e.target.value };
+                    setPrefs(updated);
+                    fetchApi("/notifications/channel-preferences/", { method: "PATCH", body: JSON.stringify(updated) });
+                  }}
+                  disabled={saving}
+                  className="p-2 rounded border border-gray-300 dark:border-gray-700 bg-white dark:bg-gray-800 text-black dark:text-white"
+                />
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

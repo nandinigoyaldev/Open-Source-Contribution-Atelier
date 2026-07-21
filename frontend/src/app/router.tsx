@@ -92,6 +92,12 @@ const ModerationDashboard = lazy(() =>
   })),
 );
 
+const BackupDashboardPage = lazy(() =>
+  import("../pages/admin/BackupDashboardPage").then((module) => ({
+    default: module.default,
+  })),
+);
+
 const SandboxPage = lazy(() =>
   import("../pages/SandboxPage").then((module) => ({
     default: module.SandboxPage,
@@ -125,6 +131,12 @@ const ProfileSettingsPage = lazy(() =>
 const NotificationPreferencesPage = lazy(() =>
   import("../pages/settings/NotificationPreferencesPage").then((module) => ({
     default: module.NotificationPreferencesPage,
+  })),
+);
+
+const DigestPage = lazy(() =>
+  import("../pages/notifications/DigestPage").then((module) => ({
+    default: module.default,
   })),
 );
 
@@ -205,6 +217,37 @@ const MergeConflictScenarioBuilderPage = lazy(() =>
     default: module.MergeConflictScenarioBuilderPage,
   })),
 );
+
+const PerformanceDashboardPage = lazy(() =>
+  import("../pages/admin/PerformanceDashboardPage").then((module) => ({
+    default: module.PerformanceDashboardPage,
+  })),
+);
+
+const ContentStudioPage = lazy(() =>
+  import("../pages/admin/ContentStudioPage").then((module) => ({
+    default: module.ContentStudioPage,
+  })),
+);
+
+const LessonEditorPage = lazy(() =>
+  import("../pages/admin/LessonEditorPage").then((module) => ({
+    default: module.LessonEditorPage,
+  })),
+);
+
+const QuizBuilderPage = lazy(() =>
+  import("../pages/admin/QuizBuilderPage").then((module) => ({
+    default: module.QuizBuilderPage,
+  })),
+);
+
+const ModuleTreePage = lazy(() =>
+  import("../pages/admin/ModuleTreePage").then((module) => ({
+    default: module.ModuleTreePage,
+  })),
+);
+
 /*
  * These pages use default exports, so they can be passed directly
  * to React.lazy().
@@ -219,6 +262,23 @@ const TemplateMarketplacePage = lazy(
 
 const PortfolioPage = lazy(() => import("../pages/PortfolioPage"));
 
+const ApiDocsPage = lazy(() =>
+  import("../pages/ApiDocsPage").then((module) => ({
+    default: module.ApiDocsPage,
+  })),
+);
+
+const OAuthClientsPage = lazy(() =>
+  import("../pages/admin/OAuthClients").then((module) => ({
+    default: module.OAuthClients,
+  })),
+);
+
+const ConnectedAppsPage = lazy(() =>
+  import("../pages/settings/ConnectedApps").then((module) => ({
+    default: module.ConnectedApps,
+  })),
+);
 function RouteLoadingFallback() {
   return (
     <div
@@ -554,6 +614,24 @@ export function AppRouter() {
           />
 
           <Route
+            path="/admin/backups"
+            element={
+              <ProtectedRoute>
+                <BackupDashboardPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/admin/performance"
+            element={
+              <ProtectedRoute>
+                <PerformanceDashboardPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
             path="/portfolio"
             element={
               <ProtectedRoute>
@@ -561,6 +639,40 @@ export function AppRouter() {
               </ProtectedRoute>
             }
           />
+
+          <Route
+            path="/admin/content-studio"
+            element={
+              <ProtectedRoute>
+                <ContentStudioPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/content-studio/lessons/:id"
+            element={
+              <ProtectedRoute>
+                <LessonEditorPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/content-studio/quizzes/:lessonId"
+            element={
+              <ProtectedRoute>
+                <QuizBuilderPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/content-studio/tree"
+            element={
+              <ProtectedRoute>
+                <ModuleTreePage />
+              </ProtectedRoute>
+            }
+          />
+
 
           <Route
             path="/profile"
@@ -576,6 +688,16 @@ export function AppRouter() {
             element={
               <ProtectedRoute>
                 <NotificationPreferencesPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route path="/docs/api" element={<ApiDocsPage />} />
+          <Route
+            path="/notifications/digest"
+            element={
+              <ProtectedRoute>
+                <DigestPage />
               </ProtectedRoute>
             }
           />
@@ -598,7 +720,26 @@ export function AppRouter() {
             }
           />
 
+          <Route
+            path="/admin/oauth-clients"
+            element={
+              <ProtectedRoute>
+                <OAuthClientsPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/settings/connected-apps"
+            element={
+              <ProtectedRoute>
+                <ConnectedAppsPage />
+              </ProtectedRoute>
+            }
+          />
+
           <Route path="/pricing" element={<PricingPage />} />
+
 
           <Route path="/u/:username" element={<UserProfilePage />} />
         </Route>

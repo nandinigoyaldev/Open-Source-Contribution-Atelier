@@ -1,28 +1,7 @@
 import logging
 import os
 import sys
-from datetime import timedelta
-from pathlib import Path
-
 import stripe
-
-BASE_DIR = Path(__file__).resolve().parent.parent
-PLUGINS_DIR = BASE_DIR / "plugins"
-
-# Safeguard for hosts where cryptography DLL fails to load (e.g. missing VC++ redist)
-try:
-    from cryptography.fernet import Fernet
-except ImportError as e:
-    if "DLL load failed" in str(e) or "specified module could not be found" in str(e):
-        from unittest.mock import MagicMock
-
-        mock_crypto = MagicMock()
-        sys.modules["cryptography"] = mock_crypto
-        sys.modules["cryptography.fernet"] = mock_crypto
-        sys.modules["cryptography.exceptions"] = mock_crypto
-        sys.modules["cryptography.hazmat"] = mock_crypto
-        sys.modules["cryptography.hazmat.primitives"] = mock_crypto
-        sys.modules["cryptography.hazmat.bindings"] = mock_crypto
 import dj_database_url
 
 # pyrefly: ignore [missing-import]
@@ -34,28 +13,14 @@ logger = logging.getLogger(__name__)
 
 TESTING = "test" in sys.argv or "pytest" in sys.modules
 
-# Patch Django template context copy for Python 3.14 compatibility
-import copy
+WS_AUTH_MIGRATION = True 
+WS_TOKEN_TIMEOUT = 3600 
 
-from django.template.context import BaseContext
+BASE_DIR = Path(__file__).resolve().parent.parent
 
-
-def safe_context_copy(self):
-    cls = self.__class__
-    new_context = cls.__new__(cls)
-    for k, v in self.__dict__.items():
-        if k == "dicts":
-            new_context.dicts = self.dicts[:]
-        else:
-            setattr(new_context, k, copy.copy(v))
-    return new_context
-
-
-BaseContext.__copy__ = safe_context_copy
-
-STRIPE_PUBLISHABLE_KEY = os.getenv("STRIPE_PUBLISHABLE_KEY")
-STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY")
-STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")
+STRIPE_PUBLISHABLE_KEY = os.getenv('STRIPE_PUBLISHABLE_KEY')
+STRIPE_SECRET_KEY = os.getenv('STRIPE_SECRET_KEY')
+STRIPE_WEBHOOK_SECRET = os.getenv('STRIPE_WEBHOOK_SECRET')
 
 stripe.api_key = STRIPE_SECRET_KEY
 
@@ -228,13 +193,20 @@ INSTALLED_APPS = [
     "apps.gamification",
     "apps.project_health",
     "django_q",
+    "apps.monitoring",
     "waffle",
     "apps.plugins.apps.PluginsConfig",
+    "apps.oauth",
 ]
+
 # Cache backends are selected with channel layers below (Redis or LocMem fallback).
 
 # Rate Limit
 DEFAULT_RATE = "100/hour"
+API_RATE_LIMIT_AUTH = int(os.getenv("API_RATE_LIMIT_AUTH", "100"))
+API_RATE_LIMIT_ANON = int(os.getenv("API_RATE_LIMIT_ANON", "20"))
+API_RATE_LIMIT_WINDOW = int(os.getenv("API_RATE_LIMIT_WINDOW", "60"))
+
 
 MIDDLEWARE = [
     "django_prometheus.middleware.PrometheusBeforeMiddleware",
@@ -259,7 +231,7 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "apps.core.middleware.AdminAuditMiddleware",
     "waffle.middleware.WaffleMiddleware",
-    "apps.cache.middleware.RateLimitMiddleware",
+    "apps.core.middleware.ratelimit.RateLimitMiddleware",
     "apps.sandbox.middleware.SandboxExecutionLogMiddleware",
     "allauth.account.middleware.AccountMiddleware",
     "django_prometheus.middleware.PrometheusAfterMiddleware",
@@ -803,3 +775,16 @@ if SENTRY_DSN:
 # ──────────────────────────────────────────
 AUDIT_RETENTION_DAYS = int(os.getenv("AUDIT_RETENTION_DAYS", "90"))
 AUDIT_ARCHIVE_DIR = os.getenv("AUDIT_ARCHIVE_DIR", str(BASE_DIR / "archives" / "audit"))
+
+# ──────────────────────────────────────────
+# Content Security Policy (CSP)
+# ──────────────────────────────────────────
+CONTENT_SECURITY_POLICY = (
+    "default-src 'self'; "
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval'; "
+    "style-src 'self' 'unsafe-inline'; "
+    "img-src 'self' data: https:; "
+    "font-src 'self' data: https:; "
+    "object-src 'none'; "
+    "frame-ancestors 'none';"
+)

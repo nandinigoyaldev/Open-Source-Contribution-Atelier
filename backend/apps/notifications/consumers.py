@@ -3,6 +3,7 @@ import logging
 
 from channels.db import database_sync_to_async
 from channels.generic.websocket import AsyncWebsocketConsumer
+from .models import Notification
 
 from apps.core.channel_safety import safe_group_add, safe_group_discard
 

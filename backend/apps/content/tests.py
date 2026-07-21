@@ -792,3 +792,73 @@ def test_diff_curriculum_slugs_helpers():
     diff = diff_slugs(["a", "b"], ["b", "d"])
     assert diff["missing_in_api"] == ["a"]
     assert diff["missing_in_curriculum"] == ["d"]
+
+
+@pytest.mark.django_db
+def test_draft_content_studio_crud_and_reorder():
+    client = APIClient()
+
+    # 1. Create ModuleDraft
+    res_mod = client.post(
+        "/api/content/modules/",
+        {"title": "Git Basics", "slug": "git-basics", "description": "Intro to Git"},
+        format="json",
+    )
+    assert res_mod.status_code == 201
+    mod_id = res_mod.json()["id"]
+
+    # 2. Create LessonDraft
+    res_les = client.post(
+        "/api/content/lessons/",
+        {
+            "module": mod_id,
+            "title": "Git Init",
+            "slug": "git-init",
+            "description": "Learn git init",
+            "content": "# Git Init\nInitialize a repo.",
+            "difficulty": "beginner",
+            "estimatedMinutes": 10,
+            "isPublished": False,
+        },
+        format="json",
+    )
+    assert res_les.status_code == 201
+    les_id = res_les.json()["id"]
+
+    # 3. Create QuizDraft
+    res_quiz = client.post(
+        "/api/content/quiz-questions/",
+        {
+            "lesson": les_id,
+            "question": "What command initializes git?",
+            "options": ["git init", "git start", "git new"],
+            "answer": 0,
+            "explanation": "git init creates a new git repo",
+        },
+        format="json",
+    )
+    assert res_quiz.status_code == 201
+
+    # 4. GET modules tree
+    res_tree = client.get("/api/content/modules/")
+    assert res_tree.status_code == 200
+    modules = res_tree.json()
+    assert len(modules) == 1
+    assert modules[0]["title"] == "Git Basics"
+    assert len(modules[0]["lessons"]) == 1
+    assert modules[0]["lessons"][0]["title"] == "Git Init"
+    assert len(modules[0]["lessons"][0]["quizzes"]) == 1
+
+    # 5. Reorder endpoint
+    reorder_payload = {
+        "modules": [
+            {
+                "id": mod_id,
+                "order": 1,
+                "lessons": [{"id": les_id, "order": 1, "moduleId": mod_id}],
+            }
+        ]
+    }
+    res_reorder = client.post("/api/content/modules/reorder/", reorder_payload, format="json")
+    assert res_reorder.status_code == 200
+
