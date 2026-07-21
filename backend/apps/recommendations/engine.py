@@ -25,6 +25,7 @@ class RecommendationEngine:
         self._generate_remedial_recommendations()
         self._generate_advanced_recommendations()
         self._generate_streak_recommendations()
+        self._generate_oss_issue_recommendations()
 
         # Cache for 1 hour
         self.cache_manager.set(cache_key, True, ttl=3600)
@@ -101,6 +102,26 @@ class RecommendationEngine:
                     title=uncompleted.title,
                     reason="Keep your streak alive! Complete this quick lesson today.",
                     priority_score=90,
+                )
+
+    def _generate_oss_issue_recommendations(self):
+        from .models import OSSIssue
+
+        # If user has completed a lot of lessons/challenges, recommend OSS issues
+        completed_lessons_count = LessonProgress.objects.filter(
+            user=self.user, completed=True
+        ).count()
+
+        if completed_lessons_count >= 3:
+            # Get some open OSS issues
+            issues = OSSIssue.objects.filter(is_open=True).order_by("?")[:3]
+            for issue in issues:
+                self._create_or_update_recommendation(
+                    content_type=Recommendation.ContentType.OSS_ISSUE,
+                    content_id=str(issue.id),
+                    title=f"{issue.repo_name} #{issue.issue_number}",
+                    reason=f"You're ready to contribute! Check out this good first issue: {issue.title}",
+                    priority_score=95,
                 )
 
     def _create_or_update_recommendation(

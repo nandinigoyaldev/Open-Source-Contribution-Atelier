@@ -2,6 +2,7 @@ from prometheus_client import Counter, Gauge, Histogram, start_http_server
 import time
 from celery import Celery
 import os
+import redis
 
 app = Celery("config")
 
@@ -23,26 +24,34 @@ class CeleryMonitor:
     def __init__(self):
         self.queues = ["default", "high_priority", "low_priority"]
         self.workers = 0
+        self.redis_client = redis.Redis.from_url(
+            os.getenv("CELERY_BROKER_URL", "redis://localhost:6379/0")
+        )
 
     def update_metrics(self):
         """Update all metrics"""
         self.update_queue_sizes()
         self.update_worker_count()
+        self._check_alert_thresholds()
+
+    def _check_alert_thresholds(self):
+        """Log a warning if queue backlog or worker count crosses configured thresholds."""
+        queue_threshold = int(os.getenv("CELERY_QUEUE_ALERT_THRESHOLD", 1000))
+
+        for queue in self.queues:
+            current = queue_size.labels(queue_name=queue)._value.get()
+            if current is not None and current > queue_threshold:
+                print(f"🚨 Queue backlog alert: '{queue}' has {current} pending tasks (threshold: {queue_threshold})")
+
+        if self.workers == 0:
+            print("🚨 No active Celery workers detected")
 
     def update_queue_sizes(self):
-        """Update queue size metrics"""
+        """Update queue size metrics using the true per-queue Redis list length"""
         for queue in self.queues:
             try:
-                from celery import current_app
-                from celery.utils import term
-
-                inspect = current_app.control.inspect()
-                reserved = inspect.reserved()
-                if reserved:
-                    count = sum(1 for v in reserved.values() if v)
-                    queue_size.labels(queue_name=queue).set(count)
-                else:
-                    queue_size.labels(queue_name=queue).set(0)
+                count = self.redis_client.llen(queue)
+                queue_size.labels(queue_name=queue).set(count)
             except Exception as e:
                 print(f"Failed to get queue size for {queue}: {e}")
 

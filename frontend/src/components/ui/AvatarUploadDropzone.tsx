@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { UploadCloud, X } from "lucide-react";
 import { useToast } from "../../features/ui/ToastContext";
+import { getMediaUrl } from "../../lib/api";
 
 interface AvatarUploadDropzoneProps {
   currentAvatarUrl?: string | null;
@@ -13,16 +14,14 @@ export function AvatarUploadDropzone({
 }: AvatarUploadDropzoneProps) {
   const [dragActive, setDragActive] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(
-    currentAvatarUrl || null,
+    getMediaUrl(currentAvatarUrl) || null,
   );
   const inputRef = useRef<HTMLInputElement>(null);
   const { addToast } = useToast();
 
   useEffect(() => {
-    if (currentAvatarUrl && !previewUrl) {
-      setPreviewUrl(currentAvatarUrl);
-    }
-  }, [currentAvatarUrl, previewUrl]);
+    setPreviewUrl(getMediaUrl(currentAvatarUrl) || null);
+  }, [currentAvatarUrl]);
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -80,15 +79,15 @@ export function AvatarUploadDropzone({
   };
 
   return (
-    <div className="w-full mb-8">
-      <label className="block text-sm font-bold text-text dark:text-[#f0ebe2] mb-2">
+    <div className="w-full mb-5">
+      <label className="block text-xs font-bold text-text dark:text-[#f0ebe2] mb-1.5 uppercase tracking-wide">
         Profile Picture
       </label>
       <div
-        className={`relative w-full h-48 border-2 border-dashed rounded-2xl flex flex-col items-center justify-center cursor-pointer transition-all duration-200 bg-white/50 dark:bg-[linear-gradient(145deg,#181f2c,#12110f)] dark:shadow-[0_12px_26px_rgba(0,0,0,0.28)_inset] ${
+        className={`relative w-full h-28 border-2 border-dashed rounded-xl flex flex-col items-center justify-center cursor-pointer transition-all duration-200 bg-white/50 dark:bg-[linear-gradient(145deg,#181f2c,#12110f)] dark:shadow-[0_12px_26px_rgba(0,0,0,0.28)_inset] ${
           dragActive
-            ? "border-primary bg-primary/10 scale-[1.02]"
-            : "border-black/50 hover:border-primary dark:border-[#5d5247] dark:hover:border-accent"
+            ? "border-primary bg-primary/10 scale-[1.01]"
+            : "border-black/30 hover:border-primary dark:border-[#5d5247] dark:hover:border-accent"
         }`}
         onDragEnter={handleDrag}
         onDragLeave={handleDrag}
@@ -105,15 +104,15 @@ export function AvatarUploadDropzone({
         />
 
         {previewUrl ? (
-          <div className="relative group p-2">
-            <div className="relative w-32 h-32 rounded-full overflow-hidden border-4 border-gray-800 shadow-2xl transition-transform group-hover:scale-105">
+          <div className="relative group p-1.5">
+            <div className="relative w-20 h-20 rounded-full overflow-hidden border-2 border-gray-800 shadow-lg transition-transform group-hover:scale-105">
               <img
                 src={previewUrl}
                 alt="Avatar preview"
                 className="w-full h-full object-cover"
               />
               <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-                <span className="text-white text-xs font-semibold drop-shadow-md">
+                <span className="text-white text-[10px] font-semibold drop-shadow-md">
                   Change
                 </span>
               </div>
@@ -121,22 +120,22 @@ export function AvatarUploadDropzone({
             <button
               type="button"
               onClick={clearImage}
-              className="absolute top-0 right-0 p-1.5 bg-red-500 rounded-full text-white hover:bg-red-600 transition-colors shadow-lg hover:scale-110 z-10"
+              className="absolute top-0 right-0 p-1 bg-red-500 rounded-full text-white hover:bg-red-600 transition-colors shadow shadow-red-700/50 hover:scale-105 z-10"
               title="Remove image"
             >
-              <X size={16} strokeWidth={3} />
+              <X size={12} strokeWidth={3} />
             </button>
           </div>
         ) : (
-          <div className="flex flex-col items-center text-muted dark:text-[#c4bbae] p-6 text-center">
-            <div className="w-16 h-16 rounded-full bg-[#1f2937] dark:bg-[#2e2924] flex items-center justify-center mb-4 shadow-inner">
-              <UploadCloud size={32} className="text-[#8a8fff]" />
+          <div className="flex flex-col items-center text-muted dark:text-[#c4bbae] p-3 text-center">
+            <div className="w-10 h-10 rounded-full bg-[#1f2937] dark:bg-[#2e2924] flex items-center justify-center mb-1.5 shadow-inner">
+              <UploadCloud size={20} className="text-[#8a8fff]" />
             </div>
-            <p className="text-base font-bold text-text dark:text-[#f0ebe2]">
+            <p className="text-sm font-bold text-text dark:text-[#f0ebe2]">
               Click or drag image to upload
             </p>
-            <p className="text-sm text-muted dark:text-[#c4bbae] mt-2">
-              Supports JPG, PNG, and WebP (max. 5MB)
+            <p className="text-[10px] text-muted dark:text-[#c4bbae] mt-0.5">
+              JPG, PNG, WebP (max. 5MB)
             </p>
           </div>
         )}

@@ -1,4 +1,4 @@
-import { ReactNode } from 'react';
+import { ReactNode } from "react";
 
 export interface Widget {
   id: string;
@@ -12,7 +12,10 @@ export interface Widget {
 
 const widgetComponents: Record<string, React.ComponentType<any>> = {};
 
-export function registerWidget(id: string, component: React.ComponentType<any>) {
+export function registerWidget(
+  id: string,
+  component: React.ComponentType<any>,
+) {
   widgetComponents[id] = component;
 }
 
@@ -21,10 +24,10 @@ export function getWidget(id: string) {
 }
 
 // Pre-built widgets
-import { StreakCalendar } from '../components/StreakCalendar';
-import { XPBreakdown } from '../components/XPBreakdown';
-import { RecentActivity } from '../components/RecentActivity';
+import { StreakCalendar } from "../../components/StreakCalendar";
+import { XPBreakdown } from "../../components/XPBreakdown";
+import { RecentActivity } from "../../components/RecentActivity";
 
-registerWidget('streak-calendar', StreakCalendar);
-registerWidget('xp-breakdown', XPBreakdown);
-registerWidget('recent-activity', RecentActivity);
+registerWidget("streak-calendar", StreakCalendar);
+registerWidget("xp-breakdown", XPBreakdown);
+registerWidget("recent-activity", RecentActivity);

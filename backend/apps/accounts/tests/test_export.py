@@ -10,7 +10,7 @@ from rest_framework.test import APIClient
 
 from apps.chat.models import Message
 from apps.content.models import Comment, Exercise, Lesson
-from apps.dashboard.models import Issue, StreakFreeze
+from apps.dashboard.models import Issue
 from apps.progress.models import (
     CodeSubmission,
     ExerciseAttempt,
@@ -60,7 +60,7 @@ def setup_user_data(user, other_user):
         user=user, title="My PR", code_snippet="print(1)"
     )
     PeerReview.objects.create(submission=submission, reviewer=user, feedback="Good job")
-    StreakFreeze.objects.create(user=user)
+
     Issue.objects.create(title="My Issue", assigned_to=user)
     Comment.objects.create(user=user, lesson=lesson, content="Great lesson")
     Message.objects.create(user=user, room_id="room1", content="Hello world")
@@ -88,8 +88,8 @@ class TestDataExport:
         assert "exercise_attempts" in data
         assert "code_submissions" in data
         assert "peer_reviews" in data
-        assert "streak_freezes" in data
         assert "assigned_issues" in data
+        assert "webhooks" in data
         assert "comments" in data
         assert "messages" in data
 

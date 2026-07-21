@@ -1,42 +1,37 @@
-"""
-JWT Token Authentication middleware for Django Channels.
-Reads the token from the query string:  ws://host/ws/notifications/?token=<JWT>
-"""
-
-from urllib.parse import parse_qs
-
+from channels.middleware import BaseMiddleware
 from channels.db import database_sync_to_async
 from django.contrib.auth.models import AnonymousUser
+from django.contrib.auth import get_user_model
+import jwt
+from django.conf import settings
 
+User = get_user_model()
 
-@database_sync_to_async
-def get_user_from_token(token_key):
-    try:
-        from django.contrib.auth import get_user_model
-        from rest_framework_simplejwt.tokens import AccessToken
-
-        User = get_user_model()
-        token = AccessToken(token_key)
-        return User.objects.get(id=token["user_id"])
-    except Exception:
-        return AnonymousUser()
-
-
-class JWTAuthMiddleware:
-    """ASGI middleware: attaches an authenticated user to the scope."""
-
-    def __init__(self, inner):
-        self.inner = inner
-
+class WebSocketAuthMiddleware(BaseMiddleware):
     async def __call__(self, scope, receive, send):
-        # BUGFIX: Create a shallow copy of scope to prevent ASGI cross-request pollution
-        scope = dict(scope)
-
-        if scope["type"] in ("websocket", "http"):
-            qs = parse_qs(scope.get("query_string", b"").decode())
-            token = qs.get("token", [None])[0]
-            scope["user"] = (
-                await get_user_from_token(token) if token else AnonymousUser()
-            )
-
-        return await self.inner(scope, receive, send)
+        # Extract token from subprotocol
+        subprotocols = scope.get('subprotocols', [])
+        token = None
+        
+        # Check subprotocol (new method)
+        if len(subprotocols) >= 2 and subprotocols[0] == 'token':
+            token = subprotocols[1]
+        
+        # Fallback: Check query string (old method - for migration)
+        if not token:
+            query_string = scope.get('query_string', b'').decode()
+            params = dict(q.split('=') for q in query_string.split('&') if '=' in q)
+            token = params.get('token')
+        
+        # Validate token
+        if token:
+            try:
+                payload = jwt.decode(token, settings.SECRET_KEY, algorithms=['HS256'])
+                user = await database_sync_to_async(User.objects.get)(id=payload['user_id'])
+                scope['user'] = user
+            except:
+                scope['user'] = AnonymousUser()
+        else:
+            scope['user'] = AnonymousUser()
+        
+        return await super().__call__(scope, receive, send)

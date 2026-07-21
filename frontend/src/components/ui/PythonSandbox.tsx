@@ -3,7 +3,14 @@ import Editor from "react-simple-code-editor";
 import Prism from "prismjs";
 import "prismjs/components/prism-python";
 import "prismjs/themes/prism-tomorrow.css"; // Dark theme
-import { Play, RotateCcw, CheckCircle2, XCircle, Users, Activity } from "lucide-react";
+import {
+  Play,
+  RotateCcw,
+  CheckCircle2,
+  XCircle,
+  Users,
+  Activity,
+} from "lucide-react";
 import { usePythonSandbox } from "../../hooks/usePythonSandbox";
 import { PythonExercise } from "../../lib/lessons";
 import { useTimelineEngine } from "../../hooks/useTimelineEngine";
@@ -153,22 +160,34 @@ export function PythonSandbox({ exercise, onSuccess }: PythonSandboxProps) {
       )}
 
       {/* Main Content Area: Editor + Timeline Viewer side-by-side if active */}
-      <div className={`grid ${timelineEngine.traceEvents.length > 0 ? 'grid-cols-1 md:grid-cols-2' : 'grid-cols-1'} gap-0`}>
+      <div
+        className={`grid ${timelineEngine.traceEvents.length > 0 ? "grid-cols-1 md:grid-cols-2" : "grid-cols-1"} gap-0`}
+      >
         {/* Editor */}
-        <div className={`p-4 font-mono text-sm bg-white dark:bg-[#151411] min-h-[300px] ${timelineEngine.traceEvents.length > 0 ? 'border-b md:border-b-0 md:border-r border-black dark:border-[#2e2924]' : ''}`}>
+        <div
+          className={`p-4 font-mono text-sm bg-white dark:bg-[#151411] min-h-[300px] ${timelineEngine.traceEvents.length > 0 ? "border-b md:border-b-0 md:border-r border-black dark:border-[#2e2924]" : ""}`}
+        >
           <Editor
             value={code}
             onValueChange={(code) => setCode(code)}
             highlight={(code) => {
-              const highlighted = Prism.highlight(code, Prism.languages.python, "python");
+              const highlighted = Prism.highlight(
+                code,
+                Prism.languages.python,
+                "python",
+              );
               // Extremely simple line highlighting hack for trace visualization
-              if (timelineEngine.traceEvents.length > 0 && timelineEngine.currentEvent) {
+              if (
+                timelineEngine.traceEvents.length > 0 &&
+                timelineEngine.currentEvent
+              ) {
                 const activeLine = timelineEngine.currentEvent.line;
-                const lines = highlighted.split('\n');
+                const lines = highlighted.split("\n");
                 if (activeLine > 0 && activeLine <= lines.length) {
-                  lines[activeLine - 1] = `<span class="bg-purple-500/30 block w-full">${lines[activeLine - 1]}</span>`;
+                  lines[activeLine - 1] =
+                    `<span class="bg-purple-500/30 block w-full">${lines[activeLine - 1]}</span>`;
                 }
-                return lines.join('\n');
+                return lines.join("\n");
               }
               return highlighted;
             }}
@@ -233,7 +252,8 @@ export function PythonSandbox({ exercise, onSuccess }: PythonSandboxProps) {
           {isSuccess && (
             <div className="mt-4 pt-4 border-t border-green-900/50">
               <div className="flex items-center gap-2 text-green-400 font-bold">
-                <CheckCircle2 className="w-5 h-5" /> All tests passed! You earned points.
+                <CheckCircle2 className="w-5 h-5" /> All tests passed! You
+                earned points.
               </div>
             </div>
           )}

@@ -1,5 +1,6 @@
 from rest_framework.permissions import BasePermission
-from .models import Lesson, UserProgress
+from .models import Lesson
+from apps.progress.models import LessonProgress
 
 class IsLessonUnlocked(BasePermission):
     """
@@ -23,7 +24,7 @@ class IsLessonUnlocked(BasePermission):
             return True
             
         # Get user's completed lessons
-        completed_lessons = UserProgress.objects.filter(
+        completed_lessons = LessonProgress.objects.filter(
             user=user,
             lesson__in=lesson.prerequisites.all(),
             completed=True
