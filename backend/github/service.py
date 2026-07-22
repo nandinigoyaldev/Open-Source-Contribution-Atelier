@@ -40,6 +40,7 @@ class GithubService:
 
         headers = self._get_headers()
         headers.update(kwargs.pop("headers", {}))
+        kwargs.setdefault("timeout", 10)
 
         try:
             response = requests.request(method, url, headers=headers, **kwargs)

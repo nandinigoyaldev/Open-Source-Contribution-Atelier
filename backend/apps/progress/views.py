@@ -1,26 +1,30 @@
 import uuid  # NEW: Added for cryptographic nonce generation
-from datetime import datetime, timezone as dt_timezone
+from datetime import datetime
+from datetime import timezone as dt_timezone
 
 from django.contrib.auth.models import User
+from django.core.cache import cache
 from django.db import transaction
-from django.utils import timezone
 from django.db.models import Count, Min, Sum
-from apps.progress.constants import XP_PER_LEVEL
-from apps.progress.models import XPEvent
+from django.db.models.functions import TruncDate
+from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
+from django.utils import timezone
 from drf_spectacular.utils import OpenApiResponse, extend_schema, extend_schema_view
 from rest_framework import permissions, status
 from rest_framework.generics import ListAPIView
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import BasePermission
 from rest_framework.response import Response
-from apps.core.throttling import SlidingWindowAnonThrottle, SlidingWindowScopedThrottle
 from rest_framework.views import APIView
-from django.http import HttpResponse
-from django.core.cache import cache
-from apps.content.serializers import LessonSerializer
-from apps.content.models import Lesson
 
+from apps.content.models import Lesson
+from apps.content.serializers import LessonSerializer
+from apps.core.throttling import SlidingWindowAnonThrottle, SlidingWindowScopedThrottle
+from apps.progress.constants import XP_PER_LEVEL
+from apps.progress.models import XPEvent
+
+from .models import UserNote  # ✅ ADD: UserNote model
 from .models import (
     Badge,
     Certificate,
@@ -31,50 +35,51 @@ from .models import (
     LessonProgress,
     QuizAttempt,
     UserBadge,
-    UserNote,  # ✅ ADD: UserNote model
 )
 from .serializers import (
     BadgeSerializer,
     BulkSyncSerializer,
     CertificateVerificationSerializer,
+    DailyProgressSerializer,
     HelpRequestSerializer,
     LessonProgressCreateSerializer,
     LessonProgressSerializer,
     QuizAttemptSerializer,
-    DailyProgressSerializer,
 )
 from .throttles import HelpRequestRateThrottle
-
 
 # ============================================================
 # ✅ ADD: Notes Export View
 # ============================================================
 
+
 class ExportNotesView(APIView):
     """
     GET /api/progress/notes/export/
-    
+
     Export all user notes as a single structured Markdown file.
     Supports optional format parameter: ?format=md (default) or ?format=json
     """
+
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
         user = request.user
-        format_type = request.query_params.get('format', 'md').lower()
+        format_type = request.query_params.get("format", "md").lower()
 
         # Fetch all notes for the user
-        notes = UserNote.objects.filter(
-            user=user
-        ).select_related('lesson', 'lesson__module').order_by('lesson__module__order', 'lesson__order')
+        notes = (
+            UserNote.objects.filter(user=user)
+            .select_related("lesson", "lesson__module")
+            .order_by("lesson__module__order", "lesson__order")
+        )
 
         if not notes.exists():
             return Response(
-                {'error': 'No notes found to export'},
-                status=status.HTTP_404_NOT_FOUND
+                {"error": "No notes found to export"}, status=status.HTTP_404_NOT_FOUND
             )
 
-        if format_type == 'json':
+        if format_type == "json":
             return self._export_json(notes, user)
         else:
             return self._export_markdown(notes, user)
@@ -86,25 +91,26 @@ class ExportNotesView(APIView):
         # Group notes by module
         modules = {}
         for note in notes:
-            module_name = note.lesson.module.title if note.lesson.module else 'Uncategorized'
+            module_name = (
+                note.lesson.module.title if note.lesson.module else "Uncategorized"
+            )
             if module_name not in modules:
-                modules[module_name] = {
-                    'module': note.lesson.module,
-                    'lessons': {}
-                }
-            
+                modules[module_name] = {"module": note.lesson.module, "lessons": {}}
+
             lesson_title = note.lesson.title
-            if lesson_title not in modules[module_name]['lessons']:
-                modules[module_name]['lessons'][lesson_title] = []
-            
-            modules[module_name]['lessons'][lesson_title].append(note)
+            if lesson_title not in modules[module_name]["lessons"]:
+                modules[module_name]["lessons"][lesson_title] = []
+
+            modules[module_name]["lessons"][lesson_title].append(note)
 
         # Build Markdown content
         markdown_lines = []
-        
+
         # Header
         markdown_lines.append(f"# 📝 Notes Export - {user.username}")
-        markdown_lines.append(f"**Exported on:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+        markdown_lines.append(
+            f"**Exported on:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+        )
         markdown_lines.append(f"**Total Notes:** {notes.count()}")
         markdown_lines.append("")
         markdown_lines.append("---")
@@ -113,7 +119,9 @@ class ExportNotesView(APIView):
         # Table of Contents
         markdown_lines.append("## 📑 Table of Contents")
         for module_name in modules.keys():
-            markdown_lines.append(f"- [{module_name}](#{module_name.lower().replace(' ', '-')})")
+            markdown_lines.append(
+                f"- [{module_name}](#{module_name.lower().replace(' ', '-')})"
+            )
         markdown_lines.append("")
         markdown_lines.append("---")
         markdown_lines.append("")
@@ -122,30 +130,34 @@ class ExportNotesView(APIView):
         for module_name, module_data in modules.items():
             markdown_lines.append(f"## {module_name}")
             markdown_lines.append("")
-            
-            for lesson_title, lesson_notes in module_data['lessons'].items():
+
+            for lesson_title, lesson_notes in module_data["lessons"].items():
                 markdown_lines.append(f"### 📖 {lesson_title}")
                 markdown_lines.append("")
-                
+
                 for note in lesson_notes:
                     # Note metadata
                     markdown_lines.append(f"**Note ID:** {note.id}")
-                    markdown_lines.append(f"**Created:** {note.created_at.strftime('%Y-%m-%d %H:%M')}")
+                    markdown_lines.append(
+                        f"**Created:** {note.created_at.strftime('%Y-%m-%d %H:%M')}"
+                    )
                     if note.updated_at and note.updated_at != note.created_at:
-                        markdown_lines.append(f"**Updated:** {note.updated_at.strftime('%Y-%m-%d %H:%M')}")
-                    
+                        markdown_lines.append(
+                            f"**Updated:** {note.updated_at.strftime('%Y-%m-%d %H:%M')}"
+                        )
+
                     # Note content with tags
-                    if hasattr(note, 'tags') and note.tags:
+                    if hasattr(note, "tags") and note.tags:
                         markdown_lines.append(f"**Tags:** {', '.join(note.tags)}")
-                    
+
                     markdown_lines.append("")
-                    
+
                     # Note content
                     markdown_lines.append("```")
                     markdown_lines.append(note.content)
                     markdown_lines.append("```")
                     markdown_lines.append("")
-                    
+
                     # Separator between notes in same lesson
                     if len(lesson_notes) > 1:
                         markdown_lines.append("---")
@@ -153,17 +165,21 @@ class ExportNotesView(APIView):
 
         # Footer
         markdown_lines.append("---")
-        markdown_lines.append(f"*Exported from Open Source Contribution Atelier on {datetime.now().strftime('%Y-%m-%d')}*")
+        markdown_lines.append(
+            f"*Exported from Open Source Contribution Atelier on {datetime.now().strftime('%Y-%m-%d')}*"
+        )
         markdown_lines.append("")
         markdown_lines.append("_Happy Learning! 🚀_")
 
         # Create response
         markdown_content = "\n".join(markdown_lines)
         filename = f"notes_export_{user.username}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md"
-        
-        response = HttpResponse(markdown_content, content_type='text/markdown; charset=utf-8')
-        response['Content-Disposition'] = f'attachment; filename="{filename}"'
-        
+
+        response = HttpResponse(
+            markdown_content, content_type="text/markdown; charset=utf-8"
+        )
+        response["Content-Disposition"] = f'attachment; filename="{filename}"'
+
         return response
 
     def _export_json(self, notes, user):
@@ -171,36 +187,45 @@ class ExportNotesView(APIView):
         Export notes as JSON.
         """
         data = {
-            'username': user.username,
-            'email': user.email,
-            'exported_at': datetime.now().isoformat(),
-            'total_notes': notes.count(),
-            'notes': []
+            "username": user.username,
+            "email": user.email,
+            "exported_at": datetime.now().isoformat(),
+            "total_notes": notes.count(),
+            "notes": [],
         }
-        
+
         for note in notes:
-            data['notes'].append({
-                'id': note.id,
-                'lesson_title': note.lesson.title,
-                'module_title': note.lesson.module.title if note.lesson.module else None,
-                'content': note.content,
-                'tags': note.tags if hasattr(note, 'tags') else [],
-                'created_at': note.created_at.isoformat(),
-                'updated_at': note.updated_at.isoformat() if note.updated_at else None,
-            })
-        
+            data["notes"].append(
+                {
+                    "id": note.id,
+                    "lesson_title": note.lesson.title,
+                    "module_title": (
+                        note.lesson.module.title if note.lesson.module else None
+                    ),
+                    "content": note.content,
+                    "tags": note.tags if hasattr(note, "tags") else [],
+                    "created_at": note.created_at.isoformat(),
+                    "updated_at": (
+                        note.updated_at.isoformat() if note.updated_at else None
+                    ),
+                }
+            )
+
         filename = f"notes_export_{user.username}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
         json_content = json.dumps(data, indent=2, ensure_ascii=False)
-        
-        response = HttpResponse(json_content, content_type='application/json; charset=utf-8')
-        response['Content-Disposition'] = f'attachment; filename="{filename}"'
-        
+
+        response = HttpResponse(
+            json_content, content_type="application/json; charset=utf-8"
+        )
+        response["Content-Disposition"] = f'attachment; filename="{filename}"'
+
         return response
 
 
 # ============================================================
 # Rest of the views (existing code continues below)
 # ============================================================
+
 
 @extend_schema(responses=BadgeSerializer(many=True))
 class BadgeListView(ListAPIView):
@@ -229,11 +254,11 @@ class MyProgressView(APIView):
         return Response(serializer.data)
 
     def post(self, request):
+        from apps.content.models import Lesson
+        from apps.progress.services.progress_buffer import ProgressBufferService
         from apps.progress.services.progress_tracking_service import (
             ProgressTrackingService,
         )
-        from apps.progress.services.progress_buffer import ProgressBufferService
-        from apps.content.models import Lesson
 
         lesson_slug = request.data.get("lesson_slug")
         idempotency_key = request.data.get("idempotency_key")
@@ -352,9 +377,9 @@ class BulkProgressUpdateView(APIView):
         validated_data = serializer.validated_data["lessons"]
 
         from apps.progress.services.progress_batch_service import (
-            process_bulk_progress_updates,
             DuplicateEntryException,
             InvalidLessonException,
+            process_bulk_progress_updates,
         )
 
         try:
@@ -816,27 +841,28 @@ class CertificateVerificationThrottle(SlidingWindowAnonThrottle):
 
 class CertificateVerifyView(APIView):
     """Public API to verify certificate by hash."""
-    
+
     permission_classes = []  # Public endpoint
-    
+
     def get(self, request, hash):
         try:
             certificate = Certificate.objects.get(
-                verification_hash=hash,
-                is_active=True
+                verification_hash=hash, is_active=True
             )
-            return Response({
-                'valid': True,
-                'issued_to': certificate.user.username,
-                'issued_at': certificate.created_at,
-                'course': certificate.lesson.title,
-                'certificate_id': certificate.id
-            })
+            return Response(
+                {
+                    "valid": True,
+                    "issued_to": certificate.user.username,
+                    "issued_at": certificate.created_at,
+                    "course": certificate.lesson.title,
+                    "certificate_id": certificate.id,
+                }
+            )
         except Certificate.DoesNotExist:
-            return Response({
-                'valid': False,
-                'message': 'Certificate not found or invalid'
-            }, status=status.HTTP_404_NOT_FOUND)
+            return Response(
+                {"valid": False, "message": "Certificate not found or invalid"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
 
 
 @extend_schema(responses=CertificateVerificationSerializer)
@@ -962,9 +988,6 @@ class RecommendationsView(APIView):
 
 from .models import CodeSubmission, ExerciseAttempt, PeerReview
 from .serializers import CodeSubmissionSerializer, PeerReviewSerializer
-
-
-
 
 
 class CodeSubmissionView(APIView):
@@ -1145,6 +1168,7 @@ class ReadingProgressView(APIView):
 
         # Record reading minutes for streak recovery if active
         from apps.progress.services.streak_recovery_service import StreakRecoveryService
+
         StreakRecoveryService.record_reading_minute(request.user)
 
         return Response({"status": "success", "progress": progress})
@@ -1248,11 +1272,18 @@ class HeatmapView(APIView):
     permission_classes = [permissions.AllowAny]
 
     def get(self, request):
-        from django.contrib.auth.models import User
-        from django.shortcuts import get_object_or_404
-        from apps.progress.models import DailyActivity, LessonProgress, QuizAttempt, ExerciseAttempt
         import datetime
         from collections import defaultdict
+
+        from django.contrib.auth.models import User
+        from django.shortcuts import get_object_or_404
+
+        from apps.progress.models import (
+            DailyActivity,
+            ExerciseAttempt,
+            LessonProgress,
+            QuizAttempt,
+        )
 
         username = request.query_params.get("username")
         if username:
@@ -1285,30 +1316,64 @@ class HeatmapView(APIView):
             end_date = datetime.date.today()
 
         activity_type_filter = request.query_params.get("activity_type")
+        limit_param = request.query_params.get("limit")
 
-        activity_breakdown = defaultdict(lambda: {"reading": 0, "quizzes": 0, "code_submissions": 0})
+        limit = None
+        if limit_param:
+            try:
+                limit = int(limit_param)
+            except (TypeError, ValueError):
+                pass
+
+        activity_breakdown = defaultdict(
+            lambda: {"reading": 0, "quizzes": 0, "code_submissions": 0}
+        )
 
         # Fetch records
-        lessons = LessonProgress.objects.filter(
-            user=user, completed=True, updated_at__date__gte=start_date, updated_at__date__lte=end_date
+        daily_lessons = (
+            LessonProgress.objects.filter(
+                user=user,
+                completed=True,
+                updated_at__date__gte=start_date,
+                updated_at__date__lte=end_date,
+            )
+            .annotate(day=TruncDate("updated_at"))
+            .values("day")
+            .annotate(count=Count("id"))
         )
-        for lp in lessons:
-            d = lp.updated_at.date().isoformat()
-            activity_breakdown[d]["reading"] += 1
+        for row in daily_lessons:
+            if row["day"]:
+                activity_breakdown[row["day"].isoformat()]["reading"] = row["count"]
 
-        quizzes = QuizAttempt.objects.filter(
-            user=user, created_at__date__gte=start_date, created_at__date__lte=end_date
+        daily_quizzes = (
+            QuizAttempt.objects.filter(
+                user=user,
+                created_at__date__gte=start_date,
+                created_at__date__lte=end_date,
+            )
+            .annotate(day=TruncDate("created_at"))
+            .values("day")
+            .annotate(count=Count("id"))
         )
-        for qa in quizzes:
-            d = qa.created_at.date().isoformat()
-            activity_breakdown[d]["quizzes"] += 1
+        for row in daily_quizzes:
+            if row["day"]:
+                activity_breakdown[row["day"].isoformat()]["quizzes"] = row["count"]
 
-        exercises = ExerciseAttempt.objects.filter(
-            user=user, created_at__date__gte=start_date, created_at__date__lte=end_date
+        daily_exercises = (
+            ExerciseAttempt.objects.filter(
+                user=user,
+                created_at__date__gte=start_date,
+                created_at__date__lte=end_date,
+            )
+            .annotate(day=TruncDate("created_at"))
+            .values("day")
+            .annotate(count=Count("id"))
         )
-        for ea in exercises:
-            d = ea.created_at.date().isoformat()
-            activity_breakdown[d]["code_submissions"] += 1
+        for row in daily_exercises:
+            if row["day"]:
+                activity_breakdown[row["day"].isoformat()]["code_submissions"] = row[
+                    "count"
+                ]
 
         daily_dates = set(
             DailyActivity.objects.filter(
@@ -1316,7 +1381,9 @@ class HeatmapView(APIView):
             ).values_list("date", flat=True)
         )
 
-        all_dates = set(activity_breakdown.keys()) | {d.isoformat() for d in daily_dates}
+        all_dates = set(activity_breakdown.keys()) | {
+            d.isoformat() for d in daily_dates
+        }
 
         data = []
         for date_str in sorted(all_dates):
@@ -1342,15 +1409,20 @@ class HeatmapView(APIView):
                     count = 0
 
             if count > 0:
-                data.append({
-                    "date": date_str,
-                    "count": count,
-                    "breakdown": {
-                        "reading": reading_cnt,
-                        "quizzes": quizzes_cnt,
-                        "code_submissions": code_sub_cnt
+                data.append(
+                    {
+                        "date": date_str,
+                        "count": count,
+                        "breakdown": {
+                            "reading": reading_cnt,
+                            "quizzes": quizzes_cnt,
+                            "code_submissions": code_sub_cnt,
+                        },
                     }
-                })
+                )
+
+        if limit:
+            data = data[-limit:]
 
         return Response(data, status=status.HTTP_200_OK)
 
@@ -1367,7 +1439,9 @@ class StreakStatusView(APIView):
             "current_streak": data["current_streak"],
             "highest_streak": data["longest_streak"],
             "multiplier": data["current_multiplier"],
-            "next_milestone": data["next_milestone"]["days"] if data["next_milestone"] else None
+            "next_milestone": (
+                data["next_milestone"]["days"] if data["next_milestone"] else None
+            ),
         }
         return Response(formatted_data, status=status.HTTP_200_OK)
 
@@ -1382,31 +1456,41 @@ class StreakRecoveryView(APIView):
         if not plan:
             return Response({"has_recovery_plan": False}, status=status.HTTP_200_OK)
 
-        return Response({
-            "has_recovery_plan": True,
-            "recovery_plan": {
-                "target_date": plan.target_date.isoformat(),
-                "previous_streak": plan.previous_streak,
-                "quiz_target": plan.quiz_target,
-                "quiz_progress": plan.quiz_progress,
-                "reading_target": plan.reading_target,
-                "reading_progress": plan.reading_progress,
-                "code_target": plan.code_target,
-                "code_progress": plan.code_progress,
-                "is_completed": plan.is_completed,
-            }
-        }, status=status.HTTP_200_OK)
+        return Response(
+            {
+                "has_recovery_plan": True,
+                "recovery_plan": {
+                    "target_date": plan.target_date.isoformat(),
+                    "previous_streak": plan.previous_streak,
+                    "quiz_target": plan.quiz_target,
+                    "quiz_progress": plan.quiz_progress,
+                    "reading_target": plan.reading_target,
+                    "reading_progress": plan.reading_progress,
+                    "code_target": plan.code_target,
+                    "code_progress": plan.code_progress,
+                    "is_completed": plan.is_completed,
+                },
+            },
+            status=status.HTTP_200_OK,
+        )
 
 
 class HeatmapCSVExportView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        from apps.progress.models import DailyActivity, LessonProgress, QuizAttempt, ExerciseAttempt
+        import csv
         import datetime
         from collections import defaultdict
-        import csv
+
         from django.http import HttpResponse
+
+        from apps.progress.models import (
+            DailyActivity,
+            ExerciseAttempt,
+            LessonProgress,
+            QuizAttempt,
+        )
 
         user = request.user
 
@@ -1430,10 +1514,15 @@ class HeatmapCSVExportView(APIView):
         else:
             end_date = datetime.date.today()
 
-        activity_breakdown = defaultdict(lambda: {"reading": 0, "quizzes": 0, "code_submissions": 0})
+        activity_breakdown = defaultdict(
+            lambda: {"reading": 0, "quizzes": 0, "code_submissions": 0}
+        )
 
         lessons = LessonProgress.objects.filter(
-            user=user, completed=True, updated_at__date__gte=start_date, updated_at__date__lte=end_date
+            user=user,
+            completed=True,
+            updated_at__date__gte=start_date,
+            updated_at__date__lte=end_date,
         )
         for lp in lessons:
             d = lp.updated_at.date().isoformat()
@@ -1459,14 +1548,25 @@ class HeatmapCSVExportView(APIView):
             ).values_list("date", flat=True)
         )
 
-        all_dates = set(activity_breakdown.keys()) | {d.isoformat() for d in daily_dates}
+        all_dates = set(activity_breakdown.keys()) | {
+            d.isoformat() for d in daily_dates
+        }
 
         response = HttpResponse(content_type="text/csv")
         filename = f"activity_export_{start_date}_to_{end_date}.csv"
         response["Content-Disposition"] = f'attachment; filename="{filename}"'
 
         writer = csv.writer(response)
-        writer.writerow(["Date", "Activity Type", "Reading Count", "Quizzes Count", "Code Submissions Count", "Total Count"])
+        writer.writerow(
+            [
+                "Date",
+                "Activity Type",
+                "Reading Count",
+                "Quizzes Count",
+                "Code Submissions Count",
+                "Total Count",
+            ]
+        )
 
         for date_str in sorted(all_dates):
             date_obj = datetime.date.fromisoformat(date_str)
@@ -1495,15 +1595,15 @@ class HeatmapCSVExportView(APIView):
                 activity_type_label = "All Activities"
 
             if count > 0:
-                writer.writerow([
-                    date_str,
-                    activity_type_label,
-                    reading_cnt,
-                    quizzes_cnt,
-                    code_sub_cnt,
-                    count
-                ])
+                writer.writerow(
+                    [
+                        date_str,
+                        activity_type_label,
+                        reading_cnt,
+                        quizzes_cnt,
+                        code_sub_cnt,
+                        count,
+                    ]
+                )
 
         return response
-
-

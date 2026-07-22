@@ -744,13 +744,6 @@ export function AppRouter() {
           <Route path="/u/:username" element={<UserProfilePage />} />
         </Route>
 
-        {/* Existing standalone routes preserved */}
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/signup" element={<SignupPage />} />
-        <Route path="/verify" element={<VerifyCertificatePage />} />
-        <Route path="/verify/:hash" element={<VerifyCertificatePage />} />
-        <Route path="/500" element={<ServerErrorPage />} />
-        <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </Suspense>
   );
