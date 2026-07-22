@@ -29,14 +29,16 @@ class DomainDetector:
         for domain in self.domains:
             score = self._calculate_domain_score(text, domain)
             if score > 0.1:
-                detected.append({
-                    'domain_id': domain.id,
-                    'domain_name': domain.name,
-                    'score': score,
-                })
+                detected.append(
+                    {
+                        "domain_id": domain.id,
+                        "domain_name": domain.name,
+                        "score": score,
+                    }
+                )
 
         # Sort by score
-        detected.sort(key=lambda x: x['score'], reverse=True)
+        detected.sort(key=lambda x: x["score"], reverse=True)
         return detected
 
     def _calculate_domain_score(self, text: str, domain: ExpertiseDomain) -> float:

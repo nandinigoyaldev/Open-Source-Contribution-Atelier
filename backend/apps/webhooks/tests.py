@@ -191,10 +191,11 @@ class TestWebhookSecretSecurity:
     def test_secret_encryption_at_rest(self, endpoint):
         # Retrieve raw database value to ensure encryption-at-rest
         from django.db import connection
+
         with connection.cursor() as cursor:
             cursor.execute(
                 "SELECT encrypted_secret FROM webhooks_webhookendpoint WHERE id = %s",
-                [endpoint.id]
+                [endpoint.id],
             )
             row = cursor.fetchone()
             encrypted_val = row[0]
@@ -219,7 +220,7 @@ class TestWebhookSecretSecurity:
         res = api_client.patch(
             f"/api/webhooks/endpoints/{endpoint.id}/",
             {"is_active": False},
-            format="json"
+            format="json",
         )
         assert res.status_code == 200
         assert "secret" not in res.data
@@ -239,6 +240,7 @@ class TestWebhookSecretSecurity:
         endpoint.refresh_from_db()
         assert endpoint.secret == new_secret
         from apps.webhooks.security import decrypt_secret
+
         assert decrypt_secret(endpoint.encrypted_old_secret) == old_secret
         assert endpoint.old_secret_expires_at is not None
 
@@ -294,7 +296,8 @@ class TestWebhookSecretSecurity:
         assert res.status_code == 201
 
         created_calls = [
-            c for c in mock_audit_log.mock_calls
+            c
+            for c in mock_audit_log.mock_calls
             if c[2].get("action") == "secret_created"
         ]
         assert len(created_calls) > 0
@@ -305,10 +308,10 @@ class TestWebhookSecretSecurity:
         assert res.status_code == 200
 
         rotated_calls = [
-            c for c in mock_audit_log.mock_calls
+            c
+            for c in mock_audit_log.mock_calls
             if c[2].get("action") == "secret_rotated"
         ]
         assert len(rotated_calls) > 0
         assert rotated_calls[0][2].get("user_id") == str(user.id)
         assert rotated_calls[0][2].get("resource_id") == str(endpoint.id)
-

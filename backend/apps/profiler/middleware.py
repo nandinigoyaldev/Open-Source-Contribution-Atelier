@@ -22,8 +22,13 @@ class SlowEndpointProfiler(MiddlewareMixin):
 
     def __init__(self, get_response):
         super().__init__(get_response)
-        self.slow_threshold = getattr(settings, 'SLOW_ENDPOINT_THRESHOLD', 1.0)  # seconds
-        self.enabled = getattr(settings, 'ENABLE_PROFILER', True)
+        self.slow_threshold = getattr(
+            settings, "SLOW_ENDPOINT_THRESHOLD", 1.0
+        )  # seconds
+        self.slow_query_threshold = getattr(
+            settings, "SLOW_QUERY_THRESHOLD", 0.1
+        )  # seconds
+        self.enabled = getattr(settings, "ENABLE_PROFILER", True)
 
     def process_request(self, request):
         """Start profiling for the request."""
@@ -32,9 +37,9 @@ class SlowEndpointProfiler(MiddlewareMixin):
 
         # Store request info
         request._profile_data = {
-            'method': request.method,
-            'path': request.path,
-            'start_time': time.time(),
+            "method": request.method,
+            "path": request.path,
+            "start_time": time.time(),
         }
 
         # Enable query logging
@@ -48,8 +53,10 @@ class SlowEndpointProfiler(MiddlewareMixin):
         if not self.enabled:
             return None
 
-        request._profile_data['view_name'] = f"{view_func.__module__}.{view_func.__name__}"
-        request._profile_data['view_start'] = time.time()
+        request._profile_data["view_name"] = (
+            f"{view_func.__module__}.{view_func.__name__}"
+        )
+        request._profile_data["view_start"] = time.time()
         return None
 
     def process_response(self, request, response):
@@ -57,7 +64,7 @@ class SlowEndpointProfiler(MiddlewareMixin):
         if not self.enabled:
             return response
 
-        start_time = request._profile_data.get('start_time', time.time())
+        start_time = request._profile_data.get("start_time", time.time())
         total_time = time.time() - start_time
 
         # Only log slow requests
@@ -78,20 +85,20 @@ class SlowEndpointProfiler(MiddlewareMixin):
         )
 
         # Add response header
-        response['X-Profile-Time'] = f"{total_time:.3f}s"
-        response['X-Profile-SQL-Time'] = f"{profile_data.get('sql_time', 0):.3f}s"
+        response["X-Profile-Time"] = f"{total_time:.3f}s"
+        response["X-Profile-SQL-Time"] = f"{profile_data.get('sql_time', 0):.3f}s"
 
         return response
 
     def _collect_profile_data(self, request, response, total_time):
         """Collect all profile data."""
         data = {
-            'timestamp': datetime.now().isoformat(),
-            'method': request.method,
-            'path': request.path,
-            'status_code': response.status_code,
-            'total_time': total_time,
-            'view_name': request._profile_data.get('view_name', 'unknown'),
+            "timestamp": datetime.now().isoformat(),
+            "method": request.method,
+            "path": request.path,
+            "status_code": response.status_code,
+            "total_time": total_time,
+            "view_name": request._profile_data.get("view_name", "unknown"),
         }
 
         # SQL queries
@@ -99,37 +106,45 @@ class SlowEndpointProfiler(MiddlewareMixin):
         sql_time = 0
         if settings.DEBUG:
             for query in connection.queries:
-                query_time = float(query.get('time', 0))
+                query_time = float(query.get("time", 0))
                 sql_time += query_time
-                queries.append({
-                    'sql': query.get('sql', ''),
-                    'time': query_time,
-                    'type': query.get('type', 'unknown'),
-                })
-                if query_time > 0.1:  # Slow query threshold
-                    logger.debug(f"Slow query: {query.get('sql', '')[:100]}... ({query_time:.3f}s)")
+                queries.append(
+                    {
+                        "sql": query.get("sql", ""),
+                        "time": query_time,
+                        "type": query.get("type", "unknown"),
+                    }
+                )
+                if query_time > self.slow_query_threshold:
+                    logger.debug(
+                        f"Slow query: {query.get('sql', '')[:100]}... ({query_time:.3f}s)"
+                    )
 
-        data['sql_time'] = sql_time
-        data['query_count'] = len(queries)
-        data['slow_queries'] = [q for q in queries if q['time'] > 0.1]
+        data["sql_time"] = sql_time
+        data["query_count"] = len(queries)
+        data["slow_queries"] = [
+            q for q in queries if q["time"] > self.slow_query_threshold
+        ]
 
         # Serializer/rendering time: everything between view start and now
         # that isn't accounted for by SQL. This backend is a DRF API (no
         # Django template rendering step), so this is reported as
         # 'serializer_time' rather than a separate (never-real) 'template_time'.
-        view_start = request._profile_data.get('view_start', request._profile_data.get('start_time'))
+        view_start = request._profile_data.get(
+            "view_start", request._profile_data.get("start_time")
+        )
         serializer_time = (time.time() - view_start) - sql_time
-        data['serializer_time'] = max(0, serializer_time)
+        data["serializer_time"] = max(0, serializer_time)
 
         # Response size
-        if hasattr(response, 'content'):
-            data['response_size'] = len(response.content)
+        if hasattr(response, "content"):
+            data["response_size"] = len(response.content)
 
         return data
 
     def _save_profile_data(self, data):
         """Save profile data to cache for reporting."""
-        cache_key = 'slow_endpoint_profiles'
+        cache_key = "slow_endpoint_profiles"
         profiles = cache.get(cache_key, [])
         profiles.append(data)
 
@@ -138,4 +153,3 @@ class SlowEndpointProfiler(MiddlewareMixin):
             profiles = profiles[-100:]
 
         cache.set(cache_key, profiles, timeout=3600)  # 1 hour
-

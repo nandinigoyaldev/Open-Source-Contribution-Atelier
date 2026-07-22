@@ -18,18 +18,18 @@ class SentimentAnalyzer:
 
     def __init__(self):
         self.negative_patterns = [
-            r'frustrat',
-            r'confus',
-            r'overwhelm',
-            r'stress',
-            r'burnout',
-            r'tired',
-            r'give up',
-            r'quitting',
-            r'unfair',
-            r'ignored',
-            r'repeat',
-            r'too hard',
+            r"frustrat",
+            r"confus",
+            r"overwhelm",
+            r"stress",
+            r"burnout",
+            r"tired",
+            r"give up",
+            r"quitting",
+            r"unfair",
+            r"ignored",
+            r"repeat",
+            r"too hard",
         ]
 
     def analyze_text(self, text: str) -> Dict[str, Any]:
@@ -37,29 +37,29 @@ class SentimentAnalyzer:
         Analyze sentiment of text.
         """
         blob = TextBlob(text)
-        
+
         # Get sentiment polarity (-1 to 1)
         polarity = blob.sentiment.polarity
-        
+
         # Detect negative patterns
         negative_patterns_detected = []
         for pattern in self.negative_patterns:
             if re.search(pattern, text.lower()):
                 negative_patterns_detected.append(pattern)
-        
+
         # Determine sentiment label
         if polarity > 0.3:
-            sentiment = 'positive'
+            sentiment = "positive"
         elif polarity < -0.1:
-            sentiment = 'negative'
+            sentiment = "negative"
         else:
-            sentiment = 'neutral'
-        
+            sentiment = "neutral"
+
         return {
-            'polarity': polarity,
-            'sentiment': sentiment,
-            'negative_patterns': negative_patterns_detected,
-            'is_negative': polarity < -0.1 or bool(negative_patterns_detected),
+            "polarity": polarity,
+            "sentiment": sentiment,
+            "negative_patterns": negative_patterns_detected,
+            "is_negative": polarity < -0.1 or bool(negative_patterns_detected),
         }
 
     def analyze_comments(self, comments: List[Dict]) -> Dict[str, Any]:
@@ -68,34 +68,36 @@ class SentimentAnalyzer:
         """
         sentiments = []
         negative_count = 0
-        
+
         for comment in comments:
-            body = comment.get('body', '')
+            body = comment.get("body", "")
             if body:
                 result = self.analyze_text(body)
                 sentiments.append(result)
-                if result['is_negative']:
+                if result["is_negative"]:
                     negative_count += 1
-        
+
         if not sentiments:
             return {
-                'average_sentiment': 0.0,
-                'negative_ratio': 0.0,
-                'is_negative_trend': False,
-                'sentiment_trend': 0.0,
+                "average_sentiment": 0.0,
+                "negative_ratio": 0.0,
+                "is_negative_trend": False,
+                "sentiment_trend": 0.0,
             }
-        
-        avg_polarity = sum(s['polarity'] for s in sentiments) / len(sentiments)
+
+        avg_polarity = sum(s["polarity"] for s in sentiments) / len(sentiments)
         negative_ratio = negative_count / len(sentiments)
-        
+
         # Detect trend (simplified)
         recent_sentiments = sentiments[-10:] if len(sentiments) > 10 else sentiments
-        recent_avg = sum(s['polarity'] for s in recent_sentiments) / len(recent_sentiments)
+        recent_avg = sum(s["polarity"] for s in recent_sentiments) / len(
+            recent_sentiments
+        )
         trend = recent_avg - avg_polarity
-        
+
         return {
-            'average_sentiment': avg_polarity,
-            'negative_ratio': negative_ratio,
-            'is_negative_trend': trend < 0,
-            'sentiment_trend': trend,
+            "average_sentiment": avg_polarity,
+            "negative_ratio": negative_ratio,
+            "is_negative_trend": trend < 0,
+            "sentiment_trend": trend,
         }

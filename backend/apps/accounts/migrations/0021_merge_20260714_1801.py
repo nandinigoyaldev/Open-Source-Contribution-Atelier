@@ -6,9 +6,8 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('accounts', '0015_case_insensitive_username_unique'),
-        ('accounts', '0020_alter_userprofile_jwt_token_version_and_more'),
+        ("accounts", "0015_case_insensitive_username_unique"),
+        ("accounts", "0020_alter_userprofile_jwt_token_version_and_more"),
     ]
 
-    operations = [
-    ]
+    operations = []

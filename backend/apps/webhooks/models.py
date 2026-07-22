@@ -50,6 +50,7 @@ class WebhookEndpoint(models.Model):
         # 1. Return decrypted active secret if present
         if self.encrypted_secret:
             from apps.cache.audit_logger import AuditLogger
+
             AuditLogger.log(
                 user_id=str(self.user.id) if self.user else "system",
                 action="secret_accessed",
@@ -60,11 +61,13 @@ class WebhookEndpoint(models.Model):
                 status_code=200,
             )
             from .security import decrypt_secret
+
             return decrypt_secret(self.encrypted_secret)
 
         # 2. Fall back to legacy plaintext secret_plain if present in database (for transition/migration)
         if hasattr(self, "secret_plain") and self.secret_plain:
             from apps.cache.audit_logger import AuditLogger
+
             AuditLogger.log(
                 user_id=str(self.user.id) if self.user else "system",
                 action="secret_accessed",
@@ -82,6 +85,7 @@ class WebhookEndpoint(models.Model):
     def secret(self, value):
         if value:
             from .security import encrypt_secret
+
             self.encrypted_secret = encrypt_secret(value)
             self._raw_secret = value
             if hasattr(self, "secret_plain"):
@@ -101,6 +105,7 @@ class WebhookEndpoint(models.Model):
         if self.encrypted_old_secret and self.old_secret_expires_at:
             if timezone.now() < self.old_secret_expires_at:
                 from .security import decrypt_secret
+
                 old_sec = decrypt_secret(self.encrypted_old_secret)
                 if old_sec:
                     valid_list.append(old_sec)
@@ -110,9 +115,12 @@ class WebhookEndpoint(models.Model):
     def save(self, *args, **kwargs):
         is_new = self.pk is None
         # If no active secret is set (neither encrypted nor plain)
-        if not self.encrypted_secret and (not hasattr(self, "secret_plain") or not self.secret_plain):
+        if not self.encrypted_secret and (
+            not hasattr(self, "secret_plain") or not self.secret_plain
+        ):
             raw_val = generate_secret()
             from .security import encrypt_secret
+
             self.encrypted_secret = encrypt_secret(raw_val)
             self._raw_secret = raw_val
             if hasattr(self, "secret_plain"):
@@ -120,6 +128,7 @@ class WebhookEndpoint(models.Model):
 
             # Log secret creation
             from apps.cache.audit_logger import AuditLogger
+
             AuditLogger.log(
                 user_id=str(self.user.id) if self.user else "system",
                 action="secret_created",
@@ -199,3 +208,26 @@ class DeadLetterWebhook(models.Model):
 
     def __str__(self):
         return f"DLQ entry for delivery {self.delivery_id}"
+
+
+class WebhookDeliveryLog(models.Model):
+    """
+    Persists immutable logs of individual webhook delivery attempts.
+    """
+
+    delivery = models.ForeignKey(
+        WebhookDelivery,
+        on_delete=models.CASCADE,
+        related_name="logs",
+        help_text="The delivery this attempt is associated with.",
+    )
+    status_code = models.IntegerField(
+        null=True, blank=True, help_text="HTTP status code returned, if any."
+    )
+    response_body = models.TextField(
+        blank=True, help_text="Response body or error details."
+    )
+    attempted_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"Log for Delivery {self.delivery_id} - Status {self.status_code}"

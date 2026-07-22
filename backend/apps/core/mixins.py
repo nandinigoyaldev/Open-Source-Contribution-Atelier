@@ -20,6 +20,7 @@ when the model supports it (strategy 1 only).
 The mixin also exposes ``get_tenant_id()`` for subclasses and an
 ``unscoped`` escape hatch for admin viewsets (use sparingly).
 """
+
 from django.core.exceptions import FieldDoesNotExist
 from rest_framework.exceptions import NotAuthenticated
 

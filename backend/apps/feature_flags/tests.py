@@ -5,6 +5,7 @@ from waffle.models import Flag, Switch
 
 from .context_processors import feature_flags
 
+
 class FeatureFlagContextProcessorTests(TestCase):
     def test_feature_flags_in_context_with_switches(self):
         Switch.objects.create(name="beta_search", active=True)
@@ -22,7 +23,7 @@ class FeatureFlagContextProcessorTests(TestCase):
         user = User.objects.create_user("testuser")
         flag = Flag.objects.create(name="new_ui", everyone=False)
         flag.users.add(user)
-        
+
         request = RequestFactory().get("/")
         request.user = user
         context = feature_flags(request)

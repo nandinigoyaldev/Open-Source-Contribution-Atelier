@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import WebhookDelivery, WebhookEndpoint
+from .models import WebhookDelivery, WebhookEndpoint, WebhookDeliveryLog
 
 
 class WebhookEndpointSerializer(serializers.ModelSerializer):
@@ -36,8 +36,16 @@ class WebhookEndpointSerializer(serializers.ModelSerializer):
         return instance
 
 
+class WebhookDeliveryLogSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = WebhookDeliveryLog
+        fields = ["id", "status_code", "response_body", "attempted_at"]
+        read_only_fields = ["id", "status_code", "response_body", "attempted_at"]
+
 
 class WebhookDeliverySerializer(serializers.ModelSerializer):
+    logs = WebhookDeliveryLogSerializer(many=True, read_only=True)
+
     class Meta:
         model = WebhookDelivery
         fields = [
@@ -48,6 +56,7 @@ class WebhookDeliverySerializer(serializers.ModelSerializer):
             "status_code",
             "response_body",
             "created_at",
+            "logs",
         ]
         read_only_fields = [
             "id",
@@ -57,4 +66,5 @@ class WebhookDeliverySerializer(serializers.ModelSerializer):
             "status_code",
             "response_body",
             "created_at",
+            "logs",
         ]

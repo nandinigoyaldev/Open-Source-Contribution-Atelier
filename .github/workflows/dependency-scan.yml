@@ -1,0 +1,227 @@
+name: Dependency Vulnerability Scanning & Auto-PR
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  scan:
+    name: Scan Dependencies (Python, JS, Docker)
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Set up Node
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+
+      - name: Install Grype Security Scanner
+        run: |
+          curl -sSfL https://raw.githubusercontent.com/anchore/grype/main/install.sh | sh -s -- -b /usr/local/bin
+
+      - name: Scan Python Dependencies
+        id: python-scan
+        run: |
+          grype dir:./backend --config .grype-ignore -o sarif --file python-results.sarif || true
+          grype dir:./backend --config .grype-ignore -o json --file python-results.json || true
+
+      - name: Scan JavaScript Dependencies
+        id: js-scan
+        run: |
+          grype dir:./frontend --config .grype-ignore -o sarif --file js-results.sarif || true
+          grype dir:./frontend --config .grype-ignore -o json --file js-results.json || true
+
+      - name: Scan Dockerfile Base Images
+        id: docker-scan
+        run: |
+          grype dockerfile:./backend/Dockerfile --config .grype-ignore -o sarif --file docker-results.sarif || true
+          grype dockerfile:./backend/Dockerfile --config .grype-ignore -o json --file docker-results.json || true
+
+      - name: Combine SARIF Reports
+        run: |
+          python3 -c "
+          import json, sys, glob
+
+          combined = {
+            '\$schema': 'https://raw.githubusercontent.com/oasis-tcs/sarif-spec/master/Schemata/sarif-schema-2.1.0.json',
+            'version': '2.1.0',
+            'runs': []
+          }
+
+          for fpath in ['python-results.sarif', 'js-results.sarif', 'docker-results.sarif']:
+              try:
+                  with open(fpath, 'r') as f:
+                      data = json.load(f)
+                      combined['runs'].extend(data.get('runs', []))
+              except Exception as e:
+                  print(f'Error reading {fpath}: {e}')
+
+          with open('results.sarif', 'w') as out:
+              json.dump(combined, out, indent=2)
+          "
+
+      - name: Upload SARIF to GitHub Code Scanning
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        continue-on-error: true
+        with:
+          sarif_file: results.sarif
+          category: grype-dependency-scan
+
+      - name: Generate Vulnerability Summary Report
+        id: generate-summary
+        run: |
+          python3 -c "
+          import json, os
+
+          def analyze_json(path, ecosystem):
+              if not os.path.exists(path):
+                  return 0, 0, 0, 0, []
+              try:
+                  with open(path) as f:
+                      data = json.load(f)
+              except Exception:
+                  return 0, 0, 0, 0, []
+              
+              crit, high, med, low = 0, 0, 0, 0
+              matches = data.get('matches', [])
+              items = []
+              for m in matches:
+                  sev = m.get('vulnerability', {}).get('severity', 'UNKNOWN').upper()
+                  pkg = m.get('artifact', {}).get('name', 'unknown')
+                  ver = m.get('artifact', {}).get('version', 'unknown')
+                  cve = m.get('vulnerability', {}).get('id', 'unknown')
+                  if sev == 'CRITICAL': crit += 1
+                  elif sev == 'HIGH': high += 1
+                  elif sev == 'MEDIUM': med += 1
+                  elif sev == 'LOW': low += 1
+                  items.append((sev, cve, pkg, ver, ecosystem))
+              return crit, high, med, low, items
+
+          p_crit, p_high, p_med, p_low, p_items = analyze_json('python-results.json', 'Python')
+          j_crit, j_high, j_med, j_low, j_items = analyze_json('js-results.json', 'JavaScript')
+          d_crit, d_high, d_med, d_low, d_items = analyze_json('docker-results.json', 'Docker')
+
+          tot_crit = p_crit + j_crit + d_crit
+          tot_high = p_high + j_high + d_high
+          tot_med = p_med + j_med + d_med
+          tot_low = p_low + j_low + d_low
+
+          summary = f'''
+          ## 🛡️ Dependency Vulnerability Scan Results
+
+          | Ecosystem | Critical | High | Medium | Low |
+          | --- | --- | --- | --- | --- |
+          | **Python** | {p_crit} | {p_high} | {p_med} | {p_low} |
+          | **JavaScript** | {j_crit} | {j_high} | {j_med} | {j_low} |
+          | **Docker** | {d_crit} | {d_high} | {d_med} | {d_low} |
+          | **Total** | **{tot_crit}** | **{tot_high}** | **{tot_med}** | **{tot_low}** |
+
+          '''
+          
+          all_items = p_items + j_items + d_items
+          if all_items:
+              summary += '\n### ⚠️ Detected Vulnerabilities\n| Severity | CVE | Package | Version | Ecosystem |\n| --- | --- | --- | --- | --- |\n'
+              for sev, cve, pkg, ver, eco in all_items[:20]:
+                  summary += f'| {sev} | {cve} | {pkg} | {ver} | {eco} |\n'
+
+          summary_path = os.environ.get('GITHUB_STEP_SUMMARY')
+          if summary_path:
+              with open(summary_path, 'a') as f:
+                  f.write(summary)
+
+          if tot_crit > 0 or tot_high > 0:
+              print(f'CRITICAL/HIGH vulnerabilities found: {tot_crit} critical, {tot_high} high.')
+              with open('FAIL_STATUS', 'w') as f:
+                  f.write('1')
+          "
+
+      - name: Enforce Pass/Fail Policy
+        run: |
+          if [ -f FAIL_STATUS ]; then
+            echo "❌ Failing CI step due to CRITICAL/HIGH vulnerabilities."
+            exit 1
+          else
+            echo "✅ No unsuppressed CRITICAL/HIGH vulnerabilities detected."
+          fi
+
+  auto-fix:
+    name: Auto-Create Fix PR for Minor/Patch Upgrades
+    needs: scan
+    if: always() && github.event_name == 'push' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v3
+        with:
+          node-version: '20'
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
+
+      - name: Attempt Safe Frontend Fixes
+        run: |
+          cd frontend
+          npm audit fix --package-lock-only || true
+
+      - name: Attempt Safe Backend Fixes
+        run: |
+          cd backend
+          pip install pip-tools
+          pip-compile --upgrade requirements.txt || true
+
+      - name: Create Fix Pull Request
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: "chore(deps): auto-remediate dependency vulnerabilities"
+          title: "chore(deps): automated dependency security updates"
+          body: |
+            Automated security patch generated by Dependency Vulnerability Scanning Pipeline.
+            Includes non-breaking patch and minor version upgrades for detected CVEs.
+          branch: auto-fix/dependency-vulnerabilities
+          labels: dependencies, automated-pr
+          delete-branch: true
+
+  sbom-generation:
+    name: Generate SPDX SBOM on Release
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Generate SPDX SBOM with Syft
+        uses: anchore/sbom-action@v0
+        with:
+          format: spdx-json
+          output-file: repository-sbom.spdx.json
+
+      - name: Upload SBOM Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sbom-spdx
+          path: repository-sbom.spdx.json

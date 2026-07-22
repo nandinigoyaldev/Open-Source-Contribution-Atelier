@@ -1,0 +1,69 @@
+{
+  "timestamp": "2026-07-20T14:41:43.119Z",
+  "metrics": {
+    "totalJsGzipKB": 2178,
+    "totalCssGzipKB": 43
+  },
+  "budget": {
+    "totalJsGzipKB": 500,
+    "singleChunkMaxKB": 200,
+    "totalCssGzipKB": 100
+  },
+  "top10Chunks": [
+    {
+      "name": "index-6u12ggDy.js",
+      "sizeKB": 921,
+      "type": "JS"
+    },
+    {
+      "name": "index-6u12ggDy.js.gz",
+      "sizeKB": 918,
+      "type": "Asset"
+    },
+    {
+      "name": "index-6u12ggDy.js.br",
+      "sizeKB": 740,
+      "type": "Asset"
+    },
+    {
+      "name": "SignupPage-CaWHLtv2.js",
+      "sizeKB": 386,
+      "type": "JS"
+    },
+    {
+      "name": "SignupPage-CaWHLtv2.js.gz",
+      "sizeKB": 386,
+      "type": "Asset"
+    },
+    {
+      "name": "SignupPage-CaWHLtv2.js.br",
+      "sizeKB": 351,
+      "type": "Asset"
+    },
+    {
+      "name": "A11yLinterSandbox-bX-ELPQB.js",
+      "sizeKB": 162,
+      "type": "JS"
+    },
+    {
+      "name": "A11yLinterSandbox-bX-ELPQB.js.gz",
+      "sizeKB": 161,
+      "type": "Asset"
+    },
+    {
+      "name": "A11yLinterSandbox-bX-ELPQB.js.br",
+      "sizeKB": 135,
+      "type": "Asset"
+    },
+    {
+      "name": "RichTextEditor-BYe9U85X.js",
+      "sizeKB": 109,
+      "type": "JS"
+    }
+  ],
+  "violations": [
+    "Chunk `index-6u12ggDy.js` (921KB) exceeds limit of 200KB",
+    "Chunk `SignupPage-CaWHLtv2.js` (386KB) exceeds limit of 200KB"
+  ],
+  "status": "failed"
+}

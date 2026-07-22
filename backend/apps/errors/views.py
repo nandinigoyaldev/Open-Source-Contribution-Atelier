@@ -5,6 +5,7 @@ from rest_framework.permissions import AllowAny
 
 from apps.errors.tasks import ingest_error_event_task
 
+
 class ErrorIngestView(APIView):
     permission_classes = [AllowAny]
 
@@ -16,13 +17,10 @@ class ErrorIngestView(APIView):
         if not payload or "message" not in payload:
             return Response(
                 {"error": "Missing message field in payload"},
-                status=status.HTTP_400_BAD_REQUEST
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         # Offload to celery immediately for async high throughput
         ingest_error_event_task.delay(payload)
 
-        return Response(
-            {"status": "queued"},
-            status=status.HTTP_202_ACCEPTED
-        )
+        return Response({"status": "queued"}, status=status.HTTP_202_ACCEPTED)

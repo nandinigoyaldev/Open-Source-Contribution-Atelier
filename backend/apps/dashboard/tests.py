@@ -1,6 +1,8 @@
 from datetime import timedelta
 
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
 from django.urls import reverse
 from django.utils import timezone
 from rest_framework import status
@@ -56,16 +58,21 @@ class LeaderboardTests(APITestCase):
         sorted_usernames = sorted(usernames)
         self.assertEqual(usernames, sorted_usernames)
 
+
 class IssueModelTests(APITestCase):
     def setUp(self):
         self.user = User.objects.create_user(username="testuser", password="password")
 
     def test_issue_total_points(self):
         from apps.dashboard.models import Issue
-        issue = Issue.objects.create(title="Test", assigned_to=self.user, points=50, bonus_points=15)
+
+        issue = Issue.objects.create(
+            title="Test", assigned_to=self.user, points=50, bonus_points=15
+        )
         self.assertEqual(issue.total_points, 65)
 
     def test_issue_no_bonus_points(self):
         from apps.dashboard.models import Issue
+
         issue = Issue.objects.create(title="Test", assigned_to=self.user, points=50)
         self.assertEqual(issue.total_points, 50)

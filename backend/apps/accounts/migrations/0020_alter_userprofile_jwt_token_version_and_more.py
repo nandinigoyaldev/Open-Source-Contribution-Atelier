@@ -6,22 +6,25 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('accounts', '0019_add_jwt_token_version'),
+        ("accounts", "0019_add_jwt_token_version"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='userprofile',
-            name='jwt_token_version',
-            field=models.IntegerField(default=1, help_text='Incremented on password change to invalidate existing JWT tokens'),
+            model_name="userprofile",
+            name="jwt_token_version",
+            field=models.IntegerField(
+                default=1,
+                help_text="Incremented on password change to invalidate existing JWT tokens",
+            ),
         ),
         migrations.AlterField(
-            model_name='userprofile',
-            name='last_password_change',
+            model_name="userprofile",
+            name="last_password_change",
             field=models.DateTimeField(auto_now_add=True, null=True),
         ),
         migrations.AlterModelTable(
-            name='userprofile',
-            table='accounts_userprofile',
+            name="userprofile",
+            table="accounts_userprofile",
         ),
     ]

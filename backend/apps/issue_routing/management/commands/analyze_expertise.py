@@ -3,7 +3,9 @@ Management command to analyze maintainer expertise.
 """
 
 from django.core.management.base import BaseCommand
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
 from apps.issue_routing.models import MaintainerExpertise, ExpertiseDomain
 import logging
 
@@ -13,7 +15,7 @@ logger = logging.getLogger(__name__)
 class Command(BaseCommand):
     """
     Analyze maintainer expertise from GitHub contributions.
-    
+
     Usage:
         python manage.py analyze_expertise
         python manage.py analyze_expertise --user username
@@ -22,17 +24,13 @@ class Command(BaseCommand):
     help = "Analyze maintainer expertise from GitHub contributions"
 
     def add_arguments(self, parser):
-        parser.add_argument(
-            '--user',
-            type=str,
-            help='Specific user to analyze'
-        )
+        parser.add_argument("--user", type=str, help="Specific user to analyze")
 
     def handle(self, *args, **options):
         users = User.objects.filter(is_staff=True)
-        
-        if options.get('user'):
-            users = users.filter(username=options['user'])
+
+        if options.get("user"):
+            users = users.filter(username=options["user"])
 
         self.stdout.write(f"Analyzing {users.count()} maintainers...")
 
@@ -54,7 +52,7 @@ class Command(BaseCommand):
             # Assign primary domains based on user's contributions
             primary_domain = domains.first()
             profile.primary_domains.set([primary_domain])
-            
+
             if domains.count() > 1:
                 profile.secondary_domains.set([domains[1]])
 

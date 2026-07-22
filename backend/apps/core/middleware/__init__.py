@@ -5,6 +5,7 @@ from asgiref.sync import sync_to_async
 from django.core.cache import cache
 from .request_id import RequestIdMiddleware
 
+
 class WebSocketRateLimitMiddleware:
     """
     ASGI middleware that rate-limits WebSocket handshakes.
@@ -41,15 +42,15 @@ class WebSocketRateLimitMiddleware:
         # 60 handshake attempts per 60 seconds
         RATE_LIMIT = 60
         WINDOW = 60
-        
+
         cache_key = f"ws_ratelimit_{client_ip}"
-        
+
         try:
             current = cache.get(cache_key, 0)
-            
+
             if current >= RATE_LIMIT:
                 return False
-                
+
             if current == 0:
                 cache.set(cache_key, 1, WINDOW)
             else:
@@ -58,7 +59,7 @@ class WebSocketRateLimitMiddleware:
                 except ValueError:
                     # In case the key expired between get and incr, or is not an integer
                     cache.set(cache_key, 1, WINDOW)
-                    
+
             return True
         except Exception:
             # Fail open if cache is unreachable
@@ -66,6 +67,7 @@ class WebSocketRateLimitMiddleware:
 
 
 _audit_local = threading.local()
+
 
 def get_current_audit_info():
     """
@@ -76,12 +78,13 @@ def get_current_audit_info():
         "ip_address": getattr(_audit_local, "ip_address", None),
     }
 
+
 class AdminAuditMiddleware:
     """
-    Middleware that captures the current admin user and request IP 
+    Middleware that captures the current admin user and request IP
     for use by Admin Audit Logging signals.
     """
-    
+
     def __init__(self, get_response):
         self.get_response = get_response
 
@@ -100,9 +103,9 @@ class AdminAuditMiddleware:
             # Clear local context after request to prevent bleed between requests in same thread
             _audit_local.actor = None
             _audit_local.ip_address = None
-            
+
         return response
-        
+
     def _get_client_ip(self, request):
         x_forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR")
         if x_forwarded_for:

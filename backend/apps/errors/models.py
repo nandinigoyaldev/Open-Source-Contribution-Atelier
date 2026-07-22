@@ -1,6 +1,7 @@
 from django.db import models
 from django.utils import timezone
 
+
 class ErrorGroup(models.Model):
     STATUS_CHOICES = [
         ("new", "New"),
@@ -21,8 +22,11 @@ class ErrorGroup(models.Model):
     def __str__(self):
         return f"{self.module}: {self.message[:60]}"
 
+
 class ErrorEvent(models.Model):
-    group = models.ForeignKey(ErrorGroup, on_delete=models.CASCADE, related_name="events")
+    group = models.ForeignKey(
+        ErrorGroup, on_delete=models.CASCADE, related_name="events"
+    )
     raw_message = models.TextField()
     stacktrace = models.TextField(blank=True)
     request_id = models.CharField(max_length=100, null=True, blank=True)

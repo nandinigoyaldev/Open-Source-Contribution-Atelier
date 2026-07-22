@@ -98,8 +98,16 @@ class DatabaseBackup:
             )
 
             s3_key = f"backups/{filepath.name}"
-            s3.upload_file(str(filepath), self.s3_bucket, s3_key)
-            print(f"✅ Uploaded to S3: s3://{self.s3_bucket}/{s3_key}")
+            sse_algorithm = os.getenv("S3_BACKUP_SSE_ALGORITHM", "AES256")
+            s3.upload_file(
+                str(filepath),
+                self.s3_bucket,
+                s3_key,
+                ExtraArgs={"ServerSideEncryption": sse_algorithm},
+            )
+            print(
+                f"✅ Uploaded to S3 (encrypted, {sse_algorithm}): s3://{self.s3_bucket}/{s3_key}"
+            )
             return True
         except Exception as e:
             print(f"❌ S3 upload failed: {e}")

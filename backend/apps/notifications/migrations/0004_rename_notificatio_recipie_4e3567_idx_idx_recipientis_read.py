@@ -6,13 +6,13 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('notifications', '0003_alter_notification_notif_type'),
+        ("notifications", "0003_alter_notification_notif_type"),
     ]
 
     operations = [
         migrations.RenameIndex(
-            model_name='notification',
-            new_name='idx_recipientis_read',
-            old_name='notificatio_recipie_4e3567_idx',
+            model_name="notification",
+            new_name="idx_recipientis_read",
+            old_name="notificatio_recipie_4e3567_idx",
         ),
     ]

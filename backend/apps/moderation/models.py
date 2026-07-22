@@ -102,5 +102,3 @@ class ModerationAuditEvent(models.Model):
             models.Index(fields=["created_at"], name="idx_created_at"),
             models.Index(fields=["status_after"], name="idx_status_after"),
         ]
-
-

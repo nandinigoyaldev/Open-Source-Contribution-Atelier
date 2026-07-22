@@ -37,7 +37,7 @@ class MLModel:
         """
         if len(issues) < 10:
             logger.warning("Not enough data to train models (need at least 10 issues)")
-            return {'accuracy': 0, 'precision': 0, 'recall': 0, 'f1': 0}
+            return {"accuracy": 0, "precision": 0, "recall": 0, "f1": 0}
 
         features = []
         categories = []
@@ -47,7 +47,7 @@ class MLModel:
         for issue in issues:
             feature_dict = self.feature_extractor.extract_features(issue)
             features.append(list(feature_dict.values()))
-            
+
             # Actual values (from issue)
             if issue.predicted_category:
                 categories.append(issue.predicted_category)
@@ -59,44 +59,50 @@ class MLModel:
 
         # Train category classifier
         if categories:
-            self.category_model = RandomForestClassifier(n_estimators=100, random_state=42)
+            self.category_model = RandomForestClassifier(
+                n_estimators=100, random_state=42
+            )
             self.label_encoder = LabelEncoder()
             encoded_categories = self.label_encoder.fit_transform(categories)
             self.category_model.fit(features, encoded_categories)
 
         # Train priority classifier
         if priorities:
-            self.priority_model = RandomForestClassifier(n_estimators=100, random_state=42)
+            self.priority_model = RandomForestClassifier(
+                n_estimators=100, random_state=42
+            )
             self.priority_label_encoder = LabelEncoder()
             encoded_priorities = self.priority_label_encoder.fit_transform(priorities)
             self.priority_model.fit(features, encoded_priorities)
 
         # Train lifetime regressor
         if lifetimes:
-            self.lifetime_model = RandomForestRegressor(n_estimators=100, random_state=42)
+            self.lifetime_model = RandomForestRegressor(
+                n_estimators=100, random_state=42
+            )
             self.lifetime_model.fit(features, lifetimes)
 
         self.is_trained = True
         logger.info("ML models trained successfully")
 
-        return {'accuracy': 0.85, 'precision': 0.82, 'recall': 0.79, 'f1': 0.80}
+        return {"accuracy": 0.85, "precision": 0.82, "recall": 0.79, "f1": 0.80}
 
     def predict_category(self, issue: Issue) -> Tuple[str, float]:
         """
         Predict issue category.
         """
         if not self.is_trained or not self.category_model:
-            return 'other', 0.5
+            return "other", 0.5
 
         features = self.feature_extractor.extract_features(issue)
         feature_vector = np.array(list(features.values())).reshape(1, -1)
-        
+
         prediction = self.category_model.predict(feature_vector)
         probabilities = self.category_model.predict_proba(feature_vector)
-        
+
         category = self.label_encoder.inverse_transform(prediction)[0]
         confidence = float(max(probabilities[0]))
-        
+
         return category, confidence
 
     def predict_priority(self, issue: Issue) -> Tuple[str, float]:
@@ -104,17 +110,17 @@ class MLModel:
         Predict issue priority.
         """
         if not self.is_trained or not self.priority_model:
-            return 'medium', 0.5
+            return "medium", 0.5
 
         features = self.feature_extractor.extract_features(issue)
         feature_vector = np.array(list(features.values())).reshape(1, -1)
-        
+
         prediction = self.priority_model.predict(feature_vector)
         probabilities = self.priority_model.predict_proba(feature_vector)
-        
+
         priority = self.priority_label_encoder.inverse_transform(prediction)[0]
         confidence = float(max(probabilities[0]))
-        
+
         return priority, confidence
 
     def predict_lifetime(self, issue: Issue) -> float:
@@ -126,7 +132,7 @@ class MLModel:
 
         features = self.feature_extractor.extract_features(issue)
         feature_vector = np.array(list(features.values())).reshape(1, -1)
-        
+
         return float(self.lifetime_model.predict(feature_vector)[0])
 
     def calculate_priority_score(self, issue: Issue) -> float:
@@ -135,26 +141,26 @@ class MLModel:
         """
         # Priority weights
         priority_weights = {
-            'critical': 100,
-            'high': 80,
-            'medium': 50,
-            'low': 20,
+            "critical": 100,
+            "high": 80,
+            "medium": 50,
+            "low": 20,
         }
-        
+
         # Base score from predicted priority
         priority, confidence = self.predict_priority(issue)
         base_score = priority_weights.get(priority, 50) * confidence
-        
+
         # Add hotness factor
         hotness = issue.calculate_hotness() or 0
-        
+
         # Add comment activity factor
         comment_count = Comment.objects.filter(issue=issue).count()
         activity_factor = min(comment_count * 2, 20)
-        
+
         # Combined score
         final_score = base_score + hotness * 0.3 + activity_factor
-        
+
         return min(final_score, 100)  # Cap at 100
 
     def save_model(self, version: str):
@@ -163,26 +169,26 @@ class MLModel:
         """
         if not self.is_trained:
             return
-        
+
         import os
         from django.conf import settings
-        
-        model_dir = os.path.join(settings.BASE_DIR, 'ml_models')
+
+        model_dir = os.path.join(settings.BASE_DIR, "ml_models")
         os.makedirs(model_dir, exist_ok=True)
-        
+
         model_files = {
-            'category_model.pkl': self.category_model,
-            'priority_model.pkl': self.priority_model,
-            'lifetime_model.pkl': self.lifetime_model,
-            'label_encoder.pkl': self.label_encoder,
-            'priority_label_encoder.pkl': self.priority_label_encoder,
+            "category_model.pkl": self.category_model,
+            "priority_model.pkl": self.priority_model,
+            "lifetime_model.pkl": self.lifetime_model,
+            "label_encoder.pkl": self.label_encoder,
+            "priority_label_encoder.pkl": self.priority_label_encoder,
         }
-        
+
         for filename, model in model_files.items():
             if model:
-                with open(os.path.join(model_dir, filename), 'wb') as f:
+                with open(os.path.join(model_dir, filename), "wb") as f:
                     pickle.dump(model, f)
-        
+
         logger.info(f"Models saved to {model_dir}")
 
     def load_model(self):
@@ -191,35 +197,35 @@ class MLModel:
         """
         import os
         from django.conf import settings
-        
-        model_dir = os.path.join(settings.BASE_DIR, 'ml_models')
+
+        model_dir = os.path.join(settings.BASE_DIR, "ml_models")
         if not os.path.exists(model_dir):
             return
-        
+
         model_files = [
-            'category_model.pkl',
-            'priority_model.pkl',
-            'lifetime_model.pkl',
-            'label_encoder.pkl',
-            'priority_label_encoder.pkl',
+            "category_model.pkl",
+            "priority_model.pkl",
+            "lifetime_model.pkl",
+            "label_encoder.pkl",
+            "priority_label_encoder.pkl",
         ]
-        
+
         for filename in model_files:
             filepath = os.path.join(model_dir, filename)
             if os.path.exists(filepath):
-                with open(filepath, 'rb') as f:
+                with open(filepath, "rb") as f:
                     model = pickle.load(f)
-                    if 'category' in filename:
+                    if "category" in filename:
                         self.category_model = model
-                    elif 'priority_model' in filename:
+                    elif "priority_model" in filename:
                         self.priority_model = model
-                    elif 'lifetime_model' in filename:
+                    elif "lifetime_model" in filename:
                         self.lifetime_model = model
-                    elif 'label_encoder' in filename and 'priority' not in filename:
+                    elif "label_encoder" in filename and "priority" not in filename:
                         self.label_encoder = model
-                    elif 'priority_label_encoder' in filename:
+                    elif "priority_label_encoder" in filename:
                         self.priority_label_encoder = model
-        
+
         if self.category_model or self.priority_model:
             self.is_trained = True
             logger.info("ML models loaded from disk")

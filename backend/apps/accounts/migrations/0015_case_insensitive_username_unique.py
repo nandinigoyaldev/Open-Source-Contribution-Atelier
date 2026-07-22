@@ -13,8 +13,6 @@ class Migration(migrations.Migration):
                 "auth_user_username_ci_unique "
                 "ON auth_user (LOWER(username));"
             ),
-            reverse_sql=(
-                "DROP INDEX IF EXISTS auth_user_username_ci_unique;"
-            ),
+            reverse_sql=("DROP INDEX IF EXISTS auth_user_username_ci_unique;"),
         ),
     ]

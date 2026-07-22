@@ -26,10 +26,10 @@ class TestCeleryTasks:
 
         task = FailingTask()
         task.name = "failing_task"
-        
+
         with pytest.raises(ValueError, match="Test error"):
             task()
-            
+
         mock_track.assert_called_once()
         args = mock_track.call_args[0]
         assert args[0] == "failing_task"
@@ -49,12 +49,12 @@ class TestCeleryTasks:
         )
 
         generate_portfolio_task(str(portfolio.id))
-        
+
         portfolio.refresh_from_db()
         assert portfolio.status == GeneratedPortfolio.Status.COMPLETED
         assert portfolio.file.name.endswith(".pdf")
         assert portfolio.file.name.startswith("portfolio_portfoliouser_")
-        
+
         mock_generate_pdf.assert_called_once()
         mock_notify.assert_called_once()
 
@@ -91,7 +91,7 @@ class TestCeleryTasks:
         )
 
         generate_portfolio_task(str(portfolio.id))
-        
+
         portfolio.refresh_from_db()
         assert portfolio.status == GeneratedPortfolio.Status.FAILED
         assert portfolio.error_message == "PDF Gen Error"

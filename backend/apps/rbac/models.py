@@ -1,4 +1,5 @@
-from django.contrib.auth.models import User
+from django.conf import settings
+
 from django.db import models
 
 from apps.organizations.models import Organization
@@ -28,7 +29,9 @@ class Role(models.Model):
 
 class UserRole(models.Model):
     objects = models.Manager()
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="user_roles")
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="user_roles"
+    )
     role = models.ForeignKey(Role, on_delete=models.CASCADE, related_name="user_roles")
     organization = models.ForeignKey(
         Organization,
@@ -49,13 +52,15 @@ class UserRole(models.Model):
 class AuditLog(models.Model):
     objects = models.Manager()
     actor = models.ForeignKey(
-        User,
+        settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
         null=True,
         related_name="rbac_actions_performed",
     )
     target_user = models.ForeignKey(
-        User, on_delete=models.CASCADE, related_name="rbac_actions_received"
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="rbac_actions_received",
     )
     action = models.CharField(max_length=50)  # 'assign' or 'revoke'
     role = models.ForeignKey(Role, on_delete=models.SET_NULL, null=True)
