@@ -3,7 +3,8 @@ GitHub API Analyzer and Health Score computation service.
 Uses the public GitHub REST API (no authentication required for public repos).
 """
 import re
-from datetime import datetime, timezone
+from datetime import datetime
+from django.utils import timezone
 from urllib.parse import urlparse
 
 import requests
