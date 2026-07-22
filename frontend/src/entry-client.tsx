@@ -16,22 +16,26 @@ import "./styles.css";
 import "./plugins/coreLessonPlugins";
 import { NetworkStatusProvider } from "./context/NetworkStatusContext";
 import { initializeTracing } from "./tracing";
-// Initialize Sentry before rendering if DSN is set
+// Initialize Sentry before rendering if DSN is set and package is available
 const SENTRY_DSN = import.meta.env.VITE_SENTRY_DSN;
 if (SENTRY_DSN) {
-  const Sentry = await import("@sentry/react");
-  Sentry.init({
-    dsn: SENTRY_DSN,
-    integrations: [
-      Sentry.browserTracingIntegration(),
-      Sentry.replayIntegration(),
-    ],
-    tracesSampleRate: parseFloat(
-      import.meta.env.VITE_SENTRY_TRACES_SAMPLE_RATE || "1.0",
-    ),
-    replaysSessionSampleRate: 0.1,
-    replaysOnErrorSampleRate: 1.0,
-  });
+  try {
+    const Sentry = await import("@sentry/react");
+    Sentry.init({
+      dsn: SENTRY_DSN,
+      integrations: [
+        Sentry.browserTracingIntegration(),
+        Sentry.replayIntegration(),
+      ],
+      tracesSampleRate: parseFloat(
+        import.meta.env.VITE_SENTRY_TRACES_SAMPLE_RATE || "1.0",
+      ),
+      replaysSessionSampleRate: 0.1,
+      replaysOnErrorSampleRate: 1.0,
+    });
+  } catch {
+    console.warn("@sentry/react not available, skipping Sentry init");
+  }
 }
 
 // Initialize OpenTelemetry tracing before rendering

@@ -33,6 +33,7 @@ class ProgressTrackingService:
         Returns a tuple: (LessonProgress instance, created boolean, idempotency_hit boolean).
         """
         from apps.progress.services.milestone_track_service import MilestoneTrackService
+
         season_mult = MilestoneTrackService.get_active_season_multiplier(user, "lesson")
         multiplier = XPMultiplierEvent.get_active_multiplier() * season_mult
         organization = getattr(user, "organization", None)
@@ -154,6 +155,7 @@ class ProgressTrackingService:
         Synchronizes multiple lessons' progress for a user.
         """
         from apps.progress.services.milestone_track_service import MilestoneTrackService
+
         season_mult = MilestoneTrackService.get_active_season_multiplier(user, "lesson")
         multiplier = XPMultiplierEvent.get_active_multiplier() * season_mult
         organization = getattr(user, "organization", None)

@@ -1,4 +1,6 @@
-from datetime import date, timedelta
+from datetime import timedelta
+
+from django.utils import timezone
 
 from .models import Streak
 
@@ -7,7 +9,7 @@ class StreakService:
     @staticmethod
     def update_streak(user):
         streak, created = Streak.objects.get_or_create(user=user)
-        today = date.today()
+        today = timezone.localdate()
 
         if streak.last_activity_date == today:
             return streak  # Already updated today

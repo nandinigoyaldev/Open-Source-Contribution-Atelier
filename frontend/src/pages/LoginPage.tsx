@@ -18,8 +18,6 @@ export function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [isPasswordFocused, setIsPasswordFocused] = useState(false);
-  const [isEmailFocused, setIsEmailFocused] = useState(false);
   const navigate = useNavigate();
   const { login } = useAuth();
 
@@ -44,7 +42,7 @@ export function LoginPage() {
   }, []);
 
   const googleLogin = useGoogleLogin({
-    onSuccess: async (tokenResponse) => {
+    onSuccess: async (tokenResponse: any) => {
       try {
         const tokens = await fetchApi("/auth/google/", {
           method: "POST",
@@ -98,27 +96,6 @@ export function LoginPage() {
       setIsLoading(false);
     }
   };
-
-  const getFeedbackBubble = () => {
-    if (isPasswordFocused) {
-      if (password.length === 0)
-        return { emoji: "🔒", text: "Keep it secret, keep it safe!" };
-      if (password.length < 6)
-        return {
-          emoji: "⚠️",
-          text: "Weak password! (Try adding more characters)",
-        };
-      return { emoji: "😎", text: "Fortress security! Excellent password." };
-    }
-    if (isEmailFocused) {
-      if (username.length === 0)
-        return { emoji: "✍️", text: "Type your legendary username!" };
-      return { emoji: "🚀", text: "Ready to merge some pull requests?" };
-    }
-    return { emoji: "👋", text: "Welcome back, contributor!" };
-  };
-
-  const bubble = getFeedbackBubble();
 
   return (
     <AuthPageShell
@@ -195,7 +172,7 @@ export function LoginPage() {
           Sign in with Google
         </button>
 
-        <div className="flex items-center gap-3 py-2">
+        <div className="flex items-center gap-[12px] py-2">
           <div className="h-[2px] flex-1 bg-black/10 dark:bg-white/10"></div>
           <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
             OR
@@ -212,8 +189,6 @@ export function LoginPage() {
             placeholder="username or email"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
-            onFocus={() => setIsEmailFocused(true)}
-            onBlur={() => setIsEmailFocused(false)}
             required
           />
         </div>
@@ -228,15 +203,13 @@ export function LoginPage() {
             placeholder="••••••••"
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            onFocus={() => setIsPasswordFocused(true)}
-            onBlur={() => setIsPasswordFocused(false)}
             required
           />
         </div>
 
         <DemoLoginButton label="🚀 Demo Mode (No Login Required)" />
 
-        <div className="flex items-center gap-3 py-2">
+        <div className="flex items-center gap-[12px] py-2">
           <div className="h-[2px] flex-1 bg-black/10 dark:bg-white/10"></div>
           <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
             OR

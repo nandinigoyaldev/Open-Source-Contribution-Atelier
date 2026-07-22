@@ -1,7 +1,9 @@
 import re
 from datetime import timedelta
 
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
 from django.utils import timezone
 from rest_framework import serializers
 from rest_framework.exceptions import AuthenticationFailed
@@ -264,6 +266,28 @@ class EmailOrUsernameTokenObtainPairSerializer(TokenObtainPairSerializer):
                     code="password_expired",
                 )
 
+        request = self.context.get("request")
+        ip_address = None
+        user_agent = ""
+        if request:
+            ip_address = request.META.get("REMOTE_ADDR")
+            user_agent = request.META.get("HTTP_USER_AGENT", "")
+
+        from .models import UserSession
+
+        session = UserSession.objects.create(
+            user=self.user, ip_address=ip_address, user_agent=user_agent
+        )
+
+        refresh = self.get_token(self.user)
+        refresh["session_id"] = str(session.session_id)
+
+        access = refresh.access_token
+        access["session_id"] = str(session.session_id)
+
+        result["refresh"] = str(refresh)
+        result["access"] = str(access)
+
         return result
 
 
@@ -337,3 +361,21 @@ class AvatarUploadSerializer(serializers.Serializer):
 
 class PasswordResetValidateTokenSerializer(serializers.Serializer):
     token = serializers.UUIDField(required=True)
+
+
+from .models import UserSession
+
+
+class UserSessionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = UserSession
+        fields = (
+            "id",
+            "session_id",
+            "ip_address",
+            "user_agent",
+            "device_name",
+            "created_at",
+            "last_activity",
+        )
+        read_only_fields = fields

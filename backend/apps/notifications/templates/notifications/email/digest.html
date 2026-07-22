@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>Your Notification Digest</title>
+</head>
+<body style="font-family: sans-serif; line-height: 1.5; color: #333;">
+    <div style="max-width: 600px; margin: 0 auto; padding: 20px;">
+        <h2>Your Notification Digest</h2>
+        <p>Hi {{ user.username }}, you have {{ total_count }} unread notification(s).</p>
+        
+        {% for notif_type, notifs in grouped_notifications.items %}
+            <h3 style="margin-top: 20px; border-bottom: 1px solid #ccc; padding-bottom: 5px; text-transform: uppercase;">{{ notif_type }}</h3>
+            <ul style="list-style-type: none; padding-left: 0;">
+                {% for notif in notifs %}
+                    <li style="margin-bottom: 15px; padding: 10px; background-color: #f9f9f9; border-left: 4px solid #4f46e5;">
+                        <strong>{{ notif.title }}</strong><br>
+                        <span style="color: #555;">{{ notif.message }}</span><br>
+                        <small style="color: #999;">{{ notif.created_at|date:"M d, Y H:i" }}</small>
+                    </li>
+                {% endfor %}
+            </ul>
+        {% endfor %}
+        
+        <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #eee; text-align: center; font-size: 12px; color: #777;">
+            <p>You received this email because your notification preference is set to digest mode.</p>
+            <p><a href="{{ settings.FRONTEND_URL }}/settings/notifications">Manage your notification preferences</a> | <a href="{{ settings.FRONTEND_URL }}/notifications/digest">View in app</a></p>
+        </div>
+    </div>
+</body>
+</html>

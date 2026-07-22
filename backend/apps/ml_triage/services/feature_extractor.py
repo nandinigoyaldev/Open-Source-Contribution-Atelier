@@ -20,33 +20,29 @@ class FeatureExtractor:
         """
         features = {
             # Text features
-            'title_length': len(issue.title),
-            'body_length': len(issue.body),
-            'title_word_count': len(issue.title.split()),
-            'body_word_count': len(issue.body.split()),
-            'has_code_block': '```' in issue.body,
-            'has_link': 'http' in issue.body or 'https' in issue.body,
-            
+            "title_length": len(issue.title),
+            "body_length": len(issue.body),
+            "title_word_count": len(issue.title.split()),
+            "body_word_count": len(issue.body.split()),
+            "has_code_block": "```" in issue.body,
+            "has_link": "http" in issue.body or "https" in issue.body,
             # Metadata features
-            'comments_count': self._get_comment_count(issue),
-            'reactions_count': self._get_reaction_count(issue),
-            'label_count': self._get_label_count(issue),
-            'assignee_count': len(issue.assignees),
-            
+            "comments_count": self._get_comment_count(issue),
+            "reactions_count": self._get_reaction_count(issue),
+            "label_count": self._get_label_count(issue),
+            "assignee_count": len(issue.assignees),
             # Time features
-            'hour_created': issue.created_at.hour,
-            'day_of_week': issue.created_at.weekday(),
-            'age_days': (timezone.now() - issue.created_at).days,
-            
+            "hour_created": issue.created_at.hour,
+            "day_of_week": issue.created_at.weekday(),
+            "age_days": (timezone.now() - issue.created_at).days,
             # Author features
-            'author_has_contributions': self._author_has_contributions(issue.author),
-            'author_reputation': self._get_author_reputation(issue.author),
-            
+            "author_has_contributions": self._author_has_contributions(issue.author),
+            "author_reputation": self._get_author_reputation(issue.author),
             # Repository features
-            'repo_stars': self._get_repo_stars(issue.repository),
-            'repo_contributors': self._get_repo_contributors(issue.repository),
+            "repo_stars": self._get_repo_stars(issue.repository),
+            "repo_contributors": self._get_repo_contributors(issue.repository),
         }
-        
+
         return features
 
     def _get_comment_count(self, issue: Issue) -> int:
@@ -71,10 +67,10 @@ class FeatureExtractor:
         issues = Issue.objects.filter(author=author)
         if not issues:
             return 0.0
-        
+
         # Reputation based on number of issues and comments
         comment_count = Comment.objects.filter(author=author).count()
-        return (issues.count() * 0.5 + comment_count * 0.1)
+        return issues.count() * 0.5 + comment_count * 0.1
 
     def _get_repo_stars(self, repository: str) -> int:
         """Get repository stars (simplified)."""

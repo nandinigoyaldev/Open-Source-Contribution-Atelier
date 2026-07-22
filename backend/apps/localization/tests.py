@@ -51,7 +51,10 @@ def test_resolve_locale_malformed_and_edge_cases():
     assert resolve_locale("a" * 100) == "en-us"
     assert resolve_locale("") == "en-us"
     assert resolve_locale(None) == "en-us"
-    assert resolve_locale("invalid-locale-tag-with-many-subtags-that-is-too-long") == "en-us"
+    assert (
+        resolve_locale("invalid-locale-tag-with-many-subtags-that-is-too-long")
+        == "en-us"
+    )
 
 
 def test_middleware_activates_language():
@@ -96,4 +99,3 @@ def test_locale_switch_rate_limiting():
 
     # Since it is rate-limited, it keeps the previous active language ("zh-hans")
     assert request.LANGUAGE_CODE == "zh-hans"
-

@@ -27,22 +27,22 @@ class DependencyGraphGenerator:
         """Scan all Django apps and their components."""
         for app_config in apps.get_app_configs():
             app_name = app_config.name
-            if app_name.startswith('django.') or app_name.startswith('apps.'):
+            if app_name.startswith("django.") or app_name.startswith("apps."):
                 continue
-            
+
             self.apps_data[app_name] = {
-                'name': app_name,
-                'label': app_config.verbose_name or app_name,
-                'path': str(app_config.path),
-                'models': [],
-                'serializers': [],
-                'views': [],
-                'signals': [],
-                'tasks': [],
-                'urls': [],
-                'dependencies': set(),
+                "name": app_name,
+                "label": app_config.verbose_name or app_name,
+                "path": str(app_config.path),
+                "models": [],
+                "serializers": [],
+                "views": [],
+                "signals": [],
+                "tasks": [],
+                "urls": [],
+                "dependencies": set(),
             }
-            
+
             # Scan components
             self._scan_models(app_name)
             self._scan_serializers(app_name)
@@ -56,17 +56,22 @@ class DependencyGraphGenerator:
         try:
             module = importlib.import_module(f"{app_name}.models")
             for name, obj in module.__dict__.items():
-                if hasattr(obj, '__module__') and obj.__module__ == f"{app_name}.models":
-                    if hasattr(obj, '_meta') and hasattr(obj._meta, 'model_name'):
-                        self.apps_data[app_name]['models'].append(name)
-                        
+                if (
+                    hasattr(obj, "__module__")
+                    and obj.__module__ == f"{app_name}.models"
+                ):
+                    if hasattr(obj, "_meta") and hasattr(obj._meta, "model_name"):
+                        self.apps_data[app_name]["models"].append(name)
+
                         # Find foreign key dependencies
                         for field in obj._meta.get_fields():
                             if field.is_relation and field.related_model:
-                                if hasattr(field.related_model, '_meta'):
+                                if hasattr(field.related_model, "_meta"):
                                     related_app = field.related_model._meta.app_label
                                     if related_app != app_name:
-                                        self.apps_data[app_name]['dependencies'].add(related_app)
+                                        self.apps_data[app_name]["dependencies"].add(
+                                            related_app
+                                        )
         except (ImportError, AttributeError):
             pass
 
@@ -75,9 +80,12 @@ class DependencyGraphGenerator:
         try:
             module = importlib.import_module(f"{app_name}.serializers")
             for name, obj in module.__dict__.items():
-                if hasattr(obj, '__module__') and obj.__module__ == f"{app_name}.serializers":
-                    if hasattr(obj, 'Meta') and hasattr(obj.Meta, 'model'):
-                        self.apps_data[app_name]['serializers'].append(name)
+                if (
+                    hasattr(obj, "__module__")
+                    and obj.__module__ == f"{app_name}.serializers"
+                ):
+                    if hasattr(obj, "Meta") and hasattr(obj.Meta, "model"):
+                        self.apps_data[app_name]["serializers"].append(name)
         except (ImportError, AttributeError):
             pass
 
@@ -86,9 +94,9 @@ class DependencyGraphGenerator:
         try:
             module = importlib.import_module(f"{app_name}.views")
             for name, obj in module.__dict__.items():
-                if hasattr(obj, '__module__') and obj.__module__ == f"{app_name}.views":
-                    if hasattr(obj, 'as_view') or hasattr(obj, 'get'):
-                        self.apps_data[app_name]['views'].append(name)
+                if hasattr(obj, "__module__") and obj.__module__ == f"{app_name}.views":
+                    if hasattr(obj, "as_view") or hasattr(obj, "get"):
+                        self.apps_data[app_name]["views"].append(name)
         except (ImportError, AttributeError):
             pass
 
@@ -97,8 +105,11 @@ class DependencyGraphGenerator:
         try:
             module = importlib.import_module(f"{app_name}.signals")
             for name, obj in module.__dict__.items():
-                if hasattr(obj, '__module__') and obj.__module__ == f"{app_name}.signals":
-                    self.apps_data[app_name]['signals'].append(name)
+                if (
+                    hasattr(obj, "__module__")
+                    and obj.__module__ == f"{app_name}.signals"
+                ):
+                    self.apps_data[app_name]["signals"].append(name)
         except (ImportError, AttributeError):
             pass
 
@@ -107,9 +118,9 @@ class DependencyGraphGenerator:
         try:
             module = importlib.import_module(f"{app_name}.tasks")
             for name, obj in module.__dict__.items():
-                if hasattr(obj, '__module__') and obj.__module__ == f"{app_name}.tasks":
-                    if hasattr(obj, 'delay') or hasattr(obj, 'apply_async'):
-                        self.apps_data[app_name]['tasks'].append(name)
+                if hasattr(obj, "__module__") and obj.__module__ == f"{app_name}.tasks":
+                    if hasattr(obj, "delay") or hasattr(obj, "apply_async"):
+                        self.apps_data[app_name]["tasks"].append(name)
         except (ImportError, AttributeError):
             pass
 
@@ -117,42 +128,46 @@ class DependencyGraphGenerator:
         """Scan URLs in an app."""
         try:
             module = importlib.import_module(f"{app_name}.urls")
-            if hasattr(module, 'urlpatterns'):
-                self.apps_data[app_name]['urls'].append('urlpatterns')
+            if hasattr(module, "urlpatterns"):
+                self.apps_data[app_name]["urls"].append("urlpatterns")
         except (ImportError, AttributeError):
             pass
 
     def build_graph(self) -> Dict[str, Any]:
         """Build the dependency graph."""
         self.scan_all_apps()
-        
+
         # Build nodes
         nodes = []
         for app_name, data in self.apps_data.items():
-            nodes.append({
-                'id': app_name,
-                'label': data['label'],
-                'models': len(data['models']),
-                'serializers': len(data['serializers']),
-                'views': len(data['views']),
-                'signals': len(data['signals']),
-                'tasks': len(data['tasks']),
-                'urls': len(data['urls']),
-            })
-        
+            nodes.append(
+                {
+                    "id": app_name,
+                    "label": data["label"],
+                    "models": len(data["models"]),
+                    "serializers": len(data["serializers"]),
+                    "views": len(data["views"]),
+                    "signals": len(data["signals"]),
+                    "tasks": len(data["tasks"]),
+                    "urls": len(data["urls"]),
+                }
+            )
+
         # Build edges
         edges = []
         for app_name, data in self.apps_data.items():
-            for dep in data['dependencies']:
+            for dep in data["dependencies"]:
                 if dep in self.apps_data:
-                    edges.append({
-                        'source': app_name,
-                        'target': dep,
-                    })
-        
+                    edges.append(
+                        {
+                            "source": app_name,
+                            "target": dep,
+                        }
+                    )
+
         return {
-            'nodes': nodes,
-            'edges': edges,
-            'total_apps': len(nodes),
-            'total_edges': len(edges),
+            "nodes": nodes,
+            "edges": edges,
+            "total_apps": len(nodes),
+            "total_edges": len(edges),
         }

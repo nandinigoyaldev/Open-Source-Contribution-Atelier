@@ -204,6 +204,8 @@ class AuditableModel(models.Model):
 
     class Meta:
         abstract = True
+
+
 # ============================================================
 # Cross-tenant data isolation primitives (issue #1940)
 # ============================================================
@@ -234,9 +236,11 @@ class TenantQuerySet(models.QuerySet):
 
     def unscoped(self):
         """Return the unfiltered queryset (admin/superuser tooling only)."""
-        return super().get_queryset() if False else self.model.objects.using(
-            self._db
-        ).all()
+        return (
+            super().get_queryset()
+            if False
+            else self.model.objects.using(self._db).all()
+        )
 
     # The core magic: every chained query is auto-scoped.
     def _chain(self, **kwargs):

@@ -30,7 +30,7 @@ export function SignupPage() {
   };
 
   const googleLoginHandler = useGoogleLogin({
-    onSuccess: async (tokenResponse) => {
+    onSuccess: async (tokenResponse: any) => {
       try {
         const tokens = await fetchApi("/auth/google/", {
           method: "POST",
@@ -85,7 +85,7 @@ export function SignupPage() {
       subtitle="Say goodbye to your free time. Create an account to start suffering... I mean, studying."
       mode="signup"
     >
-      <form className="space-y-6 pt-2" onSubmit={handleSubmit}>
+      <form className="space-y-4 pt-2" onSubmit={handleSubmit}>
         {error && (
           <div
             role="alert"
@@ -99,7 +99,7 @@ export function SignupPage() {
         <button
           type="button"
           onClick={() => googleLoginHandler()}
-          className="w-full bg-white border-4 border-black rounded-2xl p-4 flex items-center justify-center gap-3 font-bold hover:bg-surface-low transition-colors shadow-card-sm active:translate-y-1 active:shadow-none"
+          className="w-full bg-white border-4 border-black rounded-2xl py-3 px-4 flex items-center justify-center gap-3 font-bold hover:bg-surface-low transition-colors shadow-card-sm active:translate-y-1 active:shadow-none"
         >
           <svg className="w-6 h-6" viewBox="0 0 24 24" aria-hidden="true">
             <path
@@ -125,7 +125,7 @@ export function SignupPage() {
         <button
           type="button"
           onClick={handleGithubSignIn}
-          className="group relative w-full overflow-hidden bg-black text-white border-4 border-black rounded-lg p-4 flex items-center justify-center gap-3 font-black shadow-card-sm transition-all duration-300 hover:-translate-y-1 hover:bg-text hover:shadow-card-lg active:translate-y-1 active:shadow-none uppercase before:absolute before:inset-0 before:-translate-x-full before:bg-gradient-to-r before:from-transparent before:via-white/25 before:to-transparent before:transition-transform before:duration-500 hover:before:translate-x-full"
+          className="group relative w-full overflow-hidden bg-black text-white border-4 border-black rounded-lg py-3 px-4 flex items-center justify-center gap-3 font-black shadow-card-sm transition-all duration-300 hover:-translate-y-1 hover:bg-text hover:shadow-card-lg active:translate-y-1 active:shadow-none uppercase before:absolute before:inset-0 before:-translate-x-full before:bg-gradient-to-r before:from-transparent before:via-white/25 before:to-transparent before:transition-transform before:duration-500 hover:before:translate-x-full"
           aria-label="Sign up with GitHub"
         >
           <GitBranch
@@ -139,10 +139,10 @@ export function SignupPage() {
 
         <DemoLoginButton
           label="🚀 Demo Mode (No Signup Needed)"
-          className="w-full bg-green-200 border-4 border-black rounded-2xl p-4 flex items-center justify-center gap-3 font-bold hover:bg-green-300 transition-colors shadow-card-sm active:translate-y-1 active:shadow-none text-sm cursor-pointer"
+          className="w-full bg-green-200 border-4 border-black rounded-2xl py-3 px-4 flex items-center justify-center gap-3 font-bold hover:bg-green-300 transition-colors shadow-card-sm active:translate-y-1 active:shadow-none text-sm cursor-pointer"
         />
 
-        <div className="flex items-center gap-4 my-6">
+        <div className="flex items-center gap-[16px] my-4">
           <div className="flex-1 h-1 bg-black"></div>
           <span className="font-black text-muted text-sm uppercase">OR</span>
           <div className="flex-1 h-1 bg-black"></div>
@@ -154,7 +154,7 @@ export function SignupPage() {
             Username
           </label>
           <input
-            className="w-full rounded-2xl border-4 border-black bg-white px-5 py-4 text-black font-bold outline-none placeholder:text-muted/60 focus:bg-[#ffb5e8] shadow-card-sm transition-all focus:-translate-y-1 focus:shadow-card"
+            className="w-full rounded-2xl border-4 border-black bg-white px-5 py-3 text-black font-bold outline-none placeholder:text-muted/60 focus:bg-[#ffb5e8] shadow-card-sm transition-all focus:-translate-y-1 focus:shadow-card"
             placeholder="study_master_99"
             value={username}
             onChange={(e) => setUsername(e.target.value)}
@@ -168,7 +168,7 @@ export function SignupPage() {
             Email Address
           </label>
           <input
-            className="w-full rounded-2xl border-4 border-black bg-white px-5 py-4 text-black font-bold outline-none placeholder:text-muted/60 focus:bg-accent shadow-card-sm transition-all focus:-translate-y-1 focus:shadow-card"
+            className="w-full rounded-2xl border-4 border-black bg-white px-5 py-3 text-black font-bold outline-none placeholder:text-muted/60 focus:bg-accent shadow-card-sm transition-all focus:-translate-y-1 focus:shadow-card"
             type="email"
             placeholder="nerd@homework.com"
             value={email}
@@ -183,7 +183,7 @@ export function SignupPage() {
             Password
           </label>
           <input
-            className="w-full rounded-2xl border-4 border-black bg-white px-5 py-4 text-black font-bold outline-none placeholder:text-muted/60 focus:bg-tertiary shadow-card-sm transition-all focus:-translate-y-1 focus:shadow-card"
+            className="w-full rounded-2xl border-4 border-black bg-white px-5 py-3 text-black font-bold outline-none placeholder:text-muted/60 focus:bg-tertiary shadow-card-sm transition-all focus:-translate-y-1 focus:shadow-card"
             type="password"
             placeholder="••••••••"
             value={password}
@@ -197,7 +197,7 @@ export function SignupPage() {
         <button
           type="submit"
           disabled={!isFormValid}
-          className={`w-full rounded-2xl border-4 border-black px-5 py-5 font-black text-black text-xl shadow-card transition-colors mt-4 uppercase
+          className={`w-full rounded-2xl border-4 border-black px-5 py-3 font-black text-black text-lg shadow-card transition-colors mt-2 uppercase
     ${
       isFormValid
         ? "bg-accent hover:bg-tertiary cursor-pointer"
@@ -207,7 +207,7 @@ export function SignupPage() {
           Sign Me Up!
         </button>
 
-        <p className="text-center text-sm font-bold text-black mt-6">
+        <p className="text-center text-sm font-bold text-black mt-4">
           Already stuck with us?{" "}
           <a
             href="/"

@@ -2,8 +2,8 @@ import json
 import logging
 import re
 
-from django.core.cache import cache
 from django.db import IntegrityError, transaction
+from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from rest_framework import status, viewsets
@@ -20,9 +20,16 @@ logger = logging.getLogger(__name__)
 
 
 class ChallengeViewSet(viewsets.ModelViewSet):
-    """Existing view — untouched."""
+    """
+    ViewSet for viewing and managing programming challenges.
+
+    Default access is AllowAny for read operations (list, retrieve),
+    while mutation operations (create, update, destroy) require authentication
+    and specific RBAC permissions.
+    """
 
     serializer_class = ChallengeSerializer
+    permission_classes = [AllowAny]
 
     def get_permissions(self):
         from rest_framework import permissions
@@ -38,7 +45,17 @@ class ChallengeViewSet(viewsets.ModelViewSet):
         return [permissions.AllowAny()]
 
     def get_queryset(self):
-        return Challenge.objects.filter(organization=self.request.user.organization)
+        user = getattr(self.request, "user", None)
+        if not user or not user.is_authenticated:
+            return Challenge.objects.filter(is_public=True)
+
+        user_org = getattr(user, "organization", None)
+        if user_org:
+            return Challenge.objects.filter(
+                Q(is_public=True) | Q(organization=user_org)
+            )
+
+        return Challenge.objects.filter(is_public=True)
 
 
 class SandboxExecutionView(APIView):
@@ -244,15 +261,17 @@ class BulkChallengeUploadView(APIView):
 
         try:
             with transaction.atomic():
+                user_org = getattr(request.user, "organization", None)
                 challenges_to_create = [
                     Challenge(
-                        organization=request.user.organization,
+                        organization=user_org,
                         title=item.get("title"),
                         slug=item.get("slug"),
                         summary=item.get("summary", ""),
                         difficulty=item.get("difficulty", "beginner"),
                         points=item.get("points", 50),
                         is_featured=item.get("is_featured", False),
+                        is_public=item.get("is_public", True),
                     )
                     for item in data
                 ]

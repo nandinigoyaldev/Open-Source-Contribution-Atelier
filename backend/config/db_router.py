@@ -6,6 +6,7 @@ Reads from this router go to healthy replicas using weighted selection.
 After any write, the current user's reads are served from primary for
 READ_AFTER_WRITE_SECONDS (configurable) to prevent stale reads.
 """
+
 import logging
 import random
 import sys
@@ -65,11 +66,15 @@ class PrimaryReplicaRouter:
         # Support both old single "replica" key and new DATABASE_REPLICAS list
         replica_configs = getattr(settings, "DATABASE_REPLICAS", None)
         if replica_configs:
-            self.replicas = [r["NAME"] for r in replica_configs if r["NAME"] in settings.DATABASES]
+            self.replicas = [
+                r["NAME"] for r in replica_configs if r["NAME"] in settings.DATABASES
+            ]
             self._weights = {r["NAME"]: r.get("WEIGHT", 1) for r in replica_configs}
         else:
             # Backwards-compat: pick up all DB keys starting with "replica"
-            self.replicas = [db for db in settings.DATABASES if db.startswith("replica")]
+            self.replicas = [
+                db for db in settings.DATABASES if db.startswith("replica")
+            ]
             self._weights = {r: 1 for r in self.replicas}
 
         self._dead_replicas: dict[str, float] = {}
@@ -81,7 +86,11 @@ class PrimaryReplicaRouter:
     def _mark_dead(self, replica: str) -> None:
         with self._lock:
             self._dead_replicas[replica] = time.time()
-        logger.warning("Replica %s marked as dead; will retry after %ss", replica, self._dead_timeout)
+        logger.warning(
+            "Replica %s marked as dead; will retry after %ss",
+            replica,
+            self._dead_timeout,
+        )
 
     def _revive_if_timeout(self, replica: str, now: float) -> bool:
         """Return True if dead replica timeout has passed and it should be retried."""
@@ -136,7 +145,9 @@ class PrimaryReplicaRouter:
                 self._mark_dead(replica)
 
         if len(tried) == len(available) and available:
-            logger.warning("All read replicas are unavailable. Falling back to primary.")
+            logger.warning(
+                "All read replicas are unavailable. Falling back to primary."
+            )
         return "default"
 
     # ── Router API ────────────────────────────────────────────────────────────

@@ -6,13 +6,13 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('search', '0004_searchdocument_add_description_tags_typename'),
+        ("search", "0004_searchdocument_add_description_tags_typename"),
     ]
 
     operations = [
         migrations.RenameIndex(
-            model_name='searchanalytics',
-            new_name='idx_querycreated_at',
-            old_name='search_sear_query_0aa48f_idx',
+            model_name="searchanalytics",
+            new_name="idx_querycreated_at",
+            old_name="search_sear_query_0aa48f_idx",
         ),
     ]

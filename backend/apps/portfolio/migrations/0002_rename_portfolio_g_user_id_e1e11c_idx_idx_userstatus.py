@@ -6,13 +6,13 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('portfolio', '0001_initial'),
+        ("portfolio", "0001_initial"),
     ]
 
     operations = [
         migrations.RenameIndex(
-            model_name='generatedportfolio',
-            new_name='idx_userstatus',
-            old_name='portfolio_g_user_id_e1e11c_idx',
+            model_name="generatedportfolio",
+            new_name="idx_userstatus",
+            old_name="portfolio_g_user_id_e1e11c_idx",
         ),
     ]

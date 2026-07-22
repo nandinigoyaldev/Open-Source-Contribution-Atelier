@@ -32,6 +32,21 @@ class CeleryMonitor:
         """Update all metrics"""
         self.update_queue_sizes()
         self.update_worker_count()
+        self._check_alert_thresholds()
+
+    def _check_alert_thresholds(self):
+        """Log a warning if queue backlog or worker count crosses configured thresholds."""
+        queue_threshold = int(os.getenv("CELERY_QUEUE_ALERT_THRESHOLD", 1000))
+
+        for queue in self.queues:
+            current = queue_size.labels(queue_name=queue)._value.get()
+            if current is not None and current > queue_threshold:
+                print(
+                    f"🚨 Queue backlog alert: '{queue}' has {current} pending tasks (threshold: {queue_threshold})"
+                )
+
+        if self.workers == 0:
+            print("🚨 No active Celery workers detected")
 
     def update_queue_sizes(self):
         """Update queue size metrics using the true per-queue Redis list length"""

@@ -17,6 +17,7 @@ class RecommendationSerializer(serializers.ModelSerializer):
             "created_at",
         )
 
+
 class OSSIssueSerializer(serializers.ModelSerializer):
     class Meta:
         model = OSSIssue

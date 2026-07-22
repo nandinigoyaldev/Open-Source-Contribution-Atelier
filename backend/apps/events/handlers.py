@@ -4,7 +4,9 @@ Event handlers for processing domain events.
 
 import logging
 from django.utils import timezone
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
 from apps.events.models import DomainEvent
 
 logger = logging.getLogger(__name__)

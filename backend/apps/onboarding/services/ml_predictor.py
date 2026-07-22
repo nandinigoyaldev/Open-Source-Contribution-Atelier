@@ -23,12 +23,12 @@ class OnboardingPredictor:
         self.model = None
         self.scaler = None
         self.features = [
-            'time_in_stage_hours',
-            'events_count',
-            'stage_progress',
-            'previous_contributions',
-            'activity_frequency',
-            'help_seeking_count'
+            "time_in_stage_hours",
+            "events_count",
+            "stage_progress",
+            "previous_contributions",
+            "activity_frequency",
+            "help_seeking_count",
         ]
 
     def train_model(self) -> Dict[str, float]:
@@ -37,7 +37,7 @@ class OnboardingPredictor:
         """
         journeys = OnboardingJourney.objects.all()
         if journeys.count() < 10:
-            return {'error': 'Need at least 10 journeys for training'}
+            return {"error": "Need at least 10 journeys for training"}
 
         # Prepare training data
         data = []
@@ -46,7 +46,7 @@ class OnboardingPredictor:
         for journey in journeys:
             features = self._extract_features(journey)
             data.append(features)
-            labels.append(1 if journey.status == 'completed' else 0)
+            labels.append(1 if journey.status == "completed" else 0)
 
         X = np.array(data)
         y = np.array(labels)
@@ -61,11 +61,12 @@ class OnboardingPredictor:
 
         # Calculate accuracy
         from sklearn.metrics import accuracy_score
+
         predictions = self.model.predict(X_scaled)
         accuracy = accuracy_score(y, predictions)
 
         logger.info(f"Model trained with accuracy: {accuracy:.2f}")
-        return {'accuracy': accuracy, 'samples': len(data)}
+        return {"accuracy": accuracy, "samples": len(data)}
 
     def predict_completion(self, journey: OnboardingJourney) -> Tuple[float, float]:
         """
@@ -89,7 +90,9 @@ class OnboardingPredictor:
 
         time_in_stage = 0
         if journey.stage_started_at:
-            time_in_stage = (timezone.now() - journey.stage_started_at).total_seconds() / 3600
+            time_in_stage = (
+                timezone.now() - journey.stage_started_at
+            ).total_seconds() / 3600
 
         return [
             min(time_in_stage / 24, 7),  # Time in stage (capped at 7 days)
@@ -102,7 +105,14 @@ class OnboardingPredictor:
 
     def _get_stage_progress(self, journey: OnboardingJourney) -> float:
         """Get progress through stages (0-1)."""
-        stage_order = ['discovery', 'setup', 'first_issue', 'pr_submitted', 'merged', 'completed']
+        stage_order = [
+            "discovery",
+            "setup",
+            "first_issue",
+            "pr_submitted",
+            "merged",
+            "completed",
+        ]
         try:
             current_index = stage_order.index(journey.current_stage)
             return current_index / (len(stage_order) - 1)
@@ -116,15 +126,11 @@ class OnboardingPredictor:
     def _get_activity_frequency(self, journey: OnboardingJourney) -> float:
         """Calculate activity frequency."""
         events = JourneyEvent.objects.filter(
-            journey=journey,
-            created_at__gte=timezone.now() - timedelta(days=7)
+            journey=journey, created_at__gte=timezone.now() - timedelta(days=7)
         )
         return min(events.count() / 14, 1.0)
 
     def _get_help_seeking_count(self, journey: OnboardingJourney) -> float:
         """Count help seeking events."""
-        events = JourneyEvent.objects.filter(
-            journey=journey,
-            event_type='help_seek'
-        )
+        events = JourneyEvent.objects.filter(journey=journey, event_type="help_seek")
         return min(events.count() / 5, 1.0)

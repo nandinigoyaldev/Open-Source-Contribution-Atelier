@@ -7,6 +7,7 @@ from .models import Plugin
 from .registry import registry
 from .manifest import validate_manifest
 
+
 class PluginSystemTests(APITestCase):
     def setUp(self):
         # Ensure discovery syncs the database
@@ -34,7 +35,7 @@ class PluginSystemTests(APITestCase):
     def test_discovery_and_sync(self):
         plugin_exists = Plugin.objects.filter(name="github_stats").exists()
         self.assertTrue(plugin_exists)
-        
+
         # Test registry loads it
         plugin = Plugin.objects.get(name="github_stats")
         self.assertEqual(plugin.display_name, "GitHub Stats")

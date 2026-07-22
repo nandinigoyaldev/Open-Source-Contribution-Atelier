@@ -39,7 +39,6 @@ def test_verify_signature_multiple_secrets():
     assert verify_signature(secrets, PAYLOAD, VALID_SIGNATURE) is True
 
 
-
 def test_verify_signature_invalid():
     assert verify_signature(SECRET, PAYLOAD, "invalid_signature") is False
 

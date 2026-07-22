@@ -33,7 +33,9 @@ def _publish_clean_file(upload: UploadSession) -> None:
     final_dir.mkdir(parents=True, exist_ok=True)
     destination = final_dir / f"{upload.session_id}_{Path(upload.filename).name}"
     shutil.move(str(source), destination)
-    upload.file_path = str(destination.relative_to(settings.MEDIA_ROOT)).replace("\\", "/")
+    upload.file_path = str(destination.relative_to(settings.MEDIA_ROOT)).replace(
+        "\\", "/"
+    )
     upload.quarantine_path = ""
 
 
@@ -50,7 +52,9 @@ def scan_upload(upload_id: str) -> None:
         upload.status = UploadSession.Status.SCANNING
         upload.scan_started_at = timezone.now()
         upload.scan_message = "File is being scanned..."
-        upload.save(update_fields=["status", "scan_started_at", "scan_message", "updated_at"])
+        upload.save(
+            update_fields=["status", "scan_started_at", "scan_message", "updated_at"]
+        )
 
     try:
         result = scan_file(upload.quarantine_path)
@@ -65,12 +69,16 @@ def scan_upload(upload_id: str) -> None:
         upload.scan_completed_at = timezone.now()
         if fail_closed:
             upload.status = UploadSession.Status.FAILED
-            upload.scan_message = "Security scanner unavailable. File remains quarantined."
+            upload.scan_message = (
+                "Security scanner unavailable. File remains quarantined."
+            )
             _notify(upload, "Upload scan delayed", upload.scan_message)
         else:
             _publish_clean_file(upload)
             upload.status = UploadSession.Status.CLEAN
-            upload.scan_message = "Scanner unavailable; file released by configured fail-open policy."
+            upload.scan_message = (
+                "Scanner unavailable; file released by configured fail-open policy."
+            )
             _notify(upload, "Upload ready", f"{upload.filename} is now available.")
         upload.save()
         return

@@ -1,6 +1,7 @@
 import logging
 from django.conf import settings
 import meilisearch
+
 try:
     from meilisearch.errors import MeiliSearchApiError, MeiliSearchConnectionError
 except ImportError:
@@ -9,16 +10,21 @@ except ImportError:
     except ImportError:
         MeiliSearchApiError = Exception
     try:
-        from meilisearch.errors import MeilisearchCommunicationError as MeiliSearchConnectionError
+        from meilisearch.errors import (
+            MeilisearchCommunicationError as MeiliSearchConnectionError,
+        )
     except ImportError:
         try:
-            from meilisearch.errors import MeilisearchConnectionError as MeiliSearchConnectionError
+            from meilisearch.errors import (
+                MeilisearchConnectionError as MeiliSearchConnectionError,
+            )
         except ImportError:
             MeiliSearchConnectionError = Exception
 
 logger = logging.getLogger(__name__)
 
 _client = None
+
 
 def get_meili_client():
     """
@@ -35,6 +41,7 @@ def get_meili_client():
             return None
     return _client
 
+
 def setup_meilisearch_index():
     """
     Creates the Meilisearch index if it doesn't exist and configures its settings
@@ -43,23 +50,33 @@ def setup_meilisearch_index():
     client = get_meili_client()
     if not client:
         return None
-    
+
     index_name = settings.MEILI_INDEX_NAME
     try:
         # Create or update index
         index = client.index(index_name)
-        
+
         # Configure settings for the index
-        index.update_settings({
-            "searchableAttributes": ["title", "description", "tags", "body_text"],
-            "filterableAttributes": ["content_type_name"],
-            "displayedAttributes": ["id", "title", "description", "tags", "body_text", "content_type_name"],
-        })
+        index.update_settings(
+            {
+                "searchableAttributes": ["title", "description", "tags", "body_text"],
+                "filterableAttributes": ["content_type_name"],
+                "displayedAttributes": [
+                    "id",
+                    "title",
+                    "description",
+                    "tags",
+                    "body_text",
+                    "content_type_name",
+                ],
+            }
+        )
         logger.info("Successfully configured Meilisearch index: %s", index_name)
         return index
     except Exception as exc:
         logger.warning("Could not set up Meilisearch index %s: %s", index_name, exc)
         return None
+
 
 def get_meili_index():
     """

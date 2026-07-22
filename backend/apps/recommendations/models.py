@@ -1,4 +1,5 @@
-from django.contrib.auth.models import User
+from django.conf import settings
+
 from django.db import models
 
 
@@ -31,7 +32,9 @@ class Recommendation(models.Model):
         OSS_ISSUE = "oss_issue", "OSS Issue"
 
     user = models.ForeignKey(
-        User, on_delete=models.CASCADE, related_name="recommendations"
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="recommendations",
     )
     content_type = models.CharField(max_length=20, choices=ContentType.choices)
     content_id = models.CharField(max_length=255)  # Assuming slug or id
@@ -46,7 +49,6 @@ class Recommendation(models.Model):
     labels = models.JSONField(default=list)
     language = models.CharField(max_length=50, blank=True)
     difficulty = models.CharField(max_length=20, blank=True)
-
 
     class Meta:
         ordering = ["-priority_score", "-created_at"]

@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 class RedisLock:
     """
     Redis distributed lock implementation.
-    
+
     Usage:
         lock = RedisLock("task_name", timeout=60)
         with lock.acquire():
@@ -67,31 +67,37 @@ class RedisLock:
                 finally:
                     self._release()
             else:
-                delay = 2 ** attempt
-                logger.debug(f"Lock {self.lock_key} not acquired, attempt {attempt + 1}/{self.retry_count}")
+                delay = 2**attempt
+                logger.debug(
+                    f"Lock {self.lock_key} not acquired, attempt {attempt + 1}/{self.retry_count}"
+                )
                 time.sleep(delay)
-        raise Exception(f"Could not acquire lock {self.lock_key} after {self.retry_count} attempts")
+        raise Exception(
+            f"Could not acquire lock {self.lock_key} after {self.retry_count} attempts"
+        )
 
 
 def distributed_lock(lock_key: str, timeout: int = 60, retry_count: int = 3):
     """
     Decorator for distributed lock on Celery tasks.
     """
+
     def decorator(func: Callable) -> Callable:
         @wraps(func)
         def wrapper(*args, **kwargs):
             lock_key_with_args = lock_key
-            if '{' in lock_key:
+            if "{" in lock_key:
                 lock_key_with_args = lock_key.format(*args, **kwargs)
-            
+
             lock = RedisLock(lock_key_with_args, timeout, retry_count)
             with lock.acquire():
                 logger.info(f"Lock acquired for task: {lock_key_with_args}")
                 result = func(*args, **kwargs)
                 logger.info(f"Lock released for task: {lock_key_with_args}")
                 return result
-        
+
         return wrapper
+
     return decorator
 
 
@@ -132,9 +138,10 @@ class TaskLockManager:
     def get_all_locks() -> list:
         try:
             from django_redis import get_redis_connection
+
             redis_client = get_redis_connection("default")
             keys = redis_client.keys("celery_lock:*")
-            return [k.decode('utf-8') for k in keys]
+            return [k.decode("utf-8") for k in keys]
         except Exception as e:
             logger.error(f"Failed to get locks: {e}")
             return []

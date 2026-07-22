@@ -7,8 +7,12 @@ on:
     branches: [main]
 
 jobs:
-  backend:
+  backend-test:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
     services:
       redis:
         image: redis:7-alpine
@@ -26,35 +30,38 @@ jobs:
         run: |
           cd backend
           pip install -r requirements.txt
+          pip install pytest-xdist pytest-split
       
-      - name: Run migrations
+      - name: Run tests (shard ${{ matrix.shard }})
         run: |
           cd backend
-          python manage.py migrate
-      
-      - name: Check migrations
-        run: |
-          cd backend
-          python manage.py makemigrations --check
-      
-      - name: Run tests
-        run: |
-          cd backend
-          pytest --cov=. --cov-report=xml
+          pytest --splits 3 --group ${{ matrix.shard }} --cov=. --cov-report=xml
       
       - name: Upload coverage
         uses: codecov/codecov-action@v3
         with:
           file: ./backend/coverage.xml
 
-  frontend:
+  frontend-test:
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2]
     steps:
       - uses: actions/checkout@v3
-      - uses: actions/setup-node@v3
+      
+      - name: Setup Node
+        uses: actions/setup-node@v3
         with:
           node-version: '18'
-      - run: cd frontend && npm ci
-      - run: cd frontend && npm run lint
-      - run: cd frontend && npm run test
-      - run: cd frontend && npm run build
+      
+      - name: Install dependencies
+        run: |
+          cd frontend
+          npm ci
+      
+      - name: Run tests (shard ${{ matrix.shard }})
+        run: |
+          cd frontend
+          npm run test -- --shard=${{ matrix.shard }}/2

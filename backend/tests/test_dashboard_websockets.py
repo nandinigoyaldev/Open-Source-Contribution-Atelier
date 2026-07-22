@@ -1,7 +1,9 @@
 import pytest
 from channels.layers import get_channel_layer
 from channels.testing import WebsocketCommunicator
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
 
 from apps.content.models import Lesson
 from apps.progress.models import LessonProgress

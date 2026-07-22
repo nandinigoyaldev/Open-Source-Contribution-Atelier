@@ -14,7 +14,9 @@ def get_supported_locales() -> set[str]:
     """
     Returns a set of lowercase supported language codes.
     """
-    return {code.lower() for code, _ in getattr(settings, "LANGUAGES", [("en", "English")])}
+    return {
+        code.lower() for code, _ in getattr(settings, "LANGUAGES", [("en", "English")])
+    }
 
 
 def parse_accept_language(header: str) -> list[tuple[str, float]]:
@@ -123,9 +125,13 @@ def resolve_locale(accept_language_header: str) -> str:
 def check_locale_switch_rate_limit(request, resolved_lang: str) -> bool:
     """
     Checks if the user/IP is switching locales too rapidly.
-    Allows up to 10 locale switches per 60 seconds.
+    Limits are configurable via settings.LOCALE_SWITCH_RATE_LIMIT (default 10)
+    and settings.LOCALE_SWITCH_RATE_WINDOW_SECONDS (default 60).
     Returns True if switch is allowed, False if rate-limited.
     """
+    max_switches = getattr(settings, "LOCALE_SWITCH_RATE_LIMIT", 10)
+    window_seconds = getattr(settings, "LOCALE_SWITCH_RATE_WINDOW_SECONDS", 60)
+
     # Try to identify client via session key or IP address
     client_id = None
     if hasattr(request, "session"):
@@ -135,11 +141,17 @@ def check_locale_switch_rate_limit(request, resolved_lang: str) -> bool:
 
     if not client_id:
         x_forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR")
-        ip = x_forwarded_for.split(",")[0].strip() if x_forwarded_for else request.META.get("REMOTE_ADDR")
+        ip = (
+            x_forwarded_for.split(",")[0].strip()
+            if x_forwarded_for
+            else request.META.get("REMOTE_ADDR")
+        )
         client_id = f"locale_switch_ip_{ip}"
 
     # Find currently active language
-    current_lang = request.session.get("django_language") if hasattr(request, "session") else None
+    current_lang = (
+        request.session.get("django_language") if hasattr(request, "session") else None
+    )
     if not current_lang:
         # Fallback check on request attribute
         current_lang = getattr(request, "LANGUAGE_CODE", None)
@@ -151,14 +163,13 @@ def check_locale_switch_rate_limit(request, resolved_lang: str) -> bool:
     now = int(time.time())
     cache_key = f"{client_id}_switches"
     switches = cache.get(cache_key, [])
-    # Keep only switches from the last 60 seconds
-    switches = [t for t in switches if now - t < 60]
+    switches = [t for t in switches if now - t < window_seconds]
 
-    if len(switches) >= 10:
+    if len(switches) >= max_switches:
         return False
 
     switches.append(now)
-    cache.set(cache_key, switches, timeout=60)
+    cache.set(cache_key, switches, timeout=window_seconds)
     return True
 
 
@@ -177,7 +188,11 @@ class LocaleMiddleware:
                 request.session["django_language"] = resolved
         else:
             # If rate-limited, keep previous language or fall back to default
-            prev_lang = request.session.get("django_language") if hasattr(request, "session") else None
+            prev_lang = (
+                request.session.get("django_language")
+                if hasattr(request, "session")
+                else None
+            )
             if prev_lang:
                 translation.activate(prev_lang)
             else:
@@ -190,4 +205,3 @@ class LocaleMiddleware:
             return response
         finally:
             translation.deactivate()
-

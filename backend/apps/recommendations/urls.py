@@ -17,4 +17,3 @@ urlpatterns = [
     ),
     path("oss-issues/", views.OSSIssueListView.as_view(), name="oss-issues"),
 ]
-

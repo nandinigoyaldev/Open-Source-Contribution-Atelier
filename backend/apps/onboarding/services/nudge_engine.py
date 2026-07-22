@@ -57,21 +57,24 @@ class NudgeEngine:
         ]
 
         import random
+
         message = random.choice(messages)
 
-        self._create_nudge(journey, 'encouragement', message)
+        self._create_nudge(journey, "encouragement", message)
 
     def _send_reminder_nudge(self, journey: OnboardingJourney):
         """Send reminder nudge."""
         message = f"⏰ You've been at the '{journey.get_current_stage_display()}' stage for a while. Need any help getting unstuck?"
 
-        self._create_nudge(journey, 'reminder', message)
+        self._create_nudge(journey, "reminder", message)
 
     def _send_checkin_nudge(self, journey: OnboardingJourney):
         """Send check-in nudge."""
-        message = "👋 Just checking in! How's your onboarding going? We're here to help!"
+        message = (
+            "👋 Just checking in! How's your onboarding going? We're here to help!"
+        )
 
-        self._create_nudge(journey, 'checkin', message)
+        self._create_nudge(journey, "checkin", message)
 
     def _create_nudge(self, journey: OnboardingJourney, nudge_type: str, message: str):
         """Create and send nudge."""
@@ -79,7 +82,7 @@ class NudgeEngine:
         recent_nudge = OnboardingNudge.objects.filter(
             journey=journey,
             nudge_type=nudge_type,
-            created_at__gte=timezone.now() - timedelta(days=1)
+            created_at__gte=timezone.now() - timedelta(days=1),
         ).exists()
 
         if recent_nudge:
@@ -90,7 +93,7 @@ class NudgeEngine:
             nudge_type=nudge_type,
             message=message,
             is_sent=True,
-            sent_at=timezone.now()
+            sent_at=timezone.now(),
         )
 
         # Update journey
@@ -104,13 +107,13 @@ class NudgeEngine:
             async_to_sync(channel_layer.group_send)(
                 f"user_{journey.user.id}",
                 {
-                    'type': 'nudge',
-                    'data': {
-                        'id': str(nudge.id),
-                        'type': nudge_type,
-                        'message': message,
-                    }
-                }
+                    "type": "nudge",
+                    "data": {
+                        "id": str(nudge.id),
+                        "type": nudge_type,
+                        "message": message,
+                    },
+                },
             )
         except Exception as e:
             logger.error(f"WebSocket nudge failed: {e}")
@@ -120,9 +123,9 @@ class NudgeEngine:
     def _is_dropping_off(self, journey: OnboardingJourney) -> bool:
         """Check if journey is dropping off."""
         # No activity for 7 days
-        last_event = JourneyEvent.objects.filter(
-            journey=journey
-        ).order_by('-created_at').first()
+        last_event = (
+            JourneyEvent.objects.filter(journey=journey).order_by("-created_at").first()
+        )
 
         if last_event:
             days_since = (timezone.now() - last_event.created_at).days

@@ -1,4 +1,5 @@
-from django.contrib.auth.models import User
+from django.conf import settings
+
 from django.db import models
 
 
@@ -22,7 +23,7 @@ class Issue(SoftDeleteModel):
         default=0, help_text="Bonus points awarded during a multiplier event."
     )
     assigned_to = models.ForeignKey(
-        User,
+        settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
@@ -65,7 +66,7 @@ class PullRequest(models.Model):
         related_name="pull_requests",
     )
     user = models.ForeignKey(
-        User, on_delete=models.CASCADE, related_name="pull_requests"
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="pull_requests"
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -80,6 +81,3 @@ class PullRequest(models.Model):
             models.Index(fields=["issue", "status"], name="idx_pr_issue_status"),
             models.Index(fields=["status", "-created_at"], name="idx_pr_status_time"),
         ]
-
-
-

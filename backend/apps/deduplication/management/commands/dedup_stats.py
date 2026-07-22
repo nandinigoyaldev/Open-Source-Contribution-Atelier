@@ -9,7 +9,7 @@ from django.core.cache import cache
 class Command(BaseCommand):
     """
     Show deduplication statistics.
-    
+
     Usage:
         python manage.py dedup_stats
     """
@@ -18,8 +18,8 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
         self.stdout.write("📊 Request Deduplication Stats")
-        self.stdout.write("="*40)
-        
+        self.stdout.write("=" * 40)
+
         # Get cache stats (simplified)
         try:
             # This is a simplified implementation

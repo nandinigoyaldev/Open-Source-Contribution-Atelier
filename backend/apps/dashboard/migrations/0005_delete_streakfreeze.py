@@ -6,11 +6,11 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('dashboard', '0004_issue_deleted_at_issue_deleted_by_and_more'),
+        ("dashboard", "0004_issue_deleted_at_issue_deleted_by_and_more"),
     ]
 
     operations = [
         migrations.DeleteModel(
-            name='StreakFreeze',
+            name="StreakFreeze",
         ),
     ]

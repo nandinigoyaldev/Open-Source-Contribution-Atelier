@@ -243,6 +243,16 @@ class PipelineExecutionSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ["id", "status", "created_at", "completed_at"]
 
+    def validate_trigger_command(self, value):
+        if not value:
+            return value
+        from .services.pipeline_simulator import validate_trigger_command
+
+        is_valid, sanitized_or_reason = validate_trigger_command(value)
+        if not is_valid:
+            raise serializers.ValidationError(sanitized_or_reason)
+        return sanitized_or_reason
+
 
 class ConflictScenarioSerializer(serializers.ModelSerializer):
     class Meta:
@@ -421,3 +431,41 @@ class TriageAttemptSerializer(serializers.ModelSerializer):
             "badge_awarded",
             "created_at",
         ]
+
+
+# ============================================================
+# FEATURE: ADR Sandbox Simulator
+# ============================================================
+
+from .models import ADRScenario, ADROption, ADRAttempt
+
+
+class ADROptionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ADROption
+        fields = ["id", "title", "pros", "cons"]
+
+
+class ADRScenarioSerializer(serializers.ModelSerializer):
+    options = ADROptionSerializer(many=True, read_only=True)
+
+    class Meta:
+        model = ADRScenario
+        fields = ["id", "title", "context", "constraints", "created_at", "options"]
+
+
+class ADRAttemptSerializer(serializers.ModelSerializer):
+    scenario = ADRScenarioSerializer(read_only=True)
+
+    class Meta:
+        model = ADRAttempt
+        fields = [
+            "id",
+            "user",
+            "scenario",
+            "selected_option",
+            "is_successful",
+            "feedback",
+            "created_at",
+        ]
+        read_only_fields = ["id", "user", "is_successful", "feedback", "created_at"]

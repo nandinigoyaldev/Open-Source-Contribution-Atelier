@@ -87,9 +87,7 @@ class Command(BaseCommand):
 
         curriculum_slugs = extract_curriculum_slugs(curriculum)
         db_slugs = sorted(
-            Lesson.objects.exclude(slug="")
-            .values_list("slug", flat=True)
-            .distinct()
+            Lesson.objects.exclude(slug="").values_list("slug", flat=True).distinct()
         )
         diff = diff_slugs(curriculum_slugs, db_slugs)
         has_drift = bool(diff["missing_in_api"] or diff["missing_in_curriculum"])
@@ -122,9 +120,7 @@ class Command(BaseCommand):
                     for slug in diff["missing_in_api"]:
                         self.stdout.write(f"    - {slug}")
                 if diff["missing_in_curriculum"]:
-                    self.stdout.write(
-                        "  Missing in curriculum.json (present in DB):"
-                    )
+                    self.stdout.write("  Missing in curriculum.json (present in DB):")
                     for slug in diff["missing_in_curriculum"]:
                         self.stdout.write(f"    - {slug}")
                 self.stdout.write(

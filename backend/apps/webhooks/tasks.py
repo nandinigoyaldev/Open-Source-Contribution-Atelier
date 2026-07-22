@@ -7,7 +7,12 @@ import requests
 from django.utils import timezone
 from django_q.tasks import async_task
 
-from .models import DeadLetterWebhook, WebhookDelivery, WebhookEndpoint
+from .models import (
+    DeadLetterWebhook,
+    WebhookDelivery,
+    WebhookEndpoint,
+    WebhookDeliveryLog,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -109,6 +114,12 @@ def deliver_webhook(delivery_id, attempt=1):
             delivery.status_code = response.status_code
             delivery.response_body = response.text[:2000]
 
+            WebhookDeliveryLog.objects.create(
+                delivery=delivery,
+                status_code=delivery.status_code,
+                response_body=delivery.response_body,
+            )
+
             if 200 <= response.status_code < 300:
                 delivery.status = "success"
                 delivery.next_retry_at = None
@@ -123,11 +134,19 @@ def deliver_webhook(delivery_id, attempt=1):
         is_retryable = True
         failure_reason = f"Circuit open: {str(exc)}"
         delivery.response_body = failure_reason
+        delivery.status_code = None
+        WebhookDeliveryLog.objects.create(
+            delivery=delivery, status_code=None, response_body=failure_reason
+        )
 
     except requests.exceptions.RequestException as exc:
         is_retryable = True
         failure_reason = str(exc)[:1000]
         delivery.response_body = failure_reason
+        delivery.status_code = None
+        WebhookDeliveryLog.objects.create(
+            delivery=delivery, status_code=None, response_body=failure_reason
+        )
 
     # --- Schedule retry or move to DLQ ---
     if is_retryable and attempt < MAX_RETRIES:

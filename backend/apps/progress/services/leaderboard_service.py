@@ -71,6 +71,7 @@ class LeaderboardService:
             return
 
         from django.contrib.auth import get_user_model
+
         User = get_user_model()
         try:
             user = User.objects.get(id=user_id)

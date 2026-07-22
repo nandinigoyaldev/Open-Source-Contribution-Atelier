@@ -37,7 +37,9 @@ class Command(BaseCommand):
         if dlq_id:
             self.stdout.write(f"Replaying DLQ entry {dlq_id}...")
             replay_delivery(dlq_id)
-            self.stdout.write(self.style.SUCCESS(f"Queued replay for DLQ entry {dlq_id}."))
+            self.stdout.write(
+                self.style.SUCCESS(f"Queued replay for DLQ entry {dlq_id}.")
+            )
             return
 
         qs = DeadLetterWebhook.objects.all()

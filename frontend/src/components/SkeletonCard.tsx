@@ -1,21 +1,23 @@
-import React from 'react';
+import React from "react";
 
 interface SkeletonCardProps {
-  variant?: 'stats' | 'chart' | 'badge' | 'activity';
+  variant?: "stats" | "chart" | "badge" | "activity";
   count?: number;
   className?: string;
 }
 
-const SkeletonCard: React.FC<SkeletonCardProps> = ({ 
-  variant = 'stats', 
+const SkeletonCard: React.FC<SkeletonCardProps> = ({
+  variant = "stats",
   count = 1,
-  className = '' 
+  className = "",
 }) => {
   const renderSkeleton = () => {
     switch (variant) {
-      case 'stats':
+      case "stats":
         return (
-          <div className={`bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-700 animate-pulse ${className}`}>
+          <div
+            className={`bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-700 animate-pulse ${className}`}
+          >
             <div className="flex items-center justify-between">
               <div className="space-y-3 flex-1">
                 <div className="h-4 w-20 bg-slate-200 dark:bg-slate-700 rounded"></div>
@@ -27,9 +29,11 @@ const SkeletonCard: React.FC<SkeletonCardProps> = ({
           </div>
         );
 
-      case 'badge':
+      case "badge":
         return (
-          <div className={`bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-200 dark:border-slate-700 animate-pulse ${className}`}>
+          <div
+            className={`bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-200 dark:border-slate-700 animate-pulse ${className}`}
+          >
             <div className="flex items-center gap-4">
               <div className="h-14 w-14 bg-slate-200 dark:bg-slate-700 rounded-full"></div>
               <div className="flex-1 space-y-2">
@@ -40,9 +44,11 @@ const SkeletonCard: React.FC<SkeletonCardProps> = ({
           </div>
         );
 
-      case 'activity':
+      case "activity":
         return (
-          <div className={`bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-200 dark:border-slate-700 animate-pulse ${className}`}>
+          <div
+            className={`bg-white dark:bg-slate-800 rounded-xl p-4 shadow-sm border border-slate-200 dark:border-slate-700 animate-pulse ${className}`}
+          >
             <div className="flex items-center gap-4">
               <div className="h-10 w-10 bg-slate-200 dark:bg-slate-700 rounded-full"></div>
               <div className="flex-1 space-y-2">
@@ -54,9 +60,11 @@ const SkeletonCard: React.FC<SkeletonCardProps> = ({
           </div>
         );
 
-      case 'chart':
+      case "chart":
         return (
-          <div className={`bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-700 animate-pulse ${className}`}>
+          <div
+            className={`bg-white dark:bg-slate-800 rounded-xl p-6 shadow-sm border border-slate-200 dark:border-slate-700 animate-pulse ${className}`}
+          >
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <div className="h-5 w-32 bg-slate-200 dark:bg-slate-700 rounded"></div>
@@ -65,7 +73,10 @@ const SkeletonCard: React.FC<SkeletonCardProps> = ({
               <div className="h-48 bg-slate-200 dark:bg-slate-700 rounded-lg"></div>
               <div className="flex justify-between">
                 {[...Array(6)].map((_, i) => (
-                  <div key={i} className="h-3 w-8 bg-slate-200 dark:bg-slate-700 rounded"></div>
+                  <div
+                    key={i}
+                    className="h-3 w-8 bg-slate-200 dark:bg-slate-700 rounded"
+                  ></div>
                 ))}
               </div>
             </div>
