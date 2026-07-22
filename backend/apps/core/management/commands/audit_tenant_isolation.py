@@ -14,6 +14,7 @@ Usage::
     python manage.py audit_tenant_isolation
     python manage.py audit_tenant_isolation --strict   # exit code 1 on any gap
 """
+
 import inspect
 
 from django.core.management.base import BaseCommand
@@ -104,7 +105,9 @@ class Command(BaseCommand):
 
         def walk(pattern):
             callback = pattern.callback
-            cls = getattr(callback, "cls", None) or getattr(callback, "view_class", None)
+            cls = getattr(callback, "cls", None) or getattr(
+                callback, "view_class", None
+            )
             if cls and isinstance(cls, type) and issubclass(cls, ViewSetMixin):
                 if cls not in seen:
                     seen.add(cls)
@@ -127,7 +130,11 @@ class Command(BaseCommand):
         if "get_queryset" in viewset.__dict__:
             try:
                 src = inspect.getsource(viewset.__dict__["get_queryset"])
-                if "organization" in src or "user_profile" in src or "memberships" in src:
+                if (
+                    "organization" in src
+                    or "user_profile" in src
+                    or "memberships" in src
+                ):
                     return True
             except (OSError, TypeError):
                 pass

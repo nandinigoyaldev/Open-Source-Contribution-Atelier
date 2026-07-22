@@ -143,7 +143,7 @@ class Command(BaseCommand):
                 "name": "Bounty Hunter",
                 "description": "Completed open-source practice bounties.",
                 "category": "bounties",
-            }
+            },
         )
 
         # Seed educational bounties
@@ -181,6 +181,7 @@ class Command(BaseCommand):
         ]
 
         from django.db import transaction
+
         with transaction.atomic():
             for data in bounties_data:
                 bounty, created = Bounty.objects.get_or_create(
@@ -190,7 +191,7 @@ class Command(BaseCommand):
                         "xp_reward": data["xp_reward"],
                         "status": Bounty.Status.OPEN,
                         "badge": data["badge"],
-                    }
+                    },
                 )
                 if not created:
                     bounty.description = data["description"]

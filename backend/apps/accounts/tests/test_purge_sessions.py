@@ -3,17 +3,23 @@ from datetime import timedelta
 from django.utils import timezone
 from django.core.management import call_command
 from django.contrib.sessions.models import Session
-from rest_framework_simplejwt.token_blacklist.models import OutstandingToken, BlacklistedToken
+from rest_framework_simplejwt.token_blacklist.models import (
+    OutstandingToken,
+    BlacklistedToken,
+)
 from apps.accounts.models import PasswordResetToken, OTPToken, MagicLinkToken
 from django.contrib.auth import get_user_model
 from io import StringIO
 
 User = get_user_model()
 
+
 @pytest.mark.django_db
 def test_purge_sessions_command():
     # Create test user
-    user = User.objects.create_user(username="testpurgeuser", email="testpurge@example.com", password="password123")
+    user = User.objects.create_user(
+        username="testpurgeuser", email="testpurge@example.com", password="password123"
+    )
 
     now = timezone.now()
     older_than_30_days = now - timedelta(days=31)
@@ -26,7 +32,7 @@ def test_purge_sessions_command():
         jti="jti1",
         token="token1",
         created_at=older_than_30_days,
-        expires_at=older_than_30_days
+        expires_at=older_than_30_days,
     )
     BlacklistedToken.objects.create(token=t1)
 
@@ -36,21 +42,19 @@ def test_purge_sessions_command():
         jti="jti2",
         token="token2",
         created_at=within_30_days,
-        expires_at=now + timedelta(days=1)
+        expires_at=now + timedelta(days=1),
     )
 
     # 2. Setup Django Sessions
     # Expired session
     s1 = Session.objects.create(
-        session_key="session1",
-        session_data="data1",
-        expire_date=older_than_30_days
+        session_key="session1", session_data="data1", expire_date=older_than_30_days
     )
     # Valid session
     s2 = Session.objects.create(
         session_key="session2",
         session_data="data2",
-        expire_date=now + timedelta(days=1)
+        expire_date=now + timedelta(days=1),
     )
 
     # 3. Setup transient user tokens
@@ -116,7 +120,7 @@ def test_purge_sessions_command():
     assert OutstandingToken.objects.count() == 1
     assert OutstandingToken.objects.filter(token="token2").exists()
     assert BlacklistedToken.objects.count() == 0  # Blacklist token was cascades deleted
-    
+
     assert Session.objects.count() == 1
     assert Session.objects.filter(session_key="session2").exists()
 

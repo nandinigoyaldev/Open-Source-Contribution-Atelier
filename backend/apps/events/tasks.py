@@ -53,6 +53,7 @@ def process_event(event_id: str):
             # Django-Q doesn't have self.retry, we can enqueue it again if needed or let Django-Q handle it.
             # For manual retry:
             from django_q.tasks import async_task
+
             async_task("apps.events.tasks.process_event", str(event.id))
         else:
             # Max retries exceeded

@@ -549,6 +549,8 @@ from .serializers import PipelineExecutionSerializer
 class PipelineExecutionViewSet(viewsets.ModelViewSet):
     serializer_class = PipelineExecutionSerializer
     permission_classes = [permissions.IsAuthenticated]
+    throttle_classes = [SlidingWindowScopedThrottle]
+    throttle_scope = "sandbox_user"
 
     def get_queryset(self):
         return PipelineExecution.objects.filter(
@@ -734,7 +736,15 @@ from .serializers import LicenseScenarioSerializer, LicenseAttemptSerializer
 
 
 class LicenseScenarioViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = LicenseScenario.objects.all().order_by("-created_at")
+    """
+    Viewset for License Scenarios (Dependency Detective).
+    """
+
+    queryset = (
+        LicenseScenario.objects.all()
+        .prefetch_related("dependencies")
+        .order_by("-created_at")
+    )
     serializer_class = LicenseScenarioSerializer
     permission_classes = [permissions.AllowAny]
 
@@ -973,3 +983,60 @@ class TriageIssueViewSet(viewsets.ReadOnlyModelViewSet):
             "issue"
         )
         return Response(TriageAttemptSerializer(attempts, many=True).data)
+
+
+# ============================================================
+# FEATURE: ADR Sandbox Simulator
+# ============================================================
+
+from .models import ADRScenario, ADROption, ADRAttempt
+from .serializers import ADRScenarioSerializer, ADRAttemptSerializer
+
+
+class ADRScenarioViewSet(viewsets.ReadOnlyModelViewSet):
+    """
+    Viewset for ADR Scenarios.
+    """
+
+    queryset = (
+        ADRScenario.objects.all().prefetch_related("options").order_by("-created_at")
+    )
+    serializer_class = ADRScenarioSerializer
+    permission_classes = [permissions.AllowAny]
+
+    @action(detail=True, methods=["post"])
+    def evaluate(self, request, pk=None):
+        scenario = self.get_object()
+        user = request.user if request.user.is_authenticated else None
+        selected_option_id = request.data.get("selected_option_id")
+
+        if not selected_option_id:
+            return Response(
+                {"error": "You must provide 'selected_option_id'."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            selected_option = scenario.options.get(id=selected_option_id)
+        except ADROption.DoesNotExist:
+            return Response(
+                {"error": "Invalid option ID for this scenario."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        is_successful = selected_option.is_optimal
+
+        if is_successful:
+            feedback = f"Great job! You picked the optimal choice: {selected_option.title}. This properly balances the constraints."
+        else:
+            feedback = f"You selected {selected_option.title}. This is not the optimal choice because it violates the system constraints."
+
+        attempt = ADRAttempt.objects.create(
+            user=user,
+            scenario=scenario,
+            selected_option=selected_option,
+            is_successful=is_successful,
+            feedback=feedback,
+        )
+
+        return Response({"is_successful": is_successful, "feedback": feedback})

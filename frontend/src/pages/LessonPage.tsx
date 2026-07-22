@@ -43,6 +43,7 @@ import { AvailableOfflineBadge } from "../components/ui/AvailableOfflineBadge";
 import { OfflineStatusBadge } from "../components/ui/OfflineStatusBadge";
 import { OfflineBanner } from "../components/ui/OfflineBanner";
 import { CurriculumDriftBanner } from "../components/ui/CurriculumDriftBanner";
+import { AITutorFloatingPanel } from "../components/ui/AITutorPanel";
 
 const SESSION_KEY_RECENT = "recentlyViewedLessonsV1";
 const MAX_RECENT_ITEMS = 3;
@@ -1622,6 +1623,11 @@ export function LessonPage() {
           />
         )}
       </div>
+
+      <AITutorFloatingPanel
+        lessonSlug={lesson.slug}
+        lessonTitle={lesson.title}
+      />
     </div>
   );
 }

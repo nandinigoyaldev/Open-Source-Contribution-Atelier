@@ -2,7 +2,7 @@ import os
 import uuid
 
 from django.conf import settings
-from django.contrib.auth.models import User
+
 from django.db import models
 
 
@@ -26,7 +26,9 @@ class UploadSession(models.Model):
     objects = models.Manager()
     session_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     user = models.ForeignKey(
-        User, on_delete=models.CASCADE, related_name="upload_sessions"
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="upload_sessions",
     )
     filename = models.CharField(max_length=255)
     upload_type = models.CharField(
@@ -80,7 +82,7 @@ class UploadScanHistory(models.Model):
     message = models.TextField(blank=True)
     scanned_at = models.DateTimeField(auto_now_add=True)
     released_by = models.ForeignKey(
-        User, on_delete=models.SET_NULL, null=True, blank=True
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True
     )
 
     class Meta:

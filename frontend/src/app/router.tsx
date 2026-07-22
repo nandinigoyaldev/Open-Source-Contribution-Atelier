@@ -92,6 +92,18 @@ const ModerationDashboard = lazy(() =>
   })),
 );
 
+const BackupDashboardPage = lazy(() =>
+  import("../pages/admin/BackupDashboardPage").then((module) => ({
+    default: module.default,
+  })),
+);
+
+const VulnerabilityDashboard = lazy(() =>
+  import("../pages/admin/VulnerabilityDashboard").then((module) => ({
+    default: module.VulnerabilityDashboard,
+  })),
+);
+
 const SandboxPage = lazy(() =>
   import("../pages/SandboxPage").then((module) => ({
     default: module.SandboxPage,
@@ -128,6 +140,12 @@ const NotificationPreferencesPage = lazy(() =>
   })),
 );
 
+const DigestPage = lazy(() =>
+  import("../pages/notifications/DigestPage").then((module) => ({
+    default: module.default,
+  })),
+);
+
 const PricingPage = lazy(() =>
   import("../pages/PricingPage").then((module) => ({
     default: module.PricingPage,
@@ -155,6 +173,12 @@ const UserProfilePage = lazy(() =>
 const LeaderboardPage = lazy(() =>
   import("../pages/LeaderboardPage").then((module) => ({
     default: module.LeaderboardPage,
+  })),
+);
+
+const ShopPage = lazy(() =>
+  import("../pages/ShopPage").then((module) => ({
+    default: module.ShopPage,
   })),
 );
 
@@ -205,6 +229,37 @@ const MergeConflictScenarioBuilderPage = lazy(() =>
     default: module.MergeConflictScenarioBuilderPage,
   })),
 );
+
+const PerformanceDashboardPage = lazy(() =>
+  import("../pages/admin/PerformanceDashboardPage").then((module) => ({
+    default: module.PerformanceDashboardPage,
+  })),
+);
+
+const ContentStudioPage = lazy(() =>
+  import("../pages/admin/ContentStudioPage").then((module) => ({
+    default: module.ContentStudioPage,
+  })),
+);
+
+const LessonEditorPage = lazy(() =>
+  import("../pages/admin/LessonEditorPage").then((module) => ({
+    default: module.LessonEditorPage,
+  })),
+);
+
+const QuizBuilderPage = lazy(() =>
+  import("../pages/admin/QuizBuilderPage").then((module) => ({
+    default: module.QuizBuilderPage,
+  })),
+);
+
+const ModuleTreePage = lazy(() =>
+  import("../pages/admin/ModuleTreePage").then((module) => ({
+    default: module.ModuleTreePage,
+  })),
+);
+
 /*
  * These pages use default exports, so they can be passed directly
  * to React.lazy().
@@ -219,6 +274,23 @@ const TemplateMarketplacePage = lazy(
 
 const PortfolioPage = lazy(() => import("../pages/PortfolioPage"));
 
+const ApiDocsPage = lazy(() =>
+  import("../pages/ApiDocsPage").then((module) => ({
+    default: module.ApiDocsPage,
+  })),
+);
+
+const OAuthClientsPage = lazy(() =>
+  import("../pages/admin/OAuthClients").then((module) => ({
+    default: module.OAuthClients,
+  })),
+);
+
+const ConnectedAppsPage = lazy(() =>
+  import("../pages/settings/ConnectedApps").then((module) => ({
+    default: module.ConnectedApps,
+  })),
+);
 function RouteLoadingFallback() {
   return (
     <div
@@ -426,7 +498,14 @@ export function AppRouter() {
             }
           />
 
-          <Route path="/sandbox" element={<SandboxPage />} />
+          <Route
+            path="/sandbox"
+            element={
+              <ProtectedRoute>
+                <SandboxPage />
+              </ProtectedRoute>
+            }
+          />
 
           <Route
             path="/contributor-sandbox"
@@ -554,10 +633,78 @@ export function AppRouter() {
           />
 
           <Route
+            path="/admin/backups"
+            element={
+              <ProtectedRoute>
+                <BackupDashboardPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/admin/performance"
+            element={
+              <ProtectedRoute>
+                <PerformanceDashboardPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/admin/vulnerabilities"
+            element={
+              <ProtectedRoute>
+                <VulnerabilityDashboard />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
             path="/portfolio"
             element={
               <ProtectedRoute>
                 <PortfolioPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/admin/content-studio"
+            element={
+              <ProtectedRoute>
+                <ContentStudioPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/leaderboard"
+            element={
+              <ProtectedRoute>
+                <LeaderboardPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/shop"
+            element={
+              <ProtectedRoute>
+                <ShopPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/content-studio/quizzes/:lessonId"
+            element={
+              <ProtectedRoute>
+                <QuizBuilderPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/admin/content-studio/tree"
+            element={
+              <ProtectedRoute>
+                <ModuleTreePage />
               </ProtectedRoute>
             }
           />
@@ -580,6 +727,16 @@ export function AppRouter() {
             }
           />
 
+          <Route path="/docs/api" element={<ApiDocsPage />} />
+          <Route
+            path="/notifications/digest"
+            element={
+              <ProtectedRoute>
+                <DigestPage />
+              </ProtectedRoute>
+            }
+          />
+
           <Route
             path="/settings/billing"
             element={
@@ -598,18 +755,28 @@ export function AppRouter() {
             }
           />
 
+          <Route
+            path="/admin/oauth-clients"
+            element={
+              <ProtectedRoute>
+                <OAuthClientsPage />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
+            path="/settings/connected-apps"
+            element={
+              <ProtectedRoute>
+                <ConnectedAppsPage />
+              </ProtectedRoute>
+            }
+          />
+
           <Route path="/pricing" element={<PricingPage />} />
 
           <Route path="/u/:username" element={<UserProfilePage />} />
         </Route>
-
-        {/* Existing standalone routes preserved */}
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/signup" element={<SignupPage />} />
-        <Route path="/verify" element={<VerifyCertificatePage />} />
-        <Route path="/verify/:hash" element={<VerifyCertificatePage />} />
-        <Route path="/500" element={<ServerErrorPage />} />
-        <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </Suspense>
   );

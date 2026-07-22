@@ -25,7 +25,10 @@ class Migration(migrations.Migration):
                     ),
                 ),
                 ("event_type", models.CharField(max_length=50)),
-                ("status_before", models.CharField(max_length=20, null=True, blank=True)),
+                (
+                    "status_before",
+                    models.CharField(max_length=20, null=True, blank=True),
+                ),
                 ("status_after", models.CharField(max_length=20)),
                 (
                     "action_taken",
@@ -56,9 +59,8 @@ class Migration(migrations.Migration):
                 "ordering": ["-created_at"],
                 "indexes": [
                     models.Index(fields=["created_at"], name="idx_created_at"),
-                    models.Index(fields=["status_after"], name="idx_status_after")
+                    models.Index(fields=["status_after"], name="idx_status_after"),
                 ],
             },
         ),
     ]
-

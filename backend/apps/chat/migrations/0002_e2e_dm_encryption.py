@@ -2,6 +2,7 @@ from django.db import migrations, models
 import django.db.models.deletion
 from django.conf import settings
 
+
 class Migration(migrations.Migration):
 
     dependencies = [
@@ -13,8 +14,21 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name="UserPublicKey",
             fields=[
-                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
-                ("public_key", models.TextField(help_text="Base64-encoded X25519 public key (32 bytes). Generated client-side.")),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "public_key",
+                    models.TextField(
+                        help_text="Base64-encoded X25519 public key (32 bytes). Generated client-side."
+                    ),
+                ),
                 ("created_at", models.DateTimeField(auto_now_add=True)),
                 ("updated_at", models.DateTimeField(auto_now=True)),
                 (
@@ -30,9 +44,28 @@ class Migration(migrations.Migration):
         migrations.CreateModel(
             name="DirectMessage",
             fields=[
-                ("id", models.BigAutoField(auto_created=True, primary_key=True, serialize=False, verbose_name="ID")),
-                ("encrypted_content", models.TextField(help_text="Base64-encoded ciphertext. Encrypted client-side; server cannot read this.")),
-                ("nonce", models.CharField(help_text="Base64-encoded nonce used for this message's encryption.", max_length=64)),
+                (
+                    "id",
+                    models.BigAutoField(
+                        auto_created=True,
+                        primary_key=True,
+                        serialize=False,
+                        verbose_name="ID",
+                    ),
+                ),
+                (
+                    "encrypted_content",
+                    models.TextField(
+                        help_text="Base64-encoded ciphertext. Encrypted client-side; server cannot read this."
+                    ),
+                ),
+                (
+                    "nonce",
+                    models.CharField(
+                        help_text="Base64-encoded nonce used for this message's encryption.",
+                        max_length=64,
+                    ),
+                ),
                 ("is_read", models.BooleanField(default=False)),
                 ("created_at", models.DateTimeField(auto_now_add=True)),
                 (

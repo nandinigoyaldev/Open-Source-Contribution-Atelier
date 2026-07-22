@@ -20,7 +20,7 @@ def monitor_onboarding():
     """
     logger.info("Starting onboarding monitoring")
 
-    journeys = OnboardingJourney.objects.filter(status='active')
+    journeys = OnboardingJourney.objects.filter(status="active")
     engine = NudgeEngine()
 
     checked_count = 0
@@ -36,7 +36,7 @@ def monitor_onboarding():
             logger.error(f"Error monitoring {journey.user.username}: {e}")
 
     logger.info(f"Monitored {checked_count} journeys, sent {nudged_count} nudges")
-    return {'checked': checked_count, 'nudged': nudged_count}
+    return {"checked": checked_count, "nudged": nudged_count}
 
 
 @shared_task
@@ -64,15 +64,15 @@ def update_onboarding_metrics():
     # Calculate metrics
     metrics = OnboardingMetric.objects.create(date=today)
 
-    metrics.active_contributors = journeys.filter(status='active').count()
+    metrics.active_contributors = journeys.filter(status="active").count()
     metrics.new_contributors = journeys.filter(created_at__date=today).count()
 
     # Stage distribution
-    metrics.discovery_count = journeys.filter(current_stage='discovery').count()
-    metrics.setup_count = journeys.filter(current_stage='setup').count()
-    metrics.first_issue_count = journeys.filter(current_stage='first_issue').count()
-    metrics.pr_submitted_count = journeys.filter(current_stage='pr_submitted').count()
-    metrics.merged_count = journeys.filter(current_stage='merged').count()
+    metrics.discovery_count = journeys.filter(current_stage="discovery").count()
+    metrics.setup_count = journeys.filter(current_stage="setup").count()
+    metrics.first_issue_count = journeys.filter(current_stage="first_issue").count()
+    metrics.pr_submitted_count = journeys.filter(current_stage="pr_submitted").count()
+    metrics.merged_count = journeys.filter(current_stage="merged").count()
 
     # Drop-off rates
     total = journeys.count()
@@ -83,29 +83,29 @@ def update_onboarding_metrics():
         metrics.pr_dropoff = (metrics.pr_submitted_count / total) * 100
 
     # Average durations
-    completed = journeys.filter(status='completed')
+    completed = journeys.filter(status="completed")
     if completed.exists():
-        metrics.avg_discovery_duration = completed.aggregate(
-            avg=models.Avg('discovery_duration')
-        )['avg'] or 0
-        metrics.avg_setup_duration = completed.aggregate(
-            avg=models.Avg('setup_duration')
-        )['avg'] or 0
-        metrics.avg_first_issue_duration = completed.aggregate(
-            avg=models.Avg('first_issue_duration')
-        )['avg'] or 0
-        metrics.avg_pr_duration = completed.aggregate(
-            avg=models.Avg('pr_duration')
-        )['avg'] or 0
+        metrics.avg_discovery_duration = (
+            completed.aggregate(avg=models.Avg("discovery_duration"))["avg"] or 0
+        )
+        metrics.avg_setup_duration = (
+            completed.aggregate(avg=models.Avg("setup_duration"))["avg"] or 0
+        )
+        metrics.avg_first_issue_duration = (
+            completed.aggregate(avg=models.Avg("first_issue_duration"))["avg"] or 0
+        )
+        metrics.avg_pr_duration = (
+            completed.aggregate(avg=models.Avg("pr_duration"))["avg"] or 0
+        )
 
         metrics.completion_rate = (completed.count() / total) * 100
 
     # Average health score
-    metrics.average_health_score = journeys.aggregate(
-        avg=models.Avg('health_score')
-    )['avg'] or 0
+    metrics.average_health_score = (
+        journeys.aggregate(avg=models.Avg("health_score"))["avg"] or 0
+    )
 
     metrics.save()
 
     logger.info(f"Metrics updated for {today}")
-    return {'date': str(today), 'metrics': metrics.id}
+    return {"date": str(today), "metrics": metrics.id}

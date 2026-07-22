@@ -1,9 +1,13 @@
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
 """
 Models for community-driven feature request system with weighted voting.
 """
 
 from django.db import models
-from django.contrib.auth.models import User
+from django.conf import settings
+
 from django.utils import timezone
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
@@ -53,7 +57,9 @@ class FeatureRequest(models.Model):
 
     # Author
     author = models.ForeignKey(
-        User, on_delete=models.CASCADE, related_name="feature_requests"
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="feature_requests",
     )
 
     # Status and priority
@@ -213,7 +219,7 @@ class Vote(models.Model):
         FeatureRequest, on_delete=models.CASCADE, related_name="votes"
     )
     user = models.ForeignKey(
-        User, on_delete=models.CASCADE, related_name="feature_votes"
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="feature_votes"
     )
     vote_type = models.CharField(max_length=10, choices=VOTE_TYPES)
 
@@ -254,7 +260,9 @@ class Comment(models.Model):
         FeatureRequest, on_delete=models.CASCADE, related_name="comments"
     )
     author = models.ForeignKey(
-        User, on_delete=models.CASCADE, related_name="feature_comments"
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="feature_comments",
     )
     parent = models.ForeignKey(
         "self", on_delete=models.CASCADE, null=True, blank=True, related_name="replies"
@@ -283,7 +291,7 @@ class StatusHistory(models.Model):
         FeatureRequest, on_delete=models.CASCADE, related_name="status_history"
     )
     user = models.ForeignKey(
-        User,
+        settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
         null=True,
         related_name="feature_status_changes",

@@ -20,6 +20,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class BenchmarkResult:
     """Benchmark result container."""
+
     name: str
     concurrent_clients: int
     total_messages: int
@@ -50,11 +51,11 @@ class WebSocketBenchmark:
         self,
         num_clients: int = 100,
         messages_per_client: int = 10,
-        message_size: int = 1024
+        message_size: int = 1024,
     ) -> BenchmarkResult:
         """
         Benchmark concurrent WebSocket clients.
-        
+
         Args:
             num_clients: Number of concurrent clients
             messages_per_client: Messages to send per client
@@ -70,11 +71,10 @@ class WebSocketBenchmark:
             nonlocal success_count, failure_count, errors
             try:
                 communicator = WebsocketCommunicator(
-                    self.get_application(),
-                    f"/ws/test/benchmark/?client_id={client_id}"
+                    self.get_application(), f"/ws/test/benchmark/?client_id={client_id}"
                 )
                 connected, _ = await communicator.connect()
-                
+
                 if not connected:
                     failure_count += 1
                     errors.append(f"Client {client_id} failed to connect")
@@ -83,14 +83,16 @@ class WebSocketBenchmark:
                 for i in range(messages_per_client):
                     msg_start = time.time()
                     await communicator.send_to(
-                        json.dumps({
-                            'type': 'benchmark',
-                            'client_id': client_id,
-                            'sequence': i,
-                            'data': 'x' * message_size
-                        })
+                        json.dumps(
+                            {
+                                "type": "benchmark",
+                                "client_id": client_id,
+                                "sequence": i,
+                                "data": "x" * message_size,
+                            }
+                        )
                     )
-                    
+
                     response = await communicator.receive_from()
                     msg_end = time.time()
                     latency = (msg_end - msg_start) * 1000  # in milliseconds
@@ -114,7 +116,7 @@ class WebSocketBenchmark:
         avg_latency = sum(latencies) / len(latencies) if latencies else 0
         min_latency = min(latencies) if latencies else 0
         max_latency = max(latencies) if latencies else 0
-        
+
         sorted_latencies = sorted(latencies)
         p95_index = int(len(sorted_latencies) * 0.95)
         p99_index = int(len(sorted_latencies) * 0.99)
@@ -141,20 +143,18 @@ class WebSocketBenchmark:
             cpu_usage_percent=cpu_percent,
             success_count=success_count,
             failure_count=failure_count,
-            errors=errors
+            errors=errors,
         )
 
         self.results.append(result)
         return result
 
     async def benchmark_broadcast_latency(
-        self,
-        num_clients: int = 50,
-        broadcasts: int = 10
+        self, num_clients: int = 50, broadcasts: int = 10
     ) -> BenchmarkResult:
         """
         Benchmark broadcast latency.
-        
+
         Args:
             num_clients: Number of clients to broadcast to
             broadcasts: Number of broadcast messages
@@ -169,8 +169,7 @@ class WebSocketBenchmark:
         clients = []
         for i in range(num_clients):
             communicator = WebsocketCommunicator(
-                self.get_application(),
-                f"/ws/test/benchmark/?client_id={i}"
+                self.get_application(), f"/ws/test/benchmark/?client_id={i}"
             )
             connected, _ = await communicator.connect()
             if connected:
@@ -185,14 +184,11 @@ class WebSocketBenchmark:
 
         for _ in range(broadcasts):
             broadcast_start = time.time()
-            
+
             # Send broadcast message
             await self.channel_layer.group_send(
                 "benchmark_group",
-                {
-                    'type': 'benchmark_message',
-                    'data': {'timestamp': broadcast_start}
-                }
+                {"type": "benchmark_message", "data": {"timestamp": broadcast_start}},
             )
 
             # Wait for responses
@@ -226,19 +222,18 @@ class WebSocketBenchmark:
             cpu_usage_percent=0,
             success_count=success_count,
             failure_count=failure_count,
-            errors=errors
+            errors=errors,
         )
 
         self.results.append(result)
         return result
 
     async def benchmark_reconnect_performance(
-        self,
-        num_reconnects: int = 100
+        self, num_reconnects: int = 100
     ) -> BenchmarkResult:
         """
         Benchmark reconnect performance.
-        
+
         Args:
             num_reconnects: Number of reconnect attempts
         """
@@ -252,11 +247,10 @@ class WebSocketBenchmark:
             try:
                 connect_start = time.time()
                 communicator = WebsocketCommunicator(
-                    self.get_application(),
-                    f"/ws/test/benchmark/?client_id={i}"
+                    self.get_application(), f"/ws/test/benchmark/?client_id={i}"
                 )
                 connected, _ = await communicator.connect()
-                
+
                 if connected:
                     reconnect_time = (time.time() - connect_start) * 1000
                     reconnect_times.append(reconnect_time)
@@ -277,7 +271,9 @@ class WebSocketBenchmark:
             concurrent_clients=num_reconnects,
             total_messages=num_reconnects,
             total_time=total_time,
-            avg_latency=sum(reconnect_times) / len(reconnect_times) if reconnect_times else 0,
+            avg_latency=(
+                sum(reconnect_times) / len(reconnect_times) if reconnect_times else 0
+            ),
             min_latency=min(reconnect_times) if reconnect_times else 0,
             max_latency=max(reconnect_times) if reconnect_times else 0,
             p95_latency=0,
@@ -287,7 +283,7 @@ class WebSocketBenchmark:
             cpu_usage_percent=0,
             success_count=success_count,
             failure_count=failure_count,
-            errors=errors
+            errors=errors,
         )
 
         self.results.append(result)
@@ -300,11 +296,15 @@ class WebSocketBenchmark:
         from django.urls import path
         from apps.benchmark.consumers import BenchmarkConsumer
 
-        return ProtocolTypeRouter({
-            'websocket': URLRouter([
-                path('ws/test/benchmark/', BenchmarkConsumer.as_asgi()),
-            ])
-        })
+        return ProtocolTypeRouter(
+            {
+                "websocket": URLRouter(
+                    [
+                        path("ws/test/benchmark/", BenchmarkConsumer.as_asgi()),
+                    ]
+                )
+            }
+        )
 
     def _create_empty_result(self, name: str) -> BenchmarkResult:
         """Create an empty result for failed benchmarks."""
@@ -323,44 +323,50 @@ class WebSocketBenchmark:
             cpu_usage_percent=0,
             success_count=0,
             failure_count=0,
-            errors=["Benchmark failed"]
+            errors=["Benchmark failed"],
         )
 
     def generate_report(self) -> Dict[str, Any]:
         """Generate a comprehensive benchmark report."""
-        report = {
-            'timestamp': time.time(),
-            'results': []
-        }
+        report = {"timestamp": time.time(), "results": []}
 
         for result in self.results:
-            report['results'].append({
-                'name': result.name,
-                'concurrent_clients': result.concurrent_clients,
-                'total_messages': result.total_messages,
-                'total_time_seconds': round(result.total_time, 2),
-                'avg_latency_ms': round(result.avg_latency, 2),
-                'min_latency_ms': round(result.min_latency, 2),
-                'max_latency_ms': round(result.max_latency, 2),
-                'p95_latency_ms': round(result.p95_latency, 2),
-                'p99_latency_ms': round(result.p99_latency, 2),
-                'messages_per_second': round(result.messages_per_second, 2),
-                'memory_usage_mb': round(result.memory_usage_mb, 2),
-                'cpu_usage_percent': round(result.cpu_usage_percent, 2),
-                'success_rate': round(
-                    (result.success_count / (result.success_count + result.failure_count)) * 100
-                    if (result.success_count + result.failure_count) > 0 else 0,
-                    2
-                ),
-                'errors': result.errors[:10]  # Show first 10 errors
-            })
+            report["results"].append(
+                {
+                    "name": result.name,
+                    "concurrent_clients": result.concurrent_clients,
+                    "total_messages": result.total_messages,
+                    "total_time_seconds": round(result.total_time, 2),
+                    "avg_latency_ms": round(result.avg_latency, 2),
+                    "min_latency_ms": round(result.min_latency, 2),
+                    "max_latency_ms": round(result.max_latency, 2),
+                    "p95_latency_ms": round(result.p95_latency, 2),
+                    "p99_latency_ms": round(result.p99_latency, 2),
+                    "messages_per_second": round(result.messages_per_second, 2),
+                    "memory_usage_mb": round(result.memory_usage_mb, 2),
+                    "cpu_usage_percent": round(result.cpu_usage_percent, 2),
+                    "success_rate": round(
+                        (
+                            (
+                                result.success_count
+                                / (result.success_count + result.failure_count)
+                            )
+                            * 100
+                            if (result.success_count + result.failure_count) > 0
+                            else 0
+                        ),
+                        2,
+                    ),
+                    "errors": result.errors[:10],  # Show first 10 errors
+                }
+            )
 
         return report
 
     def generate_markdown_report(self) -> str:
         """Generate a markdown report."""
         report = self.generate_report()
-        
+
         lines = [
             "# 🔌 WebSocket Performance Benchmark Report",
             "",
@@ -372,10 +378,12 @@ class WebSocketBenchmark:
             "|--------|-------|",
         ]
 
-        if report['results']:
-            for result in report['results']:
+        if report["results"]:
+            for result in report["results"]:
                 lines.append(f"| **{result['name']}** | |")
-                lines.append(f"| - Concurrent Clients | {result['concurrent_clients']} |")
+                lines.append(
+                    f"| - Concurrent Clients | {result['concurrent_clients']} |"
+                )
                 lines.append(f"| - Total Messages | {result['total_messages']} |")
                 lines.append(f"| - Avg Latency | {result['avg_latency_ms']}ms |")
                 lines.append(f"| - P95 Latency | {result['p95_latency_ms']}ms |")

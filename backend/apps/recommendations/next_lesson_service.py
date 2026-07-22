@@ -40,7 +40,9 @@ class NextLessonRecommendationService:
         user_progress = LessonProgress.objects.filter(user=self.user).select_related(
             "lesson"
         )
-        progress_by_lesson_id: Dict[int, LessonProgress] = {p.lesson_id: p for p in user_progress}
+        progress_by_lesson_id: Dict[int, LessonProgress] = {
+            p.lesson_id: p for p in user_progress
+        }
 
         candidates: List[NextLessonCandidateScore] = [
             self._score_lesson(lesson, progress_by_lesson_id) for lesson in lessons
@@ -69,8 +71,7 @@ class NextLessonRecommendationService:
         completed_prereq_ids = [
             pid
             for pid in prereq_ids
-            if pid in progress_by_lesson_id
-            and progress_by_lesson_id[pid].completed
+            if pid in progress_by_lesson_id and progress_by_lesson_id[pid].completed
         ]
 
         total_prereqs = len(prereq_ids)
@@ -83,7 +84,9 @@ class NextLessonRecommendationService:
             prereq_detail = "No prerequisites"
         else:
             prereq_score = 40.0 * (1.0 - (prerequisite_gap / total_prereqs))
-            prereq_detail = f"Missing {prerequisite_gap} of {total_prereqs} prerequisite(s)"
+            prereq_detail = (
+                f"Missing {prerequisite_gap} of {total_prereqs} prerequisite(s)"
+            )
 
         # 2) streak fit
         streak_profile = getattr(self.user, "streak_profile", None)
@@ -107,9 +110,13 @@ class NextLessonRecommendationService:
         lesson_diff = difficulty_map.get((lesson.difficulty or "beginner").lower(), 0)
 
         completed_scores = list(
-            LessonProgress.objects.filter(user=self.user, completed=True).values_list("score", flat=True)
+            LessonProgress.objects.filter(user=self.user, completed=True).values_list(
+                "score", flat=True
+            )
         )
-        avg_score = (sum(completed_scores) / len(completed_scores)) if completed_scores else 0
+        avg_score = (
+            (sum(completed_scores) / len(completed_scores)) if completed_scores else 0
+        )
 
         user_level_band = 0
         if avg_score >= 60:
@@ -146,7 +153,9 @@ class NextLessonRecommendationService:
         if prerequisite_gap > 0 and prereq_ids:
             missing_ids = [pid for pid in prereq_ids if pid not in completed_prereq_ids]
             missing_prereq_titles = list(
-                Lesson.objects.filter(id__in=missing_ids).values_list("title", flat=True)
+                Lesson.objects.filter(id__in=missing_ids).values_list(
+                    "title", flat=True
+                )
             )
 
         why: Dict[str, Any] = {
@@ -178,4 +187,3 @@ class NextLessonRecommendationService:
         }
 
         return NextLessonCandidateScore(lesson=lesson, score=total_score, why=why)
-

@@ -13,6 +13,8 @@ from apps.dashboard.views import LeaderboardView
 
 from .health_view import health_view
 from .version_view import version_view
+from apps.billing.views import CheckoutSessionView
+from .webhooks import stripe_webhook
 
 urlpatterns = [
     # ── Admin ──────────────────────────────────────────────────────────────────
@@ -40,22 +42,14 @@ urlpatterns = [
     # ── Notifications & Real-time ─────────────────────────────────────────────
     path("api/notifications/", include("apps.notifications.urls")),
     path("api/dashboard/", include("apps.dashboard.urls")),
-    path("api/chat/", include("apps.chat.urls")),
-    # ── Search & Collaboration ────────────────────────────────────────────────
+    path("create-checkout-session/", CheckoutSessionView.as_view()),
+    path("webhook/", stripe_webhook),
     path("api/search/", include("apps.search.urls")),
     path("api/notes/", include("apps.notes.urls")),
     path("api/recommendations/", include("apps.recommendations.urls")),
-    # ── Webhooks & Uploads ─────────────────────────────────────────────────────
-    path("api/webhooks/", include("apps.webhooks.urls")),
-    path("api/uploads/", include("apps.uploads.urls")),
-    # ── RBAC ───────────────────────────────────────────────────────────────────
-    path("api/rbac/", include("apps.rbac.urls")),
-    # ── Errors ─────────────────────────────────────────────────────────────────
-    path("api/errors/", include("apps.errors.urls")),
-    # ── Audit Trail ────────────────────────────────────────────────────────────
-    path("api/audit/", include("apps.audit.urls")),
-    # ── Webhooks & Uploads ─────────────────────────────────────────────────────
-    path("api/webhooks/", include("apps.webhooks.urls")),
+    # ============================================================
+    # WEBHOOKS & UPLOADS
+    # ============================================================
     path("api/uploads/", include("apps.uploads.urls")),
     # ── RBAC ───────────────────────────────────────────────────────────────────
     path("api/rbac/", include("apps.rbac.urls")),
@@ -66,28 +60,45 @@ urlpatterns = [
     path("api/accessibility/", include("apps.accessibility.urls")),
     # ── Issue Reporting ────────────────────────────────────────────────────────
     path("api/issues/", include("apps.issues.urls")),
-    # ── Project Health Dashboard ───────────────────────────────────────────────
+    # ── Project Health & Security ─────────────────────────────────────────────
     path("api/project-health/", include("apps.project_health.urls")),
+    path("api/security/", include("apps.security.urls")),
     # ── Plugins ────────────────────────────────────────────────────────────────
     path("api/plugins/", include("apps.plugins.urls")),
+    # ── Scaffolded Apps ────────────────────────────────────────────────────────
+    path("api/burnout-detection/", include("apps.burnout_detection.urls")),
+    path("api/advanced-search/", include("apps.advanced_search.urls")),
+    path("api/feature-requests/", include("apps.feature_requests.urls")),
+    path("api/issue-categorization/", include("apps.issue_categorization.urls")),
+    path("api/issue-quality-ci/", include("apps.issue_quality_ci.urls")),
+    path("api/issue-routing/", include("apps.issue_routing.urls")),
+    path("api/onboarding/", include("apps.onboarding.urls")),
+    path("api/pr-review-bot/", include("apps.pr_review_bot.urls")),
+    path("api/skills-matching/", include("apps.skills_matching.urls")),
+    path("api/experiments/", include("apps.experiments.urls")),
+    path("api/feed/", include("apps.feed.urls")),
+    path("api/dx-testing/", include("apps.dx_testing.urls")),
+    path("api/issue-quality/", include("apps.issue_quality.urls")),
+    path("api/ml-triage/", include("apps.ml_triage.urls")),
+    # ── AI Tutor ────────────────────────────────────────────────────────────────
+    path("api/ai/tutor/", include("apps.ai_tutor.urls")),
     # ── Events & GraphQL ──────────────────────────────────────────────────────
     # path("api/events/", include("apps.events.urls")),
     path("api/graphql/", include("apps.graphql_gateway.urls")),
     path("api/graphql/legacy/", csrf_exempt(GraphQLView.as_view(graphiql=True))),
-    # ── API Documentation ──────────────────────────────────────────────────────
+    # ============================================================
+    # API DOCUMENTATION
+    # ============================================================
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
     path(
         "api/docs/",
         SpectacularSwaggerView.as_view(url_name="schema"),  # Fixed here
         name="swagger-ui",
     ),
-    # ── Prometheus Metrics ─────────────────────────────────────────────────────
-    path("", include("django_prometheus.urls")),
-    path(
-        "api/redoc/",
-        SpectacularRedocView.as_view(url_name="schema"),
-        name="redoc-ui",
-    ),
+    # ============================================================
+    # PROMETHEUS METRICS
+    # ============================================================
+    path("api/graphql/", csrf_exempt(GraphQLView.as_view(graphiql=True))),
 ]
 
 # ── Development URLs ──────────────────────────────────────────────────────────
@@ -100,12 +111,4 @@ if settings.DEBUG:
     urlpatterns += [
         path("api/organizations/", include("apps.organizations.urls")),
         path("api/feature-flags/", include("apps.feature_flags.urls")),
-        path(
-            "debug/feature-flags/", feature_flags_debug_view, name="debug-feature-flags"
-        ),
-        path(
-            "api/feature-flags/debug/",
-            feature_flags_debug_view,
-            name="feature-flags-debug",
-        ),
-    ] + static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
+    ]

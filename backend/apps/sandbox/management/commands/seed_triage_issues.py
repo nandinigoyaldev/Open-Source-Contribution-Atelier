@@ -9,7 +9,6 @@ from django.core.management.base import BaseCommand
 
 from apps.sandbox.models import TriageIssue
 
-
 SAMPLE_ISSUES = [
     {
         "title": "Scenario 1: Missing Steps to Reproduce",

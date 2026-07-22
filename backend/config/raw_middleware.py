@@ -10,6 +10,7 @@ user, the user's ID is written to the cache with a short TTL via
 `mark_user_dirty()`.  Subsequent GET requests within that window are then
 transparently served from the primary rather than a stale replica.
 """
+
 import logging
 import threading
 

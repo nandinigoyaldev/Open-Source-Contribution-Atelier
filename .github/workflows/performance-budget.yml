@@ -25,56 +25,48 @@ jobs:
 
       - name: Build frontend and generate stats
         working-directory: frontend
-        run: npm run build
+        run: npm run analyze-bundle
 
-      - name: Check bundle size budget
+      - name: Upload performance report
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-performance-report
+          path: |
+            frontend/dist/stats.html
+            frontend/public/performance.json
+          retention-days: 7
+
+      - name: Check bundle size budget and comment
+        if: always()
         uses: actions/github-script@v7
         with:
           script: |
             const fs = require('fs');
             const path = require('path');
-            const zlib = require('zlib');
-            const budget = JSON.parse(fs.readFileSync('performance-budget.json', 'utf-8'));
-
-            const distDir = path.join('frontend', 'dist', 'assets');
-            if (!fs.existsSync(distDir)) {
-              core.setFailed('Build output not found at frontend/dist/assets');
+            
+            const perfPath = path.join('frontend', 'public', 'performance.json');
+            if (!fs.existsSync(perfPath)) {
+              core.setFailed('Performance report not found. Did analyze-bundle run successfully?');
               return;
             }
 
-            const files = fs.readdirSync(distDir);
-            let totalJsGzip = 0;
-            let totalCssGzip = 0;
-            const violations = [];
-
-            for (const file of files) {
-              const filePath = path.join(distDir, file);
-              const raw = fs.readFileSync(filePath);
-              const gzipped = zlib.gzipSync(raw);
-              const gzipKB = Math.round(gzipped.length / 1024);
-
-              if (file.endsWith('.js')) {
-                totalJsGzip += gzipKB;
-                if (gzipKB > budget.bundle.singleChunkMaxKB) {
-                  violations.push(`❌ Chunk \`${file}\` is **${gzipKB}KB** (gzip) — exceeds single-chunk limit of ${budget.bundle.singleChunkMaxKB}KB`);
-                }
-              } else if (file.endsWith('.css')) {
-                totalCssGzip += gzipKB;
-              }
-            }
+            const report = JSON.parse(fs.readFileSync(perfPath, 'utf-8'));
+            const { metrics, budget, top10Chunks, violations, status } = report;
 
             const summary = [
               '## 📦 Bundle Size Report',
               '',
               `| Metric | Value | Budget | Status |`,
               `|--------|-------|--------|--------|`,
-              `| Total JS (gzip) | ${totalJsGzip}KB | ${budget.bundle.totalJsGzipKB}KB | ${totalJsGzip <= budget.bundle.totalJsGzipKB ? '✅' : '❌'} |`,
-              `| Total CSS (gzip) | ${totalCssGzip}KB | ${budget.bundle.totalCssGzipKB}KB | ${totalCssGzip <= budget.bundle.totalCssGzipKB ? '✅' : '❌'} |`,
+              `| Total JS (gzip) | ${metrics.totalJsGzipKB}KB | ${budget.totalJsGzipKB}KB | ${metrics.totalJsGzipKB <= budget.totalJsGzipKB ? '✅' : '❌'} |`,
+              `| Total CSS (gzip) | ${metrics.totalCssGzipKB}KB | ${budget.totalCssGzipKB}KB | ${metrics.totalCssGzipKB <= budget.totalCssGzipKB ? '✅' : '❌'} |`,
             ];
 
             if (violations.length > 0) {
-              summary.push('', '### Oversized Chunks', ...violations);
+              summary.push('', '### Oversized Chunks', ...violations.map(v => `- ${v}`));
             }
+            
+            summary.push('', 'A detailed breakdown (`stats.html`) is available in the workflow artifacts.');
 
             await github.rest.issues.createComment({
               issue_number: context.issue.number,
@@ -83,11 +75,8 @@ jobs:
               body: summary.join('\n'),
             });
 
-            if (totalJsGzip > budget.bundle.totalJsGzipKB) {
-              core.setFailed(`Total JS bundle (${totalJsGzip}KB) exceeds budget of ${budget.bundle.totalJsGzipKB}KB`);
-            }
-            if (violations.length > 0) {
-              core.setFailed('One or more chunks exceed the single-chunk size budget.');
+            if (status === 'failed') {
+              core.setFailed('Bundle sizes exceed the configured budget.');
             }
 
   lighthouse-check:

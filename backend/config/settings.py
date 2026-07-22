@@ -1,31 +1,16 @@
 import logging
 import os
 import sys
-from datetime import timedelta
 from pathlib import Path
-
+from datetime import timedelta
 import stripe
-
-BASE_DIR = Path(__file__).resolve().parent.parent
-PLUGINS_DIR = BASE_DIR / "plugins"
-
-# Safeguard for hosts where cryptography DLL fails to load (e.g. missing VC++ redist)
-try:
-    from cryptography.fernet import Fernet
-except ImportError as e:
-    if "DLL load failed" in str(e) or "specified module could not be found" in str(e):
-        from unittest.mock import MagicMock
-
-        mock_crypto = MagicMock()
-        sys.modules["cryptography"] = mock_crypto
-        sys.modules["cryptography.fernet"] = mock_crypto
-        sys.modules["cryptography.exceptions"] = mock_crypto
-        sys.modules["cryptography.hazmat"] = mock_crypto
-        sys.modules["cryptography.hazmat.primitives"] = mock_crypto
-        sys.modules["cryptography.hazmat.bindings"] = mock_crypto
 import dj_database_url
+from pathlib import Path
+from datetime import timedelta
 
 # pyrefly: ignore [missing-import]
+from datetime import timedelta
+from pathlib import Path
 from django.core.exceptions import ImproperlyConfigured
 
 from config.auth import TOKEN_BLACKLIST_ENABLED
@@ -34,24 +19,10 @@ logger = logging.getLogger(__name__)
 
 TESTING = "test" in sys.argv or "pytest" in sys.modules
 
-# Patch Django template context copy for Python 3.14 compatibility
-import copy
+WS_AUTH_MIGRATION = True
+WS_TOKEN_TIMEOUT = 3600
 
-from django.template.context import BaseContext
-
-
-def safe_context_copy(self):
-    cls = self.__class__
-    new_context = cls.__new__(cls)
-    for k, v in self.__dict__.items():
-        if k == "dicts":
-            new_context.dicts = self.dicts[:]
-        else:
-            setattr(new_context, k, copy.copy(v))
-    return new_context
-
-
-BaseContext.__copy__ = safe_context_copy
+BASE_DIR = Path(__file__).resolve().parent.parent
 
 STRIPE_PUBLISHABLE_KEY = os.getenv("STRIPE_PUBLISHABLE_KEY")
 STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY")
@@ -148,7 +119,9 @@ if not DEBUG and not TESTING and not ALLOWED_HOSTS:
 
 CORS_ALLOWED_ORIGINS = [
     origin.strip()
-    for origin in os.getenv("CORS_ALLOWED_ORIGINS", "").split(",")
+    for origin in os.getenv(
+        "CORS_ALLOWED_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173"
+    ).split(",")
     if origin.strip()
 ]
 
@@ -226,15 +199,39 @@ INSTALLED_APPS = [
     "apps.feature_flags",
     "apps.issues",
     "apps.gamification",
+    "apps.ai_tutor",
     "apps.project_health",
     "django_q",
+    "apps.monitoring",
     "waffle",
     "apps.plugins.apps.PluginsConfig",
+    "apps.oauth",
+    "apps.security",
+    # ── Scaffolded Apps ────────────────────────────────────────────────────────
+    "apps.burnout_detection",
+    "apps.advanced_search",
+    "apps.feature_requests",
+    "apps.issue_categorization",
+    "apps.issue_quality_ci",
+    "apps.issue_routing",
+    "apps.onboarding",
+    "apps.pr_review_bot",
+    "apps.skills_matching",
+    "apps.experiments",
+    "apps.feed",
+    "apps.dx_testing",
+    "apps.issue_quality",
+    "apps.ml_triage",
 ]
+
 # Cache backends are selected with channel layers below (Redis or LocMem fallback).
 
 # Rate Limit
 DEFAULT_RATE = "100/hour"
+API_RATE_LIMIT_AUTH = int(os.getenv("API_RATE_LIMIT_AUTH", "100"))
+API_RATE_LIMIT_ANON = int(os.getenv("API_RATE_LIMIT_ANON", "20"))
+API_RATE_LIMIT_WINDOW = int(os.getenv("API_RATE_LIMIT_WINDOW", "60"))
+
 
 MIDDLEWARE = [
     "django_prometheus.middleware.PrometheusBeforeMiddleware",
@@ -259,7 +256,7 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "apps.core.middleware.AdminAuditMiddleware",
     "waffle.middleware.WaffleMiddleware",
-    "apps.cache.middleware.RateLimitMiddleware",
+    "apps.core.middleware.ratelimit.RateLimitMiddleware",
     "apps.sandbox.middleware.SandboxExecutionLogMiddleware",
     "allauth.account.middleware.AccountMiddleware",
     "django_prometheus.middleware.PrometheusAfterMiddleware",
@@ -387,6 +384,12 @@ GITHUB_APP = {
 }
 GITHUB_INSTALLATION_ID = os.getenv("GITHUB_INSTALLATION_ID")
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
+GITHUB_OAUTH_CLIENT_ID = os.getenv("GITHUB_OAUTH_CLIENT_ID")
+GITHUB_OAUTH_CLIENT_SECRET = os.getenv("GITHUB_OAUTH_CLIENT_SECRET")
+
+# ── AI Tutor ────────────────────────────────────────────────────────────────────
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+LLM_MODEL = os.getenv("LLM_MODEL", "gpt-3.5-turbo")
 
 # ── Discord Integration ────────────────────────────────────────────────────────
 # Discord webhook URL for achievement announcements
@@ -617,81 +620,94 @@ Q_CLUSTER = {
     "bulk": 10,
     **_q_broker,
 }
+# ──────────────────────────────────────────
 # Audit Logging
+# ──────────────────────────────────────────
 AUDIT_LOG_ENABLED = True
 
-# Configure audit logger
-LOGGING = {
-    "version": 1,
-    "disable_existing_loggers": False,
-    "filters": {
-        "request_id": {
-            "()": "apps.core.logging_filters.RequestIdFilter",
-        },
-    },
-    "formatters": {
-        "json": {
-            "format": '{"time": "%(asctime)s", "level": "%(levelname)s", "request_id": "%(request_id)s", "user_id": "%(user_id)s", "message": "%(message)s"}',
-        },
-        "verbose": {
-            "format": "{levelname} {asctime} [req:{request_id} user:{user_id}] {module} {process:d} {thread:d} {message}",
-            "style": "{",
-        },
-    },
-    "handlers": {
-        "console": {
-            "class": "logging.StreamHandler",
-            "formatter": "json",
-            "filters": ["request_id"],
-        },
-        "file": {
-            "class": "logging.FileHandler",
-            "filename": "audit.log",
-            "formatter": "json",
-            "filters": ["request_id"],
-        },
-    },
-    "loggers": {
-        "audit": {
-            "handlers": ["console", "file"],
-            "level": "INFO",
-            "propagate": False,
-        },
-        # Add root logger or generic loggers to also use console if needed
-        "": {
-            "handlers": ["console"],
-            "level": "INFO",
-        },
-    },
-}
-
 # ──────────────────────────────────────────
-# Logging Configuration
+# Logging Configuration  (single canonical dict)
+# ──────────────────────────────────────────
+# Merges audit/JSON file logging (with request_id correlation) and
+# console logging with sensitive-data masking.  Both sub-systems were
+# previously defined as separate LOGGING dicts; Python's top-down
+# execution meant only the second one ever took effect (issue #2008).
 # ──────────────────────────────────────────
 REQUEST_LOGGING_VERBOSITY = os.getenv("REQUEST_LOGGING_VERBOSITY", "minimal")
 
+# Audit file handler is active unless we are running the test suite,
+# where writing to disk is undesirable and would leave stale files.
+_audit_handlers: list = ["console_audit"] + (["file_audit"] if not TESTING else [])
+
 LOGGING = {
     "version": 1,
     "disable_existing_loggers": False,
+    # ── Filters ─────────────────────────────────────────────────────────────
     "filters": {
+        # Injects request_id and user_id into every log record routed
+        # through the audit pipeline so they appear in structured JSON.
+        "request_id": {
+            "()": "apps.core.logging_filters.RequestIdFilter",
+        },
+        # Masks PII (emails, JWT tokens, secrets) from console output.
         "mask_sensitive_data": {
             "()": "config.logging_filters.SensitiveDataFilter",
         },
     },
+    # ── Formatters ──────────────────────────────────────────────────────────
     "formatters": {
+        # Structured JSON formatter used by the audit file handler and the
+        # dedicated audit console handler.  Includes request_id / user_id
+        # fields that are injected by RequestIdFilter.
+        "json_audit": {
+            "format": (
+                '{"time": "%(asctime)s", "level": "%(levelname)s", '
+                '"request_id": "%(request_id)s", "user_id": "%(user_id)s", '
+                '"message": "%(message)s"}'
+            ),
+        },
+        # Human-readable formatter for general console output.
         "verbose": {
             "format": "{levelname} {asctime} {module} {process:d} {thread:d} {message}",
             "style": "{",
         },
     },
+    # ── Handlers ─────────────────────────────────────────────────────────────
     "handlers": {
+        # General-purpose console handler: human-readable, PII-masked.
         "console": {
             "class": "logging.StreamHandler",
             "filters": ["mask_sensitive_data"],
             "formatter": "verbose",
         },
+        # Audit console handler: structured JSON with request correlation.
+        # Separate from the general console handler so that audit events
+        # always appear in JSON form regardless of verbosity settings.
+        "console_audit": {
+            "class": "logging.StreamHandler",
+            "filters": ["request_id", "mask_sensitive_data"],
+            "formatter": "json_audit",
+        },
+        # Audit file handler: writes JSON-structured audit events to
+        # audit.log, satisfying the AUDIT_LOG_ENABLED = True requirement.
+        # Disabled automatically in TESTING mode (see _audit_handlers above).
+        "file_audit": {
+            "class": "logging.FileHandler",
+            "filename": os.path.join(BASE_DIR, "audit.log"),
+            "filters": ["request_id", "mask_sensitive_data"],
+            "formatter": "json_audit",
+        },
     },
+    # ── Loggers ──────────────────────────────────────────────────────────────
     "loggers": {
+        # Dedicated audit logger — writes to both the audit console and
+        # file handlers.  propagate=False prevents double-logging via root.
+        "audit": {
+            "handlers": _audit_handlers,
+            "level": "INFO",
+            "propagate": False,
+        },
+        # Django framework loggers: general console with PII masking.
         "django": {
             "handlers": ["console"],
             "level": "INFO",
@@ -702,20 +718,19 @@ LOGGING = {
             "level": "INFO",
             "propagate": False,
         },
+        # Application loggers: general console with PII masking.
         "apps": {
             "handlers": ["console"],
             "level": "INFO",
             "propagate": False,
         },
     },
+    # Root logger catches everything not matched by a named logger above.
     "root": {
         "handlers": ["console"],
         "level": "INFO",
     },
 }
-
-
-GRAPHENE = {"SCHEMA": "config.schema.schema"}
 
 GRAPHENE = {"SCHEMA": "config.schema.schema"}
 
@@ -734,8 +749,10 @@ CURRICULUM_JSON_PATH = os.getenv(
     ),
 )
 
+CELERY_BROKER_URL = os.getenv("CELERY_BROKER_URL", "memory://")
 CELERY_TASK_ALWAYS_EAGER = True
 CELERY_TASK_STORE_EAGER_RESULT = True
+CELERY_TASK_EAGER_PROPAGATES = True
 
 # Waffle Feature Flags
 WAFFLE_CREATE_MISSING_FLAGS = True
@@ -803,3 +820,28 @@ if SENTRY_DSN:
 # ──────────────────────────────────────────
 AUDIT_RETENTION_DAYS = int(os.getenv("AUDIT_RETENTION_DAYS", "90"))
 AUDIT_ARCHIVE_DIR = os.getenv("AUDIT_ARCHIVE_DIR", str(BASE_DIR / "archives" / "audit"))
+
+# ──────────────────────────────────────────
+# Content Security Policy (CSP)
+# ──────────────────────────────────────────
+CONTENT_SECURITY_POLICY = (
+    "default-src 'self'; "
+    "script-src 'self' 'unsafe-inline' 'unsafe-eval'; "
+    "style-src 'self' 'unsafe-inline'; "
+    "img-src 'self' data: https:; "
+    "font-src 'self' data: https:; "
+    "object-src 'none'; "
+    "frame-ancestors 'none';"
+)
+
+# ──────────────────────────────────────────
+# Multi-Channel Notification Infrastructure
+# ──────────────────────────────────────────
+NOTIFICATION_CHANNELS = {
+    "in_app": "apps.notifications.channels.in_app_channel.InAppChannel",
+    "email": "apps.notifications.channels.email_channel.EmailChannel",
+    "push": "apps.notifications.channels.push_channel.PushChannel",
+    "sms": "apps.notifications.channels.sms_channel.SMSChannel",
+    "webhook": "apps.notifications.channels.webhook_channel.WebhookChannel",
+    "slack": "apps.notifications.channels.slack_channel.SlackChannel",
+}

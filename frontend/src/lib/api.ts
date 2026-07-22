@@ -12,7 +12,7 @@ const getApiBaseUrl = () => {
   return undefined;
 };
 
-const API_BASE =
+export const API_BASE =
   getApiBaseUrl()?.trim() ||
   (typeof window !== "undefined"
     ? `${window.location.origin}/api`
