@@ -14,7 +14,7 @@ def publish_issue_indexed_event(sender, instance, **kwargs):
             "object_id": instance.pk,
             "title": instance.title,
             "description": instance.description,
-            "tags": instance.status,
+            "tags": [instance.status],
             "body_text": instance.description,
         },
     )
