@@ -123,9 +123,13 @@ def resolve_locale(accept_language_header: str) -> str:
 def check_locale_switch_rate_limit(request, resolved_lang: str) -> bool:
     """
     Checks if the user/IP is switching locales too rapidly.
-    Allows up to 10 locale switches per 60 seconds.
+    Limits are configurable via settings.LOCALE_SWITCH_RATE_LIMIT (default 10)
+    and settings.LOCALE_SWITCH_RATE_WINDOW_SECONDS (default 60).
     Returns True if switch is allowed, False if rate-limited.
     """
+    max_switches = getattr(settings, "LOCALE_SWITCH_RATE_LIMIT", 10)
+    window_seconds = getattr(settings, "LOCALE_SWITCH_RATE_WINDOW_SECONDS", 60)
+
     # Try to identify client via session key or IP address
     client_id = None
     if hasattr(request, "session"):
@@ -151,14 +155,13 @@ def check_locale_switch_rate_limit(request, resolved_lang: str) -> bool:
     now = int(time.time())
     cache_key = f"{client_id}_switches"
     switches = cache.get(cache_key, [])
-    # Keep only switches from the last 60 seconds
-    switches = [t for t in switches if now - t < 60]
+    switches = [t for t in switches if now - t < window_seconds]
 
-    if len(switches) >= 10:
+    if len(switches) >= max_switches:
         return False
 
     switches.append(now)
-    cache.set(cache_key, switches, timeout=60)
+    cache.set(cache_key, switches, timeout=window_seconds)
     return True
 
 

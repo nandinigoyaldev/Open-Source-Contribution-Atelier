@@ -734,7 +734,15 @@ from .serializers import LicenseScenarioSerializer, LicenseAttemptSerializer
 
 
 class LicenseScenarioViewSet(viewsets.ReadOnlyModelViewSet):
-    queryset = LicenseScenario.objects.all().order_by("-created_at")
+    """
+    Viewset for License Scenarios (Dependency Detective).
+    """
+
+    queryset = (
+        LicenseScenario.objects.all()
+        .prefetch_related("dependencies")
+        .order_by("-created_at")
+    )
     serializer_class = LicenseScenarioSerializer
     permission_classes = [permissions.AllowAny]
 
