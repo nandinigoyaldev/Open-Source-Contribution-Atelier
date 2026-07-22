@@ -19,6 +19,8 @@ import {
   SearchCode,
   MessageSquareHeart,
   GitMerge,
+  FileEdit,
+  Key,
 } from "lucide-react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../../features/auth/AuthContext";
