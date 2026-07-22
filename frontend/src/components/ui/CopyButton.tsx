@@ -1,39 +1,27 @@
-import {
-  Check,
-  ClipboardCopy,
-  LoaderCircle,
-  TriangleAlert,
-} from "lucide-react";
+import { Check, ClipboardCopy, LoaderCircle, TriangleAlert } from "lucide-react";
 import { useClipboard } from "../../hooks/useClipboard";
+import Tooltip from "./Tooltip";
 
-export interface CopyButtonProps {
+export type CopyButtonProps = {
   text: string;
   label?: string;
   copiedLabel?: string;
   errorLabel?: string;
-  className?: string;
   disabled?: boolean;
   resetAfterMs?: number;
-  onCopyResult?: (success: boolean) => void;
-}
+};
 
-export function CopyButton({
+export default function CopyButton({
   text,
   label = "Copy",
-  copiedLabel = "Copied",
+  copiedLabel = "Copied!",
   errorLabel = "Copy failed",
-  className = "",
   disabled = false,
   resetAfterMs = 2000,
-  onCopyResult,
 }: CopyButtonProps) {
   const { status, error, copy } = useClipboard({ resetAfterMs });
-  const isDisabled = disabled || status === "copying" || text.length === 0;
-
-  const handleCopy = async () => {
-    const result = await copy(text);
-    onCopyResult?.(result.ok);
-  };
+  const isCopying = status === "copying";
+  const isDisabled = disabled || isCopying || text.length === 0;
 
   const visibleLabel =
     status === "success"
@@ -43,45 +31,35 @@ export function CopyButton({
         : label;
 
   return (
-    <div className="inline-flex flex-col items-start gap-1">
-      <button
-        type="button"
-        onClick={() => void handleCopy()}
-        disabled={isDisabled}
-        aria-label={visibleLabel}
-        className={[
-          "inline-flex items-center gap-2 rounded-lg border-2 border-current px-3 py-2",
-          "font-bold transition-transform hover:-translate-y-0.5",
-          "disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0",
-          className,
-        ].join(" ")}
-      >
-        {status === "copying" ? (
-          <LoaderCircle className="h-4 w-4 animate-spin" aria-hidden="true" />
-        ) : status === "success" ? (
-          <Check className="h-4 w-4" aria-hidden="true" />
-        ) : status === "error" ? (
-          <TriangleAlert className="h-4 w-4" aria-hidden="true" />
-        ) : (
-          <ClipboardCopy className="h-4 w-4" aria-hidden="true" />
-        )}
-        <span>{visibleLabel}</span>
-      </button>
+    <>
+      <Tooltip content={visibleLabel}>
+        <button
+          type="button"
+          onClick={() => void copy(text)}
+          disabled={isDisabled}
+          aria-label={visibleLabel}
+          className="rounded-lg border-2 border-black bg-surface-low px-3 py-1 text-xs font-black text-black shadow-card-sm hover:-translate-y-0.5 active:translate-y-0 transition-all cursor-pointer flex items-center justify-center min-w-[72px] disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:translate-y-0"
+        >
+          {isCopying ? (
+            <LoaderCircle className="w-3.5 h-3.5 mr-1 animate-spin" aria-hidden="true" />
+          ) : status === "success" ? (
+            <Check className="w-3.5 h-3.5 mr-1" strokeWidth={3} aria-hidden="true" />
+          ) : status === "error" ? (
+            <TriangleAlert className="w-3.5 h-3.5 mr-1" aria-hidden="true" />
+          ) : (
+            <ClipboardCopy className="w-3.5 h-3.5 mr-1" aria-hidden="true" />
+          )}
+          {visibleLabel}
+        </button>
+      </Tooltip>
 
-      <span
-        className="sr-only"
-        role="status"
-        aria-live="polite"
-        aria-atomic="true"
-      >
+      <span className="sr-only" role="status" aria-live="polite" aria-atomic="true">
         {status === "success"
           ? `${copiedLabel}.`
           : status === "error"
             ? error ?? `${errorLabel}.`
             : ""}
       </span>
-    </div>
+    </>
   );
 }
-
-export default CopyButton;
