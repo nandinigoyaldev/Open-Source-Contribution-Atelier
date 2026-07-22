@@ -5,6 +5,7 @@ from django.core.cache import cache
 from rest_framework.response import Response
 from rest_framework import status
 
+
 class ExecutionTracker:
     @staticmethod
     def _get_key(user_id, code, payload):
@@ -28,6 +29,7 @@ class ExecutionTracker:
         key = cls._get_key(user_id, code, payload)
         cache.delete(key)
 
+
 def prevent_duplicate_execution(get_user_id, get_code, get_payload):
     def decorator(view_func):
         @functools.wraps(view_func)
@@ -35,12 +37,17 @@ def prevent_duplicate_execution(get_user_id, get_code, get_payload):
             user_id = get_user_id(request)
             code = get_code(request)
             payload = get_payload(request)
-            
+
             if ExecutionTracker.is_duplicate(user_id, code, payload):
                 return Response(
-                    {"error": "duplicate_execution", "message": "This execution has already been tracked or completed."},
-                    status=status.HTTP_409_CONFLICT
+                    {
+                        "error": "duplicate_execution",
+                        "message": "This execution has already been tracked or completed.",
+                    },
+                    status=status.HTTP_409_CONFLICT,
                 )
             return view_func(self, request, *args, **kwargs)
+
         return wrapped_view
+
     return decorator

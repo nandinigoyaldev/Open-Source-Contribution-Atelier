@@ -9,6 +9,7 @@ from .models import Plugin
 
 logger = logging.getLogger(__name__)
 
+
 class PluginRegistry:
     def __init__(self):
         self.active_plugins = {}  # name -> manifest (PluginManifest)
@@ -17,11 +18,16 @@ class PluginRegistry:
     def discover_and_sync(self):
         """Scans the PLUGINS_DIR and synchronizes database records."""
         from django.db import connection
+
         if "plugins_plugin" not in connection.introspection.table_names():
-            logger.warning("Plugin database table does not exist yet. Skipping DB sync.")
+            logger.warning(
+                "Plugin database table does not exist yet. Skipping DB sync."
+            )
             return
 
-        plugins_dir = getattr(settings, "PLUGINS_DIR", os.path.join(settings.BASE_DIR, "plugins"))
+        plugins_dir = getattr(
+            settings, "PLUGINS_DIR", os.path.join(settings.BASE_DIR, "plugins")
+        )
         if not os.path.exists(plugins_dir):
             os.makedirs(plugins_dir, exist_ok=True)
             return
@@ -49,7 +55,7 @@ class PluginRegistry:
                                 "author": manifest.author,
                                 "is_active": False,
                                 "manifest": raw_manifest,
-                            }
+                            },
                         )
 
                         if not created:
@@ -63,7 +69,9 @@ class PluginRegistry:
                             plugin_record.save()
 
                     except Exception as e:
-                        logger.error(f"Failed to load plugin manifest from {item_path}: {e}")
+                        logger.error(
+                            f"Failed to load plugin manifest from {item_path}: {e}"
+                        )
 
         # Deactivate plugins in DB if they are missing from disk.
         Plugin.objects.exclude(name__in=discovered_names).update(is_active=False)
@@ -72,13 +80,16 @@ class PluginRegistry:
         """Loads and imports entrypoints of active plugins."""
         self.active_plugins.clear()
         self.loaded_modules.clear()
-        
+
         from django.db import connection
+
         if "plugins_plugin" not in connection.introspection.table_names():
             return
 
         # Ensure PLUGINS_DIR is in sys.path
-        plugins_dir = getattr(settings, "PLUGINS_DIR", os.path.join(settings.BASE_DIR, "plugins"))
+        plugins_dir = getattr(
+            settings, "PLUGINS_DIR", os.path.join(settings.BASE_DIR, "plugins")
+        )
         if plugins_dir not in sys.path:
             sys.path.insert(0, plugins_dir)
 
@@ -88,7 +99,7 @@ class PluginRegistry:
             try:
                 manifest = validate_manifest(record.manifest)
                 self.active_plugins[manifest.name] = manifest
-                
+
                 # Dynamic import of entry point if specified
                 if manifest.entry_point:
                     module = importlib.import_module(manifest.entry_point)
@@ -107,15 +118,20 @@ class PluginRegistry:
                     # Import the handler function dynamically
                     module_path, func_name = handler_path.rsplit(".", 1)
                     # Prepend entry point module name if relative
-                    if manifest.entry_point and not module_path.startswith(manifest.entry_point):
+                    if manifest.entry_point and not module_path.startswith(
+                        manifest.entry_point
+                    ):
                         module_path = f"{manifest.entry_point}.{module_path}"
                     module = importlib.import_module(module_path)
                     handler = getattr(module, func_name)
                     res = handler(*args, **kwargs)
                     results.append((name, res))
                 except Exception as e:
-                    logger.error(f"Error executing hook '{hook_name}' in plugin '{name}': {e}")
+                    logger.error(
+                        f"Error executing hook '{hook_name}' in plugin '{name}': {e}"
+                    )
         return results
+
 
 # Global registry instance
 registry = PluginRegistry()

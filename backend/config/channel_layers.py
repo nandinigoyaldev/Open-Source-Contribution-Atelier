@@ -61,7 +61,9 @@ def is_redis_available(url: str, timeout: float = 0.5) -> bool:
     try:
         import redis
 
-        client = redis.from_url(url, socket_connect_timeout=timeout, socket_timeout=timeout)
+        client = redis.from_url(
+            url, socket_connect_timeout=timeout, socket_timeout=timeout
+        )
         try:
             return bool(client.ping())
         finally:

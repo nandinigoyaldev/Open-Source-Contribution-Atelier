@@ -39,8 +39,14 @@ class HealthChecker:
             with connection.cursor() as cursor:
                 cursor.execute("SELECT 1")
                 cursor.fetchone()
-            result["details"]["response_time_ms"] = round((time.time() - start) * 1000, 2)
-            result["details"]["connection_count"] = connection.connection.total_changes() if hasattr(connection.connection, 'total_changes') else "N/A"
+            result["details"]["response_time_ms"] = round(
+                (time.time() - start) * 1000, 2
+            )
+            result["details"]["connection_count"] = (
+                connection.connection.total_changes()
+                if hasattr(connection.connection, "total_changes")
+                else "N/A"
+            )
         except Exception as e:
             result["status"] = "unhealthy"
             result["details"]["error"] = str(e)
@@ -60,13 +66,19 @@ class HealthChecker:
             cache.set("health_check_ping", "pong", timeout=5)
             value = cache.get("health_check_ping")
             if value == "pong":
-                result["details"]["response_time_ms"] = round((time.time() - start) * 1000, 2)
+                result["details"]["response_time_ms"] = round(
+                    (time.time() - start) * 1000, 2
+                )
                 # Get Redis info
                 try:
                     redis_client = redis.from_url(settings.REDIS_URL)
                     info = redis_client.info()
-                    result["details"]["used_memory_human"] = info.get("used_memory_human", "N/A")
-                    result["details"]["connected_clients"] = info.get("connected_clients", "N/A")
+                    result["details"]["used_memory_human"] = info.get(
+                        "used_memory_human", "N/A"
+                    )
+                    result["details"]["connected_clients"] = info.get(
+                        "connected_clients", "N/A"
+                    )
                     result["details"]["uptime_days"] = info.get("uptime_in_days", "N/A")
                 except:
                     pass
@@ -98,8 +110,10 @@ class HealthChecker:
                     workers = list(stats.keys())
                     result["details"]["active_workers"] = len(workers)
                     result["details"]["workers"] = workers
-                    result["details"]["response_time_ms"] = round((time.time() - start) * 1000, 2)
-                    
+                    result["details"]["response_time_ms"] = round(
+                        (time.time() - start) * 1000, 2
+                    )
+
                     # Get queue sizes
                     active_queues = i.active_queues()
                     if active_queues:
@@ -129,16 +143,20 @@ class HealthChecker:
 
             start = time.time()
             channel_layer = get_channel_layer()
-            
+
             # Check if channel layer is configured
             if channel_layer:
                 result["details"]["channel_layer_type"] = type(channel_layer).__name__
-                result["details"]["response_time_ms"] = round((time.time() - start) * 1000, 2)
-                
+                result["details"]["response_time_ms"] = round(
+                    (time.time() - start) * 1000, 2
+                )
+
                 # Try to create a test group
                 try:
                     group_name = "health_check_group"
-                    async_to_sync(channel_layer.group_add)(group_name, "health_check_channel")
+                    async_to_sync(channel_layer.group_add)(
+                        group_name, "health_check_channel"
+                    )
                     result["details"]["group_created"] = True
                 except Exception as e:
                     result["details"]["group_error"] = str(e)
@@ -176,7 +194,9 @@ class HealthChecker:
 
         # Calculate overall status
         total_checks = len(self.results)
-        healthy_checks = sum(1 for r in self.results.values() if r["status"] == "healthy")
+        healthy_checks = sum(
+            1 for r in self.results.values() if r["status"] == "healthy"
+        )
         unhealthy_checks = total_checks - healthy_checks
 
         overall_status = "healthy" if unhealthy_checks == 0 else "unhealthy"
@@ -192,7 +212,7 @@ class HealthChecker:
                 "version": "1.0.0",
                 "environment": getattr(settings, "ENVIRONMENT", "development"),
                 "host": getattr(settings, "ALLOWED_HOSTS", ["localhost"])[0],
-            }
+            },
         }
 
 
@@ -201,13 +221,13 @@ class HealthChecker:
 def health_view(request):
     """
     Health check endpoint.
-    
+
     GET /health/
-    
+
     Returns structured health information for all services.
     """
     checker = HealthChecker()
-    
+
     # Run checks synchronously (Django doesn't support async views out of the box)
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
@@ -215,10 +235,10 @@ def health_view(request):
         result = loop.run_until_complete(checker.run_checks())
     finally:
         loop.close()
-    
+
     # Determine HTTP status code
     status_code = 200 if result["status"] == "healthy" else 503
-    
+
     return JsonResponse(result, status=status_code)
 
 
@@ -227,26 +247,25 @@ def health_view(request):
 def health_ready_view(request):
     """
     Readiness probe endpoint for Kubernetes.
-    
+
     GET /health/ready/
-    
+
     Returns 200 if all services are ready, 503 otherwise.
     """
     checker = HealthChecker()
-    
+
     loop = asyncio.new_event_loop()
     asyncio.set_event_loop(loop)
     try:
         result = loop.run_until_complete(checker.run_checks())
     finally:
         loop.close()
-    
+
     if result["status"] == "healthy":
         return JsonResponse({"status": "ready"}, status=200)
     else:
         return JsonResponse(
-            {"status": "not_ready", "unhealthy": result["unhealthy_checks"]},
-            status=503
+            {"status": "not_ready", "unhealthy": result["unhealthy_checks"]}, status=503
         )
 
 
@@ -255,9 +274,9 @@ def health_ready_view(request):
 def health_live_view(request):
     """
     Liveness probe endpoint for Kubernetes.
-    
+
     GET /health/live/
-    
+
     Returns 200 if the application is running.
     """
     return JsonResponse({"status": "alive"}, status=200)

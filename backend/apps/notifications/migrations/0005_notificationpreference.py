@@ -8,7 +8,10 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("notifications", "0004_rename_notificatio_recipie_4e3567_idx_idx_recipientis_read"),
+        (
+            "notifications",
+            "0004_rename_notificatio_recipie_4e3567_idx_idx_recipientis_read",
+        ),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 

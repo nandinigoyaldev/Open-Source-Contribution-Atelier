@@ -19,6 +19,9 @@ import {
   SearchCode,
   MessageSquareHeart,
   GitMerge,
+  FileEdit,
+  Key,
+  ShoppingBag,
 } from "lucide-react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../../features/auth/AuthContext";
@@ -36,8 +39,10 @@ const navGroups = [
       { to: "/dashboard", label: "Dashboard", icon: LayoutGrid },
       { to: "/learning-path", label: "Lessons", icon: BookOpen },
       { to: "/challenges", label: "Challenges", icon: Trophy },
+      { to: "/admin/content-studio", label: "Content Studio", icon: FileEdit },
     ],
   },
+
   {
     title: "Practice",
     items: [
@@ -67,6 +72,7 @@ const navGroups = [
     items: [
       { to: "/portfolio", label: "Portfolio", icon: FileText },
       { to: "/leaderboard", label: "Leaderboard", icon: TrendingUp },
+      { to: "/shop", label: "XP Shop", icon: ShoppingBag },
     ],
   },
   {
@@ -79,7 +85,11 @@ const navGroups = [
   },
   {
     title: "Account",
-    items: [{ to: "/profile", label: "Settings", icon: Settings }],
+    items: [
+      { to: "/profile", label: "Settings", icon: Settings },
+      { to: "/settings/connected-apps", label: "Connected Apps", icon: Shield },
+      { to: "/admin/oauth-clients", label: "OAuth Apps", icon: Key },
+    ],
   },
 ];
 

@@ -14,4 +14,3 @@ urlpatterns = [
     ),
     path("audit/", ModerationAuditTrailListView.as_view(), name="audit-trail"),
 ]
-

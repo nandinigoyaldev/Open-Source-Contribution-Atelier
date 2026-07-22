@@ -5,10 +5,15 @@ These tests verify that an authenticated user in Organization A cannot
 list or retrieve resources owned by Organization B, and that the
 tenant-scoping primitives behave correctly.
 """
+
 import pytest
 from django.contrib.auth import get_user_model
 
-from apps.core.tenant import set_current_tenant, clear_current_tenant, get_current_tenant_id
+from apps.core.tenant import (
+    set_current_tenant,
+    clear_current_tenant,
+    get_current_tenant_id,
+)
 from apps.organizations.models import Organization, OrganizationMembership
 
 User = get_user_model()
@@ -181,8 +186,10 @@ class TestIsTenantMemberPermission:
         perm = IsTenantMember()
         set_current_tenant(org_a.id, user_a.id)
         try:
+
             class _Req:
                 user = user_a
+
             assert perm.has_object_permission(_Req(), None, _Obj()) is True
         finally:
             clear_current_tenant()
@@ -196,8 +203,10 @@ class TestIsTenantMemberPermission:
         perm = IsTenantMember()
         set_current_tenant(org_a.id, user_a.id)
         try:
+
             class _Req:
                 user = user_a
+
             assert perm.has_object_permission(_Req(), None, _Obj()) is False
         finally:
             clear_current_tenant()

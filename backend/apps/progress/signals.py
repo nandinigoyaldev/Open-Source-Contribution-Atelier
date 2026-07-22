@@ -140,13 +140,13 @@ def on_xp_event(sender, instance, created, **kwargs):
         try:
             from django.db import transaction
             from django_q.tasks import async_task
-            
+
             transaction.on_commit(
                 lambda: async_task(
-                    "apps.progress.tasks.update_leaderboard_task", 
+                    "apps.progress.tasks.update_leaderboard_task",
                     instance.user.id,
                     instance.user.username,
-                    instance.xp_delta
+                    instance.xp_delta,
                 )
             )
         except Exception as exc:

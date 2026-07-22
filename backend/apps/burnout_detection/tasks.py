@@ -58,7 +58,9 @@ def trigger_intervention(user_id: int):
     """
     Trigger intervention for a user.
     """
-    from django.contrib.auth.models import User
+    from django.contrib.auth import get_user_model
+
+User = get_user_model()
     from apps.burnout_detection.models import Intervention, BurnoutSignal
     
     try:

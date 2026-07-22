@@ -28,5 +28,9 @@ urlpatterns = [
     path("dm/<str:username>/", DirectMessageListView.as_view(), name="dm-list"),
     # Public key registry
     path("public-keys/", UserPublicKeyView.as_view(), name="public-key-publish"),
-    path("public-keys/<str:username>/", UserPublicKeyView.as_view(), name="public-key-get"),
+    path(
+        "public-keys/<str:username>/",
+        UserPublicKeyView.as_view(),
+        name="public-key-get",
+    ),
 ]

@@ -8,9 +8,12 @@ import {
   splitTextWithGlossary,
   type GlossaryEntry,
 } from "../../lib/glossary";
+import DOMPurify from "dompurify";
 
 interface MarkdownRendererProps {
   content: string;
+  /** For testing purposes, allows overriding the glossary loading function. */
+  loadGlossaryFn?: () => Promise<GlossaryEntry[]>;
 }
 
 // Helper to parse markdown table rows, ignoring pipes inside backticks or escaped pipes.
@@ -45,13 +48,50 @@ function splitTableRow(row: string): string[] {
   return cells;
 }
 
-export function MarkdownRenderer({ content }: MarkdownRendererProps) {
+export function MarkdownRenderer({
+  content,
+  loadGlossaryFn = loadGlossary,
+}: MarkdownRendererProps) {
+  const sanitizedContent = DOMPurify.sanitize(content, {
+    ALLOWED_TAGS: [
+      "b",
+      "i",
+      "em",
+      "strong",
+      "a",
+      "img",
+      "p",
+      "div",
+      "span",
+      "code",
+      "pre",
+      "h1",
+      "h2",
+      "h3",
+      "h4",
+      "h5",
+      "h6",
+      "ul",
+      "ol",
+      "li",
+      "blockquote",
+      "hr",
+      "br",
+      "table",
+      "thead",
+      "tbody",
+      "tr",
+      "th",
+      "td",
+    ],
+    KEEP_CONTENT: true,
+  });
   const [glossary, setGlossary] = useState<GlossaryEntry[]>([]);
   const [activeTerm, setActiveTerm] = useState<GlossaryEntry | null>(null);
 
   useEffect(() => {
     let cancelled = false;
-    loadGlossary()
+    loadGlossaryFn()
       .then((terms) => {
         if (!cancelled) setGlossary(terms);
       })
@@ -61,32 +101,44 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [loadGlossaryFn]);
 
-  const renderGlossaryText = useCallback(
-    (text: string, keyPrefix: string): React.ReactNode[] => {
-      if (!glossary.length) return [text];
-      return splitTextWithGlossary(text, glossary).map((seg, i) => {
-        if (seg.type === "text") {
-          return (
-            <React.Fragment key={`${keyPrefix}-t-${i}`}>
-              {seg.value}
-            </React.Fragment>
-          );
-        }
+  const renderedTermIds = new Set<string>();
+
+  const renderGlossaryText = (
+    text: string,
+    keyPrefix: string,
+  ): React.ReactNode[] => {
+    if (!glossary.length) return [text];
+    return splitTextWithGlossary(text, glossary).map((seg, i) => {
+      if (seg.type === "text") {
         return (
-          <GlossaryTerm
-            key={`${keyPrefix}-g-${i}-${seg.entry.id}`}
-            entry={seg.entry}
-            onOpen={setActiveTerm}
-          >
+          <React.Fragment key={`${keyPrefix}-t-${i}`}>
             {seg.value}
-          </GlossaryTerm>
+          </React.Fragment>
         );
-      });
-    },
-    [glossary],
-  );
+      }
+
+      // If term already rendered, just show text
+      if (renderedTermIds.has(seg.entry.id)) {
+        return (
+          <span key={`${keyPrefix}-g-${i}-${seg.entry.id}`}>{seg.value}</span>
+        );
+      }
+
+      // Otherwise, render the term and mark it as seen
+      renderedTermIds.add(seg.entry.id);
+      return (
+        <GlossaryTerm
+          key={`${keyPrefix}-g-${i}-${seg.entry.id}`}
+          entry={seg.entry}
+          onOpen={setActiveTerm}
+        >
+          {seg.value}
+        </GlossaryTerm>
+      );
+    });
+  };
 
   // Helper to parse inline formats: bold, inline code, links
   // Inline code is never glossarized (avoids false positives).
@@ -119,10 +171,21 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
         const linkMatch = part.match(/\[(.*?)\]\((.*?)\)/);
         if (linkMatch) {
           const [, label, href] = linkMatch;
+          // Validate and sanitize URLs
+          let safeHref = href;
+          const lowerHref = href.toLowerCase().trim();
+          if (
+            lowerHref.startsWith("javascript:") ||
+            lowerHref.startsWith("vbscript:") ||
+            lowerHref.startsWith("data:")
+          ) {
+            safeHref = "#";
+          }
+
           return [
             <a
               key={i}
-              href={href}
+              href={safeHref}
               target="_blank"
               rel="noopener noreferrer"
               className="text-primary underline font-bold hover:text-accent transition-colors"
@@ -137,7 +200,7 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
   };
 
   // Split content into blocks (paragraphs, code blocks, headers, lists, blockquotes, tables)
-  const lines = content.split("\n");
+  const lines = sanitizedContent.split("\n");
   const blocks: React.ReactNode[] = [];
   let index = 0;
 
@@ -214,10 +277,11 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
     // Horizontal Rule: ---, ***, ___
     if (/^(\s*[-*_]\s*){3,}$/.test(line.trim())) {
       blocks.push(
-        <hr
-          key={index}
-          className="my-6 border-b-4 border-black/10 dark:border-[#2e2924]"
-        />,
+        <React.Fragment key={index}>
+          <br />
+          <hr className="my-0 border-b-4 border-black/10 dark:border-[#2e2924]" />
+          <br />
+        </React.Fragment>,
       );
       index++;
       continue;
@@ -467,10 +531,20 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
       const width = widthMatch ? widthMatch[1] : undefined;
       const height = heightMatch ? heightMatch[1] : undefined;
 
+      let safeSrc = src;
+      const lowerSrc = src.toLowerCase().trim();
+      if (
+        lowerSrc.startsWith("javascript:") ||
+        lowerSrc.startsWith("vbscript:") ||
+        lowerSrc.startsWith("data:text/html")
+      ) {
+        safeSrc = "";
+      }
+
       blocks.push(
         <div key={index} className="my-4 flex justify-center">
           <img
-            src={src}
+            src={safeSrc}
             alt={alt}
             width={width}
             height={height}
@@ -486,10 +560,21 @@ export function MarkdownRenderer({ content }: MarkdownRendererProps) {
     if (mdImgMatch) {
       const alt = mdImgMatch[1];
       const src = mdImgMatch[2];
+
+      let safeSrc = src;
+      const lowerSrc = src.toLowerCase().trim();
+      if (
+        lowerSrc.startsWith("javascript:") ||
+        lowerSrc.startsWith("vbscript:") ||
+        lowerSrc.startsWith("data:text/html")
+      ) {
+        safeSrc = "";
+      }
+
       blocks.push(
         <div key={index} className="my-4 flex justify-center">
           <img
-            src={src}
+            src={safeSrc}
             alt={alt}
             className="rounded-2xl border-4 border-black dark:border-[#2e2924] shadow-card-sm max-w-full h-auto"
           />

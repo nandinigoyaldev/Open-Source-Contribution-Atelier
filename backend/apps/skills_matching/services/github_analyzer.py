@@ -17,12 +17,12 @@ class GitHubAnalyzer:
     """
 
     def __init__(self, token: Optional[str] = None):
-        self.token = token or getattr(settings, 'GITHUB_TOKEN', None)
+        self.token = token or getattr(settings, "GITHUB_TOKEN", None)
         self.headers = {
-            'Authorization': f'token {self.token}',
-            'Accept': 'application/vnd.github.v3+json'
+            "Authorization": f"token {self.token}",
+            "Accept": "application/vnd.github.v3+json",
         }
-        self.base_url = 'https://api.github.com'
+        self.base_url = "https://api.github.com"
 
     def analyze_user(self, username: str) -> Dict[str, Any]:
         """
@@ -32,29 +32,28 @@ class GitHubAnalyzer:
         repos = self._fetch_repos(username)
         languages = self._extract_languages(repos)
         commit_count = self._get_commit_count(username)
-        
+
         # Determine skill levels
         skill_levels = self._determine_skill_levels(languages, repos)
-        
+
         # Extract frameworks
         frameworks = self._extract_frameworks(repos)
-        
+
         return {
-            'username': username,
-            'user_data': user_data,
-            'languages': list(languages.keys()),
-            'skill_levels': skill_levels,
-            'frameworks': frameworks,
-            'total_commits': commit_count,
-            'total_repos': len(repos),
-            'years_experience': self._calculate_experience(user_data),
+            "username": username,
+            "user_data": user_data,
+            "languages": list(languages.keys()),
+            "skill_levels": skill_levels,
+            "frameworks": frameworks,
+            "total_commits": commit_count,
+            "total_repos": len(repos),
+            "years_experience": self._calculate_experience(user_data),
         }
 
     def _fetch_user(self, username: str) -> Dict:
         """Fetch user data from GitHub API."""
         response = requests.get(
-            f"{self.base_url}/users/{username}",
-            headers=self.headers
+            f"{self.base_url}/users/{username}", headers=self.headers
         )
         if response.status_code == 200:
             return response.json()
@@ -68,7 +67,7 @@ class GitHubAnalyzer:
             response = requests.get(
                 f"{self.base_url}/users/{username}/repos",
                 headers=self.headers,
-                params={'page': page, 'per_page': 100}
+                params={"page": page, "per_page": 100},
             )
             if response.status_code != 200 or not response.json():
                 break
@@ -80,7 +79,7 @@ class GitHubAnalyzer:
         """Extract languages from repositories."""
         languages = {}
         for repo in repos:
-            lang = repo.get('language')
+            lang = repo.get("language")
             if lang:
                 languages[lang] = languages.get(lang, 0) + 1
         return languages
@@ -89,43 +88,45 @@ class GitHubAnalyzer:
         """Extract frameworks from repository data."""
         frameworks = set()
         framework_patterns = {
-            'react': ['react', 'next.js', 'gatsby'],
-            'django': ['django', 'drf'],
-            'vue': ['vue', 'nuxt'],
-            'angular': ['angular'],
-            'flask': ['flask'],
-            'fastapi': ['fastapi'],
-            'node': ['node', 'express', 'nestjs'],
-            'tensorflow': ['tensorflow', 'keras'],
-            'pytorch': ['pytorch'],
+            "react": ["react", "next.js", "gatsby"],
+            "django": ["django", "drf"],
+            "vue": ["vue", "nuxt"],
+            "angular": ["angular"],
+            "flask": ["flask"],
+            "fastapi": ["fastapi"],
+            "node": ["node", "express", "nestjs"],
+            "tensorflow": ["tensorflow", "keras"],
+            "pytorch": ["pytorch"],
         }
-        
+
         for repo in repos:
-            topics = repo.get('topics', [])
+            topics = repo.get("topics", [])
             for framework, patterns in framework_patterns.items():
                 for pattern in patterns:
                     if any(pattern in topic for topic in topics):
                         frameworks.add(framework)
-        
+
         return list(frameworks)
 
-    def _determine_skill_levels(self, languages: Dict[str, int], repos: List[Dict]) -> Dict[str, str]:
+    def _determine_skill_levels(
+        self, languages: Dict[str, int], repos: List[Dict]
+    ) -> Dict[str, str]:
         """Determine skill levels based on language usage."""
         skill_levels = {}
         total_repos = len(repos)
-        
+
         for lang, count in languages.items():
             percentage = (count / total_repos) * 100 if total_repos > 0 else 0
-            
+
             if percentage > 40:
-                skill_levels[lang] = 'expert'
+                skill_levels[lang] = "expert"
             elif percentage > 20:
-                skill_levels[lang] = 'advanced'
+                skill_levels[lang] = "advanced"
             elif percentage > 10:
-                skill_levels[lang] = 'intermediate'
+                skill_levels[lang] = "intermediate"
             else:
-                skill_levels[lang] = 'beginner'
-        
+                skill_levels[lang] = "beginner"
+
         return skill_levels
 
     def _get_commit_count(self, username: str) -> int:
@@ -135,10 +136,11 @@ class GitHubAnalyzer:
 
     def _calculate_experience(self, user_data: Dict) -> float:
         """Calculate years of experience from user data."""
-        created_at = user_data.get('created_at')
+        created_at = user_data.get("created_at")
         if created_at:
             from datetime import datetime
-            created = datetime.fromisoformat(created_at.replace('Z', '+00:00'))
+
+            created = datetime.fromisoformat(created_at.replace("Z", "+00:00"))
             years = (datetime.now() - created).days / 365
             return max(0, years)
         return 0.0

@@ -6,12 +6,12 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('webhooks', '0003_add_encrypted_secrets'),
+        ("webhooks", "0003_add_encrypted_secrets"),
     ]
 
     operations = [
         migrations.RemoveField(
-            model_name='webhookendpoint',
-            name='secret_plain',
+            model_name="webhookendpoint",
+            name="secret_plain",
         ),
     ]

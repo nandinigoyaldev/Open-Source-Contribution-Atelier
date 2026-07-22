@@ -16,6 +16,7 @@ class Challenge(models.Model):
     difficulty = models.CharField(max_length=32)
     points = models.PositiveIntegerField(default=50)
     is_featured = models.BooleanField(default=False)
+    is_public = models.BooleanField(default=True)
 
 
 class ChallengeOfTheDay(models.Model):

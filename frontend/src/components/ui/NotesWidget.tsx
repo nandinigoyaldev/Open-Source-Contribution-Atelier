@@ -27,7 +27,10 @@ export function NotesWidget() {
 
   const { data: encryptedNotes = [], isLoading } = useQuery<EncryptedNote[]>({
     queryKey: ["privateNotes"],
-    queryFn: () => fetchApi("/notes/"),
+    queryFn: async () => {
+      const res = await fetchApi("/notes/");
+      return res.results || res; // Handle both paginated and legacy unpaginated responses
+    },
   });
 
   const [decryptedNotes, setDecryptedNotes] = useState<DecryptedNote[]>([]);

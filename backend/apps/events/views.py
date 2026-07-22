@@ -35,9 +35,7 @@ def _visible_events_queryset(user):
     """
     user_content_type = ContentType.objects.get_for_model(User)
 
-    visibility = Q(actor=user) | Q(
-        content_type=user_content_type, object_id=user.id
-    )
+    visibility = Q(actor=user) | Q(content_type=user_content_type, object_id=user.id)
 
     if user.is_staff:
         profile = getattr(user, "user_profile", None)
