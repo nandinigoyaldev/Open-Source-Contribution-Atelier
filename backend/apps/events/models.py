@@ -5,7 +5,8 @@ Domain Event models for event-driven architecture.
 import json
 import uuid
 from django.db import models
-from django.contrib.auth.models import User
+from django.conf import settings
+
 from django.utils import timezone
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.contenttypes.fields import GenericForeignKey
@@ -60,7 +61,7 @@ class DomainEvent(models.Model):
 
     # Actor (who triggered the event)
     actor = models.ForeignKey(
-        User,
+        settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
@@ -97,7 +98,9 @@ class DomainEvent(models.Model):
         indexes = [
             models.Index(fields=["event_type", "status"], name="idx_event_typestatus"),
             models.Index(fields=["event_name", "status"], name="idx_event_namestatus"),
-            models.Index(fields=["occurred_at", "status"], name="idx_occurred_atstatus"),
+            models.Index(
+                fields=["occurred_at", "status"], name="idx_occurred_atstatus"
+            ),
             models.Index(fields=["actor", "event_type"], name="idx_actorevent_type"),
         ]
 

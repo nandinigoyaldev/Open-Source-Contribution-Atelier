@@ -1,7 +1,7 @@
 import uuid
 
 from django.conf import settings
-from django.db import models
+from django.db import models, transaction
 
 from apps.content.models import Lesson
 
@@ -262,12 +262,38 @@ class UserSession(models.Model):
         return f"Session {self.session_id} for {self.user.username}"
 
     def save(self, *args, **kwargs):
-        super().save(*args, **kwargs)
-        # Enforce max 5 sessions per user
-        sessions = UserSession.objects.filter(user=self.user).order_by("-last_activity")
-        if sessions.count() > 5:
-            # Keep the 5 most recently active sessions
-            ids_to_keep = list(sessions.values_list("pk", flat=True)[:5])
-            UserSession.objects.filter(user=self.user).exclude(
-                pk__in=ids_to_keep
-            ).delete()
+        max_sessions = getattr(settings, "MAX_SESSIONS_PER_USER", 5)
+
+        with transaction.atomic():
+            # Lock all existing sessions for this user.  The lock
+            # serialises concurrent save() calls for the same user:
+            # whichever transaction acquires the lock first will
+            # complete its save + eviction before the next one
+            # proceeds, eliminating the TOCTOU race condition.
+            locked_qs = (
+                UserSession.objects.select_for_update()
+                .filter(user=self.user)
+                .order_by("-last_activity")
+            )
+
+            # Materialise the locked queryset so the DB lock is held
+            # for the duration of the transaction.
+            existing_ids = list(locked_qs.values_list("pk", flat=True))
+
+            # Persist (insert or update) the current session *inside*
+            # the same atomic block so it is covered by the lock.
+            super().save(*args, **kwargs)
+
+            # Re-evaluate sessions now that the current one is saved.
+            all_sessions = (
+                UserSession.objects.filter(user=self.user)
+                .order_by("-last_activity")
+            )
+
+            if all_sessions.count() > max_sessions:
+                ids_to_keep = list(
+                    all_sessions.values_list("pk", flat=True)[:max_sessions]
+                )
+                UserSession.objects.filter(user=self.user).exclude(
+                    pk__in=ids_to_keep
+                ).delete()

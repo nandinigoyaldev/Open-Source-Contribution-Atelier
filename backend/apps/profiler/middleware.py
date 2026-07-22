@@ -23,6 +23,7 @@ class SlowEndpointProfiler(MiddlewareMixin):
     def __init__(self, get_response):
         super().__init__(get_response)
         self.slow_threshold = getattr(settings, 'SLOW_ENDPOINT_THRESHOLD', 1.0)  # seconds
+        self.slow_query_threshold = getattr(settings, 'SLOW_QUERY_THRESHOLD', 0.1)  # seconds
         self.enabled = getattr(settings, 'ENABLE_PROFILER', True)
 
     def process_request(self, request):
@@ -106,12 +107,12 @@ class SlowEndpointProfiler(MiddlewareMixin):
                     'time': query_time,
                     'type': query.get('type', 'unknown'),
                 })
-                if query_time > 0.1:  # Slow query threshold
+                if query_time > self.slow_query_threshold:
                     logger.debug(f"Slow query: {query.get('sql', '')[:100]}... ({query_time:.3f}s)")
 
         data['sql_time'] = sql_time
         data['query_count'] = len(queries)
-        data['slow_queries'] = [q for q in queries if q['time'] > 0.1]
+        data['slow_queries'] = [q for q in queries if q['time'] > self.slow_query_threshold]
 
         # Serializer/rendering time: everything between view start and now
         # that isn't accounted for by SQL. This backend is a DRF API (no

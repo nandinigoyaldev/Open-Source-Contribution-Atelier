@@ -29,7 +29,6 @@ def _coerce_bool(value, default: bool) -> bool:
     return default
 
 
-
 class NotificationPagination(PageNumberPagination):
     page_size = 10
     page_size_query_param = "page_size"
@@ -69,10 +68,6 @@ class NotificationPrefsView(APIView):
             update_fields=["email_enabled", "in_app_enabled", "websocket_enabled", "digest_frequency", "digest_time"]
         )
         return Response(_prefs_payload(prefs))
-
-
-
-
 
     def patch(self, request):
         return self.put(request)

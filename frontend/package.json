@@ -115,7 +115,7 @@
     "@types/emscripten": "^1.41.5",
     "@types/hast": "^3.0.5",
     "@types/junit-report-builder": "^3.0.2",
-    "@types/mdx": "^2.0.14"
+    "@types/mdx": "^2.0.14",
     "@types/node": "^20.11.0",
     "@types/prismjs": "^1.26.4",
     "@types/react": "^19.0.8",

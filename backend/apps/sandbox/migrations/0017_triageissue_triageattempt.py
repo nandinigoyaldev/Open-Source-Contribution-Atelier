@@ -118,9 +118,7 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "total_score",
-                    models.IntegerField(
-                        default=0, help_text="Combined score (0-100)."
-                    ),
+                    models.IntegerField(default=0, help_text="Combined score (0-100)."),
                 ),
                 (
                     "passed",

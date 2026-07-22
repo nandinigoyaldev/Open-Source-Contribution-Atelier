@@ -1,7 +1,7 @@
 import React, { useMemo } from "react";
 import SimpleMDE from "react-simplemde-editor";
 import "easymde/dist/easymde.min.css";
-import { PanelGroup, Panel, PanelResizeHandle } from "react-resizable-panels";
+import { Group, Panel, Separator } from "react-resizable-panels";
 import { LessonDraftData } from "../../hooks/useContentDraft";
 import { LessonPreview } from "./LessonPreview";
 import api from "../../api";
@@ -50,7 +50,7 @@ export function EditorSplitPane({ lesson, onChangeContent }: EditorSplitPaneProp
 
   return (
     <div className="w-full h-[calc(100vh-220px)] min-h-[500px]">
-      <PanelGroup direction="horizontal">
+      <Group direction="horizontal">
         <Panel defaultSize={50} minSize={30}>
           <div className="w-full h-full p-2 bg-white dark:bg-[#151411] border-2 border-black/10 dark:border-[#2e2924] rounded-xl flex flex-col overflow-hidden shadow-sm">
             <div className="text-xs font-bold text-muted dark:text-[#a0988c] px-3 py-1.5 border-b border-black/10 dark:border-[#2e2924] flex items-center justify-between">
@@ -67,14 +67,14 @@ export function EditorSplitPane({ lesson, onChangeContent }: EditorSplitPaneProp
           </div>
         </Panel>
 
-        <PanelResizeHandle className="w-2 mx-1 rounded bg-black/10 dark:bg-[#2e2924] hover:bg-accent transition-colors cursor-col-resize flex items-center justify-center">
+        <Separator className="w-2 mx-1 rounded bg-black/10 dark:bg-[#2e2924] hover:bg-accent transition-colors cursor-col-resize flex items-center justify-center">
           <div className="w-1 h-8 bg-black/30 dark:bg-white/30 rounded-full" />
-        </PanelResizeHandle>
+        </Separator>
 
         <Panel defaultSize={50} minSize={30}>
           <LessonPreview lesson={lesson} />
         </Panel>
-      </PanelGroup>
+      </Group>
     </div>
   );
 }

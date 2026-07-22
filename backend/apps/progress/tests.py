@@ -1,6 +1,8 @@
 import uuid
 
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
 from django.core.cache import cache
 from django.test import override_settings
 from django.urls import reverse
@@ -715,11 +717,10 @@ class StreakEngineTests(APITestCase):
 
         # Log activity in the past (e.g. Day 0: 2026-07-09)
         res3 = StreakEngine.record_activity(self.user, datetime.date(2026, 7, 9))
-        
+
         # Streak should still be 2, not reset to 1
         self.assertEqual(res3["current_streak"], 2)
-        
+
         # Profile last activity date should remain the latest date (2026-07-11)
         profile = StreakEngine.get_or_create_profile(self.user)
         self.assertEqual(profile.last_activity_date, datetime.date(2026, 7, 11))
-

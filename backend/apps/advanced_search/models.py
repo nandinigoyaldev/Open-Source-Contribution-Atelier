@@ -1,9 +1,13 @@
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
 """
 Models for advanced search with relevance scoring and semantic understanding.
 """
 
 from django.db import models
-from django.contrib.auth.models import User
+from django.conf import settings
+
 from django.contrib.postgres.indexes import GinIndex
 from django.contrib.postgres.search import SearchVectorField
 from django.utils import timezone
@@ -44,7 +48,9 @@ class UserSearchProfile(models.Model):
     """
 
     user = models.OneToOneField(
-        User, on_delete=models.CASCADE, related_name="search_profile"
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="search_profile",
     )
 
     # Search history

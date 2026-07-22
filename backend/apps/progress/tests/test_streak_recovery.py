@@ -2,40 +2,48 @@ import datetime
 import pytest
 from django.urls import reverse
 from rest_framework import status
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
 
 from apps.content.models import Lesson, Exercise
-from apps.progress.models import StreakProfile, StreakRecoveryPlan, QuizAttempt, ExerciseAttempt
+from apps.progress.models import (
+    StreakProfile,
+    StreakRecoveryPlan,
+    QuizAttempt,
+    ExerciseAttempt,
+)
 from apps.progress.services.streak_recovery_service import StreakRecoveryService
 
 
 @pytest.fixture
 def setup_data(db):
     user = User.objects.create_user(username="testuser", password="password")
-    
+
     # Create StreakProfile
     profile = StreakProfile.objects.create(
         user=user,
         current_streak=5,
         longest_streak=5,
-        last_activity_date=datetime.date.today() - datetime.timedelta(days=2) # missed yesterday
+        last_activity_date=datetime.date.today()
+        - datetime.timedelta(days=2),  # missed yesterday
     )
-    
+
     lesson = Lesson.objects.create(
         difficulty="easy",
         title="Test Lesson",
         slug="test-lesson",
         summary="summary",
-        content="content"
+        content="content",
     )
-    
+
     exercise = Exercise.objects.create(
         lesson=lesson,
         title="Test Exercise",
         prompt="prompt",
-        expected_command="git status"
+        expected_command="git status",
     )
-    
+
     return user, profile, lesson, exercise
 
 
@@ -54,7 +62,7 @@ class TestStreakRecovery:
     def test_get_or_create_recovery_plan_eligible(self, setup_data):
         user, _, _, _ = setup_data
         plan = StreakRecoveryService.get_or_create_recovery_plan(user)
-        
+
         assert plan is not None
         assert plan.previous_streak == 5
         assert plan.quiz_target == 1
@@ -73,30 +81,22 @@ class TestStreakRecovery:
 
     def test_sync_and_update_progress(self, setup_data):
         user, _, lesson, exercise = setup_data
-        
+
         # Generates plan
         plan = StreakRecoveryService.get_or_create_recovery_plan(user)
         assert plan is not None
 
         # 1. Complete quiz
-        QuizAttempt.objects.create(
-            user=user,
-            question_id="q1",
-            is_correct=True
-        )
+        QuizAttempt.objects.create(user=user, question_id="q1", is_correct=True)
 
         # 2. Complete code submission
-        ExerciseAttempt.objects.create(
-            user=user,
-            exercise=exercise,
-            is_correct=True
-        )
+        ExerciseAttempt.objects.create(user=user, exercise=exercise, is_correct=True)
 
         # Sync progress
         plan = StreakRecoveryService.sync_and_update_progress(plan)
         assert plan.quiz_progress == 1
         assert plan.code_progress == 1
-        assert plan.is_completed is False # reading still not completed
+        assert plan.is_completed is False  # reading still not completed
 
         # 3. Simulate reading time (reading progress to 15)
         plan.reading_progress = 15
@@ -108,7 +108,7 @@ class TestStreakRecovery:
 
         # Check that StreakProfile is recovered
         profile = StreakProfile.objects.get(user=user)
-        assert profile.current_streak == 6 # recovered! previous_streak 5 + 1
+        assert profile.current_streak == 6  # recovered! previous_streak 5 + 1
         assert profile.last_activity_date == datetime.date.today()
 
     def test_reading_progress_endpoint_increments_minutes(self, api_client, setup_data):
@@ -124,7 +124,7 @@ class TestStreakRecovery:
         response = api_client.post(
             reverse("reading-position"),
             {"lesson": lesson.slug, "progress": 50},
-            format="json"
+            format="json",
         )
         assert response.status_code == status.HTTP_200_OK
 

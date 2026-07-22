@@ -56,7 +56,9 @@ def test_collab_session_viewset(api_client, user):
     api_client.force_authenticate(user=user)
 
     # 1. Create session via POST
-    response = api_client.post("/api/sandbox/collab-sessions/", {"project": str(project.id)})
+    response = api_client.post(
+        "/api/sandbox/collab-sessions/", {"project": str(project.id)}
+    )
     assert response.status_code == 201
     session_id = response.data["id"]
 
@@ -65,7 +67,9 @@ def test_collab_session_viewset(api_client, user):
     assert response.status_code == 200
 
     # 3. Create another user to join the session
-    another_user = User.objects.create_user(username="guest_user", password="guestpassword123")
+    another_user = User.objects.create_user(
+        username="guest_user", password="guestpassword123"
+    )
     guest_client = APIClient()
     guest_client.force_authenticate(user=another_user)
 
@@ -81,4 +85,3 @@ def test_collab_session_viewset(api_client, user):
     # Host destroys/ends session
     response = api_client.delete(f"/api/sandbox/collab-sessions/{session_id}/")
     assert response.status_code == 204
-

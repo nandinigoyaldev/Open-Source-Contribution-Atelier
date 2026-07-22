@@ -6,7 +6,7 @@ import redis
 
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
-from django.conf import settings
+from django.config import settings
 
 from apps.sandbox.models import ExecutionViolationLog
 
@@ -131,21 +131,20 @@ class ResourceManagementEngine:
             cache.set(
                 cache_key, current - 1, timeout=cls.MAX_EXECUTION_TIME_SECONDS * 2
             )
-
-class SandboxResourceManager:
+    class SandboxResourceManager:
     """Atomic Redis-based distributed semaphore for sandbox execution."""
 
-    
+
     MAX_CONCURRENT = 2
     LOCK_TTL = 60  # seconds
     CIRCUIT_BREAKER_THRESHOLD = 5
-    
+
     def __init__(self):
         self.redis = redis.Redis.from_url(settings.REDIS_URL)
         self.semaphore_key = "sandbox:semaphore"
         self.counter_key = "sandbox:counter"
         self.failure_key = "sandbox:failures"
-    
+
     def acquire_execution_lock(self) -> bool:
         """Acquire lock using atomic Redis INCR."""
         # Check circuit breaker
@@ -153,38 +152,38 @@ class SandboxResourceManager:
         if failures >= self.CIRCUIT_BREAKER_THRESHOLD:
             logger.warning("Circuit breaker open - blocking execution")
             return False
-        
+
         # Atomic increment
         current = self.redis.incr(self.counter_key)
-        
+
         # Set TTL on first creation
         if current == 1:
             self.redis.expire(self.counter_key, self.LOCK_TTL)
-        
+
         if current <= self.MAX_CONCURRENT:
             logger.info(f"Lock acquired: {current}/{self.MAX_CONCURRENT}")
             return True
-        
+
         # Exceeded limit - decrement and fail
         self.redis.decr(self.counter_key)
         logger.warning(f"Concurrency limit reached: {current}")
         return False
-    
+
     def release_execution_lock(self):
         """Release lock using atomic Redis DECR."""
         current = self.redis.decr(self.counter_key)
         if current < 0:
             self.redis.set(self.counter_key, 0)
-        
+
         # Reset failures on successful release
         self.redis.set(self.failure_key, 0)
         logger.info(f"Lock released: {current}/{self.MAX_CONCURRENT}")
-    
+
     def record_failure(self):
         """Record failure for circuit breaker."""
         self.redis.incr(self.failure_key)
         self.redis.expire(self.failure_key, 300)  # 5 minutes
-    
+
     def reset_circuit_breaker(self):
         """Reset circuit breaker."""
         self.redis.set(self.failure_key, 0)
