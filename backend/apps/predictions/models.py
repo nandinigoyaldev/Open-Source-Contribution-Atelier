@@ -1,4 +1,5 @@
 from django.db import models
+from django.utils import timezone
 
 
 class ReviewerAvailability(models.Model):
@@ -51,6 +52,14 @@ class PullRequestMetric(models.Model):
     @property
     def total_lines_changed(self):
         return self.additions + self.deletions
+
+    def mark_as_completed(self, status_val="MERGED"):
+        now = timezone.now()
+        if self.created_at:
+            delta_seconds = (now - self.created_at).total_seconds()
+            self.actual_review_delay_hours = round(max(0.1, delta_seconds / 3600.0), 1)
+        self.status = status_val
+        self.save()
 
 
 class ReviewDelayPrediction(models.Model):

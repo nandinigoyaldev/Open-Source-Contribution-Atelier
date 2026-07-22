@@ -174,24 +174,31 @@ class DelayAlertsAPIView(views.APIView):
 
 
 class TriggerMonitoringAPIView(views.APIView):
-    permission_classes = [AllowAny]
+    permission_classes = [IsAuthenticated]
 
     def post(self, request):
         try:
-            # Trigger via Celery delay() if worker enabled, else execute
-            monitor_pr_review_delays.delay()
-            update_reviewer_availability.delay()
-            msg = "Celery monitoring tasks dispatched asynchronously."
+            from django_q.tasks import async_task
+            async_task("apps.predictions.tasks.monitor_pr_review_delays")
+            async_task("apps.predictions.tasks.update_reviewer_availability")
+            msg = "Monitoring tasks dispatched asynchronously via Django-Q."
             details = {}
         except Exception:
-            details = monitor_pr_review_delays()
-            update_reviewer_availability()
-            msg = "Monitoring task executed successfully."
+            try:
+                monitor_pr_review_delays.delay()
+                update_reviewer_availability.delay()
+                msg = "Monitoring tasks dispatched asynchronously via Celery."
+                details = {}
+            except Exception:
+                details = monitor_pr_review_delays()
+                update_reviewer_availability()
+                msg = "Monitoring task executed synchronously."
 
         return Response({
             "status": msg,
             "details": details,
         }, status=status.HTTP_200_OK)
+
 
 
 class TrainModelAPIView(views.APIView):
