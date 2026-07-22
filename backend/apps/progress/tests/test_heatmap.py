@@ -3,10 +3,17 @@ import csv
 import pytest
 from django.urls import reverse
 from rest_framework import status
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
 
 from apps.content.models import Lesson, Exercise
-from apps.progress.models import DailyActivity, LessonProgress, QuizAttempt, ExerciseAttempt
+from apps.progress.models import (
+    DailyActivity,
+    LessonProgress,
+    QuizAttempt,
+    ExerciseAttempt,
+)
 
 
 @pytest.fixture
@@ -17,13 +24,13 @@ def test_setup(db):
         title="Test Lesson",
         slug="test-lesson",
         summary="summary",
-        content="content"
+        content="content",
     )
     exercise = Exercise.objects.create(
         lesson=lesson,
         title="Test Exercise",
         prompt="prompt",
-        expected_command="git status"
+        expected_command="git status",
     )
     return user, lesson, exercise
 
@@ -46,10 +53,7 @@ class TestHeatmapViews:
 
         # 1. Lesson completion
         LessonProgress.objects.create(
-            user=user,
-            lesson=lesson,
-            completed=True,
-            score=100
+            user=user, lesson=lesson, completed=True, score=100
         )
 
         # 2. Quiz Attempt
@@ -59,15 +63,12 @@ class TestHeatmapViews:
             question_text="Q1?",
             selected_answer="A",
             correct_answer="A",
-            is_correct=True
+            is_correct=True,
         )
 
         # 3. Exercise Attempt
         ExerciseAttempt.objects.create(
-            user=user,
-            exercise=exercise,
-            submitted_command="git init",
-            is_correct=True
+            user=user, exercise=exercise, submitted_command="git init", is_correct=True
         )
 
         response = api_client.get(reverse("heatmap"))
@@ -87,16 +88,8 @@ class TestHeatmapViews:
 
         today = datetime.date.today()
 
-        QuizAttempt.objects.create(
-            user=user,
-            question_id="q1",
-            is_correct=True
-        )
-        ExerciseAttempt.objects.create(
-            user=user,
-            exercise=exercise,
-            is_correct=True
-        )
+        QuizAttempt.objects.create(user=user, question_id="q1", is_correct=True)
+        ExerciseAttempt.objects.create(user=user, exercise=exercise, is_correct=True)
 
         # Filter by quizzes
         response = api_client.get(reverse("heatmap"), {"activity_type": "quizzes"})
@@ -116,11 +109,7 @@ class TestHeatmapViews:
 
         today = datetime.date.today()
 
-        QuizAttempt.objects.create(
-            user=user,
-            question_id="q1",
-            is_correct=True
-        )
+        QuizAttempt.objects.create(user=user, question_id="q1", is_correct=True)
 
         response = api_client.get(reverse("heatmap-export-csv"))
         assert response.status_code == status.HTTP_200_OK
@@ -131,7 +120,14 @@ class TestHeatmapViews:
         reader = csv.reader(content.splitlines())
         rows = list(reader)
 
-        assert rows[0] == ["Date", "Activity Type", "Reading Count", "Quizzes Count", "Code Submissions Count", "Total Count"]
+        assert rows[0] == [
+            "Date",
+            "Activity Type",
+            "Reading Count",
+            "Quizzes Count",
+            "Code Submissions Count",
+            "Total Count",
+        ]
         assert len(rows) > 1
         assert rows[1][0] == today.isoformat()
         assert rows[1][1] == "All Activities"

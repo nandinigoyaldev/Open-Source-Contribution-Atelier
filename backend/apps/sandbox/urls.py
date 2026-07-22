@@ -25,6 +25,7 @@ from .views import (
     ModerationScenarioViewSet,
     LicenseScenarioViewSet,
     TriageIssueViewSet,
+    ADRScenarioViewSet,
 )
 
 # ============================================================
@@ -51,10 +52,17 @@ router.register(
 )
 router.register(r"collab-sessions", CollabSessionViewSet, basename="collab-session")
 router.register(r"pipelines", PipelineExecutionViewSet, basename="pipeline")
-router.register(r"conflict-scenarios", ConflictScenarioViewSet, basename="conflict-scenario")
-router.register(r"moderation-scenarios", ModerationScenarioViewSet, basename="moderation-scenario")
-router.register(r"license-scenarios", LicenseScenarioViewSet, basename="license-scenario")
+router.register(
+    r"conflict-scenarios", ConflictScenarioViewSet, basename="conflict-scenario"
+)
+router.register(
+    r"moderation-scenarios", ModerationScenarioViewSet, basename="moderation-scenario"
+)
+router.register(
+    r"license-scenarios", LicenseScenarioViewSet, basename="license-scenario"
+)
 router.register(r"triage-issues", TriageIssueViewSet, basename="triage-issue")
+router.register(r"adr-scenarios", ADRScenarioViewSet, basename="adr-scenario")
 
 # ============================================================
 # URL Patterns

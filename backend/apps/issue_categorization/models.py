@@ -3,7 +3,8 @@ Models for hierarchical issue organization and categorization.
 """
 
 from django.db import models
-from django.contrib.auth.models import User
+from django.conf import settings
+
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.utils import timezone
@@ -123,7 +124,7 @@ class IssueCategoryAssignment(models.Model):
     )
 
     assigned_by = models.ForeignKey(
-        User, on_delete=models.SET_NULL, null=True, blank=True
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True
     )
 
     created_at = models.DateTimeField(auto_now_add=True)
@@ -191,7 +192,7 @@ class IssueTagAssignment(models.Model):
     confidence_score = models.FloatField(default=0.0)
 
     assigned_by = models.ForeignKey(
-        User, on_delete=models.SET_NULL, null=True, blank=True
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True
     )
 
     created_at = models.DateTimeField(auto_now_add=True)

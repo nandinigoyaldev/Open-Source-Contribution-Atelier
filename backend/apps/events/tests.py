@@ -5,7 +5,9 @@ Authorization boundary tests for the events app.
 @location backend/apps/events/tests.py
 """
 
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
 from django.contrib.contenttypes.models import ContentType
 from django.test import override_settings
 from rest_framework import status
@@ -92,9 +94,7 @@ class EventListViewAuthorizationTests(APITestCase):
         # (the actor) is exposed, while user_a (the target, not actor)
         # sees it redacted since they aren't staff and aren't the actor.
         self.client.force_authenticate(user=self.user_a)
-        response = self.client.get(
-            f"/api/events/events/{self.event_targeting_a.id}/"
-        )
+        response = self.client.get(f"/api/events/events/{self.event_targeting_a.id}/")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         # user_a is the target but not the actor -> metadata redacted
         self.assertEqual(response.data["metadata"], {})

@@ -98,6 +98,12 @@ const BackupDashboardPage = lazy(() =>
   })),
 );
 
+const VulnerabilityDashboard = lazy(() =>
+  import("../pages/admin/VulnerabilityDashboard").then((module) => ({
+    default: module.VulnerabilityDashboard,
+  })),
+);
+
 const SandboxPage = lazy(() =>
   import("../pages/SandboxPage").then((module) => ({
     default: module.SandboxPage,
@@ -486,7 +492,14 @@ export function AppRouter() {
             }
           />
 
-          <Route path="/sandbox" element={<SandboxPage />} />
+          <Route
+            path="/sandbox"
+            element={
+              <ProtectedRoute>
+                <SandboxPage />
+              </ProtectedRoute>
+            }
+          />
 
           <Route
             path="/contributor-sandbox"
@@ -632,6 +645,15 @@ export function AppRouter() {
           />
 
           <Route
+            path="/admin/vulnerabilities"
+            element={
+              <ProtectedRoute>
+                <VulnerabilityDashboard />
+              </ProtectedRoute>
+            }
+          />
+
+          <Route
             path="/portfolio"
             element={
               <ProtectedRoute>
@@ -744,13 +766,6 @@ export function AppRouter() {
           <Route path="/u/:username" element={<UserProfilePage />} />
         </Route>
 
-        {/* Existing standalone routes preserved */}
-        <Route path="/login" element={<LoginPage />} />
-        <Route path="/signup" element={<SignupPage />} />
-        <Route path="/verify" element={<VerifyCertificatePage />} />
-        <Route path="/verify/:hash" element={<VerifyCertificatePage />} />
-        <Route path="/500" element={<ServerErrorPage />} />
-        <Route path="*" element={<NotFoundPage />} />
       </Routes>
     </Suspense>
   );

@@ -56,7 +56,7 @@ export const handlers = [
   }),
 
   http.get(matchUrl("/api/notes/"), () => {
-    return HttpResponse.json([]);
+    return HttpResponse.json({ count: 0, next: null, previous: null, results: [] });
   }),
 
   http.get(matchUrl("/api/challenges/today/"), () => {

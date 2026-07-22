@@ -1,0 +1,17 @@
+# Grype Vulnerability Suppression Rules
+# Format:
+# ignore:
+#   - vulnerability: CVE-2023-XXXXX
+#     package:
+#       name: package-name
+#       version: 1.0.0
+#     reason: Brief justification for false positive or temporary exception
+#     expires: YYYY-MM-DD
+
+ignore:
+  # Example suppression rule (active until specified expiry date)
+  - vulnerability: CVE-2023-99999
+    package:
+      name: sample-demo-pkg
+    reason: False positive in dev environment only; non-production vector.
+    expires: 2026-12-31

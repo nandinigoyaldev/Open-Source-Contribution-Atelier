@@ -1,7 +1,9 @@
 import uuid  # NEW: Added for cryptographic nonce generation
 from datetime import datetime, timezone as dt_timezone
 
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
 from django.db import transaction
 from django.utils import timezone
 from django.db.models import Count, Min, Sum
@@ -536,7 +538,9 @@ class CommunityStatsView(APIView):
     permission_classes = [permissions.AllowAny]
 
     def get(self, request):
-        from django.contrib.auth.models import User
+        from django.contrib.auth import get_user_model
+
+        User = get_user_model()
 
         user = getattr(request, "user", None)
         org = (
@@ -1268,7 +1272,9 @@ class HeatmapView(APIView):
     permission_classes = [permissions.AllowAny]
 
     def get(self, request):
-        from django.contrib.auth.models import User
+        from django.contrib.auth import get_user_model
+
+        User = get_user_model()
         from django.shortcuts import get_object_or_404
         from apps.progress.models import DailyActivity, LessonProgress, QuizAttempt, ExerciseAttempt
         import datetime

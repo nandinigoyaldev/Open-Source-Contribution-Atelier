@@ -44,12 +44,19 @@ def _configure_django_q_test_settings(settings):
 
 @pytest.fixture(autouse=True)
 def mock_django_q_async_task(monkeypatch):
+    """
+    Globally mock django_q's async_task to avoid running into Redis connection issues
+    during tests that trigger events (e.g. User post_save/post_delete).
+    """
     import django_q.tasks
     monkeypatch.setattr(django_q.tasks, "async_task", lambda *args, **kwargs: None)
 
 
 @pytest.fixture(autouse=True)
 def mock_event_bus_dispatch(monkeypatch):
+    """
+    Globally mock EventBus.dispatch to avoid triggering background tasks during tests.
+    """
     from apps.events.services.event_bus import EventBus
     monkeypatch.setattr(EventBus, "dispatch", lambda *args, **kwargs: None)
 

@@ -11,7 +11,9 @@ Verifies that the GET /api/progress/mentor/help-requests/ endpoint:
 from typing import List, Optional
 
 import pytest
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
 from rest_framework.test import APIClient
 
 from apps.accounts.models import MentorProfile

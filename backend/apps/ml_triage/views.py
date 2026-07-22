@@ -9,7 +9,7 @@ from rest_framework.decorators import action
 from django.db.models import Q
 from apps.ml_triage.models import Issue, TrainingData
 from apps.ml_triage.serializers import IssueSerializer, TrainingDataSerializer
-from apps.ml_triage.services.ml_model import MLModel
+from apps.ml_triage.services.models import MLModel
 from apps.ml_triage.services.github_collector import GitHubCollector
 import logging
 
