@@ -1,0 +1,3 @@
+"""
+Security app test suite.
+"""

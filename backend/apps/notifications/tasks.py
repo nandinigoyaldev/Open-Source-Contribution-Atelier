@@ -76,11 +76,11 @@ def send_bulk_email(payload):
 
     if template_id == "weekly_progress_summary":
         subject = f"Your Weekly Progress Summary, {data.get('username')} 📊"
-        if data.get('xp_earned', 0) > 0:
+        if data.get("xp_earned", 0) > 0:
             subject = f"Wow, {data['xp_earned']} XP this week, {data['username']}! 🚀"
-        elif data.get('current_streak', 0) > 0:
+        elif data.get("current_streak", 0) > 0:
             subject = f"Don't lose your {data['current_streak']}-day streak, {data['username']}! 🔥"
-            
+
         from django.template.loader import render_to_string
         from django.utils.html import strip_tags
         from apps.progress.services.pdf_report_service import PDFReportGenerator
@@ -88,10 +88,10 @@ def send_bulk_email(payload):
 
         User = get_user_model()
         user_email = recipients[0] if recipients else None
-        
-        html_message = render_to_string('notifications/weekly_digest.html', data)
+
+        html_message = render_to_string("notifications/weekly_digest.html", data)
         message = strip_tags(html_message)
-        
+
         # Generate PDF attachment if a single user is matched
         if user_email:
             user = User.objects.filter(email=user_email).first()
@@ -116,19 +116,16 @@ def send_bulk_email(payload):
         message = (
             f"Hi {username},\n\n"
             f"{reviewer_name} just left a review on your submission:\n\n"
-            f"\"{feedback}\"\n\n"
+            f'"{feedback}"\n\n'
             "Log in to the platform to see the full details!"
         )
     from_email = getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@atelier.dev")
     email = EmailMultiAlternatives(
-        subject=subject,
-        body=message,
-        from_email=from_email,
-        to=recipients
+        subject=subject, body=message, from_email=from_email, to=recipients
     )
     if html_message:
         email.attach_alternative(html_message, "text/html")
-    
+
     if pdf_attachment:
         email.attach("OSCA_Progress_Report.pdf", pdf_attachment, "application/pdf")
 
@@ -204,3 +201,158 @@ def send_notification_digests():
         )
         email.attach_alternative(html_message, "text/html")
         email.send(fail_silently=True)
+
+
+from datetime import timedelta
+from django.utils import timezone
+from apps.notifications.channels import get_channel_instance, get_registered_channels
+from apps.notifications.models import (
+    Notification,
+    NotificationDeadLetter,
+    NotificationDelivery,
+    NotificationPreference,
+)
+from apps.notifications.rate_limiter import ChannelRateLimiter
+
+
+@shared_task(bind=True, max_retries=3)
+def process_notification_delivery(self, delivery_id: int, payload: dict):
+    try:
+        delivery = NotificationDelivery.objects.select_related("recipient").get(id=delivery_id)
+    except NotificationDelivery.DoesNotExist:
+        logger.error("NotificationDelivery #%s does not exist", delivery_id)
+        return False
+
+    user_id = delivery.recipient_id
+    channel_id = delivery.channel
+
+    allowed, _ = ChannelRateLimiter.is_allowed(user_id, channel_id)
+    if not allowed:
+        logger.warning("Rate limit exceeded for user %s on channel %s", user_id, channel_id)
+        delivery.status = "failed"
+        delivery.error_message = "Rate limit exceeded"
+        delivery.save(update_fields=["status", "error_message", "updated_at"])
+        return False
+
+    channel_instance = get_channel_instance(channel_id)
+    if not channel_instance:
+        err = f"Channel '{channel_id}' is not registered."
+        delivery.status = "failed"
+        delivery.error_message = err
+        delivery.save(update_fields=["status", "error_message", "updated_at"])
+        return False
+
+    try:
+        success = channel_instance.deliver(delivery, delivery.recipient, payload)
+        if success:
+            delivery.status = "sent"
+            delivery.sent_at = timezone.now()
+            delivery.error_message = ""
+            delivery.save(update_fields=["status", "sent_at", "error_message", "updated_at"])
+            return True
+        else:
+            raise RuntimeError(f"Delivery returned False for channel '{channel_id}'")
+    except Exception as exc:
+        delivery.retry_count += 1
+        current_retry = delivery.retry_count
+        delay = 60 * (2 ** (current_retry - 1))
+        delivery.next_retry_at = timezone.now() + timedelta(seconds=delay)
+        delivery.error_message = str(exc)
+
+        max_retries = getattr(self, "max_retries", 3)
+        if current_retry <= max_retries:
+            delivery.status = "pending"
+            delivery.save(update_fields=["retry_count", "next_retry_at", "error_message", "status", "updated_at"])
+            try:
+                if callable(getattr(self, "retry", None)):
+                    return self.retry(exc=exc, countdown=delay)
+            except Exception as retry_exc:
+                # If retry raises MaxRetriesExceededError or is caught
+                pass
+
+        delivery.status = "failed"
+        delivery.save(update_fields=["status", "error_message", "updated_at"])
+        NotificationDeadLetter.objects.create(
+            notification=delivery.notification,
+            recipient=delivery.recipient,
+            channel=delivery.channel,
+            retry_count=delivery.retry_count,
+            error_message=str(exc),
+            payload=payload,
+        )
+        return False
+
+
+def dispatch_notification(recipient, notif_type: str, title: str, message: str, meta: dict = None, sender=None):
+    if meta is None:
+        meta = {}
+
+    from django.contrib.auth import get_user_model
+    User = get_user_model()
+    if isinstance(recipient, (int, str)):
+        try:
+            recipient = User.objects.get(id=int(recipient))
+        except (ValueError, User.DoesNotExist):
+            return []
+
+    pref, _ = NotificationPreference.objects.get_or_create(user=recipient)
+
+    type_prefs = pref.channel_preferences.get(notif_type, {})
+    if not type_prefs:
+        type_prefs = {
+            "in_app": pref.in_app_enabled,
+            "email": pref.email_enabled,
+            "push": True,
+            "sms": False,
+            "webhook": False,
+            "slack": False,
+        }
+
+    registered = get_registered_channels()
+    deliveries = []
+
+    notification = None
+    if type_prefs.get("in_app", True):
+        notification = Notification.objects.create(
+            recipient=recipient,
+            sender=sender,
+            notif_type=notif_type,
+            title=title,
+            message=message,
+            meta=meta,
+        )
+
+    payload = {
+        "notif_type": notif_type,
+        "title": title,
+        "message": message,
+        "meta": meta,
+        "notification_id": notification.id if notification else None,
+    }
+
+    for channel_id in registered.keys():
+        if type_prefs.get(channel_id, False) or (channel_id == "in_app" and type_prefs.get("in_app", True)):
+            delivery = NotificationDelivery.objects.create(
+                notification=notification,
+                recipient=recipient,
+                channel=channel_id,
+                status="pending",
+                meta=meta,
+            )
+            deliveries.append(delivery)
+
+            if getattr(settings, "CELERY_TASK_ALWAYS_EAGER", True) or getattr(settings, "TESTING", False):
+                try:
+                    process_notification_delivery(delivery.id, payload)
+                    delivery.refresh_from_db()
+                except Exception as exc:
+                    logger.error("Error processing delivery #%s synchronously: %s", delivery.id, exc)
+            else:
+                try:
+                    process_notification_delivery.delay(delivery.id, payload)
+                except Exception:
+                    process_notification_delivery(delivery.id, payload)
+                    delivery.refresh_from_db()
+
+    return deliveries
+

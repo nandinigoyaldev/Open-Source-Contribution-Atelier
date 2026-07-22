@@ -4,9 +4,9 @@ from rest_framework import permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from .models import RepoHealthScore
-from .serializers import RepoHealthScoreSerializer
-from .services import analyze_repository
+from .models import MaintainerWorkloadProfile, RepoHealthScore
+from .serializers import MaintainerWorkloadProfileSerializer, RepoHealthScoreSerializer
+from .services import analyze_repository, BurnoutAnalyzer
 
 
 class AnalyzeRepositoryView(APIView):
@@ -31,7 +31,9 @@ class AnalyzeRepositoryView(APIView):
 
         if not repo_url.startswith("https://github.com/"):
             return Response(
-                {"error": "Only GitHub repository URLs are supported (https://github.com/...)."},
+                {
+                    "error": "Only GitHub repository URLs are supported (https://github.com/...)."
+                },
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -74,5 +76,37 @@ class RepoHealthHistoryView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        analyses = RepoHealthScore.objects.filter(analyzed_by=request.user).order_by("-updated_at")[:20]
+        analyses = RepoHealthScore.objects.filter(analyzed_by=request.user).order_by(
+            "-updated_at"
+        )[:20]
         return Response(RepoHealthScoreSerializer(analyses, many=True).data)
+
+
+class MaintainerWorkloadView(APIView):
+    """
+    GET /api/project-health/burnout/
+    Returns the workload profile and burnout risk score for the authenticated user.
+    """
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        profile, _ = MaintainerWorkloadProfile.objects.get_or_create(user=request.user)
+        # Recompute score on fetch
+        BurnoutAnalyzer.compute_risk_score(profile)
+        return Response(MaintainerWorkloadProfileSerializer(profile).data)
+
+    def patch(self, request):
+        """
+        PATCH /api/project-health/burnout/
+        Allows updating workload metrics (active_prs_assigned, etc)
+        """
+        profile, _ = MaintainerWorkloadProfile.objects.get_or_create(user=request.user)
+        serializer = MaintainerWorkloadProfileSerializer(
+            profile, data=request.data, partial=True
+        )
+        if serializer.is_valid():
+            serializer.save()
+            BurnoutAnalyzer.compute_risk_score(profile)
+            return Response(MaintainerWorkloadProfileSerializer(profile).data)
+        return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)

@@ -214,3 +214,44 @@ def analyze_repository(repo_url: str, token: str = None) -> dict:
     data["green_flags"] = green_flags
 
     return data
+
+
+class BurnoutAnalyzer:
+    """
+    Analyzes the workload profile of a maintainer and computes a burnout risk score.
+    """
+
+    @classmethod
+    def compute_risk_score(cls, profile):
+        """
+        Calculates and updates the burnout risk score based on simple thresholds.
+        High Risk:
+        - Active PRs assigned > 15
+        - Avg time to review > 72 hours
+        - Recent issue volume > 20
+        """
+        score = 0
+        if profile.active_prs_assigned > 15:
+            score += 2
+        elif profile.active_prs_assigned > 5:
+            score += 1
+
+        if profile.avg_time_to_review_hours > 72:
+            score += 2
+        elif profile.avg_time_to_review_hours > 48:
+            score += 1
+
+        if profile.recent_issue_volume > 20:
+            score += 2
+        elif profile.recent_issue_volume > 10:
+            score += 1
+
+        if score >= 5:
+            profile.burnout_risk_score = "High"
+        elif score >= 3:
+            profile.burnout_risk_score = "Medium"
+        else:
+            profile.burnout_risk_score = "Low"
+
+        profile.save()
+        return profile.burnout_risk_score

@@ -1,7 +1,9 @@
 import random
 from datetime import timedelta
 
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
 from django.core.management.base import BaseCommand
 from django.utils import timezone
 
@@ -53,21 +55,33 @@ class Command(BaseCommand):
         # Seed XP to Redis Leaderboard
         try:
             from apps.progress.services.leaderboard_service import LeaderboardService
+
             xps = {"alice": 450, "bob": 350, "charlie": 200, "diana": 100}
             for user in contributors:
                 # Reset score first
-                client = get_redis_client() if 'get_redis_client' in globals() else None
+                client = get_redis_client() if "get_redis_client" in globals() else None
                 if not client:
-                    from apps.progress.services.leaderboard_service import get_redis_client
+                    from apps.progress.services.leaderboard_service import (
+                        get_redis_client,
+                    )
+
                     client = get_redis_client()
                 if client:
                     client.zrem(LeaderboardService.ALL_TIME, user.username)
                     client.zrem(LeaderboardService.get_weekly_key(), user.username)
                     client.zrem(LeaderboardService.get_monthly_key(), user.username)
-                LeaderboardService.update_user_xp(user.id, user.username, xps.get(user.username, 50))
-            self.stdout.write(self.style.SUCCESS("  Seeded mock Redis leaderboard records successfully."))
+                LeaderboardService.update_user_xp(
+                    user.id, user.username, xps.get(user.username, 50)
+                )
+            self.stdout.write(
+                self.style.SUCCESS(
+                    "  Seeded mock Redis leaderboard records successfully."
+                )
+            )
         except Exception as e:
-            self.stdout.write(self.style.WARNING(f"  Could not seed Redis leaderboard: {e}"))
+            self.stdout.write(
+                self.style.WARNING(f"  Could not seed Redis leaderboard: {e}")
+            )
 
         # 2. Create Lessons
         self.stdout.write("- Creating Lessons & Curriculum...")
@@ -308,6 +322,7 @@ class Command(BaseCommand):
 
         # 6. Seed Bounties
         from django.core.management import call_command
+
         try:
             call_command("seed_bounties")
         except Exception as e:

@@ -1,4 +1,6 @@
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
 from rest_framework import status
 from rest_framework.test import APITestCase
 
@@ -9,17 +11,23 @@ class OrganizationViewSetTests(APITestCase):
     def setUp(self):
         self.owner = User.objects.create_user(username="owner", password="password123")
         self.admin = User.objects.create_user(username="admin", password="password123")
-        self.member = User.objects.create_user(username="member", password="password123")
+        self.member = User.objects.create_user(
+            username="member", password="password123"
+        )
         self.outsider = User.objects.create_user(
             username="outsider", password="password123"
         )
 
         self.org = Organization.objects.create(name="Test Org", description="Test Desc")
         OrganizationMembership.objects.create(
-            organization=self.org, user=self.owner, role=OrganizationMembership.ROLE_OWNER
+            organization=self.org,
+            user=self.owner,
+            role=OrganizationMembership.ROLE_OWNER,
         )
         OrganizationMembership.objects.create(
-            organization=self.org, user=self.admin, role=OrganizationMembership.ROLE_ADMIN
+            organization=self.org,
+            user=self.admin,
+            role=OrganizationMembership.ROLE_ADMIN,
         )
         OrganizationMembership.objects.create(
             organization=self.org,
@@ -147,7 +155,9 @@ class OrganizationMembershipViewSetTests(APITestCase):
         )
         self.org = Organization.objects.create(name="Membership Org")
         OrganizationMembership.objects.create(
-            organization=self.org, user=self.owner, role=OrganizationMembership.ROLE_OWNER
+            organization=self.org,
+            user=self.owner,
+            role=OrganizationMembership.ROLE_OWNER,
         )
         OrganizationMembership.objects.create(
             organization=self.org,

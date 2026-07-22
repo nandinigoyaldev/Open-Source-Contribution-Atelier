@@ -1,6 +1,7 @@
 """
 Models for the OSS Project Health Dashboard.
 """
+
 import uuid
 
 from django.conf import settings
@@ -17,7 +18,8 @@ class RepoHealthScore(models.Model):
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     repo_url = models.URLField(
-        unique=True, help_text="The GitHub repository URL (e.g., https://github.com/django/django)."
+        unique=True,
+        help_text="The GitHub repository URL (e.g., https://github.com/django/django).",
     )
     repo_owner = models.CharField(max_length=255)
     repo_name = models.CharField(max_length=255)
@@ -34,7 +36,9 @@ class RepoHealthScore(models.Model):
     )
     contributor_count = models.IntegerField(default=0)
     last_commit_days_ago = models.IntegerField(
-        null=True, blank=True, help_text="Days since the last commit to the default branch."
+        null=True,
+        blank=True,
+        help_text="Days since the last commit to the default branch.",
     )
 
     # --- Sentiment ---
@@ -81,3 +85,34 @@ class RepoHealthScore(models.Model):
 
     def __str__(self):
         return f"{self.repo_owner}/{self.repo_name} (Score: {self.health_score})"
+
+
+# ============================================================
+# FEATURE: Contributor Burnout Analyzer
+# ============================================================
+
+
+class MaintainerWorkloadProfile(models.Model):
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="workload_profile",
+    )
+    active_prs_assigned = models.IntegerField(
+        default=0, help_text="Number of active PRs assigned to the maintainer."
+    )
+    avg_time_to_review_hours = models.FloatField(
+        default=0.0, help_text="Average time taken to review PRs in hours."
+    )
+    recent_issue_volume = models.IntegerField(
+        default=0, help_text="Volume of issues assigned in the last 7 days."
+    )
+    burnout_risk_score = models.CharField(
+        max_length=20,
+        choices=[("Low", "Low"), ("Medium", "Medium"), ("High", "High")],
+        default="Low",
+    )
+    last_analyzed_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"Workload Profile for {self.user.username} ({self.burnout_risk_score} Risk)"
