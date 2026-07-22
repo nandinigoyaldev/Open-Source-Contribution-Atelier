@@ -64,13 +64,15 @@ class NextLessonRecommendationView(APIView):
             status=status.HTTP_200_OK,
         )
 
+
 class OSSIssueListView(generics.ListAPIView):
     from .serializers import OSSIssueSerializer
     from .models import OSSIssue
+
     serializer_class = OSSIssueSerializer
     permission_classes = [permissions.IsAuthenticated]
 
     def get_queryset(self):
         from .models import OSSIssue
-        return OSSIssue.objects.filter(is_open=True)
 
+        return OSSIssue.objects.filter(is_open=True)

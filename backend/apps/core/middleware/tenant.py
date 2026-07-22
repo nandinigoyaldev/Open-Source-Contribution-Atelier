@@ -19,6 +19,7 @@ Resolution order (first match wins):
 If no organization can be resolved, the tenant id is left as ``None``
 and tenant-scoped querysets will return empty results — fail-closed.
 """
+
 from rest_framework_simplejwt.authentication import JWTAuthentication
 
 from apps.core.tenant import set_current_tenant, clear_current_tenant

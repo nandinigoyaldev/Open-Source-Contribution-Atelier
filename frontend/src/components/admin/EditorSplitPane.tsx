@@ -11,7 +11,10 @@ interface EditorSplitPaneProps {
   onChangeContent: (content: string) => void;
 }
 
-export function EditorSplitPane({ lesson, onChangeContent }: EditorSplitPaneProps) {
+export function EditorSplitPane({
+  lesson,
+  onChangeContent,
+}: EditorSplitPaneProps) {
   const mdeOptions = useMemo(
     () => ({
       spellChecker: false,
@@ -55,7 +58,9 @@ export function EditorSplitPane({ lesson, onChangeContent }: EditorSplitPaneProp
           <div className="w-full h-full p-2 bg-white dark:bg-[#151411] border-2 border-black/10 dark:border-[#2e2924] rounded-xl flex flex-col overflow-hidden shadow-sm">
             <div className="text-xs font-bold text-muted dark:text-[#a0988c] px-3 py-1.5 border-b border-black/10 dark:border-[#2e2924] flex items-center justify-between">
               <span>Markdown Editor (EasyMDE)</span>
-              <span className="text-[10px] text-accent">Drag & drop images supported</span>
+              <span className="text-[10px] text-accent">
+                Drag & drop images supported
+              </span>
             </div>
             <div className="flex-1 overflow-y-auto p-1 text-text dark:text-[#f0ebe2]">
               <SimpleMDE

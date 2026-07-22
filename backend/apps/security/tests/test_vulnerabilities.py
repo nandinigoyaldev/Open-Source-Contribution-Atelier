@@ -75,7 +75,9 @@ class TestSecurityAPI:
         resp_crit = self.client.get("/api/security/vulnerabilities/?severity=CRITICAL")
         assert resp_crit.status_code == 200
         res_crit = resp_crit.json()
-        items_crit = res_crit if isinstance(res_crit, list) else res_crit.get("results", [])
+        items_crit = (
+            res_crit if isinstance(res_crit, list) else res_crit.get("results", [])
+        )
         assert len(items_crit) == 1
         assert items_crit[0]["cve_id"] == "CVE-2024-1111"
 

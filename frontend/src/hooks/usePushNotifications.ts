@@ -5,7 +5,7 @@ export function usePushNotifications() {
   const [permission, setPermission] = useState<NotificationPermission>(
     typeof window !== "undefined" && "Notification" in window
       ? Notification.permission
-      : "default"
+      : "default",
   );
   const [subscribed, setSubscribed] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -35,10 +35,15 @@ export function usePushNotifications() {
         const registration = await navigator.serviceWorker.ready;
         const sub = await registration.pushManager.subscribe({
           userVisibleOnly: true,
-          applicationServerKey: "BEl62iUYgUivxIkv69yViEuiBIa-Ib9-Skv69yViEuiBIa",
+          applicationServerKey:
+            "BEl62iUYgUivxIkv69yViEuiBIa-Ib9-Skv69yViEuiBIa",
         });
-        const p256dh = sub.getKey ? btoa(String.fromCharCode(...new Uint8Array(sub.getKey("p256dh")!))) : "";
-        const auth = sub.getKey ? btoa(String.fromCharCode(...new Uint8Array(sub.getKey("auth")!))) : "";
+        const p256dh = sub.getKey
+          ? btoa(String.fromCharCode(...new Uint8Array(sub.getKey("p256dh")!)))
+          : "";
+        const auth = sub.getKey
+          ? btoa(String.fromCharCode(...new Uint8Array(sub.getKey("auth")!)))
+          : "";
 
         await fetchApi("/notifications/push/subscribe/", {
           method: "POST",

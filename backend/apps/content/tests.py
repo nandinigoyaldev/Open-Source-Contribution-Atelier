@@ -859,6 +859,7 @@ def test_draft_content_studio_crud_and_reorder():
             }
         ]
     }
-    res_reorder = client.post("/api/content/modules/reorder/", reorder_payload, format="json")
+    res_reorder = client.post(
+        "/api/content/modules/reorder/", reorder_payload, format="json"
+    )
     assert res_reorder.status_code == 200
-

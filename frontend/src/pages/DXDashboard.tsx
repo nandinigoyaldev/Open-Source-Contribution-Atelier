@@ -1,13 +1,35 @@
-import React, { useEffect, useState } from 'react';
-import { LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
-import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
-import { ArrowUp, ArrowDown, Minus, AlertTriangle, CheckCircle, Activity, Clock } from 'lucide-react';
+import React, { useEffect, useState } from "react";
+import {
+  LineChart,
+  Line,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+} from "recharts";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import {
+  ArrowUp,
+  ArrowDown,
+  Minus,
+  AlertTriangle,
+  CheckCircle,
+  Activity,
+  Clock,
+} from "lucide-react";
 
 interface DXOverview {
   score: number;
-  trend: 'up' | 'down' | 'flat';
+  trend: "up" | "down" | "flat";
   anomaly: boolean;
-  recommendations: Array<{ title: string; description: string; }>;
+  recommendations: Array<{ title: string; description: string }>;
 }
 
 interface DXHistory {
@@ -21,7 +43,7 @@ interface DXFriction {
   failures: number;
 }
 
-const COLORS = ['#0088FE', '#00C49F', '#FFBB28', '#FF8042', '#8884D8'];
+const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042", "#8884D8"];
 
 export default function DXDashboard() {
   const [overview, setOverview] = useState<DXOverview | null>(null);
@@ -35,20 +57,20 @@ export default function DXDashboard() {
     const fetchDXData = async () => {
       try {
         const [overviewRes, historyRes, frictionRes] = await Promise.all([
-          fetch('/api/dx/overview/').then(r => r.json()),
-          fetch('/api/dx/history/').then(r => r.json()),
-          fetch('/api/dx/friction/').then(r => r.json())
+          fetch("/api/dx/overview/").then((r) => r.json()),
+          fetch("/api/dx/history/").then((r) => r.json()),
+          fetch("/api/dx/friction/").then((r) => r.json()),
         ]);
         setOverview(overviewRes);
         setHistory(historyRes);
         setFriction(frictionRes);
       } catch (e) {
-        console.error('Failed to load DX metrics', e);
+        console.error("Failed to load DX metrics", e);
       } finally {
         setLoading(false);
       }
     };
-    
+
     fetchDXData();
   }, []);
 
@@ -57,7 +79,9 @@ export default function DXDashboard() {
   return (
     <div className="p-8 space-y-8 bg-gray-50 min-h-screen">
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold text-gray-900">Developer Experience Analytics</h1>
+        <h1 className="text-3xl font-bold text-gray-900">
+          Developer Experience Analytics
+        </h1>
       </div>
 
       {/* Top Cards */}
@@ -70,9 +94,21 @@ export default function DXDashboard() {
           <CardContent>
             <div className="text-2xl font-bold">{overview?.score || 0}/100</div>
             <p className="text-xs text-gray-500 flex items-center mt-1">
-              {overview?.trend === 'up' && <><ArrowUp className="w-3 h-3 text-green-500 mr-1" /> Improving</>}
-              {overview?.trend === 'down' && <><ArrowDown className="w-3 h-3 text-red-500 mr-1" /> Degrading</>}
-              {overview?.trend === 'flat' && <><Minus className="w-3 h-3 text-gray-500 mr-1" /> Stable</>}
+              {overview?.trend === "up" && (
+                <>
+                  <ArrowUp className="w-3 h-3 text-green-500 mr-1" /> Improving
+                </>
+              )}
+              {overview?.trend === "down" && (
+                <>
+                  <ArrowDown className="w-3 h-3 text-red-500 mr-1" /> Degrading
+                </>
+              )}
+              {overview?.trend === "flat" && (
+                <>
+                  <Minus className="w-3 h-3 text-gray-500 mr-1" /> Stable
+                </>
+              )}
             </p>
           </CardContent>
         </Card>
@@ -85,12 +121,19 @@ export default function DXDashboard() {
           <CardContent>
             <div className="text-2xl font-bold flex items-center">
               {overview?.anomaly ? (
-                <><AlertTriangle className="w-6 h-6 text-red-500 mr-2" /> Anomaly Detected</>
+                <>
+                  <AlertTriangle className="w-6 h-6 text-red-500 mr-2" />{" "}
+                  Anomaly Detected
+                </>
               ) : (
-                <><CheckCircle className="w-6 h-6 text-green-500 mr-2" /> Normal</>
+                <>
+                  <CheckCircle className="w-6 h-6 text-green-500 mr-2" /> Normal
+                </>
               )}
             </div>
-            <p className="text-xs text-gray-500 mt-1">ML Isolation Forest Status</p>
+            <p className="text-xs text-gray-500 mt-1">
+              ML Isolation Forest Status
+            </p>
           </CardContent>
         </Card>
       </div>
@@ -108,7 +151,12 @@ export default function DXDashboard() {
                 <XAxis dataKey="date" />
                 <YAxis domain={[0, 100]} />
                 <Tooltip />
-                <Line type="monotone" dataKey="score" stroke="#8884d8" strokeWidth={2} />
+                <Line
+                  type="monotone"
+                  dataKey="score"
+                  stroke="#8884d8"
+                  strokeWidth={2}
+                />
               </LineChart>
             </ResponsiveContainer>
           </CardContent>
@@ -142,14 +190,21 @@ export default function DXDashboard() {
             {overview?.recommendations?.length ? (
               <ul className="space-y-4">
                 {overview.recommendations.map((rec, i) => (
-                  <li key={i} className="bg-white p-4 rounded-lg border shadow-sm">
+                  <li
+                    key={i}
+                    className="bg-white p-4 rounded-lg border shadow-sm"
+                  >
                     <h4 className="font-semibold text-gray-900">{rec.title}</h4>
-                    <p className="text-sm text-gray-600 mt-1">{rec.description}</p>
+                    <p className="text-sm text-gray-600 mt-1">
+                      {rec.description}
+                    </p>
                   </li>
                 ))}
               </ul>
             ) : (
-              <p className="text-gray-500">No current recommendations. Keep up the good work!</p>
+              <p className="text-gray-500">
+                No current recommendations. Keep up the good work!
+              </p>
             )}
           </CardContent>
         </Card>
@@ -163,7 +218,7 @@ export default function DXDashboard() {
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
                 <Pie
-                  data={friction.filter(f => f.failures > 0)}
+                  data={friction.filter((f) => f.failures > 0)}
                   dataKey="failures"
                   nameKey="workflow"
                   cx="50%"
@@ -172,7 +227,10 @@ export default function DXDashboard() {
                   label
                 >
                   {friction.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                    <Cell
+                      key={`cell-${index}`}
+                      fill={COLORS[index % COLORS.length]}
+                    />
                   ))}
                 </Pie>
                 <Tooltip />

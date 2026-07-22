@@ -18,7 +18,9 @@ class OpenAPIDocumentationTests(APITestCase):
         response = self.client.get(url)
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         # Should be a dict (usually JSON or YAML parseable)
-        self.assertTrue(isinstance(response.data, dict) or "openapi" in str(response.content))
+        self.assertTrue(
+            isinstance(response.data, dict) or "openapi" in str(response.content)
+        )
 
     def test_swagger_ui_endpoint(self):
         """

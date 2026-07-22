@@ -172,18 +172,22 @@ class SoftDeleteFrameworkTests(TestCase):
 class DatabaseBackupTests(TestCase):
     def setUp(self):
         import tempfile
+
         self.tmpdir = tempfile.mkdtemp()
 
     def tearDown(self):
         import shutil
+
         shutil.rmtree(self.tmpdir, ignore_errors=True)
 
     @override_settings(BACKUP_DIR=None)
     def test_backup_creates_file(self):
         from django.conf import settings as _s
+
         _s.BACKUP_DIR = self.tmpdir
 
         from apps.core.tasks import backup_database
+
         result = backup_database()
 
         self.assertIsNotNone(result)
@@ -193,6 +197,7 @@ class DatabaseBackupTests(TestCase):
     @override_settings(BACKUP_DIR=None, BACKUP_RETENTION_DAYS=30)
     def test_prune_removes_old_files(self):
         from django.conf import settings as _s
+
         _s.BACKUP_DIR = self.tmpdir
         _s.BACKUP_RETENTION_DAYS = 30
 
@@ -202,6 +207,7 @@ class DatabaseBackupTests(TestCase):
         os.utime(old_file, (old_mtime, old_mtime))
 
         from apps.core.tasks import prune_old_backups
+
         deleted = prune_old_backups()
 
         self.assertEqual(deleted, 1)
@@ -210,6 +216,7 @@ class DatabaseBackupTests(TestCase):
     @override_settings(BACKUP_DIR=None, BACKUP_RETENTION_DAYS=30)
     def test_prune_keeps_recent_files(self):
         from django.conf import settings as _s
+
         _s.BACKUP_DIR = self.tmpdir
         _s.BACKUP_RETENTION_DAYS = 30
 
@@ -217,6 +224,7 @@ class DatabaseBackupTests(TestCase):
         recent_file.write_text("[]")
 
         from apps.core.tasks import prune_old_backups
+
         deleted = prune_old_backups()
 
         self.assertEqual(deleted, 0)
@@ -225,9 +233,11 @@ class DatabaseBackupTests(TestCase):
     @override_settings(BACKUP_DIR=None)
     def test_prune_missing_dir_returns_zero(self):
         from django.conf import settings as _s
+
         _s.BACKUP_DIR = str(Path(self.tmpdir) / "nonexistent")
 
         from apps.core.tasks import prune_old_backups
+
         self.assertEqual(prune_old_backups(), 0)
 
 
@@ -296,42 +306,60 @@ class CircuitBreakerTests(TestCase):
 class CacheTaggingAndInvalidationTests(TestCase):
     def setUp(self):
         from django.core.cache import cache
+
         cache.clear()
 
     def test_set_and_get_tagged_cache(self):
-        from apps.core.cache.invalidation import set_tagged_cache, get_tagged_cache, get_keys_for_tag
-        
-        set_tagged_cache("user_profile_42", {"name": "Alice"}, ["user:42", "all_profiles"], timeout=60)
-        
+        from apps.core.cache.invalidation import (
+            set_tagged_cache,
+            get_tagged_cache,
+            get_keys_for_tag,
+        )
+
+        set_tagged_cache(
+            "user_profile_42",
+            {"name": "Alice"},
+            ["user:42", "all_profiles"],
+            timeout=60,
+        )
+
         val = get_tagged_cache("user_profile_42")
         self.assertEqual(val, {"name": "Alice"})
-        
+
         # Verify tag association
         self.assertIn("user_profile_42", get_keys_for_tag("user:42"))
         self.assertIn("user_profile_42", get_keys_for_tag("all_profiles"))
 
     def test_invalidate_tag(self):
-        from apps.core.cache.invalidation import set_tagged_cache, get_tagged_cache, invalidate_tag
-        
+        from apps.core.cache.invalidation import (
+            set_tagged_cache,
+            get_tagged_cache,
+            invalidate_tag,
+        )
+
         set_tagged_cache("k1", "v1", ["user:1"], timeout=60)
         set_tagged_cache("k2", "v2", ["user:1", "global"], timeout=60)
         set_tagged_cache("k3", "v3", ["global"], timeout=60)
-        
+
         invalidate_tag("user:1")
-        
+
         self.assertIsNone(get_tagged_cache("k1"))
         self.assertIsNone(get_tagged_cache("k2"))
         self.assertEqual(get_tagged_cache("k3"), "v3")
 
     def test_invalidate_wildcard_tag(self):
-        from apps.core.cache.invalidation import set_tagged_cache, get_tagged_cache, invalidate_tag
-        
+        from apps.core.cache.invalidation import (
+            set_tagged_cache,
+            get_tagged_cache,
+            invalidate_tag,
+        )
+
         set_tagged_cache("k1", "v1", ["leaderboard:weekly"], timeout=60)
         set_tagged_cache("k2", "v2", ["leaderboard:monthly"], timeout=60)
         set_tagged_cache("k3", "v3", ["user:1"], timeout=60)
-        
+
         invalidate_tag("leaderboard:*")
-        
+
         self.assertIsNone(get_tagged_cache("k1"))
         self.assertIsNone(get_tagged_cache("k2"))
         self.assertEqual(get_tagged_cache("k3"), "v3")
@@ -339,14 +367,14 @@ class CacheTaggingAndInvalidationTests(TestCase):
     @patch("apps.core.cache.invalidation.random.random")
     def test_xfetch_stampede_protection(self, mock_random):
         from apps.core.cache.invalidation import set_tagged_cache, get_tagged_cache
-        
+
         # Cache with delta=1.5 seconds, key expires in 5 seconds
         set_tagged_cache("hot_key", "hot_value", ["tags"], timeout=5, delta=1.5)
-        
+
         # Mock random.random() to return 0.001 to force early expiration
         mock_random.return_value = 0.001
         self.assertIsNone(get_tagged_cache("hot_key", beta=1.0))
-        
+
         # Mock random to return 0.99 (ln(0.99) ~ -0.01) to verify no early expiration
         mock_random.return_value = 0.99
         self.assertEqual(get_tagged_cache("hot_key", beta=1.0), "hot_value")
@@ -354,12 +382,12 @@ class CacheTaggingAndInvalidationTests(TestCase):
     @patch("apps.core.tasks.invalidate_tag_task.delay")
     def test_signals_trigger_invalidation(self, mock_delay):
         from django.contrib.auth import get_user_model
+
         User = get_user_model()
-        
+
         # Save a User to trigger the signal
         u = User.objects.create_user(username="temp_cache_user", password="pwd")
-        
+
         # Verify user:id and leaderboard:* tags are queued for invalidation
         mock_delay.assert_any_call(f"user:{u.id}")
         mock_delay.assert_any_call("leaderboard:*")
-

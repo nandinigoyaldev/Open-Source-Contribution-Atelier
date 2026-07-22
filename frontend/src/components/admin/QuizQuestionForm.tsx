@@ -7,7 +7,10 @@ interface QuizQuestionFormProps {
   onChangeQuizzes: (quizzes: QuizDraftData[]) => void;
 }
 
-export function QuizQuestionForm({ quizzes, onChangeQuizzes }: QuizQuestionFormProps) {
+export function QuizQuestionForm({
+  quizzes,
+  onChangeQuizzes,
+}: QuizQuestionFormProps) {
   const [jsonMode, setJsonMode] = useState(false);
   const [jsonText, setJsonText] = useState("");
   const [jsonError, setJsonError] = useState<string | null>(null);
@@ -23,7 +26,10 @@ export function QuizQuestionForm({ quizzes, onChangeQuizzes }: QuizQuestionFormP
     onChangeQuizzes([...quizzes, newQuiz]);
   };
 
-  const handleUpdateQuestion = (index: number, updates: Partial<QuizDraftData>) => {
+  const handleUpdateQuestion = (
+    index: number,
+    updates: Partial<QuizDraftData>,
+  ) => {
     const updated = [...quizzes];
     updated[index] = { ...updated[index], ...updates };
     onChangeQuizzes(updated);
@@ -36,7 +42,10 @@ export function QuizQuestionForm({ quizzes, onChangeQuizzes }: QuizQuestionFormP
 
   const handleAddOption = (qIdx: number) => {
     const updated = [...quizzes];
-    const opts = [...(updated[qIdx].options || []), `Option ${updated[qIdx].options.length + 1}`];
+    const opts = [
+      ...(updated[qIdx].options || []),
+      `Option ${updated[qIdx].options.length + 1}`,
+    ];
     updated[qIdx] = { ...updated[qIdx], options: opts };
     onChangeQuizzes(updated);
   };
@@ -82,7 +91,9 @@ export function QuizQuestionForm({ quizzes, onChangeQuizzes }: QuizQuestionFormP
     <div className="w-full bg-white dark:bg-[#151411] border-2 border-black/10 dark:border-[#2e2924] rounded-xl p-6 flex flex-col gap-6 shadow-sm">
       <div className="flex items-center justify-between pb-4 border-b border-black/10 dark:border-[#2e2924]">
         <div>
-          <h2 className="text-xl font-black text-text dark:text-[#f0ebe2]">Quiz Builder</h2>
+          <h2 className="text-xl font-black text-text dark:text-[#f0ebe2]">
+            Quiz Builder
+          </h2>
           <p className="text-xs text-muted dark:text-[#a0988c]">
             Build multiple-choice questions with correct answer selection.
           </p>
@@ -93,7 +104,11 @@ export function QuizQuestionForm({ quizzes, onChangeQuizzes }: QuizQuestionFormP
             onClick={toggleJsonMode}
             className="flex items-center gap-1.5 text-xs font-bold px-3 py-1.5 border border-black/20 dark:border-[#2e2924] rounded-lg hover:bg-black/5 dark:hover:bg-white/5 transition-colors text-text dark:text-[#f0ebe2]"
           >
-            {jsonMode ? <LayoutList className="w-4 h-4" /> : <Code className="w-4 h-4" />}
+            {jsonMode ? (
+              <LayoutList className="w-4 h-4" />
+            ) : (
+              <Code className="w-4 h-4" />
+            )}
             {jsonMode ? "Form Mode" : "JSON Mode"}
           </button>
 
@@ -123,7 +138,8 @@ export function QuizQuestionForm({ quizzes, onChangeQuizzes }: QuizQuestionFormP
         </div>
       ) : quizzes.length === 0 ? (
         <div className="text-center py-10 text-muted dark:text-[#a0988c] text-sm">
-          No quiz questions created yet. Click "Add Question" to build your quiz.
+          No quiz questions created yet. Click "Add Question" to build your
+          quiz.
         </div>
       ) : (
         <div className="flex flex-col gap-6">
@@ -140,7 +156,9 @@ export function QuizQuestionForm({ quizzes, onChangeQuizzes }: QuizQuestionFormP
                   <input
                     type="text"
                     value={q.question}
-                    onChange={(e) => handleUpdateQuestion(qIdx, { question: e.target.value })}
+                    onChange={(e) =>
+                      handleUpdateQuestion(qIdx, { question: e.target.value })
+                    }
                     className="w-full px-3 py-2 bg-white dark:bg-[#1a1714] border border-black/20 dark:border-[#2e2924] rounded-lg font-bold text-sm text-text dark:text-[#f0ebe2] focus:outline-none focus:border-accent"
                   />
                 </div>
@@ -158,7 +176,9 @@ export function QuizQuestionForm({ quizzes, onChangeQuizzes }: QuizQuestionFormP
               <div className="flex flex-col gap-2">
                 <label className="text-xs font-bold text-muted dark:text-[#a0988c] uppercase tracking-wider flex items-center justify-between">
                   <span>Options & Correct Answer</span>
-                  <span className="text-[10px] text-accent">Select radio button for correct answer</span>
+                  <span className="text-[10px] text-accent">
+                    Select radio button for correct answer
+                  </span>
                 </label>
 
                 {q.options?.map((opt, optIdx) => {
@@ -169,14 +189,18 @@ export function QuizQuestionForm({ quizzes, onChangeQuizzes }: QuizQuestionFormP
                         type="radio"
                         name={`question-${qIdx}-correct`}
                         checked={isCorrect}
-                        onChange={() => handleUpdateQuestion(qIdx, { answer: optIdx })}
+                        onChange={() =>
+                          handleUpdateQuestion(qIdx, { answer: optIdx })
+                        }
                         className="w-4 h-4 accent-accent cursor-pointer"
                       />
 
                       <input
                         type="text"
                         value={opt}
-                        onChange={(e) => handleUpdateOption(qIdx, optIdx, e.target.value)}
+                        onChange={(e) =>
+                          handleUpdateOption(qIdx, optIdx, e.target.value)
+                        }
                         className={`flex-1 px-3 py-1.5 text-xs rounded-lg border focus:outline-none ${
                           isCorrect
                             ? "bg-green-50 text-green-900 border-green-400 font-bold dark:bg-green-950/30 dark:text-green-300 dark:border-green-800"
@@ -211,7 +235,9 @@ export function QuizQuestionForm({ quizzes, onChangeQuizzes }: QuizQuestionFormP
                 </label>
                 <textarea
                   value={q.explanation || ""}
-                  onChange={(e) => handleUpdateQuestion(qIdx, { explanation: e.target.value })}
+                  onChange={(e) =>
+                    handleUpdateQuestion(qIdx, { explanation: e.target.value })
+                  }
                   rows={2}
                   className="w-full px-3 py-2 bg-white dark:bg-[#1a1714] border border-black/20 dark:border-[#2e2924] rounded-lg text-xs text-text dark:text-[#c4bbae] focus:outline-none focus:border-accent"
                   placeholder="Explain why this option is correct..."

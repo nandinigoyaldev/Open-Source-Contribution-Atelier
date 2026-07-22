@@ -105,7 +105,9 @@ class DatabaseBackup:
                 s3_key,
                 ExtraArgs={"ServerSideEncryption": sse_algorithm},
             )
-            print(f"✅ Uploaded to S3 (encrypted, {sse_algorithm}): s3://{self.s3_bucket}/{s3_key}")
+            print(
+                f"✅ Uploaded to S3 (encrypted, {sse_algorithm}): s3://{self.s3_bucket}/{s3_key}"
+            )
             return True
         except Exception as e:
             print(f"❌ S3 upload failed: {e}")

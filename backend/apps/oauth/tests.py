@@ -11,7 +11,9 @@ User = get_user_model()
 
 @pytest.fixture
 def test_user(db):
-    return User.objects.create_user(username="oauth_user", email="user@example.com", password="password123")
+    return User.objects.create_user(
+        username="oauth_user", email="user@example.com", password="password123"
+    )
 
 
 @pytest.fixture
@@ -245,11 +247,14 @@ def test_drf_oauth2_bearer_authentication(test_user, oauth_client_obj):
         user=test_user,
         access_token="at_valid_bearer_123",
         scope="openid profile",
-        access_token_expires_at=pytest.importorskip("django.utils.timezone").now() + pytest.importorskip("datetime").timedelta(hours=1),
+        access_token_expires_at=pytest.importorskip("django.utils.timezone").now()
+        + pytest.importorskip("datetime").timedelta(hours=1),
     )
 
     factory = APIRequestFactory()
-    req = factory.get("/api/users/me/", HTTP_AUTHORIZATION=f"Bearer {token_obj.access_token}")
+    req = factory.get(
+        "/api/users/me/", HTTP_AUTHORIZATION=f"Bearer {token_obj.access_token}"
+    )
     drf_req = Request(req)
 
     auth = OAuth2TokenAuthentication()

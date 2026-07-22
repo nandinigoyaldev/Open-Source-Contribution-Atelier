@@ -16,7 +16,11 @@ class SlackChannel(NotificationChannel):
             webhook_url = getattr(pref, "webhook_url", None) if pref else None
 
         if not webhook_url or "slack.com" not in webhook_url:
-            logger.info("[Slack Mock] Dispatching to Slack for %s: %s", recipient, payload.get("title"))
+            logger.info(
+                "[Slack Mock] Dispatching to Slack for %s: %s",
+                recipient,
+                payload.get("title"),
+            )
             return True
 
         text = f"*{payload.get('title')}*\n{payload.get('message')}"

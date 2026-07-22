@@ -314,22 +314,24 @@ class TestUserSessionAtomicBehavior(TestCase):
             # If this is the eviction filter call, wrap the queryset to fail on delete
             qs = original_filter(*args, **kwargs)
             original_exclude = qs.exclude
-            
+
             def mock_exclude(*ex_args, **ex_kwargs):
                 ex_qs = original_exclude(*ex_args, **ex_kwargs)
                 original_qs_delete = ex_qs.delete
-                
+
                 def mock_qs_delete(*del_args, **del_kwargs):
                     raise RuntimeError("Simulated DB error during eviction")
-                
+
                 ex_qs.delete = mock_qs_delete
                 return ex_qs
-                
+
             qs.exclude = mock_exclude
             return qs
 
         with patch.object(UserSession.objects, "filter", side_effect=mock_filter):
-            with pytest.raises(RuntimeError, match="Simulated DB error during eviction"):
+            with pytest.raises(
+                RuntimeError, match="Simulated DB error during eviction"
+            ):
                 s = UserSession(user=self.user, device_name="SixthDevice")
                 s.save()
 
@@ -445,9 +447,7 @@ class TestUserSessionConcurrency(TransactionTestCase):
         def worker(device_idx):
             try:
                 barrier.wait()
-                self._create_session_in_thread(
-                    self.user.pk, f"NewDevice{device_idx}"
-                )
+                self._create_session_in_thread(self.user.pk, f"NewDevice{device_idx}")
             except Exception:
                 pass
 
@@ -461,9 +461,9 @@ class TestUserSessionConcurrency(TransactionTestCase):
             t.join(timeout=30)
 
         final_count = UserSession.objects.filter(user=self.user).count()
-        assert final_count <= 5, (
-            f"Race condition detected! Expected <= 5 sessions, got {final_count}."
-        )
+        assert (
+            final_count <= 5
+        ), f"Race condition detected! Expected <= 5 sessions, got {final_count}."
 
     @override_settings(MAX_SESSIONS_PER_USER=2)
     def test_concurrent_saves_with_custom_limit(self):
@@ -477,9 +477,7 @@ class TestUserSessionConcurrency(TransactionTestCase):
         def worker(device_idx):
             try:
                 barrier.wait()
-                self._create_session_in_thread(
-                    self.user.pk, f"LimitDevice{device_idx}"
-                )
+                self._create_session_in_thread(self.user.pk, f"LimitDevice{device_idx}")
             except Exception:
                 pass
 
@@ -493,9 +491,9 @@ class TestUserSessionConcurrency(TransactionTestCase):
             t.join(timeout=30)
 
         final_count = UserSession.objects.filter(user=self.user).count()
-        assert final_count <= 2, (
-            f"Race condition detected! Expected <= 2 sessions, got {final_count}."
-        )
+        assert (
+            final_count <= 2
+        ), f"Race condition detected! Expected <= 2 sessions, got {final_count}."
 
     def test_concurrent_saves_different_users_independent(self):
         """
@@ -520,12 +518,8 @@ class TestUserSessionConcurrency(TransactionTestCase):
 
         threads = []
         for i in range(num_threads_per_user):
-            threads.append(
-                threading.Thread(target=worker, args=(self.user.pk, i))
-            )
-            threads.append(
-                threading.Thread(target=worker, args=(user2.pk, i))
-            )
+            threads.append(threading.Thread(target=worker, args=(self.user.pk, i)))
+            threads.append(threading.Thread(target=worker, args=(user2.pk, i)))
 
         for t in threads:
             t.start()
@@ -535,12 +529,8 @@ class TestUserSessionConcurrency(TransactionTestCase):
         count_user1 = UserSession.objects.filter(user=self.user).count()
         count_user2 = UserSession.objects.filter(user=user2).count()
 
-        assert count_user1 <= 5, (
-            f"User1 has {count_user1} sessions, expected <= 5"
-        )
-        assert count_user2 <= 5, (
-            f"User2 has {count_user2} sessions, expected <= 5"
-        )
+        assert count_user1 <= 5, f"User1 has {count_user1} sessions, expected <= 5"
+        assert count_user2 <= 5, f"User2 has {count_user2} sessions, expected <= 5"
 
     def test_sequential_saves_respect_limit(self):
         """

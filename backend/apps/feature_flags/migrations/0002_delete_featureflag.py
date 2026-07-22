@@ -6,11 +6,11 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('feature_flags', '0001_initial'),
+        ("feature_flags", "0001_initial"),
     ]
 
     operations = [
         migrations.DeleteModel(
-            name='FeatureFlag',
+            name="FeatureFlag",
         ),
     ]

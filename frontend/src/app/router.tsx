@@ -709,7 +709,6 @@ export function AppRouter() {
             }
           />
 
-
           <Route
             path="/profile"
             element={
@@ -776,10 +775,8 @@ export function AppRouter() {
 
           <Route path="/pricing" element={<PricingPage />} />
 
-
           <Route path="/u/:username" element={<UserProfilePage />} />
         </Route>
-
       </Routes>
     </Suspense>
   );

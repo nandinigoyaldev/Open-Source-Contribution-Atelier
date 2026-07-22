@@ -131,10 +131,12 @@ def send_bulk_email(payload):
 
     email.send(fail_silently=False)
 
+
 try:
     from celery import shared_task
 except ImportError:
     shared_task = lambda x: x
+
 
 @shared_task
 def send_notification_digests():
@@ -147,57 +149,58 @@ def send_notification_digests():
     import zoneinfo
     from .models import NotificationPreference, Notification
 
-    prefs = NotificationPreference.objects.exclude(digest_frequency="none").select_related("user", "user__user_profile")
-    
+    prefs = NotificationPreference.objects.exclude(
+        digest_frequency="none"
+    ).select_related("user", "user__user_profile")
+
     for pref in prefs:
         if not pref.digest_time:
             continue
-            
+
         user = pref.user
         try:
             tz = zoneinfo.ZoneInfo(user.user_profile.timezone)
         except Exception:
             tz = timezone.utc
-            
+
         local_time = timezone.now().astimezone(tz)
-        
+
         # Check if the current hour matches the user's preferred digest hour
         if local_time.hour != pref.digest_time.hour:
             continue
-            
+
         # If weekly, only send on Monday (weekday() == 0)
         if pref.digest_frequency == "weekly" and local_time.weekday() != 0:
             continue
-            
+
         # Fetch unread notifications
-        unread_notifs = Notification.objects.filter(recipient=user, is_read=False).order_by("-created_at")
+        unread_notifs = Notification.objects.filter(
+            recipient=user, is_read=False
+        ).order_by("-created_at")
         if not unread_notifs.exists():
             continue
-            
+
         # Group notifications
         grouped = {}
         for notif in unread_notifs:
             if notif.notif_type not in grouped:
                 grouped[notif.notif_type] = []
             grouped[notif.notif_type].append(notif)
-            
+
         # Send Email
         context = {
             "user": user,
             "grouped_notifications": grouped,
-            "total_count": unread_notifs.count()
+            "total_count": unread_notifs.count(),
         }
-        
+
         subject = f"Your {pref.digest_frequency.title()} Notification Digest"
-        html_message = render_to_string('notifications/email/digest.html', context)
+        html_message = render_to_string("notifications/email/digest.html", context)
         message = strip_tags(html_message)
         from_email = getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@atelier.dev")
-        
+
         email = EmailMultiAlternatives(
-            subject=subject,
-            body=message,
-            from_email=from_email,
-            to=[user.email]
+            subject=subject, body=message, from_email=from_email, to=[user.email]
         )
         email.attach_alternative(html_message, "text/html")
         email.send(fail_silently=True)
@@ -218,7 +221,9 @@ from apps.notifications.rate_limiter import ChannelRateLimiter
 @shared_task(bind=True, max_retries=3)
 def process_notification_delivery(self, delivery_id: int, payload: dict):
     try:
-        delivery = NotificationDelivery.objects.select_related("recipient").get(id=delivery_id)
+        delivery = NotificationDelivery.objects.select_related("recipient").get(
+            id=delivery_id
+        )
     except NotificationDelivery.DoesNotExist:
         logger.error("NotificationDelivery #%s does not exist", delivery_id)
         return False
@@ -228,7 +233,9 @@ def process_notification_delivery(self, delivery_id: int, payload: dict):
 
     allowed, _ = ChannelRateLimiter.is_allowed(user_id, channel_id)
     if not allowed:
-        logger.warning("Rate limit exceeded for user %s on channel %s", user_id, channel_id)
+        logger.warning(
+            "Rate limit exceeded for user %s on channel %s", user_id, channel_id
+        )
         delivery.status = "failed"
         delivery.error_message = "Rate limit exceeded"
         delivery.save(update_fields=["status", "error_message", "updated_at"])
@@ -248,7 +255,9 @@ def process_notification_delivery(self, delivery_id: int, payload: dict):
             delivery.status = "sent"
             delivery.sent_at = timezone.now()
             delivery.error_message = ""
-            delivery.save(update_fields=["status", "sent_at", "error_message", "updated_at"])
+            delivery.save(
+                update_fields=["status", "sent_at", "error_message", "updated_at"]
+            )
             return True
         else:
             raise RuntimeError(f"Delivery returned False for channel '{channel_id}'")
@@ -262,7 +271,15 @@ def process_notification_delivery(self, delivery_id: int, payload: dict):
         max_retries = getattr(self, "max_retries", 3)
         if current_retry <= max_retries:
             delivery.status = "pending"
-            delivery.save(update_fields=["retry_count", "next_retry_at", "error_message", "status", "updated_at"])
+            delivery.save(
+                update_fields=[
+                    "retry_count",
+                    "next_retry_at",
+                    "error_message",
+                    "status",
+                    "updated_at",
+                ]
+            )
             try:
                 if callable(getattr(self, "retry", None)):
                     return self.retry(exc=exc, countdown=delay)
@@ -283,11 +300,14 @@ def process_notification_delivery(self, delivery_id: int, payload: dict):
         return False
 
 
-def dispatch_notification(recipient, notif_type: str, title: str, message: str, meta: dict = None, sender=None):
+def dispatch_notification(
+    recipient, notif_type: str, title: str, message: str, meta: dict = None, sender=None
+):
     if meta is None:
         meta = {}
 
     from django.contrib.auth import get_user_model
+
     User = get_user_model()
     if isinstance(recipient, (int, str)):
         try:
@@ -331,7 +351,9 @@ def dispatch_notification(recipient, notif_type: str, title: str, message: str, 
     }
 
     for channel_id in registered.keys():
-        if type_prefs.get(channel_id, False) or (channel_id == "in_app" and type_prefs.get("in_app", True)):
+        if type_prefs.get(channel_id, False) or (
+            channel_id == "in_app" and type_prefs.get("in_app", True)
+        ):
             delivery = NotificationDelivery.objects.create(
                 notification=notification,
                 recipient=recipient,
@@ -341,12 +363,18 @@ def dispatch_notification(recipient, notif_type: str, title: str, message: str, 
             )
             deliveries.append(delivery)
 
-            if getattr(settings, "CELERY_TASK_ALWAYS_EAGER", True) or getattr(settings, "TESTING", False):
+            if getattr(settings, "CELERY_TASK_ALWAYS_EAGER", True) or getattr(
+                settings, "TESTING", False
+            ):
                 try:
                     process_notification_delivery(delivery.id, payload)
                     delivery.refresh_from_db()
                 except Exception as exc:
-                    logger.error("Error processing delivery #%s synchronously: %s", delivery.id, exc)
+                    logger.error(
+                        "Error processing delivery #%s synchronously: %s",
+                        delivery.id,
+                        exc,
+                    )
             else:
                 try:
                     process_notification_delivery.delay(delivery.id, payload)
@@ -355,4 +383,3 @@ def dispatch_notification(recipient, notif_type: str, title: str, message: str, 
                     delivery.refresh_from_db()
 
     return deliveries
-

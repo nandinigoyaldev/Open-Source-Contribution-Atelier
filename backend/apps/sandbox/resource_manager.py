@@ -6,7 +6,7 @@ import redis
 
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
-from django.config import settings
+from django.conf import settings
 
 from apps.sandbox.models import ExecutionViolationLog
 
@@ -131,9 +131,10 @@ class ResourceManagementEngine:
             cache.set(
                 cache_key, current - 1, timeout=cls.MAX_EXECUTION_TIME_SECONDS * 2
             )
-    class SandboxResourceManager:
-    """Atomic Redis-based distributed semaphore for sandbox execution."""
 
+
+class SandboxResourceManager:
+    """Atomic Redis-based distributed semaphore for sandbox execution."""
 
     MAX_CONCURRENT = 2
     LOCK_TTL = 60  # seconds

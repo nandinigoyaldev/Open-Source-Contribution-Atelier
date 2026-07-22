@@ -9,7 +9,7 @@ def feature_flags(request):
     flag/switch state changes are infrequent (admin toggles), so a short
     staleness window is an acceptable tradeoff for the reduced DB load.
     """
-    if not hasattr(request, 'user'):
+    if not hasattr(request, "user"):
         return {"feature_flags": {"flags": {}, "switches": {}}}
 
     cache_key = "waffle_flags_switches_v1"
@@ -21,8 +21,7 @@ def feature_flags(request):
         cached = {
             "flag_names": list(Flag.objects.values_list("name", flat=True)),
             "switch_states": {
-                s.name: waffle.switch_is_active(s.name)
-                for s in Switch.objects.all()
+                s.name: waffle.switch_is_active(s.name) for s in Switch.objects.all()
             },
         }
         cache.set(cache_key, cached, timeout=30)
@@ -32,8 +31,7 @@ def feature_flags(request):
         for name in cached["flag_names"]
     }
     switches_dict = {
-        name: {"enabled": enabled}
-        for name, enabled in cached["switch_states"].items()
+        name: {"enabled": enabled} for name, enabled in cached["switch_states"].items()
     }
 
     return {"feature_flags": {"flags": flags_dict, "switches": switches_dict}}

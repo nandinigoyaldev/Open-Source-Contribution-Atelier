@@ -43,9 +43,7 @@ class OAuthAuthorizationCode(models.Model):
     client = models.ForeignKey(
         OAuthClient, on_delete=models.CASCADE, related_name="codes"
     )
-    user = models.ForeignKey(
-        User, on_delete=models.CASCADE, related_name="oauth_codes"
-    )
+    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="oauth_codes")
     code = models.CharField(max_length=128, unique=True, db_index=True)
     redirect_uri = models.TextField()
     scope = models.TextField()
@@ -68,7 +66,11 @@ class OAuthToken(models.Model):
         OAuthClient, on_delete=models.CASCADE, related_name="tokens"
     )
     user = models.ForeignKey(
-        User, on_delete=models.CASCADE, null=True, blank=True, related_name="oauth_tokens"
+        User,
+        on_delete=models.CASCADE,
+        null=True,
+        blank=True,
+        related_name="oauth_tokens",
     )
     access_token = models.CharField(max_length=255, unique=True, db_index=True)
     refresh_token = models.CharField(
@@ -86,7 +88,10 @@ class OAuthToken(models.Model):
     def is_refresh_token_valid(self) -> bool:
         if self.is_revoked or not self.refresh_token:
             return False
-        if self.refresh_token_expires_at and self.refresh_token_expires_at <= timezone.now():
+        if (
+            self.refresh_token_expires_at
+            and self.refresh_token_expires_at <= timezone.now()
+        ):
             return False
         return True
 

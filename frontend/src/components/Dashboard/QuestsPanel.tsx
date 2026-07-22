@@ -40,9 +40,7 @@ function QuestCard({
 }) {
   const progressPct = Math.min(
     100,
-    Math.round(
-      (quest.progress / quest.quest.requirement_count) * 100,
-    ),
+    Math.round((quest.progress / quest.quest.requirement_count) * 100),
   );
 
   return (
@@ -90,9 +88,7 @@ function QuestCard({
         <div className="w-full h-2 bg-black/5 dark:bg-white/5 rounded-full overflow-hidden">
           <div
             className={`h-full rounded-full transition-all duration-500 ${
-              quest.completed
-                ? "bg-green-500"
-                : "bg-accent"
+              quest.completed ? "bg-green-500" : "bg-accent"
             }`}
             style={{ width: `${progressPct}%` }}
           />

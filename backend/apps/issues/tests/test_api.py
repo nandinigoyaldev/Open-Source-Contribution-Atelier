@@ -116,7 +116,9 @@ class TestIssueReportAPI:
 
 @pytest.mark.django_db
 class TestBountyAPI:
-    def test_submit_bounty_query_count(self, api_client, regular_user, django_assert_max_num_queries):
+    def test_submit_bounty_query_count(
+        self, api_client, regular_user, django_assert_max_num_queries
+    ):
         from apps.issues.models import Bounty
         from apps.progress.models import Badge
 

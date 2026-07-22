@@ -62,7 +62,9 @@ class Quest(models.Model):
     title = models.CharField(max_length=255)
     description = models.TextField()
     quest_type = models.CharField(max_length=50, choices=QUEST_TYPE_CHOICES)
-    frequency = models.CharField(max_length=10, choices=FREQUENCY_CHOICES, default="daily")
+    frequency = models.CharField(
+        max_length=10, choices=FREQUENCY_CHOICES, default="daily"
+    )
     requirement_count = models.PositiveIntegerField(
         default=1,
         help_text="How many actions needed to complete (e.g. 3 lessons)",

@@ -196,7 +196,9 @@ class PurchaseItemView(views.APIView):
 
         if total_xp < item.cost:
             return Response(
-                {"error": f"Not enough XP. You need {item.cost} XP but have {total_xp}"},
+                {
+                    "error": f"Not enough XP. You need {item.cost} XP but have {total_xp}"
+                },
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
@@ -234,4 +236,3 @@ class MyXpView(views.APIView):
             or 0
         )
         return Response({"total_xp": total})
-

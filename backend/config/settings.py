@@ -19,14 +19,14 @@ logger = logging.getLogger(__name__)
 
 TESTING = "test" in sys.argv or "pytest" in sys.modules
 
-WS_AUTH_MIGRATION = True 
-WS_TOKEN_TIMEOUT = 3600 
+WS_AUTH_MIGRATION = True
+WS_TOKEN_TIMEOUT = 3600
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-STRIPE_PUBLISHABLE_KEY = os.getenv('STRIPE_PUBLISHABLE_KEY')
-STRIPE_SECRET_KEY = os.getenv('STRIPE_SECRET_KEY')
-STRIPE_WEBHOOK_SECRET = os.getenv('STRIPE_WEBHOOK_SECRET')
+STRIPE_PUBLISHABLE_KEY = os.getenv("STRIPE_PUBLISHABLE_KEY")
+STRIPE_SECRET_KEY = os.getenv("STRIPE_SECRET_KEY")
+STRIPE_WEBHOOK_SECRET = os.getenv("STRIPE_WEBHOOK_SECRET")
 
 stripe.api_key = STRIPE_SECRET_KEY
 
@@ -119,7 +119,9 @@ if not DEBUG and not TESTING and not ALLOWED_HOSTS:
 
 CORS_ALLOWED_ORIGINS = [
     origin.strip()
-    for origin in os.getenv("CORS_ALLOWED_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173").split(",")
+    for origin in os.getenv(
+        "CORS_ALLOWED_ORIGINS", "http://localhost:5173,http://127.0.0.1:5173"
+    ).split(",")
     if origin.strip()
 ]
 
@@ -197,6 +199,7 @@ INSTALLED_APPS = [
     "apps.feature_flags",
     "apps.issues",
     "apps.gamification",
+    "apps.ai_tutor",
     "apps.project_health",
     "django_q",
     "apps.monitoring",
@@ -384,6 +387,12 @@ GITHUB_APP = {
 }
 GITHUB_INSTALLATION_ID = os.getenv("GITHUB_INSTALLATION_ID")
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
+GITHUB_OAUTH_CLIENT_ID = os.getenv("GITHUB_OAUTH_CLIENT_ID")
+GITHUB_OAUTH_CLIENT_SECRET = os.getenv("GITHUB_OAUTH_CLIENT_SECRET")
+
+# ── AI Tutor ────────────────────────────────────────────────────────────────────
+OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
+LLM_MODEL = os.getenv("LLM_MODEL", "gpt-3.5-turbo")
 
 # ── Discord Integration ────────────────────────────────────────────────────────
 # Discord webhook URL for achievement announcements
@@ -589,8 +598,8 @@ CELERY_BEAT_SCHEDULE = {
     },
 }
 
-MEDIA_URL = '/media/'
-MEDIA_ROOT = os.path.join(BASE_DIR, 'media') 
+MEDIA_URL = "/media/"
+MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 
 # Cache timeout for Search API (in seconds) - Default: 1 hour
 SEARCH_CACHE_TIMEOUT = 60 * 60
@@ -839,4 +848,3 @@ NOTIFICATION_CHANNELS = {
     "webhook": "apps.notifications.channels.webhook_channel.WebhookChannel",
     "slack": "apps.notifications.channels.slack_channel.SlackChannel",
 }
-

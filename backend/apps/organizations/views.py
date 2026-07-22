@@ -31,7 +31,10 @@ class OrganizationViewSet(viewsets.ModelViewSet):
             organization_name=organization.name,
             actor=self.request.user,
             action=OrganizationAuditLog.ACTION_CREATED,
-            changes={"name": organization.name, "description": organization.description},
+            changes={
+                "name": organization.name,
+                "description": organization.description,
+            },
         )
 
     def perform_update(self, serializer):

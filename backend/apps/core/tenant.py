@@ -10,6 +10,7 @@ The context is populated by :class:`TenantContextMiddleware` on every
 authenticated request and cleared in a ``finally`` block to prevent
 bleed-through between requests served by the same worker thread.
 """
+
 import threading
 
 _tenant_local = threading.local()

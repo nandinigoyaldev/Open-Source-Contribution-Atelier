@@ -2,6 +2,7 @@
 GitHub API Analyzer and Health Score computation service.
 Uses the public GitHub REST API (no authentication required for public repos).
 """
+
 import re
 from datetime import datetime
 from django.utils import timezone
@@ -53,7 +54,9 @@ def _compute_health_score(data: dict) -> tuple[int, list, list]:
     if last_commit_days is not None:
         if last_commit_days > 365:
             score -= 20
-            red_flags.append("🔴 Project appears abandoned (no commits in over a year).")
+            red_flags.append(
+                "🔴 Project appears abandoned (no commits in over a year)."
+            )
         elif last_commit_days > 90:
             score -= 10
             red_flags.append("🟡 Low activity (last commit was over 3 months ago).")
@@ -82,16 +85,22 @@ def _compute_health_score(data: dict) -> tuple[int, list, list]:
         close_ratio = closed_issues / total_issues
         if close_ratio > 0.7:
             score += 10
-            green_flags.append(f"✅ Good issue resolution rate ({int(close_ratio * 100)}% closed).")
+            green_flags.append(
+                f"✅ Good issue resolution rate ({int(close_ratio * 100)}% closed)."
+            )
         elif close_ratio < 0.3:
             score -= 10
-            red_flags.append(f"🔴 Low issue resolution rate ({int(close_ratio * 100)}% closed).")
+            red_flags.append(
+                f"🔴 Low issue resolution rate ({int(close_ratio * 100)}% closed)."
+            )
 
     # Contributor diversity
     contributors = data.get("contributor_count", 0)
     if contributors > 50:
         score += 10
-        green_flags.append(f"✅ Large contributor community ({contributors} contributors).")
+        green_flags.append(
+            f"✅ Large contributor community ({contributors} contributors)."
+        )
     elif contributors < 5:
         score -= 5
         red_flags.append("🟡 Low contributor count – bus-factor risk.")
@@ -101,7 +110,9 @@ def _compute_health_score(data: dict) -> tuple[int, list, list]:
     if sentiment is not None:
         if sentiment > 0.2:
             score += 10
-            green_flags.append("✅ Community communication appears positive and welcoming.")
+            green_flags.append(
+                "✅ Community communication appears positive and welcoming."
+            )
         elif sentiment < -0.1:
             score -= 15
             red_flags.append("🔴 Community communications appear negative or toxic.")
@@ -145,8 +156,12 @@ def analyze_repository(repo_url: str, token: str = None) -> dict:
             durations = []
             for pr in closed_prs:
                 if pr.get("merged_at") and pr.get("created_at"):
-                    created = datetime.fromisoformat(pr["created_at"].replace("Z", "+00:00"))
-                    merged = datetime.fromisoformat(pr["merged_at"].replace("Z", "+00:00"))
+                    created = datetime.fromisoformat(
+                        pr["created_at"].replace("Z", "+00:00")
+                    )
+                    merged = datetime.fromisoformat(
+                        pr["merged_at"].replace("Z", "+00:00")
+                    )
                     durations.append((merged - created).days)
             if durations:
                 avg_pr_close_days = sum(durations) / len(durations)
@@ -183,13 +198,34 @@ def analyze_repository(repo_url: str, token: str = None) -> dict:
         )
         if comments_data:
             # Simple keyword-based sentiment (no external dependency needed)
-            positive_words = {"great", "thanks", "awesome", "nice", "good", "excellent", "love", "perfect"}
-            negative_words = {"terrible", "broken", "worst", "hate", "bug", "wrong", "bad", "useless", "toxic"}
+            positive_words = {
+                "great",
+                "thanks",
+                "awesome",
+                "nice",
+                "good",
+                "excellent",
+                "love",
+                "perfect",
+            }
+            negative_words = {
+                "terrible",
+                "broken",
+                "worst",
+                "hate",
+                "bug",
+                "wrong",
+                "bad",
+                "useless",
+                "toxic",
+            }
             polarity_sum = 0
             for comment in comments_data:
                 body = comment.get("body", "").lower()
                 words = set(re.findall(r"\w+", body))
-                polarity_sum += len(words & positive_words) - len(words & negative_words)
+                polarity_sum += len(words & positive_words) - len(
+                    words & negative_words
+                )
             sentiment_score = polarity_sum / len(comments_data) if comments_data else 0
             sentiment_lbl = _sentiment_label(sentiment_score)
     except Exception:

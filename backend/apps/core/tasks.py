@@ -42,10 +42,12 @@ def generate_certificate_task(user_id: int):
     certificate = Certificate.objects.create(
         user=user,
         course_name="Open Source Contribution Course",
-        issued_date=timezone.now()
+        issued_date=timezone.now(),
     )
 
-    logger.info(f"Certificate generated for user {user_id}: {certificate.verification_hash}")
+    logger.info(
+        f"Certificate generated for user {user_id}: {certificate.verification_hash}"
+    )
     return {"certificate_id": certificate.id, "hash": certificate.verification_hash}
 
 
@@ -63,9 +65,7 @@ def send_daily_digest_task(user_id: int):
         return
 
     progress = LessonProgress.objects.filter(
-        user=user,
-        completed=True,
-        updated_at__gte=timezone.now() - timedelta(days=1)
+        user=user, completed=True, updated_at__gte=timezone.now() - timedelta(days=1)
     )
 
     if not progress.exists():
@@ -106,26 +106,27 @@ def recalculate_leaderboard_task():
 
     logger.info("Starting leaderboard recalculation")
 
-    user_scores = LessonProgress.objects.values('user').annotate(
-        total_score=Sum('score'),
-        completed_lessons=Count('id')
-    ).order_by('-total_score')
+    user_scores = (
+        LessonProgress.objects.values("user")
+        .annotate(total_score=Sum("score"), completed_lessons=Count("id"))
+        .order_by("-total_score")
+    )
 
     for user_data in user_scores:
         try:
-            user = User.objects.get(id=user_data['user'])
+            user = User.objects.get(id=user_data["user"])
             Leaderboard.objects.update_or_create(
                 user=user,
                 defaults={
-                    'points': user_data['total_score'] or 0,
-                    'completed_lessons': user_data['completed_lessons'] or 0,
-                    'updated_at': timezone.now(),
-                }
+                    "points": user_data["total_score"] or 0,
+                    "completed_lessons": user_data["completed_lessons"] or 0,
+                    "updated_at": timezone.now(),
+                },
             )
         except User.DoesNotExist:
             continue
 
-    top_users = Leaderboard.objects.select_related('user').order_by('-points')[:100]
+    top_users = Leaderboard.objects.select_related("user").order_by("-points")[:100]
     logger.info(f"Leaderboard recalculated with {len(top_users)} top users")
     return {"total_users": len(user_scores), "top_users": len(top_users)}
 
@@ -156,12 +157,12 @@ def cleanup_notifications_task():
 
     cutoff = timezone.now() - timezone.timedelta(days=30)
     deleted_count, _ = Notification.objects.filter(
-        status=Notification.STATUS_READ,
-        created_at__lt=cutoff
+        status=Notification.STATUS_READ, created_at__lt=cutoff
     ).delete()
 
     logger.info(f"Cleaned up {deleted_count} old notifications")
     return {"deleted_count": deleted_count}
+
 
 def purge_expired_soft_deleted_records(retention_days=30, batch_size=1000):
     """
@@ -242,20 +243,25 @@ def archive_audit_logs():
     audit_backup_dir = Path(settings.BACKUP_DIR) / "audit_logs"
     audit_backup_dir.mkdir(parents=True, exist_ok=True)
 
-    filename = audit_backup_dir / f"audit_archive_{timezone.now().strftime('%Y%m%d_%H%M%S')}.json"
+    filename = (
+        audit_backup_dir
+        / f"audit_archive_{timezone.now().strftime('%Y%m%d_%H%M%S')}.json"
+    )
 
     logs_data = []
     for log in old_logs:
-        logs_data.append({
-            "id": log.id,
-            "actor": log.actor.username if log.actor else None,
-            "action": log.action,
-            "target_type": str(log.target_type) if log.target_type else None,
-            "target_id": log.target_id,
-            "details": log.details,
-            "timestamp": log.timestamp.isoformat(),
-            "ip_address": log.ip_address,
-        })
+        logs_data.append(
+            {
+                "id": log.id,
+                "actor": log.actor.username if log.actor else None,
+                "action": log.action,
+                "target_type": str(log.target_type) if log.target_type else None,
+                "target_id": log.target_id,
+                "details": log.details,
+                "timestamp": log.timestamp.isoformat(),
+                "ip_address": log.ip_address,
+            }
+        )
 
     with open(filename, "w") as f:
         json.dump(logs_data, f, indent=2)
@@ -268,6 +274,7 @@ def archive_audit_logs():
 # ──────────────────────────────────────────
 # Database Backup Tasks
 # ──────────────────────────────────────────
+
 
 def backup_database():
     from django.conf import settings as _settings
@@ -310,12 +317,17 @@ def _backup_postgres(db_settings: dict, output_path: Path) -> None:
 
     cmd = [
         "pg_dump",
-        "--host", db_settings.get("HOST", "localhost"),
-        "--port", str(db_settings.get("PORT") or 5432),
-        "--username", db_settings.get("USER", ""),
-        "--dbname", db_settings.get("NAME", ""),
+        "--host",
+        db_settings.get("HOST", "localhost"),
+        "--port",
+        str(db_settings.get("PORT") or 5432),
+        "--username",
+        db_settings.get("USER", ""),
+        "--dbname",
+        db_settings.get("NAME", ""),
         "--no-password",
-        "--file", str(output_path),
+        "--file",
+        str(output_path),
     ]
     subprocess.run(cmd, env=env, check=True, capture_output=True)
 
@@ -349,5 +361,5 @@ def invalidate_tag_task(tag: str):
     Asynchronously invalidate cached items tagged with a specific tag (or wildcard pattern).
     """
     from apps.core.cache.invalidation import invalidate_tag
-    invalidate_tag(tag)
 
+    invalidate_tag(tag)

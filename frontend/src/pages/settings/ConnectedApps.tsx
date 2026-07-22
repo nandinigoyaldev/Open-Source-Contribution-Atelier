@@ -33,7 +33,10 @@ export function ConnectedApps() {
   }, []);
 
   const handleRevoke = async (id: number) => {
-    if (!confirm("Are you sure you want to revoke access for this application?")) return;
+    if (
+      !confirm("Are you sure you want to revoke access for this application?")
+    )
+      return;
     try {
       await api.post(`/oauth/user-apps/${id}/revoke/`);
       fetchUserApps();
@@ -49,7 +52,8 @@ export function ConnectedApps() {
           <Shield className="w-8 h-8 text-accent" /> Connected Applications
         </h1>
         <p className="text-sm font-medium text-muted dark:text-[#c4bbae]">
-          Third-party apps and integrations authorized to access your account data.
+          Third-party apps and integrations authorized to access your account
+          data.
         </p>
       </div>
 
@@ -60,7 +64,9 @@ export function ConnectedApps() {
       ) : tokens.length === 0 ? (
         <div className="p-12 text-center bg-white dark:bg-[#151411] border-2 border-black/10 dark:border-[#2e2924] rounded-2xl flex flex-col items-center gap-3 shadow-sm">
           <Key className="w-12 h-12 text-muted/40" />
-          <h3 className="text-lg font-bold text-text dark:text-[#f0ebe2]">No Active Applications</h3>
+          <h3 className="text-lg font-bold text-text dark:text-[#f0ebe2]">
+            No Active Applications
+          </h3>
           <p className="text-xs text-muted dark:text-[#a0988c] max-w-sm">
             You haven't granted third-party applications access to your account.
           </p>
@@ -77,11 +83,15 @@ export function ConnectedApps() {
                   <h3 className="text-base font-black text-text dark:text-[#f0ebe2]">
                     {token.clientName}
                   </h3>
-                  <span className="text-xs font-mono text-muted">({token.clientId})</span>
+                  <span className="text-xs font-mono text-muted">
+                    ({token.clientId})
+                  </span>
                 </div>
 
                 <div className="flex items-center gap-2 flex-wrap text-xs">
-                  <span className="font-bold text-muted dark:text-[#a0988c]">Granted Permissions:</span>
+                  <span className="font-bold text-muted dark:text-[#a0988c]">
+                    Granted Permissions:
+                  </span>
                   {token.scope.split(" ").map((s, idx) => (
                     <span
                       key={idx}

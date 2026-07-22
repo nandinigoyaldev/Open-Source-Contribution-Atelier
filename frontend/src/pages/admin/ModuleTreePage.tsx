@@ -4,13 +4,17 @@ import { useNavigate } from "react-router-dom";
 import api from "../../api";
 
 export function ModuleTreePage() {
-  const { modules, activeLesson, setActiveLesson, refetchModules } = useContentDraft();
+  const { modules, activeLesson, setActiveLesson, refetchModules } =
+    useContentDraft();
   const navigate = useNavigate();
 
   const handleAddModule = async () => {
     const title = prompt("Enter Module Title:", "New Module");
     if (!title) return;
-    const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+    const slug = title
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)/g, "");
     try {
       await api.post("/content/modules/", { title, slug, description: "" });
       refetchModules();
@@ -22,7 +26,10 @@ export function ModuleTreePage() {
   const handleAddLesson = async (moduleId: number) => {
     const title = prompt("Enter Lesson Title:", "New Lesson");
     if (!title) return;
-    const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+    const slug = title
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)/g, "");
     try {
       const res = await api.post<LessonDraftData>("/content/lessons/", {
         module: moduleId,
@@ -35,7 +42,8 @@ export function ModuleTreePage() {
         isPublished: false,
       });
       await refetchModules();
-      if (res.data?.id) navigate(`/admin/content-studio/lessons/${res.data.id}`);
+      if (res.data?.id)
+        navigate(`/admin/content-studio/lessons/${res.data.id}`);
     } catch (err) {
       console.error("Failed to create lesson:", err);
     }

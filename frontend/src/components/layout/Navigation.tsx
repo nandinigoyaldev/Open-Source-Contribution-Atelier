@@ -91,7 +91,6 @@ const navGroups = [
       { to: "/admin/oauth-clients", label: "OAuth Apps", icon: Key },
     ],
   },
-
 ];
 
 export function Navigation() {

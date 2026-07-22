@@ -54,10 +54,35 @@ export function MarkdownRenderer({
 }: MarkdownRendererProps) {
   const sanitizedContent = DOMPurify.sanitize(content, {
     ALLOWED_TAGS: [
-      "b", "i", "em", "strong", "a", "img", "p", "div", "span",
-      "code", "pre", "h1", "h2", "h3", "h4", "h5", "h6",
-      "ul", "ol", "li", "blockquote", "hr", "br",
-      "table", "thead", "tbody", "tr", "th", "td",
+      "b",
+      "i",
+      "em",
+      "strong",
+      "a",
+      "img",
+      "p",
+      "div",
+      "span",
+      "code",
+      "pre",
+      "h1",
+      "h2",
+      "h3",
+      "h4",
+      "h5",
+      "h6",
+      "ul",
+      "ol",
+      "li",
+      "blockquote",
+      "hr",
+      "br",
+      "table",
+      "thead",
+      "tbody",
+      "tr",
+      "th",
+      "td",
     ],
     KEEP_CONTENT: true,
   });
@@ -97,9 +122,7 @@ export function MarkdownRenderer({
       // If term already rendered, just show text
       if (renderedTermIds.has(seg.entry.id)) {
         return (
-          <span key={`${keyPrefix}-g-${i}-${seg.entry.id}`}>
-            {seg.value}
-          </span>
+          <span key={`${keyPrefix}-g-${i}-${seg.entry.id}`}>{seg.value}</span>
         );
       }
 
@@ -256,9 +279,7 @@ export function MarkdownRenderer({
       blocks.push(
         <React.Fragment key={index}>
           <br />
-          <hr
-            className="my-0 border-b-4 border-black/10 dark:border-[#2e2924]"
-          />
+          <hr className="my-0 border-b-4 border-black/10 dark:border-[#2e2924]" />
           <br />
         </React.Fragment>,
       );

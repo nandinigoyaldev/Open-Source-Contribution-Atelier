@@ -11,9 +11,6 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-
-
-
 class CacheControlMiddleware(MiddlewareMixin):
     """
     Middleware for setting cache control headers.
@@ -37,6 +34,3 @@ class CacheControlMiddleware(MiddlewareMixin):
             patch_cache_control(response, public=True, max_age=120)
 
         return response
-
-
-

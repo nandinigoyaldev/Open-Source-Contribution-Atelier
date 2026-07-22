@@ -29,13 +29,13 @@ class RequestDeduplicationTest(TestCase):
         """Test pending request registration."""
         request_key = "test_key"
         self.coalescer.register_pending_request(request_key, "req1")
-        
+
         # Should be in pending
         self.assertTrue(self.coalescer.is_request_in_progress(request_key))
-        
+
         # Complete request
         self.coalescer.complete_request(request_key, "result")
-        
+
         # Should no longer be pending
         self.assertFalse(self.coalescer.is_request_in_progress(request_key))
 
@@ -43,10 +43,10 @@ class RequestDeduplicationTest(TestCase):
         """Test caching of responses."""
         request_key = "test_key"
         response_data = {"data": "test"}
-        
+
         # Cache response
         self.coalescer.set_cached_response(request_key, response_data)
-        
+
         # Get cached response
         cached = self.coalescer.get_cached_response(request_key)
         self.assertEqual(cached, response_data)
@@ -54,20 +54,20 @@ class RequestDeduplicationTest(TestCase):
     def test_concurrent_requests(self):
         """Test that concurrent requests are coalesced."""
         results = []
-        
+
         def make_request():
             time.sleep(0.1)
             results.append("done")
-        
+
         # Simulate 10 concurrent requests
         threads = []
         for i in range(10):
             t = threading.Thread(target=make_request)
             t.start()
             threads.append(t)
-        
+
         for t in threads:
             t.join()
-        
+
         # All requests should have completed
         self.assertEqual(len(results), 10)

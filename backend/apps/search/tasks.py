@@ -50,6 +50,7 @@ def index_model_for_search(
     # Compute the weighted tsvector in a single UPDATE so Postgres handles
     # language tokenization natively (avoids loading field data into Python).
     from django.db import connection
+
     if connection.vendor != "sqlite":
         SearchDocument.objects.filter(id=doc.id).update(
             search_vector=(

@@ -1,5 +1,13 @@
 import React, { useState, useEffect } from "react";
-import { Shield, Plus, Key, Copy, Trash2, Check, ExternalLink } from "lucide-react";
+import {
+  Shield,
+  Plus,
+  Key,
+  Copy,
+  Trash2,
+  Check,
+  ExternalLink,
+} from "lucide-react";
 import api from "../../api";
 
 interface OAuthClientData {
@@ -22,9 +30,15 @@ export function OAuthClients() {
 
   // Form state
   const [name, setName] = useState("");
-  const [clientType, setClientType] = useState<"confidential" | "public">("confidential");
-  const [redirectUrisInput, setRedirectUrisInput] = useState("http://localhost:3000/callback");
-  const [scopesInput, setScopesInput] = useState("openid profile email lesson:read");
+  const [clientType, setClientType] = useState<"confidential" | "public">(
+    "confidential",
+  );
+  const [redirectUrisInput, setRedirectUrisInput] = useState(
+    "http://localhost:3000/callback",
+  );
+  const [scopesInput, setScopesInput] = useState(
+    "openid profile email lesson:read",
+  );
 
   const fetchClients = async () => {
     try {
@@ -45,8 +59,14 @@ export function OAuthClients() {
   const handleCreateClient = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const redirectUris = redirectUrisInput.split(",").map((s) => s.trim()).filter(Boolean);
-      const allowedScopes = scopesInput.split(" ").map((s) => s.trim()).filter(Boolean);
+      const redirectUris = redirectUrisInput
+        .split(",")
+        .map((s) => s.trim())
+        .filter(Boolean);
+      const allowedScopes = scopesInput
+        .split(" ")
+        .map((s) => s.trim())
+        .filter(Boolean);
 
       const res = await api.post<OAuthClientData>("/oauth/clients/", {
         name,
@@ -61,7 +81,7 @@ export function OAuthClients() {
 
       if (res.data?.clientSecret) {
         alert(
-          `Client Created Successfully!\n\nClient ID: ${res.data.clientId}\nClient Secret: ${res.data.clientSecret}\n\nSave your Client Secret now. It will not be shown again!`
+          `Client Created Successfully!\n\nClient ID: ${res.data.clientId}\nClient Secret: ${res.data.clientSecret}\n\nSave your Client Secret now. It will not be shown again!`,
         );
       }
     } catch (err) {
@@ -71,7 +91,10 @@ export function OAuthClients() {
   };
 
   const handleDeleteClient = async (id: number) => {
-    if (!confirm("Are you sure you want to delete this OAuth client application?")) return;
+    if (
+      !confirm("Are you sure you want to delete this OAuth client application?")
+    )
+      return;
     try {
       await api.delete(`/oauth/clients/${id}/`);
       fetchClients();
@@ -91,10 +114,12 @@ export function OAuthClients() {
       <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b-2 border-black/10 dark:border-[#2e2924]">
         <div>
           <h1 className="text-3xl font-black text-text dark:text-[#f0ebe2] flex items-center gap-2">
-            <Shield className="w-8 h-8 text-accent" /> OAuth 2.0 Client Applications
+            <Shield className="w-8 h-8 text-accent" /> OAuth 2.0 Client
+            Applications
           </h1>
           <p className="text-sm font-medium text-muted dark:text-[#c4bbae]">
-            Manage OAuth 2.0 & OpenID Connect applications, redirect URIs, and scopes.
+            Manage OAuth 2.0 & OpenID Connect applications, redirect URIs, and
+            scopes.
           </p>
         </div>
 
@@ -113,9 +138,12 @@ export function OAuthClients() {
       ) : clients.length === 0 ? (
         <div className="p-12 text-center bg-white dark:bg-[#151411] border-2 border-black/10 dark:border-[#2e2924] rounded-xl flex flex-col items-center gap-3">
           <Key className="w-12 h-12 text-muted/40" />
-          <h3 className="text-lg font-bold text-text dark:text-[#f0ebe2]">No Applications Registered</h3>
+          <h3 className="text-lg font-bold text-text dark:text-[#f0ebe2]">
+            No Applications Registered
+          </h3>
           <p className="text-xs text-muted dark:text-[#a0988c]">
-            Register a third-party or mobile application to issue Client ID and Secret credentials.
+            Register a third-party or mobile application to issue Client ID and
+            Secret credentials.
           </p>
         </div>
       ) : (
@@ -127,7 +155,9 @@ export function OAuthClients() {
             >
               <div className="flex flex-col gap-3">
                 <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-black text-text dark:text-[#f0ebe2]">{client.name}</h3>
+                  <h3 className="text-lg font-black text-text dark:text-[#f0ebe2]">
+                    {client.name}
+                  </h3>
                   <span
                     className={`text-[10px] uppercase font-bold px-2 py-0.5 rounded border ${
                       client.clientType === "confidential"
@@ -146,10 +176,16 @@ export function OAuthClients() {
                   <div className="flex items-center justify-between bg-surface-low dark:bg-[#1f1c18] p-2 rounded border border-black/10 dark:border-[#2e2924]">
                     <span className="truncate">{client.clientId}</span>
                     <button
-                      onClick={() => copyToClipboard(client.clientId, `id-${client.id}`)}
+                      onClick={() =>
+                        copyToClipboard(client.clientId, `id-${client.id}`)
+                      }
                       className="p-1 text-muted hover:text-accent"
                     >
-                      {copiedKey === `id-${client.id}` ? <Check className="w-3.5 h-3.5 text-green-500" /> : <Copy className="w-3.5 h-3.5" />}
+                      {copiedKey === `id-${client.id}` ? (
+                        <Check className="w-3.5 h-3.5 text-green-500" />
+                      ) : (
+                        <Copy className="w-3.5 h-3.5" />
+                      )}
                     </button>
                   </div>
                 </div>
@@ -204,11 +240,15 @@ export function OAuthClients() {
       {showCreateModal && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-center justify-center p-4">
           <div className="bg-white dark:bg-[#151411] border-2 border-black/20 dark:border-[#2e2924] rounded-2xl max-w-lg w-full p-6 flex flex-col gap-4 shadow-xl">
-            <h2 className="text-xl font-black text-text dark:text-[#f0ebe2]">Register OAuth Application</h2>
+            <h2 className="text-xl font-black text-text dark:text-[#f0ebe2]">
+              Register OAuth Application
+            </h2>
 
             <form onSubmit={handleCreateClient} className="flex flex-col gap-4">
               <div className="flex flex-col gap-1">
-                <label className="text-xs font-bold uppercase text-muted">Application Name</label>
+                <label className="text-xs font-bold uppercase text-muted">
+                  Application Name
+                </label>
                 <input
                   type="text"
                   required
@@ -220,19 +260,27 @@ export function OAuthClients() {
               </div>
 
               <div className="flex flex-col gap-1">
-                <label className="text-xs font-bold uppercase text-muted">Client Type</label>
+                <label className="text-xs font-bold uppercase text-muted">
+                  Client Type
+                </label>
                 <select
                   value={clientType}
                   onChange={(e) => setClientType(e.target.value as any)}
                   className="px-3 py-2 bg-surface-low dark:bg-[#1a1714] border border-black/20 dark:border-[#2e2924] rounded-lg text-sm font-bold text-text dark:text-[#f0ebe2]"
                 >
-                  <option value="confidential">Confidential (Server App with Secret)</option>
-                  <option value="public">Public (SPA or Native Mobile App)</option>
+                  <option value="confidential">
+                    Confidential (Server App with Secret)
+                  </option>
+                  <option value="public">
+                    Public (SPA or Native Mobile App)
+                  </option>
                 </select>
               </div>
 
               <div className="flex flex-col gap-1">
-                <label className="text-xs font-bold uppercase text-muted">Redirect URIs (comma separated)</label>
+                <label className="text-xs font-bold uppercase text-muted">
+                  Redirect URIs (comma separated)
+                </label>
                 <input
                   type="text"
                   required
@@ -243,7 +291,9 @@ export function OAuthClients() {
               </div>
 
               <div className="flex flex-col gap-1">
-                <label className="text-xs font-bold uppercase text-muted">Allowed Scopes (space separated)</label>
+                <label className="text-xs font-bold uppercase text-muted">
+                  Allowed Scopes (space separated)
+                </label>
                 <input
                   type="text"
                   value={scopesInput}

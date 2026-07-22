@@ -1,33 +1,39 @@
 /**
  * DX Dashboard component.
- * 
+ *
  * @file Dashboard.tsx
  * @location frontend/src/components/DX/Dashboard.tsx
  */
 
-import React, { useState, useEffect } from 'react';
-import { useDXData } from '../../hooks/useDXData';
-import { DXScoreCard } from './DXScoreCard';
-import { DXTimeline } from './DXTimeline';
-import { DXRecommendations } from './DXRecommendations';
-import { DXMetrics } from './DXMetrics';
+import React, { useState, useEffect } from "react";
+import { useDXData } from "../../hooks/useDXData";
+import { DXScoreCard } from "./DXScoreCard";
+import { DXTimeline } from "./DXTimeline";
+import { DXRecommendations } from "./DXRecommendations";
+import { DXMetrics } from "./DXMetrics";
 
 export const DXDashboard: React.FC = () => {
   const { data, loading, error } = useDXData();
-  const [timeRange, setTimeRange] = useState('week');
+  const [timeRange, setTimeRange] = useState("week");
 
   if (loading) {
     return <div className="text-center py-12">Loading DX data...</div>;
   }
 
   if (error) {
-    return <div className="text-red-400 text-center py-12">Error: {error.message}</div>;
+    return (
+      <div className="text-red-400 text-center py-12">
+        Error: {error.message}
+      </div>
+    );
   }
 
   return (
     <div className="space-y-6 p-6">
-      <h1 className="text-3xl font-bold text-white">⚡ Developer Experience Dashboard</h1>
-      
+      <h1 className="text-3xl font-bold text-white">
+        ⚡ Developer Experience Dashboard
+      </h1>
+
       {/* Score Overview */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <DXScoreCard
@@ -64,13 +70,17 @@ export const DXDashboard: React.FC = () => {
 
       {/* Recommendations */}
       <div className="bg-dark-800 p-6 rounded-xl border border-dark-700">
-        <h2 className="text-xl font-semibold text-white mb-4">💡 Recommendations</h2>
+        <h2 className="text-xl font-semibold text-white mb-4">
+          💡 Recommendations
+        </h2>
         <DXRecommendations recommendations={data?.recommendations || []} />
       </div>
 
       {/* Detailed Metrics */}
       <div className="bg-dark-800 p-6 rounded-xl border border-dark-700">
-        <h2 className="text-xl font-semibold text-white mb-4">📊 Detailed Metrics</h2>
+        <h2 className="text-xl font-semibold text-white mb-4">
+          📊 Detailed Metrics
+        </h2>
         <DXMetrics metrics={data?.metrics || {}} />
       </div>
     </div>

@@ -14,7 +14,7 @@ class ExperimentMiddleware(MiddlewareMixin):
         if not request.user.is_authenticated:
             return
 
-        experiments = Experiment.objects.filter(status='active')
+        experiments = Experiment.objects.filter(status="active")
         if not experiments:
             return
 
@@ -24,7 +24,7 @@ class ExperimentMiddleware(MiddlewareMixin):
         already_assigned_ids = set(
             ExperimentAssignment.objects.filter(
                 experiment__in=experiments, user=request.user
-            ).values_list('experiment_id', flat=True)
+            ).values_list("experiment_id", flat=True)
         )
 
         for experiment in experiments:
@@ -55,15 +55,15 @@ class ExperimentMiddleware(MiddlewareMixin):
                 variant = random.choice(variants)
 
                 ExperimentAssignment.objects.create(
-                    experiment=experiment,
-                    user=request.user,
-                    variant=variant
+                    experiment=experiment, user=request.user, variant=variant
                 )
             except Exception as e:
                 # A single misconfigured experiment should never break the
                 # request for an unrelated user.
                 logger.error(
                     "Failed to assign user %s to experiment %s: %s",
-                    request.user.id, experiment.id, e,
+                    request.user.id,
+                    experiment.id,
+                    e,
                 )
                 continue

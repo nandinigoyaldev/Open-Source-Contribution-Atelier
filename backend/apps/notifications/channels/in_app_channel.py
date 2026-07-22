@@ -34,8 +34,13 @@ class InAppChannel(NotificationChannel):
             },
         )
         if pushed:
-            logger.info("Pushed in-app notification %s to group %s", notification.id, group_name)
+            logger.info(
+                "Pushed in-app notification %s to group %s", notification.id, group_name
+            )
         else:
-            logger.info("WS pushed skipped or saved for polling for notification %s", notification.id)
+            logger.info(
+                "WS pushed skipped or saved for polling for notification %s",
+                notification.id,
+            )
 
         return True

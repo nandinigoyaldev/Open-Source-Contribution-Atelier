@@ -42,8 +42,8 @@ urlpatterns = [
     # ── Notifications & Real-time ─────────────────────────────────────────────
     path("api/notifications/", include("apps.notifications.urls")),
     path("api/dashboard/", include("apps.dashboard.urls")),
-    path('create-checkout-session/', CheckoutSessionView.as_view()),
-    path('webhook/', stripe_webhook),
+    path("create-checkout-session/", CheckoutSessionView.as_view()),
+    path("webhook/", stripe_webhook),
     path("api/search/", include("apps.search.urls")),
     path("api/notes/", include("apps.notes.urls")),
     path("api/recommendations/", include("apps.recommendations.urls")),
@@ -80,6 +80,8 @@ urlpatterns = [
     path("api/dx-testing/", include("apps.dx_testing.urls")),
     path("api/issue-quality/", include("apps.issue_quality.urls")),
     path("api/ml-triage/", include("apps.ml_triage.urls")),
+    # ── AI Tutor ────────────────────────────────────────────────────────────────
+    path("api/ai/tutor/", include("apps.ai_tutor.urls")),
     # ── Events & GraphQL ──────────────────────────────────────────────────────
     # path("api/events/", include("apps.events.urls")),
     path("api/graphql/", include("apps.graphql_gateway.urls")),
@@ -109,4 +111,4 @@ if settings.DEBUG:
     urlpatterns += [
         path("api/organizations/", include("apps.organizations.urls")),
         path("api/feature-flags/", include("apps.feature_flags.urls")),
-        ]
+    ]

@@ -1,4 +1,3 @@
-
 """
 GitHub API client for PR interactions.
 """
@@ -17,12 +16,12 @@ class GitHubClient:
     """
 
     def __init__(self):
-        self.token = getattr(settings, 'GITHUB_TOKEN', None)
+        self.token = getattr(settings, "GITHUB_TOKEN", None)
         self.headers = {
-            'Authorization': f'token {self.token}',
-            'Accept': 'application/vnd.github.v3+json'
+            "Authorization": f"token {self.token}",
+            "Accept": "application/vnd.github.v3+json",
         }
-        self.base_url = 'https://api.github.com'
+        self.base_url = "https://api.github.com"
 
     def get_pr_files(self, repo: str, pr_number: int) -> List[Dict]:
         """
@@ -30,43 +29,46 @@ class GitHubClient:
         """
         url = f"{self.base_url}/repos/{repo}/pulls/{pr_number}/files"
         response = requests.get(url, headers=self.headers)
-        
+
         if response.status_code == 200:
             return response.json()
         return []
 
-    def post_review_comment(self, repo: str, pr_number: int, body: str, 
-                           commit_id: str = None, file_path: str = None,
-                           line_number: int = None) -> Dict:
+    def post_review_comment(
+        self,
+        repo: str,
+        pr_number: int,
+        body: str,
+        commit_id: str = None,
+        file_path: str = None,
+        line_number: int = None,
+    ) -> Dict:
         """
         Post a review comment on PR.
         """
         url = f"{self.base_url}/repos/{repo}/pulls/{pr_number}/comments"
-        
-        data = {
-            'body': body
-        }
-        
+
+        data = {"body": body}
+
         if commit_id:
-            data['commit_id'] = commit_id
+            data["commit_id"] = commit_id
         if file_path:
-            data['path'] = file_path
+            data["path"] = file_path
         if line_number:
-            data['line'] = line_number
-        
+            data["line"] = line_number
+
         response = requests.post(url, headers=self.headers, json=data)
         return response.json()
 
-    def post_review(self, repo: str, pr_number: int, body: str, event: str = 'COMMENT') -> Dict:
+    def post_review(
+        self, repo: str, pr_number: int, body: str, event: str = "COMMENT"
+    ) -> Dict:
         """
         Post a full review on PR.
         """
         url = f"{self.base_url}/repos/{repo}/pulls/{pr_number}/reviews"
-        data = {
-            'body': body,
-            'event': event
-        }
-        
+        data = {"body": body, "event": event}
+
         response = requests.post(url, headers=self.headers, json=data)
         return response.json()
 
@@ -76,7 +78,7 @@ class GitHubClient:
         """
         url = f"{self.base_url}/repos/{repo}/pulls/{pr_number}"
         response = requests.get(url, headers=self.headers)
-        
+
         if response.status_code == 200:
             return response.json()
         return {}

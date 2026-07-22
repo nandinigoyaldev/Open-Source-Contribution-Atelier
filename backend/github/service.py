@@ -35,7 +35,9 @@ class GithubService:
         url = f"{self.base_url}/{endpoint.lstrip('/')}"
 
         parsed_url = urlparse(url)
-        if parsed_url.netloc != "api.github.com" and not parsed_url.netloc.endswith(".github.com"):
+        if parsed_url.netloc != "api.github.com" and not parsed_url.netloc.endswith(
+            ".github.com"
+        ):
             raise ValueError("Invalid endpoint: Domain must be a github.com domain")
 
         headers = self._get_headers()

@@ -357,4 +357,3 @@ class QuizDraft(models.Model):
 
     def __str__(self):
         return f"Quiz question for {self.lesson.title}"
-

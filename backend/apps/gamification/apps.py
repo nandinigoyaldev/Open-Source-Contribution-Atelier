@@ -28,8 +28,11 @@ class GamificationConfig(AppConfig):
         except Exception:
             pass
 
-        self.seed_default_quests()
-        self.seed_shop_items()
+        try:
+            self.seed_default_quests()
+            self.seed_shop_items()
+        except Exception:
+            pass
 
     @staticmethod
     def seed_default_quests():
