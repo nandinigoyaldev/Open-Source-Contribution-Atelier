@@ -224,12 +224,14 @@ class SearchCachingTests(TestCase):
 class MeilisearchIntegrationTests(TestCase):
     def setUp(self):
         from unittest.mock import MagicMock
+
         self.factory = RequestFactory()
         self.view = UnifiedSearchView.as_view()
 
     @patch("apps.search.tasks.get_meili_index")
     def test_tasks_sync_to_meilisearch(self, mock_get_index):
         from unittest.mock import MagicMock
+
         mock_index = MagicMock()
         mock_get_index.return_value = mock_index
 
@@ -248,10 +250,12 @@ class MeilisearchIntegrationTests(TestCase):
     @patch("apps.search.tasks.get_meili_index")
     def test_tasks_deindex_from_meilisearch(self, mock_get_index):
         from unittest.mock import MagicMock
+
         mock_index = MagicMock()
         mock_get_index.return_value = mock_index
 
         from django.contrib.contenttypes.models import ContentType
+
         content_type = ContentType.objects.get_for_model(SearchDocument)
         doc = SearchDocument.objects.create(
             content_type=content_type,
@@ -271,6 +275,7 @@ class MeilisearchIntegrationTests(TestCase):
     @patch("apps.search.views.get_meili_index")
     def test_view_queries_meilisearch_successfully(self, mock_get_index):
         from unittest.mock import MagicMock
+
         mock_index = MagicMock()
         mock_get_index.return_value = mock_index
 
@@ -285,13 +290,14 @@ class MeilisearchIntegrationTests(TestCase):
                     "_formatted": {
                         "title": "Meili <mark>Title</mark>",
                         "description": "Meili Desc",
-                        "body_text": "Meili Body"
-                    }
+                        "body_text": "Meili Body",
+                    },
                 }
             ]
         }
 
         from django.contrib.contenttypes.models import ContentType
+
         content_type = ContentType.objects.get_for_model(SearchDocument)
         SearchDocument.objects.create(
             id=1,
@@ -299,7 +305,7 @@ class MeilisearchIntegrationTests(TestCase):
             object_id=1,
             title="Meili Title",
             body_text="Meili Body",
-            content_type_name="lesson"
+            content_type_name="lesson",
         )
 
         request = self.factory.get("/api/search/", {"q": "Title"})
@@ -307,11 +313,14 @@ class MeilisearchIntegrationTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(response.data), 1)
         self.assertEqual(response.data[0]["title"], "Meili Title")
-        self.assertEqual(response.data[0]["highlighted_title"], "Meili <mark>Title</mark>")
+        self.assertEqual(
+            response.data[0]["highlighted_title"], "Meili <mark>Title</mark>"
+        )
 
     @patch("apps.search.views.get_meili_index")
     def test_view_postgres_fallback_on_meili_error(self, mock_get_index):
         from unittest.mock import MagicMock
+
         mock_index = MagicMock()
         mock_index.search.side_effect = Exception("Meili connection error")
         mock_get_index.return_value = mock_index
@@ -320,8 +329,9 @@ class MeilisearchIntegrationTests(TestCase):
             self.skipTest("Requires PostgreSQL")
 
         from django.contrib.contenttypes.models import ContentType
+
         content_type = ContentType.objects.get_for_model(SearchDocument)
-        
+
         # Let's index using the helper so the search vector is computed
         index_model_for_search(
             app_label=content_type.app_label,
@@ -336,4 +346,3 @@ class MeilisearchIntegrationTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertGreater(len(response.data), 0)
         self.assertEqual(response.data[0]["title"], "React Fallback")
-

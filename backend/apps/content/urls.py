@@ -7,7 +7,10 @@ from .views import (
     LessonFeedbackRetrieveUpdateDeleteView,
     LessonPDFView,
     LessonViewSet,
+    LessonDraftViewSet,
+    ModuleDraftViewSet,
     OrganizationListView,
+    QuizDraftViewSet,
     QuizDetailView,
     RoadmapView,
     SearchView,
@@ -17,7 +20,10 @@ from .views import (
 
 router = DefaultRouter()
 router.include_format_suffixes = False
-router.register("lessons", LessonViewSet, basename="lesson")
+router.register("modules", ModuleDraftViewSet, basename="module-draft")
+router.register("lessons", LessonDraftViewSet, basename="lesson-draft")
+router.register("quiz-questions", QuizDraftViewSet, basename="quiz-draft")
+router.register("published-lessons", LessonViewSet, basename="lesson")
 
 urlpatterns = router.urls + [
     path("search/", SearchView.as_view(), name="search"),

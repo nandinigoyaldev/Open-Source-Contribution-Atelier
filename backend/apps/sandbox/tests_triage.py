@@ -79,9 +79,7 @@ class ScoreTriageTests(TestCase):
         self.assertEqual(badge, "")
 
     def test_feedback_mentions_missing_label(self):
-        _, _, _, _, feedback, _ = _score_triage(
-            self.issue, ["bug"], "placeholder"
-        )
+        _, _, _, _, feedback, _ = _score_triage(self.issue, ["bug"], "placeholder")
         self.assertIn("needs-repro", feedback)
 
     def test_feedback_excellent_when_all_correct(self):

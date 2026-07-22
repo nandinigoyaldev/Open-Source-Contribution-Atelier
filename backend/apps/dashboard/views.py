@@ -1,6 +1,8 @@
 from datetime import timedelta
 
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
 from apps.core.cache import multi_level_cache as cache
 from django.db import models, transaction
 from django.db.models import Count, F, IntegerField, OuterRef, Q, Subquery, Sum, Value
@@ -391,7 +393,11 @@ class ContributorDashboardView(APIView):
             # StreakFreeze has been migrated to StreakProfile.streak_freezes
             spent_points = 0
             available_points = total_xp - spent_points
-            unused_freezes_count = getattr(user, "streak_profile", None).streak_freezes if hasattr(user, "streak_profile") else 0
+            unused_freezes_count = (
+                getattr(user, "streak_profile", None).streak_freezes
+                if hasattr(user, "streak_profile")
+                else 0
+            )
 
             return {
                 "issues_solved": issues_solved,
@@ -471,9 +477,14 @@ class ContributorDashboardView(APIView):
             }
 
         elif field == "active_track":
-            from apps.progress.services.milestone_track_service import MilestoneTrackService
+            from apps.progress.services.milestone_track_service import (
+                MilestoneTrackService,
+            )
+
             return {
-                "active_track_status": MilestoneTrackService.get_user_active_track_status(user),
+                "active_track_status": MilestoneTrackService.get_user_active_track_status(
+                    user
+                ),
                 "next_milestone": MilestoneTrackService.get_user_next_milestone(user),
             }
 
@@ -514,9 +525,6 @@ class ContributorDashboardView(APIView):
 
 from drf_spectacular.utils import extend_schema
 from rest_framework import status
-
-
-
 
 
 from django.db import models

@@ -6,7 +6,9 @@ from urllib.parse import urlencode
 
 import requests as http_requests
 from django.conf import settings
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
 from django.core.mail import send_mail
 from django.db.models import Sum
 from django.shortcuts import redirect
@@ -1262,3 +1264,24 @@ class PublicProfileView(APIView):
         user = get_object_or_404(User, username=username)
         serializer = UserListSerializer(user, context={"request": request})
         return Response(serializer.data, status=status.HTTP_200_OK)
+
+
+from .models import UserSession
+from .serializers import UserSessionSerializer
+
+
+class UserSessionListView(generics.ListAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = UserSessionSerializer
+
+    def get_queryset(self):
+        return UserSession.objects.filter(user=self.request.user)
+
+
+class UserSessionDetailView(generics.DestroyAPIView):
+    permission_classes = [IsAuthenticated]
+    serializer_class = UserSessionSerializer
+    lookup_field = "session_id"
+
+    def get_queryset(self):
+        return UserSession.objects.filter(user=self.request.user)

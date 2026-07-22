@@ -23,7 +23,11 @@ def get_clamav_client():
     host = getattr(settings, "CLAMAV_HOST", "127.0.0.1")
     port = int(getattr(settings, "CLAMAV_PORT", 3310))
 
-    client = pyclamd.ClamdUnixSocket(socket_path) if socket_path else pyclamd.ClamdNetworkSocket(host, port)
+    client = (
+        pyclamd.ClamdUnixSocket(socket_path)
+        if socket_path
+        else pyclamd.ClamdNetworkSocket(host, port)
+    )
     try:
         client.ping()
     except Exception as exc:

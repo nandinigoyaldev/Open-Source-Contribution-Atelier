@@ -45,9 +45,7 @@ class ContentReportSerializer(serializers.ModelSerializer):
         try:
             ct = ContentType.objects.get(app_label=app, model=model)
         except ContentType.DoesNotExist:
-            raise serializers.ValidationError(
-                {"content_type": "Invalid app or model"}
-            )
+            raise serializers.ValidationError({"content_type": "Invalid app or model"})
         validated_data["content_type"] = ct
         return super().create(validated_data)
 
@@ -87,4 +85,3 @@ class ModerationAuditEventSerializer(serializers.ModelSerializer):
             "content_report_id",
         ]
         read_only_fields = fields
-

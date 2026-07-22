@@ -6,18 +6,29 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('progress', '0030_merge_20260713_0249'),
+        ("progress", "0030_merge_20260713_0249"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='streakprofile',
-            name='streak_freezes',
+            model_name="streakprofile",
+            name="streak_freezes",
             field=models.PositiveIntegerField(default=0),
         ),
         migrations.AlterField(
-            model_name='xpevent',
-            name='source_type',
-            field=models.CharField(choices=[('lesson', 'Lesson'), ('exercise', 'Exercise'), ('pr', 'Pull Request'), ('issue', 'Issue'), ('review', 'Review'), ('badge', 'Badge'), ('shop', 'Shop Purchase')], max_length=20),
+            model_name="xpevent",
+            name="source_type",
+            field=models.CharField(
+                choices=[
+                    ("lesson", "Lesson"),
+                    ("exercise", "Exercise"),
+                    ("pr", "Pull Request"),
+                    ("issue", "Issue"),
+                    ("review", "Review"),
+                    ("badge", "Badge"),
+                    ("shop", "Shop Purchase"),
+                ],
+                max_length=20,
+            ),
         ),
     ]

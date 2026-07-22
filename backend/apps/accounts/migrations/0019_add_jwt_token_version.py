@@ -8,13 +8,13 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('accounts', '0018_userprofile_bio'),
+        ("accounts", "0018_userprofile_bio"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='userprofile',
-            name='jwt_token_version',
+            model_name="userprofile",
+            name="jwt_token_version",
             field=models.IntegerField(default=1),
         ),
     ]

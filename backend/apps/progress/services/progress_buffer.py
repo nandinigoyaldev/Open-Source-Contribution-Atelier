@@ -6,17 +6,18 @@ from django.core.cache import cache
 
 logger = logging.getLogger(__name__)
 
+
 class ProgressBufferService:
     BUFFER_SET_KEY = "progress_update_queue"
     DLQ_KEY = "progress_update_dlq"
     RETRY_SET_KEY = "progress_update_retries"
-    
+
     # Configurable debounce and expiration settings
     SETTINGS = {
         "lesson": {"debounce_seconds": 3600, "priority": 1},
         "quiz": {"debounce_seconds": 600, "priority": 2},
         "challenge": {"debounce_seconds": 300, "priority": 2},
-        "default": {"debounce_seconds": 1800, "priority": 3}
+        "default": {"debounce_seconds": 1800, "priority": 3},
     }
 
     @classmethod
@@ -34,32 +35,34 @@ class ProgressBufferService:
         """
         client = cls.get_redis_client()
         if not client:
-            logger.warning("Redis client not available. Falling back to immediate processing.")
+            logger.warning(
+                "Redis client not available. Falling back to immediate processing."
+            )
             return False
-            
+
         settings = cls.SETTINGS.get(activity_type, cls.SETTINGS["default"])
         expiration = settings["debounce_seconds"]
 
         item_key = f"progress_buffer:{activity_type}:{user_id}:{source_id}"
-        
+
         # Add retry tracking in payload if not present
         if "retry_count" not in payload:
             payload["retry_count"] = 0
-            
+
         # Add timestamp for performance analytics
         if "queued_at" not in payload:
             payload["queued_at"] = time.time()
-            
+
         payload_json = json.dumps(payload)
-        
+
         # Debounce: overwrite existing update in Redis
         client.set(item_key, payload_json, ex=expiration)
-        
+
         # Add to processing queue (ZSet with priority or just regular set)
         # Using ZADD with timestamp to process older events first
         # But for simplicity, we'll keep using set and SADD, since order doesn't strictly matter for debounced states
         client.sadd(cls.BUFFER_SET_KEY, item_key)
-        
+
         # Track metrics
         client.incr("metrics:total_queued_updates")
         return True
@@ -76,17 +79,17 @@ class ProgressBufferService:
         # Get keys from the main queue and retry queue
         main_keys = client.spop(cls.BUFFER_SET_KEY, batch_size) or []
         retry_keys = client.spop(cls.RETRY_SET_KEY, min(batch_size, 20)) or []
-        
+
         keys = list(main_keys) + list(retry_keys)
-        
+
         if not keys:
             return []
-            
+
         updates = []
         for key in keys:
             if isinstance(key, bytes):
                 key = key.decode("utf-8")
-                
+
             data = client.get(key)
             if data:
                 try:
@@ -96,7 +99,7 @@ class ProgressBufferService:
                 except json.JSONDecodeError:
                     client.delete(key)
                 # DO NOT delete key yet. Delete it only upon successful processing
-                
+
         return updates
 
     @classmethod
@@ -107,7 +110,7 @@ class ProgressBufferService:
         client = cls.get_redis_client()
         if not client or not keys:
             return
-            
+
         client.delete(*keys)
         client.incrby("metrics:total_processed_updates", len(keys))
 
@@ -119,14 +122,14 @@ class ProgressBufferService:
         client = cls.get_redis_client()
         if not client or not failed_updates:
             return
-            
+
         for update in failed_updates:
             key = update.pop("_redis_key", None)
             if not key:
                 continue
-                
+
             update["retry_count"] = update.get("retry_count", 0) + 1
-            
+
             if update["retry_count"] > max_retries:
                 # Move to DLQ
                 logger.error(f"Max retries exceeded for {key}. Moving to DLQ.")
@@ -147,12 +150,12 @@ class ProgressBufferService:
         client = cls.get_redis_client()
         if not client:
             return {}
-            
+
         return {
             "queue_size": client.scard(cls.BUFFER_SET_KEY) or 0,
             "retry_queue_size": client.scard(cls.RETRY_SET_KEY) or 0,
             "dlq_size": client.scard(cls.DLQ_KEY) or 0,
             "total_queued": int(client.get("metrics:total_queued_updates") or 0),
             "total_processed": int(client.get("metrics:total_processed_updates") or 0),
-            "total_retries": int(client.get("metrics:total_retries") or 0)
+            "total_retries": int(client.get("metrics:total_retries") or 0),
         }

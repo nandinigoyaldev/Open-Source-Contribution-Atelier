@@ -34,7 +34,9 @@ def test_clean_file_is_published(settings, django_user_model, tmp_path):
 
 
 @pytest.mark.django_db
-def test_eicar_detection_deletes_quarantined_file(settings, django_user_model, tmp_path):
+def test_eicar_detection_deletes_quarantined_file(
+    settings, django_user_model, tmp_path
+):
     settings.MEDIA_ROOT = tmp_path / "media"
     user = django_user_model.objects.create_user(username="infected-user")
     quarantined = tmp_path / "quarantine" / "eicar.txt"
@@ -49,7 +51,10 @@ def test_eicar_detection_deletes_quarantined_file(settings, django_user_model, t
         quarantine_path=str(quarantined),
     )
 
-    with patch("apps.uploads.tasks.scan_file", return_value=ScanResult(infected=True, signature="Eicar-Signature")):
+    with patch(
+        "apps.uploads.tasks.scan_file",
+        return_value=ScanResult(infected=True, signature="Eicar-Signature"),
+    ):
         scan_upload(str(upload.session_id))
 
     upload.refresh_from_db()

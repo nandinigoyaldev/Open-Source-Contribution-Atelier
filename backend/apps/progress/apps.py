@@ -19,7 +19,7 @@ class ProgressConfig(AppConfig):
                     "schedule_type": Schedule.WEEKLY,
                 },
             )
-            
+
             Schedule.objects.get_or_create(
                 name="process-buffered-progress-updates",
                 defaults={

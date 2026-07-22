@@ -5,7 +5,8 @@ import uuid
 from datetime import datetime
 from typing import Optional, Dict, Any
 
-logger = logging.getLogger('audit')
+logger = logging.getLogger("audit")
+
 
 class AuditLogger:
     """Structured JSON audit logging for compliance."""
@@ -24,7 +25,7 @@ class AuditLogger:
         error: Optional[str] = None,
     ):
         """Log audit event in JSON format."""
-        
+
         audit_entry = {
             "timestamp": datetime.utcnow().isoformat() + "Z",
             "user_id": user_id or "anonymous",
@@ -54,15 +55,15 @@ class AuditLogger:
     @staticmethod
     def _sanitize_data(data: Dict) -> Dict:
         """Remove sensitive fields from logs."""
-        sensitive_fields = ['password', 'token', 'secret', 'key', 'authorization']
+        sensitive_fields = ["password", "token", "secret", "key", "authorization"]
         sanitized = {}
-        
+
         for key, value in data.items():
             if key.lower() in sensitive_fields:
-                sanitized[key] = '***REDACTED***'
+                sanitized[key] = "***REDACTED***"
             elif isinstance(value, dict):
                 sanitized[key] = AuditLogger._sanitize_data(value)
             else:
                 sanitized[key] = value
-                
+
         return sanitized

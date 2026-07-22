@@ -14,7 +14,9 @@ from apps.uploads.validators import sanitize_svg_bytes, validate_file
         ("archive.zip", b"PK\x03\x04" + b"x" * 32, "application/zip"),
     ],
 )
-def test_magic_byte_validation_accepts_matching_files(tmp_path, filename, content, expected_mime):
+def test_magic_byte_validation_accepts_matching_files(
+    tmp_path, filename, content, expected_mime
+):
     path = tmp_path / filename
     path.write_bytes(content)
     _, mime = validate_file(path, filename, "project")
@@ -36,12 +38,12 @@ def test_extension_must_match_magic_bytes(tmp_path):
 
 
 def test_svg_sanitizer_removes_active_content():
-    raw = b'''<svg xmlns="http://www.w3.org/2000/svg" onload="alert(1)">
+    raw = b"""<svg xmlns="http://www.w3.org/2000/svg" onload="alert(1)">
       <rect width="10" height="10" fill="red"/>
       <script>alert(1)</script>
       <foreignObject><body>bad</body></foreignObject>
       <a href="javascript:alert(1)"><text>bad link</text></a>
-    </svg>'''
+    </svg>"""
     sanitized = sanitize_svg_bytes(raw).decode("utf-8")
     assert "script" not in sanitized
     assert "foreignObject" not in sanitized

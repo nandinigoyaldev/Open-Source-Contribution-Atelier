@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import RepoHealthScore
+from .models import MaintainerWorkloadProfile, RepoHealthScore
 
 
 class RepoHealthScoreSerializer(serializers.ModelSerializer):
@@ -26,3 +26,16 @@ class RepoHealthScoreSerializer(serializers.ModelSerializer):
             "updated_at",
         ]
         read_only_fields = fields
+
+
+class MaintainerWorkloadProfileSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = MaintainerWorkloadProfile
+        fields = [
+            "active_prs_assigned",
+            "avg_time_to_review_hours",
+            "recent_issue_volume",
+            "burnout_risk_score",
+            "last_analyzed_at",
+        ]
+        read_only_fields = ["burnout_risk_score", "last_analyzed_at"]

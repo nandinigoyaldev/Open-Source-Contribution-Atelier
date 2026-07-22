@@ -3,6 +3,7 @@ from django.db import transaction
 from apps.issues.models import Bounty
 from apps.progress.models import Badge
 
+
 class Command(BaseCommand):
     help = "Seeds the database with educational open-source bounties"
 
@@ -16,7 +17,7 @@ class Command(BaseCommand):
                 "name": "Bounty Hunter",
                 "description": "Completed open-source practice bounties.",
                 "category": "bounties",
-            }
+            },
         )
 
         # 2. Define Bounties data
@@ -63,7 +64,7 @@ class Command(BaseCommand):
                         "xp_reward": data["xp_reward"],
                         "status": Bounty.Status.OPEN,
                         "badge": data["badge"],
-                    }
+                    },
                 )
                 if not created:
                     bounty.description = data["description"]
@@ -72,4 +73,6 @@ class Command(BaseCommand):
                     bounty.badge = data["badge"]
                     bounty.save()
 
-        self.stdout.write(self.style.SUCCESS("Successfully seeded educational bounties!"))
+        self.stdout.write(
+            self.style.SUCCESS("Successfully seeded educational bounties!")
+        )

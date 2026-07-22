@@ -8,6 +8,7 @@ from apps.errors.grouping import normalize_message, calculate_fingerprint
 
 logger = logging.getLogger(__name__)
 
+
 @shared_task
 def ingest_error_event_task(payload):
     """
@@ -22,7 +23,7 @@ def ingest_error_event_task(payload):
     user_id = payload.get("user_id")
     metadata = payload.get("metadata", {})
     timestamp_str = payload.get("timestamp")
-    
+
     if timestamp_str:
         try:
             timestamp = timezone.datetime.fromisoformat(timestamp_str)
@@ -45,7 +46,7 @@ def ingest_error_event_task(payload):
             "module": module,
             "status": "new",
             "first_seen": timestamp,
-        }
+        },
     )
 
     # Step 3: Handle reopening workflow for resolved groups
@@ -56,8 +57,10 @@ def ingest_error_event_task(payload):
             if now >= group.resolved_at + cooldown_period:
                 group.status = "new"
                 group.resolved_at = None
-                logger.info(f"Reopened resolved error group {group.id} due to cooldown expiration.")
-        
+                logger.info(
+                    f"Reopened resolved error group {group.id} due to cooldown expiration."
+                )
+
         group.count += 1
         group.last_seen = now
         group.save(update_fields=["count", "last_seen", "status", "resolved_at"])
@@ -73,7 +76,7 @@ def ingest_error_event_task(payload):
         request_id=request_id,
         user_id=user_id,
         timestamp=timestamp,
-        metadata=metadata
+        metadata=metadata,
     )
 
     logger.debug(f"Ingested event {event.id} for group {group.id}")

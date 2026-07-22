@@ -1,8 +1,15 @@
 from datetime import date, timedelta
 from django.utils import timezone
 from django.db import transaction
-from django.contrib.auth.models import User
-from apps.progress.models import StreakProfile, StreakRecoveryPlan, QuizAttempt, ExerciseAttempt
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
+from apps.progress.models import (
+    StreakProfile,
+    StreakRecoveryPlan,
+    QuizAttempt,
+    ExerciseAttempt,
+)
 
 
 class StreakRecoveryService:
@@ -35,7 +42,7 @@ class StreakRecoveryService:
                         "quiz_target": 1,
                         "reading_target": 15,
                         "code_target": 1,
-                    }
+                    },
                 )
                 if not created and plan.target_date != today:
                     # Clean up expired plan
@@ -68,21 +75,20 @@ class StreakRecoveryService:
 
         # 1. Quizzes completed today
         plan.quiz_progress = QuizAttempt.objects.filter(
-            user=plan.user,
-            created_at__date=today
+            user=plan.user, created_at__date=today
         ).count()
 
         # 2. Code exercises completed today (successful attempts)
         plan.code_progress = ExerciseAttempt.objects.filter(
-            user=plan.user,
-            is_correct=True,
-            created_at__date=today
+            user=plan.user, is_correct=True, created_at__date=today
         ).count()
 
         # Check if fully recovered
-        if (plan.quiz_progress >= plan.quiz_target and
-            plan.reading_progress >= plan.reading_target and
-            plan.code_progress >= plan.code_target):
+        if (
+            plan.quiz_progress >= plan.quiz_target
+            and plan.reading_progress >= plan.reading_target
+            and plan.code_progress >= plan.code_target
+        ):
 
             plan.is_completed = True
 

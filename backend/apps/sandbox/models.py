@@ -758,7 +758,9 @@ class TriageIssue(models.Model):
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    title = models.CharField(max_length=255, help_text="Scenario title shown to the user.")
+    title = models.CharField(
+        max_length=255, help_text="Scenario title shown to the user."
+    )
     raw_issue_title = models.CharField(
         max_length=255,
         help_text="The poorly written title of the simulated issue.",
@@ -829,3 +831,55 @@ class TriageAttempt(models.Model):
             f"TriageAttempt by {self.user} on '{self.issue.title}' "
             f"[{'PASS' if self.passed else 'FAIL'} {self.total_score}/100]"
         )
+
+
+# ============================================================
+# FEATURE: ADR Sandbox Simulator
+# ============================================================
+
+
+class ADRScenario(models.Model):
+    title = models.CharField(max_length=255, help_text="Title of the ADR scenario.")
+    context = models.TextField(help_text="Context of the architectural decision.")
+    constraints = models.TextField(
+        help_text="System constraints (e.g., high read throughput)."
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return self.title
+
+
+class ADROption(models.Model):
+    scenario = models.ForeignKey(
+        ADRScenario, on_delete=models.CASCADE, related_name="options"
+    )
+    title = models.CharField(
+        max_length=255, help_text="Title of the architectural option."
+    )
+    pros = models.TextField(help_text="Pros of this option.")
+    cons = models.TextField(help_text="Cons of this option.")
+    is_optimal = models.BooleanField(
+        default=False, help_text="Is this the optimal choice?"
+    )
+
+    def __str__(self):
+        return self.title
+
+
+class ADRAttempt(models.Model):
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="adr_attempts"
+    )
+    scenario = models.ForeignKey(ADRScenario, on_delete=models.CASCADE)
+    selected_option = models.ForeignKey(ADROption, on_delete=models.CASCADE)
+    is_successful = models.BooleanField(
+        default=False, help_text="Did the user pick the optimal option?"
+    )
+    feedback = models.TextField(
+        blank=True, help_text="Feedback based on the user's choice."
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    def __str__(self):
+        return f"ADR Attempt by {self.user.username} on {self.scenario.title}"

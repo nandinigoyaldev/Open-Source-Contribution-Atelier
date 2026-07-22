@@ -231,4 +231,6 @@ class DirectMessageCreateView(APIView):
             encrypted_content=data["encrypted_content"],
             nonce=data["nonce"],
         )
-        return Response(DirectMessageSerializer(dm).data, status=status.HTTP_201_CREATED)
+        return Response(
+            DirectMessageSerializer(dm).data, status=status.HTTP_201_CREATED
+        )

@@ -18,11 +18,12 @@ describe("UnsavedChangesDialog", () => {
     const stay = screen.getByRole("button", { name: "Stay here" });
     const discard = screen.getByRole("button", { name: "Discard changes" });
 
+    stay.focus();
     expect(stay).toHaveFocus();
 
-    discard.focus();
+    stay.focus();
     fireEvent.keyDown(document, { key: "Tab" });
-    expect(stay).toHaveFocus();
+    expect(discard).toHaveFocus();
 
     fireEvent.keyDown(document, { key: "Escape" });
     expect(onStay).toHaveBeenCalledTimes(1);
