@@ -1,6 +1,8 @@
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "react-hot-toast";
 import { useState, useEffect } from "react";
+import { useLocation } from "react-router-dom";
+import { useAppDispatch } from "../store/hooks";
 
 import { AppRouter } from "./router";
 import { queryClient } from "../lib/queryClient";
@@ -48,6 +50,16 @@ const TOUR_STEPS: TourStep[] = [
 ];
 
 export function App({ children }: { children?: React.ReactNode }) {
+  const location = useLocation();
+  const dispatch = useAppDispatch();
+
+  useEffect(() => {
+    dispatch({
+      type: "LOCATION_CHANGE",
+      payload: { pathname: location.pathname },
+    });
+  }, [location.pathname, dispatch]);
+
   const [currentStep, setCurrentStep] = useState<number>(-1);
   const [coords, setCoords] = useState<{
     top: number;

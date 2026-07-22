@@ -31,6 +31,9 @@ export const chatSlice = createSlice({
       state.isOnline = action.payload;
     },
   },
+  extraReducers: (builder) => {
+    builder.addCase("RESET_APP_STATE", () => initialState);
+  },
 });
 
 export const { enqueueMessage, clearQueue, setOnlineStatus } =

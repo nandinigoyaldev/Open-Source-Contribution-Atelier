@@ -78,6 +78,7 @@ export const notificationSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
+      .addCase("RESET_APP_STATE", () => initialState)
       .addCase(fetchNotifications.pending, (state) => {
         state.isLoading = true;
       })

@@ -77,7 +77,7 @@ export const checkUser = createAsyncThunk(
   },
 );
 
-export const logoutAction = createAsyncThunk("auth/logout", async () => {
+export const logoutAction = createAsyncThunk("auth/logout", async (_, { dispatch }) => {
   try {
     if ("serviceWorker" in navigator && "PushManager" in window) {
       const reg = await navigator.serviceWorker.ready;
@@ -99,6 +99,8 @@ export const logoutAction = createAsyncThunk("auth/logout", async () => {
   } catch (e) {
     console.error("Error unsubscribing push on logout", e);
   }
+
+  dispatch({ type: "persist/PURGE" });
 
   clearAccessToken();
   safeRemoveItem("refreshToken");
