@@ -13,8 +13,8 @@ from apps.dashboard.views import LeaderboardView
 
 from .health_view import health_view
 from .version_view import version_view
-from .views import CheckoutSessionView
-from .webhooks import stripe_webhook
+from apps.billing.views import CheckoutSessionView
+from apps.billing.webhooks import stripe_webhook
 
 urlpatterns = [
     # ── Admin ──────────────────────────────────────────────────────────────────

@@ -533,19 +533,39 @@ class CommunityFeedView(APIView):
     )
 )
 class CommunityStatsView(APIView):
+    permission_classes = [permissions.AllowAny]
+
     def get(self, request):
         from django.contrib.auth.models import User
 
-        user_count = User.objects.count()
-        completed_lessons = LessonProgress.objects.filter(
-            organization=request.user.organization,
-            completed=True,
-        ).count()
+        user = getattr(request, "user", None)
+        org = (
+            getattr(user, "organization", None)
+            if user and user.is_authenticated
+            else None
+        )
 
-        open_help_requests = HelpRequest.objects.filter(
-            organization=request.user.organization,
-            status=HelpRequest.Status.OPEN,
-        ).count()
+        user_count = User.objects.count()
+
+        if org:
+            completed_lessons = LessonProgress.objects.filter(
+                organization=org,
+                completed=True,
+            ).count()
+
+            open_help_requests = HelpRequest.objects.filter(
+                organization=org,
+                status=HelpRequest.Status.OPEN,
+            ).count()
+        else:
+            completed_lessons = LessonProgress.objects.filter(
+                completed=True,
+            ).count()
+
+            open_help_requests = HelpRequest.objects.filter(
+                status=HelpRequest.Status.OPEN,
+            ).count()
+
         active_contributors = 100 + user_count
         merged_prs = 300 + completed_lessons
 
