@@ -21,7 +21,7 @@ class StreakRecoveryService:
         if not last_date:
             return None
 
-        today = date.today()
+        today = timezone.localdate()
         diff = today - last_date
 
         with transaction.atomic():

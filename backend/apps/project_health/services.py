@@ -130,7 +130,7 @@ def analyze_repository(repo_url: str, token: str = None) -> dict:
         if commits:
             date_str = commits[0]["commit"]["committer"]["date"]
             last_commit_dt = datetime.fromisoformat(date_str.replace("Z", "+00:00"))
-            last_commit_days = (datetime.now(tz=timezone.utc) - last_commit_dt).days
+            last_commit_days = (timezone.now() - last_commit_dt).days
     except Exception:
         pass
 

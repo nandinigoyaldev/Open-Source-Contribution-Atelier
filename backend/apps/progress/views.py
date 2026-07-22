@@ -109,7 +109,7 @@ class ExportNotesView(APIView):
         # Header
         markdown_lines.append(f"# 📝 Notes Export - {user.username}")
         markdown_lines.append(
-            f"**Exported on:** {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+            f"**Exported on:** {timezone.now().strftime('%Y-%m-%d %H:%M:%S')}"
         )
         markdown_lines.append(f"**Total Notes:** {notes.count()}")
         markdown_lines.append("")
@@ -166,14 +166,14 @@ class ExportNotesView(APIView):
         # Footer
         markdown_lines.append("---")
         markdown_lines.append(
-            f"*Exported from Open Source Contribution Atelier on {datetime.now().strftime('%Y-%m-%d')}*"
+            f"*Exported from Open Source Contribution Atelier on {timezone.now().strftime('%Y-%m-%d')}*"
         )
         markdown_lines.append("")
         markdown_lines.append("_Happy Learning! 🚀_")
 
         # Create response
         markdown_content = "\n".join(markdown_lines)
-        filename = f"notes_export_{user.username}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.md"
+        filename = f"notes_export_{user.username}_{timezone.now().strftime('%Y%m%d_%H%M%S')}.md"
 
         response = HttpResponse(
             markdown_content, content_type="text/markdown; charset=utf-8"
@@ -189,7 +189,7 @@ class ExportNotesView(APIView):
         data = {
             "username": user.username,
             "email": user.email,
-            "exported_at": datetime.now().isoformat(),
+            "exported_at": timezone.now().isoformat(),
             "total_notes": notes.count(),
             "notes": [],
         }
@@ -211,7 +211,7 @@ class ExportNotesView(APIView):
                 }
             )
 
-        filename = f"notes_export_{user.username}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json"
+        filename = f"notes_export_{user.username}_{timezone.now().strftime('%Y%m%d_%H%M%S')}.json"
         json_content = json.dumps(data, indent=2, ensure_ascii=False)
 
         response = HttpResponse(
@@ -1303,17 +1303,17 @@ class HeatmapView(APIView):
             try:
                 start_date = datetime.datetime.strptime(start_param, "%Y-%m-%d").date()
             except ValueError:
-                start_date = datetime.date.today() - datetime.timedelta(days=365)
+                start_date = timezone.localdate() - datetime.timedelta(days=365)
         else:
-            start_date = datetime.date.today() - datetime.timedelta(days=365)
+            start_date = timezone.localdate() - datetime.timedelta(days=365)
 
         if end_param:
             try:
                 end_date = datetime.datetime.strptime(end_param, "%Y-%m-%d").date()
             except ValueError:
-                end_date = datetime.date.today()
+                end_date = timezone.localdate()
         else:
-            end_date = datetime.date.today()
+            end_date = timezone.localdate()
 
         activity_type_filter = request.query_params.get("activity_type")
         limit_param = request.query_params.get("limit")
@@ -1502,17 +1502,17 @@ class HeatmapCSVExportView(APIView):
             try:
                 start_date = datetime.datetime.strptime(start_param, "%Y-%m-%d").date()
             except ValueError:
-                start_date = datetime.date.today() - datetime.timedelta(days=365)
+                start_date = timezone.localdate() - datetime.timedelta(days=365)
         else:
-            start_date = datetime.date.today() - datetime.timedelta(days=365)
+            start_date = timezone.localdate() - datetime.timedelta(days=365)
 
         if end_param:
             try:
                 end_date = datetime.datetime.strptime(end_param, "%Y-%m-%d").date()
             except ValueError:
-                end_date = datetime.date.today()
+                end_date = timezone.localdate()
         else:
-            end_date = datetime.date.today()
+            end_date = timezone.localdate()
 
         activity_breakdown = defaultdict(
             lambda: {"reading": 0, "quizzes": 0, "code_submissions": 0}

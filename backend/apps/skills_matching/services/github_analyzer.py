@@ -138,7 +138,8 @@ class GitHubAnalyzer:
         created_at = user_data.get('created_at')
         if created_at:
             from datetime import datetime
+            from django.utils import timezone
             created = datetime.fromisoformat(created_at.replace('Z', '+00:00'))
-            years = (datetime.now() - created).days / 365
+            years = (timezone.now() - created).days / 365
             return max(0, years)
         return 0.0

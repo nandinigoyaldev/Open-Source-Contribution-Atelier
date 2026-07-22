@@ -12,3 +12,7 @@ omit = ["*/migrations/*", "*/tests/*", "*/admin.py"]
 [tool.coverage.report]
 fail_under = 70
 show_missing = true
+
+[tool.ruff.lint]
+select = ["E", "F", "DTZ"]
+

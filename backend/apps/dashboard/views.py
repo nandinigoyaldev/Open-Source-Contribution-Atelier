@@ -307,6 +307,9 @@ class ContributorDashboardView(APIView):
             # ------------------------------
 
             # Calculate streak based on unique days of activity (attempts or completed lessons) and active/used freezes
+            today = timezone.localdate()
+            join_date = timezone.localdate(user.date_joined)
+            
             activity_days = set()
             attempts = ExerciseAttempt.objects.filter(user=user).values_list(
                 "created_at", flat=True

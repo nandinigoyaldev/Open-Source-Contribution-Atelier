@@ -4,6 +4,7 @@ Analyze contributor activity patterns.
 
 import requests
 from datetime import datetime, timedelta
+from django.utils import timezone
 from typing import Dict, Any, List
 from django.contrib.auth.models import User
 from django.conf import settings
@@ -76,7 +77,7 @@ class ActivityAnalyzer:
 
     def _count_commits(self, events: List[Dict]) -> Dict[str, int]:
         """Count commits in last week and month."""
-        now = datetime.now()
+        now = timezone.now()
         week_ago = now - timedelta(days=7)
         month_ago = now - timedelta(days=30)
         
@@ -95,7 +96,7 @@ class ActivityAnalyzer:
 
     def _count_reviews(self, events: List[Dict]) -> Dict[str, int]:
         """Count reviews in last week and month."""
-        now = datetime.now()
+        now = timezone.now()
         week_ago = now - timedelta(days=7)
         month_ago = now - timedelta(days=30)
         
@@ -114,7 +115,7 @@ class ActivityAnalyzer:
 
     def _count_comments(self, events: List[Dict]) -> Dict[str, int]:
         """Count comments in last week and month."""
-        now = datetime.now()
+        now = timezone.now()
         week_ago = now - timedelta(days=7)
         month_ago = now - timedelta(days=30)
         
@@ -134,7 +135,7 @@ class ActivityAnalyzer:
     def _calculate_trend(self, events: List[Dict], event_type: str) -> float:
         """Calculate activity trend."""
         # Simplified: compare last 2 weeks vs previous 2 weeks
-        now = datetime.now()
+        now = timezone.now()
         recent_start = now - timedelta(days=14)
         previous_start = now - timedelta(days=28)
         

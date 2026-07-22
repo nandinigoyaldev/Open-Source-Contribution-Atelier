@@ -238,6 +238,9 @@ MIDDLEWARE = [
     "django_prometheus.middleware.PrometheusAfterMiddleware",
 ]
 
+if DEBUG:
+    MIDDLEWARE.append("config.middleware.TimezoneSafetyMiddleware")
+
 if TESTING:
     INSTALLED_APPS.append("nplusone.ext.django")
     MIDDLEWARE.insert(0, "nplusone.ext.django.NPlusOneMiddleware")

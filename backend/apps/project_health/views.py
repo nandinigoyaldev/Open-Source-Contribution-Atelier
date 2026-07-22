@@ -39,7 +39,7 @@ class AnalyzeRepositoryView(APIView):
         existing = RepoHealthScore.objects.filter(repo_url=repo_url).first()
         if existing:
             ttl = timedelta(hours=RepoHealthScore.CACHE_TTL_HOURS)
-            if datetime.now(tz=timezone.utc) - existing.updated_at < ttl:
+            if timezone.now() - existing.updated_at < ttl:
                 return Response(RepoHealthScoreSerializer(existing).data)
 
         # Run fresh analysis

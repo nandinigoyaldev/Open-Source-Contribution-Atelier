@@ -9,6 +9,7 @@ so they are trivially unit-testable without a database.
 from __future__ import annotations
 
 import logging
+from django.utils import timezone
 from datetime import date, timedelta
 from typing import Optional
 
@@ -27,7 +28,7 @@ class StreakEngine:
     Usage
     -----
     # Call this whenever a user completes a learning activity:
-    result = StreakEngine.record_activity(user, date.today())
+    result = StreakEngine.record_activity(user, timezone.localdate())
 
     # Get current multiplier for XP calculation:
     multiplier = StreakEngine.get_multiplier_for_user(user)
