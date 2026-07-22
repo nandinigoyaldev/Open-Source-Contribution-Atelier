@@ -3,7 +3,8 @@ Models for developer onboarding journey tracking.
 """
 
 from django.db import models
-from django.contrib.auth.models import User
+from django.conf import settings
+
 from django.utils import timezone
 import uuid
 
@@ -14,26 +15,28 @@ class OnboardingJourney(models.Model):
     """
 
     STAGES = [
-        ('discovery', 'Discovery'),
-        ('setup', 'Setup'),
-        ('first_issue', 'First Issue'),
-        ('pr_submitted', 'PR Submitted'),
-        ('merged', 'Merged'),
-        ('completed', 'Completed'),
+        ("discovery", "Discovery"),
+        ("setup", "Setup"),
+        ("first_issue", "First Issue"),
+        ("pr_submitted", "PR Submitted"),
+        ("merged", "Merged"),
+        ("completed", "Completed"),
     ]
 
     STATUS_CHOICES = [
-        ('active', 'Active'),
-        ('stuck', 'Stuck'),
-        ('abandoned', 'Abandoned'),
-        ('completed', 'Completed'),
+        ("active", "Active"),
+        ("stuck", "Stuck"),
+        ("abandoned", "Abandoned"),
+        ("completed", "Completed"),
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='onboarding')
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="onboarding"
+    )
 
     # Current stage
-    current_stage = models.CharField(max_length=20, choices=STAGES, default='discovery')
+    current_stage = models.CharField(max_length=20, choices=STAGES, default="discovery")
     stage_started_at = models.DateTimeField(auto_now_add=True)
 
     # Stage completion timestamps
@@ -51,7 +54,7 @@ class OnboardingJourney(models.Model):
     pr_duration = models.IntegerField(default=0)
 
     # Status
-    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default='active')
+    status = models.CharField(max_length=20, choices=STATUS_CHOICES, default="active")
 
     # Completion prediction
     completion_score = models.FloatField(default=0.0)
@@ -74,11 +77,11 @@ class OnboardingJourney(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:
-        ordering = ['-created_at']
+        ordering = ["-created_at"]
         indexes = [
-            models.Index(fields=['current_stage', 'status']),
-            models.Index(fields=['completion_score']),
-            models.Index(fields=['health_score']),
+            models.Index(fields=["current_stage", "status"]),
+            models.Index(fields=["completion_score"]),
+            models.Index(fields=["health_score"]),
         ]
 
     def __str__(self):
@@ -94,18 +97,18 @@ class OnboardingJourney(models.Model):
                 setattr(self, stage_field, duration)
 
         # Update timestamps
-        if new_stage == 'setup':
+        if new_stage == "setup":
             self.discovery_completed_at = timezone.now()
-        elif new_stage == 'first_issue':
+        elif new_stage == "first_issue":
             self.setup_completed_at = timezone.now()
-        elif new_stage == 'pr_submitted':
+        elif new_stage == "pr_submitted":
             self.first_issue_completed_at = timezone.now()
-        elif new_stage == 'merged':
+        elif new_stage == "merged":
             self.pr_submitted_at = timezone.now()
-        elif new_stage == 'completed':
+        elif new_stage == "completed":
             self.merged_at = timezone.now()
             self.completed_at = timezone.now()
-            self.status = 'completed'
+            self.status = "completed"
 
         self.current_stage = new_stage
         self.stage_started_at = timezone.now()
@@ -117,12 +120,12 @@ class OnboardingJourney(models.Model):
 
         # Stage completion (max 40 points)
         stage_weights = {
-            'discovery': 10,
-            'setup': 20,
-            'first_issue': 30,
-            'pr_submitted': 40,
-            'merged': 50,
-            'completed': 60,
+            "discovery": 10,
+            "setup": 20,
+            "first_issue": 30,
+            "pr_submitted": 40,
+            "merged": 50,
+            "completed": 60,
         }
         score += stage_weights.get(self.current_stage, 0) / 60 * 40
 
@@ -138,11 +141,11 @@ class OnboardingJourney(models.Model):
 
         # Engagement (max 30 points)
         if self.nudges_sent:
-            engagement = len([n for n in self.nudges_sent if n.get('responded', False)])
+            engagement = len([n for n in self.nudges_sent if n.get("responded", False)])
             score += min(engagement * 10, 30)
 
         self.health_score = min(100, score)
-        self.save(update_fields=['health_score'])
+        self.save(update_fields=["health_score"])
         return self.health_score
 
 
@@ -152,26 +155,28 @@ class JourneyEvent(models.Model):
     """
 
     EVENT_TYPES = [
-        ('fork', 'Forked Repository'),
-        ('clone', 'Cloned Repository'),
-        ('setup', 'Environment Setup'),
-        ('issue_view', 'Viewed Issue'),
-        ('issue_comment', 'Commented on Issue'),
-        ('pr_open', 'Opened PR'),
-        ('pr_update', 'Updated PR'),
-        ('pr_review', 'PR Reviewed'),
-        ('pr_merge', 'PR Merged'),
-        ('help_seek', 'Sought Help'),
+        ("fork", "Forked Repository"),
+        ("clone", "Cloned Repository"),
+        ("setup", "Environment Setup"),
+        ("issue_view", "Viewed Issue"),
+        ("issue_comment", "Commented on Issue"),
+        ("pr_open", "Opened PR"),
+        ("pr_update", "Updated PR"),
+        ("pr_review", "PR Reviewed"),
+        ("pr_merge", "PR Merged"),
+        ("help_seek", "Sought Help"),
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    journey = models.ForeignKey(OnboardingJourney, on_delete=models.CASCADE, related_name='events')
+    journey = models.ForeignKey(
+        OnboardingJourney, on_delete=models.CASCADE, related_name="events"
+    )
     event_type = models.CharField(max_length=20, choices=EVENT_TYPES)
     event_data = models.JSONField(default=dict)
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        ordering = ['created_at']
+        ordering = ["created_at"]
 
     def __str__(self):
         return f"{self.event_type} - {self.journey.user.username}"
@@ -183,15 +188,17 @@ class OnboardingNudge(models.Model):
     """
 
     TYPE_CHOICES = [
-        ('encouragement', 'Encouragement'),
-        ('reminder', 'Reminder'),
-        ('suggestion', 'Suggestion'),
-        ('resource', 'Resource'),
-        ('checkin', 'Check-in'),
+        ("encouragement", "Encouragement"),
+        ("reminder", "Reminder"),
+        ("suggestion", "Suggestion"),
+        ("resource", "Resource"),
+        ("checkin", "Check-in"),
     ]
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    journey = models.ForeignKey(OnboardingJourney, on_delete=models.CASCADE, related_name='nudges')
+    journey = models.ForeignKey(
+        OnboardingJourney, on_delete=models.CASCADE, related_name="nudges"
+    )
     nudge_type = models.CharField(max_length=20, choices=TYPE_CHOICES)
     message = models.TextField()
     action_url = models.URLField(blank=True)
@@ -203,7 +210,7 @@ class OnboardingNudge(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        ordering = ['-created_at']
+        ordering = ["-created_at"]
 
     def __str__(self):
         return f"{self.nudge_type} - {self.journey.user.username}"
@@ -213,6 +220,7 @@ class OnboardingMetric(models.Model):
     """
     Aggregated onboarding metrics.
     """
+
     date = models.DateField(unique=True, db_index=True)
 
     # Active contributors
@@ -248,7 +256,7 @@ class OnboardingMetric(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        ordering = ['-date']
+        ordering = ["-date"]
 
     def __str__(self):
         return f"Metrics: {self.date}"

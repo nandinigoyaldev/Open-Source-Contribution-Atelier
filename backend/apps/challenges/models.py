@@ -1,4 +1,5 @@
-from django.contrib.auth.models import User
+from django.conf import settings
+
 from django.db import models
 
 from apps.organizations.models import Organization
@@ -40,7 +41,9 @@ class ChallengeCompletion(models.Model):
 
     objects = models.Manager()
     user = models.ForeignKey(
-        User, on_delete=models.CASCADE, related_name="challenge_completions"
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="challenge_completions",
     )
     challenge = models.ForeignKey(
         Challenge, on_delete=models.CASCADE, related_name="completions"

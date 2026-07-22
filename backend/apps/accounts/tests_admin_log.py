@@ -1,5 +1,7 @@
 from django.contrib.admin.models import ADDITION, CHANGE, DELETION, LogEntry
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
 from django.contrib.contenttypes.models import ContentType
 from django.test import Client, TestCase
 from django.urls import reverse

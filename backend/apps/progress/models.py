@@ -1,5 +1,10 @@
 from __future__ import annotations
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
+
+from django.conf import settings
+
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import models
 from django.utils import timezone
@@ -8,7 +13,6 @@ from django.core.validators import MinValueValidator, MaxValueValidator
 
 from apps.content.models import Exercise, Lesson
 from apps.organizations.models import Organization
-
 
 STREAK_MILESTONES = [
     {"days": 3, "multiplier": 1.1, "label": "3-Day Streak"},
@@ -59,7 +63,7 @@ class UserBadge(models.Model):
 
     objects = models.Manager()
     user = models.ForeignKey(
-        User, on_delete=models.CASCADE, related_name="earned_badges"
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="earned_badges"
     )
     badge = models.ForeignKey(Badge, on_delete=models.CASCADE, related_name="earned_by")
     earned_at = models.DateTimeField(auto_now_add=True)
@@ -87,7 +91,9 @@ class XPEvent(models.Model):
         ("milestone", "Milestone Track"),
     ]
 
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="xp_events")
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="xp_events"
+    )
     source_type = models.CharField(max_length=20, choices=SOURCE_CHOICES)
     source_id = models.PositiveIntegerField(null=True, blank=True)
     base_points = models.PositiveIntegerField()
@@ -123,7 +129,7 @@ class LessonProgressSync(models.Model):
     objects = models.Manager()
 
     user = models.ForeignKey(
-        User,
+        settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name="lesson_progress_syncs",
     )
@@ -172,7 +178,7 @@ class LessonProgress(models.Model):
     organization = models.ForeignKey(
         Organization, on_delete=models.CASCADE, null=True, blank=True
     )
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     lesson = models.ForeignKey(Lesson, on_delete=models.CASCADE)
     completed = models.BooleanField(default=False)
     score = models.PositiveIntegerField(default=0)
@@ -205,7 +211,7 @@ class ExerciseAttempt(models.Model):
     organization = models.ForeignKey(
         Organization, on_delete=models.CASCADE, null=True, blank=True
     )
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     exercise = models.ForeignKey(Exercise, on_delete=models.CASCADE)
     submitted_command = models.CharField(max_length=255, default="")
     is_correct = models.BooleanField(default=False)
@@ -238,7 +244,7 @@ class HelpRequest(models.Model):
     )
 
     user = models.ForeignKey(
-        User, on_delete=models.CASCADE, related_name="help_requests"
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="help_requests"
     )
     lesson = models.ForeignKey(
         Lesson, on_delete=models.CASCADE, related_name="help_requests"
@@ -265,7 +271,7 @@ class QuizAttempt(models.Model):
 
     objects = models.Manager()
     user = models.ForeignKey(
-        User, on_delete=models.CASCADE, related_name="quiz_attempts"
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="quiz_attempts"
     )
     question_id = models.CharField(max_length=255)
     question_text = models.TextField()
@@ -294,7 +300,7 @@ class Certificate(models.Model):
 
     objects = models.Manager()
     user = models.ForeignKey(
-        User, on_delete=models.CASCADE, related_name="certificates"
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="certificates"
     )
     course_name = models.CharField(
         max_length=255, default="Open Source Contribution Course"
@@ -324,7 +330,9 @@ class CodeSubmission(models.Model):
         ESCALATED = "escalated", "Escalated"
 
     user = models.ForeignKey(
-        User, on_delete=models.CASCADE, related_name="code_submissions"
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="code_submissions",
     )
     exercise = models.ForeignKey(
         Exercise,
@@ -334,7 +342,7 @@ class CodeSubmission(models.Model):
         blank=True,
     )
     assigned_reviewers = models.ManyToManyField(
-        User, blank=True, related_name="assigned_reviews"
+        settings.AUTH_USER_MODEL, blank=True, related_name="assigned_reviews"
     )
     title = models.CharField(max_length=255)
     code_snippet = models.TextField()
@@ -386,7 +394,7 @@ class PeerReview(models.Model):
         CodeSubmission, on_delete=models.CASCADE, related_name="reviews"
     )
     reviewer = models.ForeignKey(
-        User, on_delete=models.CASCADE, related_name="given_reviews"
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="given_reviews"
     )
     feedback = models.TextField()
     rating = models.PositiveIntegerField(default=5)
@@ -407,7 +415,9 @@ class StreakProfile(models.Model):
     """Tracks daily coding streaks for a user."""
 
     user = models.OneToOneField(
-        User, on_delete=models.CASCADE, related_name="streak_profile"
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="streak_profile",
     )
     current_streak = models.PositiveIntegerField(default=0)
     longest_streak = models.PositiveIntegerField(default=0)
@@ -418,6 +428,7 @@ class StreakProfile(models.Model):
     @property
     def current_multiplier(self) -> float:
         from apps.progress.streak_engine import StreakEngine
+
         return StreakEngine.get_multiplier_for_streak(self.current_streak)
 
     @current_multiplier.setter
@@ -437,8 +448,11 @@ class StreakProfile(models.Model):
 
 class StreakRecoveryPlan(models.Model):
     """Tracks a user's progress toward recovering a lost streak on a specific day."""
+
     user = models.OneToOneField(
-        User, on_delete=models.CASCADE, related_name="streak_recovery_plan"
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="streak_recovery_plan",
     )
     target_date = models.DateField()
     previous_streak = models.PositiveIntegerField(default=0)
@@ -472,7 +486,9 @@ class DailyActivity(models.Model):
         pass
 
     user = models.ForeignKey(
-        User, on_delete=models.CASCADE, related_name="daily_activities"
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="daily_activities",
     )
     date = models.DateField()
     activity_type = models.CharField(max_length=64, null=True, blank=True)
@@ -526,7 +542,10 @@ class DailyActivity(models.Model):
                         missed_days = (date - last).days - 1
                         if missed_days == 0:
                             streak_profile.current_streak += 1
-                        elif missed_days > 0 and streak_profile.streak_freezes >= missed_days:
+                        elif (
+                            missed_days > 0
+                            and streak_profile.streak_freezes >= missed_days
+                        ):
                             streak_profile.streak_freezes -= missed_days
                             streak_profile.current_streak += 1
                         else:
@@ -552,7 +571,9 @@ class DailyActivity(models.Model):
 
 
 class LessonBookmark(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="bookmarks")
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="bookmarks"
+    )
     lesson = models.ForeignKey(
         "content.Lesson", on_delete=models.CASCADE, related_name="bookmarks"
     )
@@ -567,8 +588,12 @@ class LessonBookmark(models.Model):
 
 
 class UserNote(models.Model):
-    user = models.ForeignKey(User, on_delete=models.CASCADE, related_name="lesson_notes")
-    lesson = models.ForeignKey("content.Lesson", on_delete=models.CASCADE, related_name="lesson_notes")
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="lesson_notes"
+    )
+    lesson = models.ForeignKey(
+        "content.Lesson", on_delete=models.CASCADE, related_name="lesson_notes"
+    )
     content = models.TextField()
     tags = models.JSONField(default=list, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -599,7 +624,7 @@ class Season(models.Model):
             ("pr", "Pull Request"),
             ("issue", "Issue"),
             ("review", "Review"),
-        ]
+        ],
     )
     created_at = models.DateTimeField(auto_now_add=True)
 
@@ -623,14 +648,18 @@ class TrackMilestone(models.Model):
             ("exercise", "Exercise completions"),
             ("xp", "Total XP earned"),
         ],
-        default="xp"
+        default="xp",
     )
     target_value = models.PositiveIntegerField(default=100)
     xp_boost = models.PositiveIntegerField(
         default=0, help_text="One-time XP bonus awarded on completing this milestone."
     )
     badge = models.ForeignKey(
-        Badge, on_delete=models.SET_NULL, null=True, blank=True, related_name="milestones"
+        Badge,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="milestones",
     )
 
     class Meta:
@@ -642,7 +671,9 @@ class TrackMilestone(models.Model):
 
 class UserMilestoneCompletion(models.Model):
     user = models.ForeignKey(
-        User, on_delete=models.CASCADE, related_name="milestone_completions"
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="milestone_completions",
     )
     milestone = models.ForeignKey(
         TrackMilestone, on_delete=models.CASCADE, related_name="completions"

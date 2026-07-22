@@ -6,7 +6,9 @@ from urllib.parse import urlencode
 
 import requests as http_requests
 from django.conf import settings
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
 from django.core.mail import send_mail
 from django.db.models import Sum
 from django.shortcuts import redirect

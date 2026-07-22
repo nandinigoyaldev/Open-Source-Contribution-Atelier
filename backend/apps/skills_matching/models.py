@@ -3,7 +3,8 @@ Models for AI-powered contributor skill matching.
 """
 
 from django.db import models
-from django.contrib.auth.models import User
+from django.conf import settings
+
 from django.utils import timezone
 import uuid
 
@@ -14,7 +15,7 @@ class ContributorProfile(models.Model):
     """
     
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
-    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name='skill_profile')
+    user = models.OneToOneField(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='skill_profile')
     
     # GitHub data
     github_username = models.CharField(max_length=255)
