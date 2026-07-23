@@ -1,5 +1,6 @@
 from datetime import timedelta
 
+from django.db.models import Q
 from django.utils import timezone
 
 from apps.challenges.models import Challenge
@@ -15,6 +16,25 @@ class RecommendationEngine:
     def __init__(self, user):
         self.user = user
         self.cache_manager = CacheManager()
+
+    def _get_user_organization(self):
+        if not self.user or not getattr(self.user, "is_authenticated", True):
+            return None
+        try:
+            from apps.accounts.models import UserProfile
+
+            profile = UserProfile.objects.filter(user=self.user).select_related("organization").first()
+            if profile and profile.organization_id:
+                return profile.organization
+        except Exception:
+            pass
+        try:
+            org = getattr(self.user, "organization", None)
+            if org is not None:
+                return org
+        except Exception:
+            pass
+        return None
 
     def generate_recommendations(self):
         # Throttle generation using cache
@@ -69,10 +89,20 @@ class RecommendationEngine:
         ).order_by("-score", "-updated_at")[:5]
 
         if completed_lessons.exists():
-            # Recommend challenges
-            challenges = Challenge.objects.all().order_by("?")[
-                :3
-            ]  # Random for now, can be improved
+            # Recommend challenges scoped to user organization or public
+            org = self._get_user_organization()
+            challenges = Challenge.objects.all()
+            if org is not None:
+                org_id = getattr(org, "id", None)
+                challenges = challenges.filter(
+                    Q(organization_id=org_id) | Q(is_public=True) | Q(organization__isnull=True)
+                )
+            else:
+                challenges = challenges.filter(
+                    Q(is_public=True) | Q(organization__isnull=True)
+                )
+
+            challenges = challenges.order_by("?")[:3]
             for challenge in challenges:
                 self._create_or_update_recommendation(
                     content_type=Recommendation.ContentType.CHALLENGE,
@@ -90,10 +120,21 @@ class RecommendationEngine:
         ).exists()
 
         if not recent_activity:
-            # Find an uncompleted lesson
-            uncompleted = Lesson.objects.exclude(
+            # Find an uncompleted lesson scoped to user organization or public
+            org = self._get_user_organization()
+            lessons = Lesson.objects.exclude(
                 lessonprogress__user=self.user, lessonprogress__completed=True
-            ).first()
+            )
+            if org is not None:
+                org_id = getattr(org, "id", None)
+                org_name = getattr(org, "name", None)
+                lessons = lessons.filter(
+                    Q(organization_id=org_id) | Q(organization__name=org_name) | Q(organization__isnull=True)
+                )
+            else:
+                lessons = lessons.filter(organization__isnull=True)
+
+            uncompleted = lessons.first()
 
             if uncompleted:
                 self._create_or_update_recommendation(
