@@ -144,6 +144,14 @@ class ProjectViewSet(viewsets.ModelViewSet):
 
         import re
 
+        if is_regex:
+            if len(query) > 100:
+                return Response({"error": "Regex query too long (max 100 chars)"}, status=400)
+            # Basic validation to prevent catastrophic backtracking (nested quantifiers)
+            if re.search(r"(\(.*?[+*{].*?\)[+*{])", query):
+                return Response({"error": "Complex nested quantifiers are not allowed"}, status=400)
+
+
         flags = 0 if match_case else re.IGNORECASE
         try:
             pattern = re.compile(query if is_regex else re.escape(query), flags)
