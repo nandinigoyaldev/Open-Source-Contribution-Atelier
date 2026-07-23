@@ -1,5 +1,6 @@
 import { enqueueOfflineAction } from "./offlineQueue";
-import { getAccessToken } from "./authToken";
+import { clearAccessToken, getAccessToken } from "./authToken";
+import { broadcastAuthEvent } from "./authSync";
 import toast from "react-hot-toast"; // <-- YEH HUMNE ADD KIYA HAI
 
 const getApiBaseUrl = () => {
@@ -118,6 +119,13 @@ export async function fetchApi(endpoint: string, options: RequestOptions = {}) {
               );
               break;
             case 401:
+              clearAccessToken();
+              try {
+                localStorage.removeItem("refreshToken");
+              } catch {
+                /* storage unavailable */
+              }
+              broadcastAuthEvent("LOGOUT");
               toast.error("Session expired. Please log in again.");
               break;
             case 403:

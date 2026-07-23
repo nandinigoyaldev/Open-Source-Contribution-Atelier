@@ -8,6 +8,8 @@ import React, {
 } from "react";
 import { useAppDispatch, useAppSelector } from "../../store/hooks";
 import { checkUser, loginTokens, logoutAction } from "./authSlice";
+import { useStorageSync } from "../../hooks/useStorageSync";
+import { broadcastAuthEvent } from "../../lib/authSync";
 
 type User = {
   id: number;
@@ -42,9 +44,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     (state) => state.auth,
   );
 
+  useStorageSync();
+
   const login = (tokens: { access: string; refresh: string }) => {
     dispatch(loginTokens(tokens));
     dispatch(checkUser());
+    broadcastAuthEvent("LOGIN");
   };
 
   const logout = async () => {
@@ -52,6 +57,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       sessionStorage.setItem("userLoggedOut", "true");
     } catch (e) {}
     dispatch(logoutAction());
+    broadcastAuthEvent("LOGOUT");
   };
 
   const performCheckUser = useCallback(async () => {
