@@ -12,6 +12,7 @@ import { WebSocketStatusIndicator } from "../components/WebSocketStatus/WebSocke
 import { CustomCursor } from "../components/CustomCursor";
 import { OfflineBanner } from "../components/ui/OfflineBanner";
 import { InstallAppBanner } from "../components/ui/InstallAppBanner";
+import { UpdateAvailableBanner } from "../components/ui/UpdateAvailableBanner";
 import { ConflictResolutionModal } from "../components/ui/ConflictResolutionModal";
 // Pure React Onboarding Tour Step Definition Type Map
 interface TourStep {
@@ -125,6 +126,7 @@ export function App({ children }: { children?: React.ReactNode }) {
           <div className="min-h-screen bg-white dark:bg-slate-900 text-gray-900 dark:text-gray-100 transition-colors duration-300">
             <OfflineBanner />
             <InstallAppBanner />
+            <UpdateAvailableBanner />
             <ConflictResolutionModal />
             {/* Global Toast Configuration */}
             <Toaster

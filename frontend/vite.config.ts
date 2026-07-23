@@ -1,4 +1,4 @@
-import { defineConfig } from "vite";
+import { defineConfig, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 import { VitePWA } from "vite-plugin-pwa";
 import path from "node:path";
@@ -12,6 +12,24 @@ const dirname =
   typeof __dirname !== "undefined"
     ? __dirname
     : path.dirname(fileURLToPath(import.meta.url));
+
+function buildMetadataPlugin(): Plugin {
+  return {
+    name: "build-metadata",
+    apply: "build",
+    generateBundle() {
+      const metadata = {
+        version: process.env.VERCEL_GIT_COMMIT_SHA || Date.now().toString(36),
+        builtAt: new Date().toISOString(),
+      };
+      this.emitFile({
+        type: "asset",
+        fileName: "build-metadata.json",
+        source: JSON.stringify(metadata, null, 2),
+      });
+    },
+  };
+}
 
 export default defineConfig({
   build: {
@@ -27,6 +45,7 @@ export default defineConfig({
   },
   base: process.env.VITE_CDN_URL || "/",
   plugins: [
+    buildMetadataPlugin(),
     react(),
     viteCompression({ algorithm: "brotliCompress", ext: ".br" }),
     viteCompression({ algorithm: "gzip", ext: ".gz" }),
