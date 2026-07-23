@@ -24,6 +24,7 @@ if (SENTRY_DSN) {
     const Sentry = await import("@sentry/react");
     Sentry.init({
       dsn: SENTRY_DSN,
+      release: process.env.VERCEL_GIT_COMMIT_SHA || "development",
       integrations: [
         Sentry.browserTracingIntegration(),
         Sentry.replayIntegration(),
