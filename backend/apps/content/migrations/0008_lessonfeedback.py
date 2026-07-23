@@ -38,9 +38,7 @@ class Migration(migrations.Migration):
                 ),
                 (
                     "comment",
-                    models.TextField(
-                        blank=True, help_text="Optional written feedback"
-                    ),
+                    models.TextField(blank=True, help_text="Optional written feedback"),
                 ),
                 ("is_deleted", models.BooleanField(default=False)),
                 ("created_at", models.DateTimeField(auto_now_add=True)),
@@ -76,8 +74,6 @@ class Migration(migrations.Migration):
         ),
         migrations.AddIndex(
             model_name="lessonfeedback",
-            index=models.Index(
-                fields=["user", "lesson"], name="idx_feedback_user_les"
-            ),
+            index=models.Index(fields=["user", "lesson"], name="idx_feedback_user_les"),
         ),
     ]

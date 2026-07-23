@@ -1,0 +1,145 @@
+{
+  "defaultCommandIds": [
+    "git-status",
+    "git-init",
+    "git-add",
+    "git-commit",
+    "git-log"
+  ],
+  "modules": {
+    "module-1": ["git-status", "git-clone", "git-log"],
+    "module-2": [
+      "git-init",
+      "git-status",
+      "git-add",
+      "git-commit",
+      "git-branch",
+      "git-switch",
+      "git-checkout",
+      "git-merge",
+      "git-log",
+      "git-diff"
+    ],
+    "module-3": [
+      "git-clone",
+      "git-remote",
+      "git-fetch",
+      "git-pull",
+      "git-push",
+      "git-status",
+      "git-branch",
+      "git-log"
+    ],
+    "module-4": ["git-status", "git-log", "git-diff", "git-commit"],
+    "module-5": [
+      "git-clone",
+      "git-switch",
+      "git-add",
+      "git-commit",
+      "git-push",
+      "git-status",
+      "git-remote"
+    ],
+    "module-6": ["git-status", "git-pull", "git-push", "git-log", "git-diff"],
+    "module-7": [
+      "git-rebase",
+      "git-status",
+      "git-add",
+      "git-commit",
+      "git-log",
+      "git-diff",
+      "git-merge"
+    ],
+    "module-8": ["git-clone", "git-remote", "git-status", "git-log"]
+  },
+  "lessons": {
+    "repositories-and-commits": [
+      "git-init",
+      "git-status",
+      "git-add",
+      "git-commit",
+      "git-log"
+    ],
+    "branches": [
+      "git-branch",
+      "git-switch",
+      "git-checkout",
+      "git-status",
+      "git-log"
+    ],
+    "merging": ["git-merge", "git-status", "git-log", "git-diff"],
+    "remotes": [
+      "git-remote",
+      "git-fetch",
+      "git-pull",
+      "git-push",
+      "git-status"
+    ],
+    "git-workflow": [
+      "git-status",
+      "git-add",
+      "git-commit",
+      "git-diff",
+      "git-log"
+    ],
+    "github-repositories": ["git-clone", "git-remote", "git-status", "git-log"],
+    "forks": ["git-clone", "git-remote", "git-fetch", "git-pull", "git-push"],
+    "pull-requests": [
+      "git-switch",
+      "git-push",
+      "git-status",
+      "git-log",
+      "git-diff"
+    ],
+    "first-contribution-walkthrough": [
+      "git-clone",
+      "git-switch",
+      "git-add",
+      "git-commit",
+      "git-push",
+      "git-status"
+    ],
+    "rebasing-and-squashing": [
+      "git-rebase",
+      "git-status",
+      "git-log",
+      "git-commit"
+    ],
+    "conflict-resolution": [
+      "git-status",
+      "git-add",
+      "git-diff",
+      "git-merge",
+      "git-rebase"
+    ]
+  },
+  "slugToModule": {
+    "what-is-open-source": "module-1",
+    "why-open-source-matters": "module-1",
+    "history-of-open-source": "module-1",
+    "benefits-of-contributing": "module-1",
+    "common-misconceptions": "module-1",
+    "open-source-licenses": "module-1",
+    "repositories-and-commits": "module-2",
+    "branches": "module-2",
+    "merging": "module-2",
+    "remotes": "module-2",
+    "git-workflow": "module-2",
+    "github-repositories": "module-3",
+    "forks": "module-3",
+    "pull-requests": "module-3",
+    "issues": "module-3",
+    "discussions": "module-3",
+    "organizations": "module-3",
+    "respect-and-communication": "module-4",
+    "read-readme-and-contributing": "module-4",
+    "professional-prs-and-issues": "module-4",
+    "maintainer-review-processes": "module-4",
+    "first-contribution-walkthrough": "module-5",
+    "contribution-lifecycle": "module-6",
+    "rebasing-and-squashing": "module-7",
+    "conflict-resolution": "module-7",
+    "code-reviews-and-cicd": "module-7",
+    "finding-projects": "module-8"
+  }
+}

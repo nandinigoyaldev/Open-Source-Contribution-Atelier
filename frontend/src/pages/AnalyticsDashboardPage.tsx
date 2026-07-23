@@ -17,6 +17,7 @@ import {
   Cell,
 } from "recharts";
 import { Activity, Users, BookOpen, Code, AlertTriangle } from "lucide-react";
+import { useTheme } from "../context/ThemeContext";
 
 interface AnalyticsData {
   registrations: { date: string; count: number }[];
@@ -28,6 +29,7 @@ interface AnalyticsData {
 const COLORS = ["#0088FE", "#00C49F", "#FFBB28", "#FF8042"];
 
 export default function AnalyticsDashboardPage() {
+  const { theme } = useTheme();
   const { data, isLoading, isError } = useQuery<AnalyticsData>({
     queryKey: ["moderator_analytics"],
     queryFn: () => fetchApi("/dashboard/analytics/"),
@@ -111,13 +113,18 @@ export default function AnalyticsDashboardPage() {
                 <CartesianGrid
                   strokeDasharray="3 3"
                   vertical={false}
-                  stroke="#e0e0e0"
+                  stroke={theme === "dark" ? "#2e2924" : "#e0e0e0"}
                 />
                 <Tooltip
                   contentStyle={{
                     borderRadius: "8px",
-                    border: "2px solid black",
+                    border:
+                      theme === "dark"
+                        ? "2px solid #2e2924"
+                        : "2px solid black",
                     fontWeight: "bold",
+                    backgroundColor: theme === "dark" ? "#1f1c18" : "#fff",
+                    color: theme === "dark" ? "#f0ebe2" : "#000",
                   }}
                 />
                 <Area
@@ -164,8 +171,13 @@ export default function AnalyticsDashboardPage() {
                 <Tooltip
                   contentStyle={{
                     borderRadius: "8px",
-                    border: "2px solid black",
+                    border:
+                      theme === "dark"
+                        ? "2px solid #2e2924"
+                        : "2px solid black",
                     fontWeight: "bold",
+                    backgroundColor: theme === "dark" ? "#1f1c18" : "#fff",
+                    color: theme === "dark" ? "#f0ebe2" : "#000",
                   }}
                 />
                 <Legend
@@ -215,7 +227,7 @@ export default function AnalyticsDashboardPage() {
                       <Cell
                         key={`cell-${index}`}
                         fill={COLORS[index % COLORS.length]}
-                        stroke="black"
+                        stroke={theme === "dark" ? "#1f1c18" : "black"}
                         strokeWidth={2}
                       />
                     ))}
@@ -223,8 +235,13 @@ export default function AnalyticsDashboardPage() {
                   <Tooltip
                     contentStyle={{
                       borderRadius: "8px",
-                      border: "2px solid black",
+                      border:
+                        theme === "dark"
+                          ? "2px solid #2e2924"
+                          : "2px solid black",
                       fontWeight: "bold",
+                      backgroundColor: theme === "dark" ? "#1f1c18" : "#fff",
+                      color: theme === "dark" ? "#f0ebe2" : "#000",
                     }}
                   />
                   <Legend
@@ -263,7 +280,7 @@ export default function AnalyticsDashboardPage() {
                       <Cell
                         key={`cell-${index}`}
                         fill={COLORS[(index + 2) % COLORS.length]}
-                        stroke="black"
+                        stroke={theme === "dark" ? "#1f1c18" : "black"}
                         strokeWidth={2}
                       />
                     ))}
@@ -271,8 +288,13 @@ export default function AnalyticsDashboardPage() {
                   <Tooltip
                     contentStyle={{
                       borderRadius: "8px",
-                      border: "2px solid black",
+                      border:
+                        theme === "dark"
+                          ? "2px solid #2e2924"
+                          : "2px solid black",
                       fontWeight: "bold",
+                      backgroundColor: theme === "dark" ? "#1f1c18" : "#fff",
+                      color: theme === "dark" ? "#f0ebe2" : "#000",
                     }}
                   />
                   <Legend

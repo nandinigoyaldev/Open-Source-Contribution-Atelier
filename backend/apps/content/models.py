@@ -2,11 +2,12 @@ from django.contrib.auth import get_user_model
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
+from apps.core.models import AuditableModel
 
 User = get_user_model()
 
 
-class Lesson(models.Model):
+class Lesson(AuditableModel):
     class DoesNotExist(ObjectDoesNotExist):
         pass
 
@@ -37,6 +38,7 @@ class Lesson(models.Model):
     prerequisites = models.ManyToManyField(
         "self", symmetrical=False, related_name="dependents", blank=True
     )
+    js_exercise = models.JSONField(null=True, blank=True, default=None)
 
     @property
     def reading_time(self) -> int:
@@ -46,6 +48,18 @@ class Lesson(models.Model):
 
     class Meta:
         ordering = ["order", "id"]
+
+
+class LessonVersion(models.Model):
+    lesson = models.ForeignKey(
+        Lesson, related_name="versions", on_delete=models.CASCADE
+    )
+    content = models.TextField()
+    summary = models.TextField(blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at"]
 
 
 class Exercise(models.Model):
@@ -61,15 +75,18 @@ class Exercise(models.Model):
 
 
 class SoftDeleteQuerySet(models.QuerySet):
-    def delete(self, hard=False):
-        if hard:
-            return super().delete()  # type: ignore
-        return self.update(is_deleted=True)
+    def delete(self, *args, **kwargs) -> tuple[int, dict[str, int]]:
+        # Soft delete by default; restore by toggling `is_deleted`.
+        self.update(is_deleted=True)
+        return (1, {self.model._meta.label: 1})
 
 
 class SoftDeleteManager(models.Manager):
     def get_queryset(self):
         return SoftDeleteQuerySet(self.model, using=self._db).filter(is_deleted=False)
+
+    def delete(self):
+        return self.get_queryset().delete()
 
 
 class LessonThread(models.Model):
@@ -224,12 +241,9 @@ class LessonFeedback(models.Model):
             MinValueValidator(1),
             MaxValueValidator(5),
         ],
-        help_text="Star rating from 1 to 5"
+        help_text="Star rating from 1 to 5",
     )
-    comment = models.TextField(
-        blank=True,
-        help_text="Optional written feedback"
-    )
+    comment = models.TextField(blank=True, help_text="Optional written feedback")
     is_deleted = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -256,3 +270,90 @@ class LessonFeedback(models.Model):
     def __str__(self):
         status = "[DELETED] " if self.is_deleted else ""
         return f"{status}Feedback by {self.user.username} for {self.lesson.title}: {self.rating} stars"
+
+
+class Profile(models.Model):
+    user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="profile")
+    bio = models.TextField(
+        max_length=160,
+        blank=True,
+        default="",
+        help_text="A short biography or description.",
+    )
+    # Individual fields for requested social platforms
+    github_link = models.URLField(
+        blank=True, default="", help_text="GitHub profile URL"
+    )
+    linkedin_link = models.URLField(
+        blank=True, default="", help_text="LinkedIn profile URL"
+    )
+    portfolio_link = models.URLField(
+        blank=True, default="", help_text="Personal portfolio URL"
+    )
+
+    def __str__(self):
+        return f"Profile for {self.user.username}"
+
+
+class ModuleDraft(models.Model):
+    title = models.CharField(max_length=255)
+    slug = models.SlugField(unique=True)
+    description = models.TextField(blank=True)
+    order = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["order", "id"]
+
+    def __str__(self):
+        return self.title
+
+
+class LessonDraft(models.Model):
+    module = models.ForeignKey(
+        ModuleDraft,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="lessons",
+    )
+    title = models.CharField(max_length=255)
+    slug = models.SlugField(unique=True)
+    description = models.TextField(blank=True)
+    content = models.TextField(blank=True)
+    difficulty = models.CharField(max_length=32, default="beginner")
+    tags = models.JSONField(default=list, blank=True)
+    estimated_minutes = models.PositiveIntegerField(default=15)
+    order = models.PositiveIntegerField(default=0)
+    is_published = models.BooleanField(default=False)
+    learning_objectives = models.JSONField(default=list, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["order", "id"]
+
+    def __str__(self):
+        return self.title
+
+
+class QuizDraft(models.Model):
+    lesson = models.ForeignKey(
+        LessonDraft,
+        on_delete=models.CASCADE,
+        related_name="quizzes",
+    )
+    question = models.TextField()
+    options = models.JSONField(default=list)
+    answer = models.IntegerField(default=0)
+    explanation = models.TextField(blank=True)
+    order = models.PositiveIntegerField(default=0)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["order", "id"]
+
+    def __str__(self):
+        return f"Quiz question for {self.lesson.title}"

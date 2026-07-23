@@ -41,10 +41,7 @@ export default function SkeletonAdminDashboard() {
           <Skeleton className="h-[200px] w-[200px] rounded-full mx-auto" />
           <div className="grid grid-cols-3 gap-2 mt-6">
             {Array.from({ length: 3 }).map((_, j) => (
-              <Skeleton
-                key={j}
-                className="h-12 rounded-lg "
-              />
+              <Skeleton key={j} className="h-12 rounded-lg " />
             ))}
           </div>
         </div>

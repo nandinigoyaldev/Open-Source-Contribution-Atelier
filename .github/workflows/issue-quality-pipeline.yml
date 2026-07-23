@@ -1,0 +1,116 @@
+name: Issue Quality Pipeline
+
+on:
+  issues:
+    types: [opened, edited, reopened]
+  pull_request:
+    types: [opened, edited, reopened]
+  schedule:
+    - cron: '0 0 * * 0'  # Weekly on Sunday
+
+jobs:
+  analyze-issue-quality:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'issues' || github.event_name == 'pull_request'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          cd backend
+          pip install -r requirements.txt
+          pip install textblob
+
+      - name: Analyze issue quality
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cd backend
+          python scripts/analyze_issue_quality.py \
+            --issue-number ${{ github.event.issue.number || github.event.pull_request.number }} \
+            --repository ${{ github.repository }} \
+            --event ${{ github.event_name }}
+
+      - name: Post quality comment
+        if: github.event_name == 'issues'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            try {
+              const report = fs.readFileSync('quality_report.json', 'utf8');
+              const data = JSON.parse(report);
+              
+              const comment = `
+              ## 📊 Issue Quality Analysis
+
+              | Metric | Score |
+              |--------|-------|
+              | **Clarity** | ${data.clarity_score}/100 |
+              | **Scope** | ${data.scope_score}/100 |
+              | **Acceptance Criteria** | ${data.acceptance_criteria_score}/100 |
+              | **Touchpoints** | ${data.touchpoints_score}/100 |
+              | **Overall Quality** | ${data.overall_quality_score}/100 |
+
+              ${data.suggestions.length > 0 ? `
+              ### 💡 Suggestions
+
+              ${data.suggestions.map(s => `- ${s}`).join('\n')}
+              ` : ''}
+
+              ${data.clarity_issues.length > 0 ? `
+              ### ⚠️ Issues Detected
+
+              ${data.clarity_issues.map(i => `- ${i}`).join('\n')}
+              ` : ''}
+
+              > Quality score is calculated based on clarity, scope, acceptance criteria, and codebase touchpoints.
+              `;
+              
+              github.rest.issues.createComment({
+                issue_number: context.issue.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: comment
+              });
+            } catch (e) {
+              console.log('Could not post quality comment:', e);
+            }
+
+  generate-quality-report:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'schedule'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          cd backend
+          pip install -r requirements.txt
+
+      - name: Generate weekly report
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          cd backend
+          python scripts/generate_quality_report.py
+
+      - name: Upload report
+        uses: actions/upload-artifact@v4
+        with:
+          name: quality-report
+          path: backend/quality_report_*.md

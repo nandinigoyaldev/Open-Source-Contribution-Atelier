@@ -1,0 +1,38 @@
+{
+  "quiz-1": {
+    "question": "What is the primary defining characteristic of open-source software?",
+    "options": [
+      "It is always completely free of charge.",
+      "Its source code is publicly accessible, allowing anyone to view, modify, and distribute it.",
+      "It can only be developed by large non-profit foundations.",
+      "It has no copyright licenses associated with it."
+    ],
+    "answer": 1,
+    "explanation": "Open-source software is defined by its source code being publicly available for anyone to inspect, modify, and enhance under open licenses.",
+    "points": 15
+  },
+  "quiz-2": {
+    "question": "Which of these is a benefit of open-source collaboration for developers?",
+    "options": [
+      "Guaranteed immediate high salary.",
+      "It prevents other developers from seeing your code mistakes.",
+      "Peer review improves security, quality, and helps you learn from others.",
+      "You get exclusive ownership of the shared code."
+    ],
+    "answer": 2,
+    "explanation": "Collaborating openly exposes code to community reviews, improving quality, security, and accelerating learning.",
+    "points": 15
+  },
+  "quiz-git-1": {
+    "question": "What is the primary difference between a local Git repository and a GitHub repository?",
+    "options": [
+      "Local Git repositories are only for private projects; GitHub is only for commercial teams.",
+      "Local Git is version control on your computer; GitHub is a cloud hosting platform with collaboration features.",
+      "GitHub doesn't track commits or branches.",
+      "Git is paid software, while GitHub is completely open-source."
+    ],
+    "answer": 1,
+    "explanation": "Git is the local command-line tool, whereas GitHub is a cloud-based web application facilitating shared repository management and social coding.",
+    "points": 20
+  }
+}

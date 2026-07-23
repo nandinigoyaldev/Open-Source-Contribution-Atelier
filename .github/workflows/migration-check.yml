@@ -1,39 +1,64 @@
 name: Migration Safety Check
 
-on:
+"on":
   pull_request:
-    paths:
-      - 'backend/**/migrations/*.py'
+  workflow_dispatch:
 
 jobs:
   migration-check:
     runs-on: ubuntu-latest
-    
+
     steps:
       - uses: actions/checkout@v3
-      
+        with:
+          fetch-depth: 0
+
+      - name: Check for migration changes
+        id: filter
+        run: |
+          echo "migrations=true" >> "$GITHUB_OUTPUT"
+          
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "migrations=true" >> "$GITHUB_OUTPUT"
+            echo "Manual trigger: safety checks enabled."
+          else
+            git fetch --no-tags --depth=1 origin ${{ github.base_ref }} || true
+            if git diff --name-only origin/${{ github.base_ref }}...HEAD | grep -qE '^backend/.*migrations/.*\.py$'; then
+              echo "migrations=true" >> "$GITHUB_OUTPUT"
+              echo "Migrations changed: safety checks enabled."
+            else
+              echo "migrations=false" >> "$GITHUB_OUTPUT"
+              echo "No migrations changed: safety checks skipped."
+            fi
+          fi
+
       - name: Set up Python
+        if: steps.filter.outputs.migrations == 'true'
         uses: actions/setup-python@v4
         with:
           python-version: '3.11'
-      
+
       - name: Install dependencies
+        if: steps.filter.outputs.migrations == 'true'
         run: |
           cd backend
           pip install -r requirements.txt
-      
+
       - name: Check migration safety
+        if: steps.filter.outputs.migrations == 'true'
         id: check
+        timeout-minutes: 10
         run: |
           cd backend
           python manage.py check_migration_safety
-      
+
       - name: Comment PR
+        if: steps.filter.outputs.migrations == 'true' && (success() || failure())
         uses: actions/github-script@v6
         with:
           script: |
-            const check = '${{ steps.check.outputs.result }}';
-            const comment = check === 'safe' 
+            const check = '${{ steps.check.outcome }}';
+            const comment = check === 'success' 
               ? '✅ Migration safety check passed!' 
               : '⚠️ Migration safety check found issues. Please review.';
             github.rest.issues.createComment({
@@ -41,4 +66,4 @@ jobs:
               owner: context.repo.owner,
               repo: context.repo.repo,
               body: comment
-            })
+            })

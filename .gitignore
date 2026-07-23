@@ -26,6 +26,18 @@ frontend/.vite/
 # Build artifacts
 frontend/dist/
 
+# Generated Django static files (collectstatic output)
+backend/staticfiles/
+
+# Generated service worker
+frontend/public/sw.js
+
+# TypeScript incremental build info
+*.tsbuildinfo
+
+# Lint output
+lint_output.txt
+
 # Vercel
 .vercel/
 

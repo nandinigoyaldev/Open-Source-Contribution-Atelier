@@ -1,0 +1,68 @@
+name: Ephemeral Preview Environment
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+jobs:
+  deploy-preview:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: 'npm'
+          cache-dependency-path: 'frontend/package-lock.json'
+
+      - name: Install Vercel CLI
+        run: npm install --global vercel@latest
+
+      - name: Pull Vercel Environment Information
+        run: vercel pull --yes --environment=preview --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+      - name: Build Project Artifacts
+        run: vercel build --token=${{ secrets.VERCEL_TOKEN }}
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          # Injecting the deterministic Render PR Preview URL for the backend
+          VITE_API_URL: https://backend-pr-${{ github.event.pull_request.number }}.onrender.com/api
+
+      - name: Deploy Project Artifacts to Vercel
+        id: vercel_deploy
+        run: |
+          preview_url=$(vercel deploy --prebuilt --token=${{ secrets.VERCEL_TOKEN }})
+          echo "preview_url=$preview_url" >> $GITHUB_ENV
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+      - name: Comment on PR with Preview URLs
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const frontendUrl = process.env.preview_url;
+            const backendUrl = `https://backend-pr-${context.payload.pull_request.number}.onrender.com`;
+            
+            const commentBody = `
+            🚀 **Ephemeral Preview Environments are ready!**
+            
+            - 🖥️ **Frontend Preview:** [${frontendUrl}](${frontendUrl})
+            - ⚙️ **Backend Preview (Render):** [${backendUrl}](${backendUrl})
+            
+            _Note: The backend environment may take a few minutes to boot up initially._
+            `;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: commentBody
+            });

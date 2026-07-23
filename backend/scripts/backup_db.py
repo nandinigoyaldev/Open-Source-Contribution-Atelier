@@ -62,7 +62,17 @@ class DatabaseBackup:
             return filepath
         except subprocess.CalledProcessError as e:
             print(f"❌ Backup failed: {e}")
+            self._cleanup_partial_file(filepath)
             return None
+
+    def _cleanup_partial_file(self, filepath):
+        """Remove a partial/empty backup file left behind by a failed pg_dump run."""
+        try:
+            if filepath.exists():
+                filepath.unlink()
+                print(f"🧹 Removed partial backup after failure: {filepath}")
+        except OSError as e:
+            print(f"⚠️ Could not remove partial backup {filepath}: {e}")
 
     def compress_backup(self, filepath):
         compressed_path = filepath.with_suffix(".sql.gz")
@@ -88,8 +98,16 @@ class DatabaseBackup:
             )
 
             s3_key = f"backups/{filepath.name}"
-            s3.upload_file(str(filepath), self.s3_bucket, s3_key)
-            print(f"✅ Uploaded to S3: s3://{self.s3_bucket}/{s3_key}")
+            sse_algorithm = os.getenv("S3_BACKUP_SSE_ALGORITHM", "AES256")
+            s3.upload_file(
+                str(filepath),
+                self.s3_bucket,
+                s3_key,
+                ExtraArgs={"ServerSideEncryption": sse_algorithm},
+            )
+            print(
+                f"✅ Uploaded to S3 (encrypted, {sse_algorithm}): s3://{self.s3_bucket}/{s3_key}"
+            )
             return True
         except Exception as e:
             print(f"❌ S3 upload failed: {e}")
@@ -100,10 +118,15 @@ class DatabaseBackup:
 
         cutoff = time.time() - (self.retention_days * 24 * 60 * 60)
 
-        for file in self.backup_dir.glob("*.sql.gz"):
-            if file.stat().st_mtime < cutoff:
-                file.unlink()
-                print(f"🧹 Deleted old backup: {file}")
+        # *.sql.gz = normal successful backups under retention policy.
+        # *.sql (uncompressed) = orphaned leftovers from failed/interrupted
+        # runs that predate this fix, or from a race where compression
+        # never ran. Sweep both so nothing lingers past retention_days.
+        for pattern in ("*.sql.gz", "*.sql"):
+            for file in self.backup_dir.glob(pattern):
+                if file.stat().st_mtime < cutoff:
+                    file.unlink()
+                    print(f"🧹 Deleted old backup: {file}")
 
     def run(self):
         print(f"📦 Starting database backup at {datetime.now()}")

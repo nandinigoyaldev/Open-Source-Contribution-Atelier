@@ -1,7 +1,9 @@
 from concurrent.futures import ThreadPoolExecutor
 from unittest.mock import patch
 
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
 from django.db import close_old_connections
 from django.test import TransactionTestCase, skipUnlessDBFeature
 from rest_framework.test import APIRequestFactory, force_authenticate
@@ -119,16 +121,10 @@ class ProgressConcurrencyTests(TransactionTestCase):
                 ),
             ]
 
-            statuses = [
-                future.result()
-                for future in futures
-            ]
+            statuses = [future.result() for future in futures]
 
         self.assertTrue(
-            all(
-                response_status in (200, 201)
-                for response_status in statuses
-            )
+            all(response_status in (200, 201) for response_status in statuses)
         )
 
         self.assertEqual(

@@ -19,7 +19,7 @@
   padding: 24px 32px;
   max-width: 400px;
   width: 90%;
-  box-shadow: 0 8px 32px rgba(0,0,0,0.2);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.2);
   animation: slideUp 0.3s ease;
 }
 
@@ -97,7 +97,7 @@
 }
 
 .confirm-btn.warning {
-  background: #FF9800;
+  background: #ff9800;
   color: white;
 }
 
@@ -106,33 +106,43 @@
 }
 
 .confirm-btn.info {
-  background: #2196F3;
+  background: #2196f3;
   color: white;
 }
 
 .confirm-btn.info:hover {
-  background: #1976D2;
+  background: #1976d2;
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
 }
 
 @keyframes slideUp {
-  from { transform: translateY(20px); opacity: 0; }
-  to { transform: translateY(0); opacity: 1; }
+  from {
+    transform: translateY(20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
 }
 
 @media (max-width: 480px) {
   .confirm-dialog {
     padding: 20px;
   }
-  
+
   .confirm-actions {
     flex-direction: column-reverse;
   }
-  
+
   .confirm-btn {
     width: 100%;
     justify-content: center;
