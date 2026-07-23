@@ -61,7 +61,12 @@ def process_bulk_progress_updates(user, validated_data):
         progress_to_create = []
         progress_to_update = []
 
-        multiplier = XPMultiplierEvent.get_active_multiplier()
+        from apps.progress.services.milestone_track_service import MilestoneTrackService
+
+        season_mult = MilestoneTrackService.get_active_season_multiplier(user, "lesson")
+        multiplier = XPMultiplierEvent.get_active_multiplier() * season_mult
+
+        xp_events_to_create = []
 
         for item in validated_data:
             lesson = existing_lessons[item["lesson_slug"]]
@@ -83,12 +88,29 @@ def process_bulk_progress_updates(user, validated_data):
                 if not skip_update and (
                     prog.base_score != base_score or prog.completed != completed
                 ):
+                    old_score = prog.score
                     prog.completed = completed
                     prog.base_score = base_score
                     prog.multiplier_applied = multiplier
                     prog.score = int(base_score * multiplier)
                     progress_to_update.append(prog)
+
+                    xp_delta = prog.score - old_score
+                    if xp_delta != 0:
+                        from apps.progress.models import XPEvent
+
+                        xp_events_to_create.append(
+                            XPEvent(
+                                user=user,
+                                source_type="lesson",
+                                source_id=lesson.id,
+                                base_points=base_score,
+                                multiplier=multiplier,
+                                xp_delta=xp_delta,
+                            )
+                        )
             else:
+                prog_score = int(base_score * multiplier)
                 progress_to_create.append(
                     LessonProgress(
                         user=user,
@@ -96,9 +118,22 @@ def process_bulk_progress_updates(user, validated_data):
                         completed=completed,
                         base_score=base_score,
                         multiplier_applied=multiplier,
-                        score=int(base_score * multiplier),
+                        score=prog_score,
                     )
                 )
+                if prog_score != 0:
+                    from apps.progress.models import XPEvent
+
+                    xp_events_to_create.append(
+                        XPEvent(
+                            user=user,
+                            source_type="lesson",
+                            source_id=lesson.id,
+                            base_points=base_score,
+                            multiplier=multiplier,
+                            xp_delta=prog_score,
+                        )
+                    )
 
         if progress_to_create:
             created_progresses = LessonProgress.objects.bulk_create(progress_to_create)
@@ -110,6 +145,11 @@ def process_bulk_progress_updates(user, validated_data):
                 ["completed", "score", "base_score", "multiplier_applied"],
             )
             success_ids.extend([p.id for p in progress_to_update])
+
+        if xp_events_to_create:
+            from apps.progress.models import XPEvent
+
+            XPEvent.objects.bulk_create(xp_events_to_create)
 
         async_task("apps.progress.tasks.evaluate_user_badges_task", user.id)
 

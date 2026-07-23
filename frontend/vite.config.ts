@@ -5,25 +5,13 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import process from "node:process";
 import { storybookTest } from "@storybook/addon-vitest/vitest-plugin";
-import { defineConfig } from 'vite';
-import react from '@vitejs/plugin-react';
+import viteCompression from "vite-plugin-compression";
+import { visualizer } from "rollup-plugin-visualizer";
 
-export default defineConfig({
-  plugins: [react()],
-  test: {
-    environment: 'jsdom',
-    globals: true,
-    setupFiles: ['./src/test/setup.ts'],
-    coverage: {
-      provider: 'v8',
-      reporter: ['text', 'json', 'html'],
-    },
-  },
-});
-
-const dirname = typeof __dirname !== "undefined"
-  ? __dirname
-  : path.dirname(fileURLToPath(import.meta.url));
+const dirname =
+  typeof __dirname !== "undefined"
+    ? __dirname
+    : path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
   worker: {
@@ -32,6 +20,14 @@ export default defineConfig({
   base: process.env.VITE_CDN_URL || "/",
   plugins: [
     react(),
+    viteCompression({ algorithm: "brotliCompress", ext: ".br" }),
+    viteCompression({ algorithm: "gzip", ext: ".gz" }),
+    visualizer({
+      filename: "dist/stats.html",
+      template: "treemap",
+      gzipSize: true,
+      brotliSize: true,
+    }),
     VitePWA({
       strategies: "injectManifest",
       srcDir: "src",
@@ -46,14 +42,23 @@ export default defineConfig({
         short_name: "Atelier",
         theme_color: "#ffffff",
         display: "standalone",
+        icons: [
+          {
+            src: "/icons/icon-192x192.png",
+            sizes: "192x192",
+            type: "image/png",
+          },
+          {
+            src: "/icons/icon-512x512.png",
+            sizes: "512x512",
+            type: "image/png",
+          },
+        ],
       },
       devOptions: {
         enabled: true,
         type: "module",
       },
-    }),
-    storybookTest({
-      configDir: path.join(dirname, ".storybook"),
     }),
   ],
   resolve: {
@@ -64,14 +69,20 @@ export default defineConfig({
       {
         extends: true,
         test: {
+          name: "unit",
           environment: "jsdom",
           setupFiles: "./src/test/setup.ts",
-          include: ["src/test/**/*.test.{ts,tsx}"],
+          include: ["src/**/*.test.{ts,tsx}"],
           exclude: ["**/*.stories.{ts,tsx}", "**/*.stories.{js,jsx}"],
         },
       },
       {
         extends: true,
+        plugins: [
+          storybookTest({
+            configDir: path.join(dirname, ".storybook"),
+          }),
+        ],
         test: {
           name: "storybook",
           browser: {
@@ -84,7 +95,13 @@ export default defineConfig({
       },
     ],
     optimizeDeps: {
-      include: ["workbox-precaching", "workbox-routing", "workbox-strategies", "workbox-expiration"],
+      include: [
+        "workbox-precaching",
+        "workbox-routing",
+        "workbox-strategies",
+        "workbox-expiration",
+        "@sentry/react",
+      ],
     },
   },
-} as any);
+});

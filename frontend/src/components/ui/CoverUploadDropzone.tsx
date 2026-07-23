@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from "react";
 import { X, Image as ImageIcon } from "lucide-react";
 import { useToast } from "../../features/ui/ToastContext";
+import { getMediaUrl } from "../../lib/api";
 
 interface CoverUploadDropzoneProps {
   currentCoverUrl?: string | null;
@@ -13,16 +14,14 @@ export function CoverUploadDropzone({
 }: CoverUploadDropzoneProps) {
   const [dragActive, setDragActive] = useState(false);
   const [previewUrl, setPreviewUrl] = useState<string | null>(
-    currentCoverUrl || null,
+    getMediaUrl(currentCoverUrl) || null,
   );
   const inputRef = useRef<HTMLInputElement>(null);
   const { addToast } = useToast();
 
   useEffect(() => {
-    if (currentCoverUrl && !previewUrl) {
-      setPreviewUrl(currentCoverUrl);
-    }
-  }, [currentCoverUrl, previewUrl]);
+    setPreviewUrl(getMediaUrl(currentCoverUrl) || null);
+  }, [currentCoverUrl]);
 
   const handleDrag = (e: React.DragEvent) => {
     e.preventDefault();
@@ -80,15 +79,15 @@ export function CoverUploadDropzone({
   };
 
   return (
-    <div className="w-full mb-8">
-      <label className="block text-sm font-bold text-text dark:text-[#f0ebe2] mb-2">
+    <div className="w-full mb-5">
+      <label className="block text-xs font-bold text-text dark:text-[#f0ebe2] mb-1.5 uppercase tracking-wide">
         Profile Cover Image
       </label>
       <div
-        className={`relative w-full h-40 border-2 border-dashed rounded-2xl flex flex-col items-center justify-center cursor-pointer transition-all duration-200 overflow-hidden bg-white/50 dark:bg-[linear-gradient(145deg,#181f2c,#12110f)] dark:shadow-[0_12px_26px_rgba(0,0,0,0.28)_inset] ${
+        className={`relative w-full h-24 border-2 border-dashed rounded-xl flex flex-col items-center justify-center cursor-pointer transition-all duration-200 overflow-hidden bg-white/50 dark:bg-[linear-gradient(145deg,#181f2c,#12110f)] dark:shadow-[0_12px_26px_rgba(0,0,0,0.28)_inset] ${
           dragActive
-            ? "border-primary bg-primary/10 scale-[1.02]"
-            : "border-black/50 hover:border-primary dark:border-[#5d5247] dark:hover:border-accent"
+            ? "border-primary bg-primary/10 scale-[1.01]"
+            : "border-black/30 hover:border-primary dark:border-[#5d5247] dark:hover:border-accent"
         }`}
         onDragEnter={handleDrag}
         onDragLeave={handleDrag}
@@ -112,29 +111,29 @@ export function CoverUploadDropzone({
               className="w-full h-full object-cover transition-transform group-hover:scale-105"
             />
             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
-              <span className="text-white text-sm font-semibold drop-shadow-md">
+              <span className="text-white text-xs font-semibold drop-shadow-md">
                 Change Cover Image
               </span>
             </div>
             <button
               type="button"
               onClick={clearImage}
-              className="absolute top-2 right-2 p-1.5 bg-red-500 rounded-full text-white hover:bg-red-600 transition-colors shadow-lg hover:scale-110 z-10"
+              className="absolute top-1 right-1 p-1 bg-red-500 rounded-full text-white hover:bg-red-600 transition-colors shadow shadow-red-700/50 hover:scale-105 z-10"
               title="Remove image"
             >
-              <X size={16} strokeWidth={3} />
+              <X size={12} strokeWidth={3} />
             </button>
           </div>
         ) : (
-          <div className="flex flex-col items-center text-muted dark:text-[#c4bbae] p-6 text-center z-10">
-            <div className="w-12 h-12 rounded-full bg-[#1f2937] dark:bg-[#2e2924] flex items-center justify-center mb-3 shadow-inner">
-              <ImageIcon size={24} className="text-[#8a8fff]" />
+          <div className="flex flex-col items-center text-muted dark:text-[#c4bbae] p-3 text-center z-10">
+            <div className="w-10 h-10 rounded-full bg-[#1f2937] dark:bg-[#2e2924] flex items-center justify-center mb-1.5 shadow-inner">
+              <ImageIcon size={18} className="text-[#8a8fff]" />
             </div>
-            <p className="text-base font-bold text-text dark:text-[#f0ebe2]">
+            <p className="text-sm font-bold text-text dark:text-[#f0ebe2]">
               Upload a banner image
             </p>
-            <p className="text-sm text-muted dark:text-[#c4bbae] mt-1">
-              Supports JPG, PNG, and WebP (max. 5MB). Ideal aspect ratio 3:1.
+            <p className="text-[10px] text-muted dark:text-[#c4bbae] mt-0.5">
+              JPG, PNG, WebP (max. 5MB)
             </p>
           </div>
         )}

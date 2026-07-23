@@ -1,0 +1,156 @@
+name: Dependency Intelligence
+
+on:
+  schedule:
+    - cron: "17 4 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+concurrency:
+  group: dependency-intelligence
+  cancel-in-progress: false
+
+env:
+  UPDATE_BRANCH: chore/weekly-dependency-intelligence
+  REPORT_PATH: dependency-update-report.md
+
+jobs:
+  dependency-update:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Configure Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install analysis tools
+        run: |
+          npm install --global npm-check-updates
+          python -m pip install --upgrade pip packaging pytest
+
+      - name: Save dependency baselines
+        run: |
+          cp package.json /tmp/root-package.before.json
+          cp frontend/package.json /tmp/frontend-package.before.json
+          cp backend/requirements.txt /tmp/requirements.before.txt
+
+      - name: Update npm dependency manifests
+        run: |
+          ncu --packageFile package.json --upgrade
+          ncu --packageFile frontend/package.json --upgrade
+          npm install --package-lock-only --ignore-scripts --no-audit --no-fund --prefix frontend
+
+      - name: Update supported Python requirement ranges
+        run: |
+          python scripts/dependency_intelligence.py update-python \
+            --requirements backend/requirements.txt
+
+      - name: Generate dependency report
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          python scripts/dependency_intelligence.py report \
+            --before-root /tmp/root-package.before.json \
+            --after-root package.json \
+            --before-frontend /tmp/frontend-package.before.json \
+            --after-frontend frontend/package.json \
+            --before-python /tmp/requirements.before.txt \
+            --after-python backend/requirements.txt \
+            --output "$REPORT_PATH" \
+            --json-output dependency-update-report.json
+
+      - name: Run dependency intelligence tests
+        run: pytest -q scripts/tests/test_dependency_intelligence.py
+
+      - name: Detect whether manifests changed
+        id: changes
+        shell: bash
+        run: |
+          if git diff --quiet -- package.json frontend/package.json frontend/package-lock.json backend/requirements.txt; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create or update dependency branch
+        if: steps.changes.outputs.changed == 'true'
+        run: |
+          git checkout -B "$UPDATE_BRANCH"
+          git add package.json frontend/package.json frontend/package-lock.json backend/requirements.txt "$REPORT_PATH" dependency-update-report.json
+          git commit -m "chore: weekly dependency updates" || true
+          git push --force-with-lease origin "$UPDATE_BRANCH"
+
+      - name: Create or update pull request
+        if: steps.changes.outputs.changed == 'true'
+        id: pr
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          TITLE="chore: weekly dependency intelligence update"
+          BODY_FILE="$REPORT_PATH"
+          EXISTING_PR="$(gh pr list --head "$UPDATE_BRANCH" --state open --json number --jq '.[0].number // empty')"
+
+          if [ -n "$EXISTING_PR" ]; then
+            gh pr edit "$EXISTING_PR" --title "$TITLE" --body-file "$BODY_FILE"
+            PR_NUMBER="$EXISTING_PR"
+          else
+            PR_URL="$(gh pr create --base main --head "$UPDATE_BRANCH" --title "$TITLE" --body-file "$BODY_FILE")"
+            PR_NUMBER="${PR_URL##*/}"
+          fi
+
+          echo "number=$PR_NUMBER" >> "$GITHUB_OUTPUT"
+
+      - name: Label and request review
+        if: steps.changes.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+        shell: bash
+        run: |
+          CLASSIFICATION="$(python -c 'import json; print(json.load(open("dependency-update-report.json"))["overall_classification"])')"
+          gh pr edit "$PR_NUMBER" --add-label "dependencies" || true
+
+          if [ "$CLASSIFICATION" = "major" ]; then
+            gh pr edit "$PR_NUMBER" --add-label "breaking-change" || true
+            gh pr edit "$PR_NUMBER" --add-reviewer "${GITHUB_REPOSITORY_OWNER}" || true
+          elif [ "$CLASSIFICATION" = "minor" ]; then
+            gh pr edit "$PR_NUMBER" --add-label "needs-review" || true
+          else
+            gh pr edit "$PR_NUMBER" --add-label "safe-patch" || true
+          fi
+
+      - name: Enable auto-merge for patch-only updates
+        if: steps.changes.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_NUMBER: ${{ steps.pr.outputs.number }}
+        shell: bash
+        run: |
+          CLASSIFICATION="$(python -c 'import json; print(json.load(open("dependency-update-report.json"))["overall_classification"])')"
+          if [ "$CLASSIFICATION" = "patch" ]; then
+            gh pr merge "$PR_NUMBER" --auto --squash || true
+          fi

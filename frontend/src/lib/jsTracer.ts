@@ -54,12 +54,23 @@ export function instrumentJS(code: string): string {
       if (!node || typeof node !== "object") return;
 
       // Wrap single-statement bodies of control structures into BlockStatements
-      const controlStructures = ["IfStatement", "ForStatement", "ForInStatement", "ForOfStatement", "WhileStatement", "DoWhileStatement"];
+      const controlStructures = [
+        "IfStatement",
+        "ForStatement",
+        "ForInStatement",
+        "ForOfStatement",
+        "WhileStatement",
+        "DoWhileStatement",
+      ];
       if (controlStructures.includes(node.type)) {
         if (node.consequent && node.consequent.type !== "BlockStatement") {
           node.consequent = { type: "BlockStatement", body: [node.consequent] };
         }
-        if (node.alternate && node.alternate.type !== "BlockStatement" && node.alternate.type !== "IfStatement") {
+        if (
+          node.alternate &&
+          node.alternate.type !== "BlockStatement" &&
+          node.alternate.type !== "IfStatement"
+        ) {
           node.alternate = { type: "BlockStatement", body: [node.alternate] };
         }
         if (node.body && node.body.type !== "BlockStatement") {

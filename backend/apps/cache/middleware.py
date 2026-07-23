@@ -4,6 +4,8 @@ Middleware for cache control headers.
 
 from django.utils.deprecation import MiddlewareMixin
 from django.utils.cache import patch_cache_control, get_max_age
+from django.http import JsonResponse
+from django.core.cache import cache
 import logging
 
 logger = logging.getLogger(__name__)

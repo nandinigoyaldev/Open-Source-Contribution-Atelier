@@ -1,6 +1,7 @@
 from django.contrib import admin
-from apps.issues.models import IssueReport
 from django.utils.html import format_html
+
+from apps.issues.models import IssueReport
 
 
 @admin.register(IssueReport)

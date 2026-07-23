@@ -1,6 +1,5 @@
-/// <reference lib="webworker" />
 import { openDB } from "./offlineDB";
-import { queryClient } from "./queryClient";
+import { eventBus } from "../core/events";
 export interface QueuedAction {
   id: string;
   url: string;
@@ -23,7 +22,7 @@ export async function enqueueOfflineAction(
   headers: Record<string, string>,
   body: Record<string, any> | string,
   type: string,
-  slugOrId: string
+  slugOrId: string,
 ) {
   const id = `${type}-${slugOrId}`;
   const API_BASE =
@@ -59,7 +58,7 @@ export async function enqueueOfflineAction(
   // 2. Mirror to localStorage
   try {
     const pending = JSON.parse(
-      localStorage.getItem("atelier_pending_sync") || "[]"
+      localStorage.getItem("atelier_pending_sync") || "[]",
     );
     const exists = pending.some((p: any) => p.id === id);
     if (!exists) {
@@ -85,7 +84,7 @@ export async function enqueueOfflineAction(
           sync: { register: (tag: string) => Promise<void> };
         }
         await (reg as ServiceWorkerRegistrationWithSync).sync.register(
-          "sync-progress"
+          "sync-progress",
         );
       }
       if (navigator.serviceWorker.controller) {
@@ -96,7 +95,7 @@ export async function enqueueOfflineAction(
     } catch (err) {
       console.warn(
         "[OfflineQueue] Service worker sync registration failed/unsupported:",
-        err
+        err,
       );
     }
   }
@@ -248,8 +247,8 @@ export async function syncOfflineQueue() {
             JSON.stringify(filtered),
           );
 
-          // Invalidate React Query progress query
-          queryClient.invalidateQueries({ queryKey: ["userProgress"] });
+          // Emit sync success event instead of directly importing queryClient
+          eventBus.emit("sync:success", { lesson_slug: bodyObj.lesson_slug });
         } else {
           console.warn(
             `[OfflineQueue] Action ${action.id} returned status ${response.status}. Will retry later.`,
@@ -290,15 +289,43 @@ if (typeof window !== "undefined") {
             JSON.stringify(filtered),
           );
 
-          // Invalidate React Query progress query
-          queryClient.invalidateQueries({ queryKey: ["userProgress"] });
+          // Emit sync success event to decouple UI logic
+          eventBus.emit("sync:success", { lesson_slug });
         } catch (e) {
           console.error(
             "[OfflineQueue] Error clearing sync'd item from localStorage",
             e,
           );
         }
+      } else if (event.data && event.data.type === "SYNC_CONFLICT") {
+        const { lesson_slug, serverData, localData } = event.data;
+        console.warn(
+          `[OfflineQueue] Sync conflict detected for ${lesson_slug}`,
+        );
+        eventBus.emit("sync:conflict", { lesson_slug, serverData, localData });
       }
     });
+  }
+}
+
+export async function removeQueuedAction(id: string, lessonSlug: string) {
+  try {
+    const db = await openDB();
+    const writeTx = db.transaction("sync-queue", "readwrite");
+    const writeStore = writeTx.objectStore("sync-queue");
+    await new Promise<void>((resolve, reject) => {
+      const deleteReq = writeStore.delete(id);
+      deleteReq.onsuccess = () => resolve();
+      deleteReq.onerror = () => reject(deleteReq.error);
+    });
+
+    const pending = JSON.parse(
+      localStorage.getItem("atelier_pending_sync") || "[]",
+    );
+    const filtered = pending.filter((p: any) => p.lesson_slug !== lessonSlug);
+    localStorage.setItem("atelier_pending_sync", JSON.stringify(filtered));
+    console.log(`[OfflineQueue] Successfully removed queued action ${id}`);
+  } catch (err) {
+    console.error("[OfflineQueue] Error removing queued action:", err);
   }
 }

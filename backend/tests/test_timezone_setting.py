@@ -1,5 +1,7 @@
 import pytest
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
 from rest_framework.test import APIClient
 
 
@@ -34,7 +36,7 @@ class TestTimezoneSetting:
         assert response.data["timezone"] == "Asia/Kolkata"
 
         user.refresh_from_db()
-        assert user.profile.timezone == "Asia/Kolkata"
+        assert user.user_profile.timezone == "Asia/Kolkata"
 
     def test_update_to_invalid_timezone_rejected(self, api_client, user):
         api_client.force_authenticate(user=user)

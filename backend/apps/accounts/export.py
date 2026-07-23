@@ -9,7 +9,7 @@ from django.db.models import QuerySet
 from apps.accounts.models import MentorProfile
 from apps.chat.models import Message
 from apps.content.models import Comment
-from apps.dashboard.models import Issue, PullRequest, StreakFreeze
+from apps.dashboard.models import Issue, PullRequest
 from apps.notifications.models import Notification
 from apps.progress.models import (
     Certificate,
@@ -62,9 +62,6 @@ class DataExportService:
             ),
             "assigned_issues": self._queryset_to_list(
                 Issue.objects.filter(assigned_to=self.user)
-            ),
-            "streak_freezes": self._queryset_to_list(
-                StreakFreeze.objects.filter(user=self.user)
             ),
             "webhooks": self._queryset_to_list(
                 WebhookEndpoint.objects.filter(user=self.user)

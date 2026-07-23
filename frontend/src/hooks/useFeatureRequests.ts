@@ -17,7 +17,8 @@ export function useFeatureRequests() {
     {
       id: "1",
       title: "Interactive Git Graph in Sandbox",
-      description: "Visualize git history changes in real-time when running git commit, branch, or merge commands.",
+      description:
+        "Visualize git history changes in real-time when running git commit, branch, or merge commands.",
       status: "planned",
       priority_score: 85,
       total_votes: 42,
@@ -27,7 +28,8 @@ export function useFeatureRequests() {
     {
       id: "2",
       title: "Django API client code generator",
-      description: "Automatically generate frontend type-safe API clients from Django REST API schema.",
+      description:
+        "Automatically generate frontend type-safe API clients from Django REST API schema.",
       status: "in-progress",
       priority_score: 75,
       total_votes: 28,
@@ -42,19 +44,22 @@ export function useFeatureRequests() {
     // Mock refetching
   }, []);
 
-  const vote = useCallback(async (featureId: string, voteType: "upvote" | "downvote") => {
-    setFeatures((prev) =>
-      prev.map((f) => {
-        if (f.id !== featureId) return f;
-        const diff = voteType === "upvote" ? 1 : -1;
-        return {
-          ...f,
-          total_votes: f.total_votes + diff,
-          user_vote: voteType,
-        };
-      })
-    );
-  }, []);
+  const vote = useCallback(
+    async (featureId: string, voteType: "upvote" | "downvote") => {
+      setFeatures((prev) =>
+        prev.map((f) => {
+          if (f.id !== featureId) return f;
+          const diff = voteType === "upvote" ? 1 : -1;
+          return {
+            ...f,
+            total_votes: f.total_votes + diff,
+            user_vote: voteType,
+          };
+        }),
+      );
+    },
+    [],
+  );
 
   return {
     features,

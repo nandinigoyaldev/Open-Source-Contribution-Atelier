@@ -17,12 +17,6 @@
  */
 import { useCallback, useEffect, useState } from "react";
 import { useNetworkStatus } from "../context/useNetworkStatus";
-import {
-  getCachedLesson,
-  putCachedLesson,
-  purgeExpiredLessons,
-  CachedLesson,
-} from "../lib/lessonCache";
 import { Lesson, fetchLessonContent } from "../lib/lessons";
 
 type ContentSource = "network" | "cache" | "fallback";
@@ -35,12 +29,6 @@ interface UseOfflineLessonResult {
   refresh: () => void;
   isCached: boolean;
 }
-
-const CACHE_MAX_AGE_MS =
-  Number(
-    (import.meta as { env?: Record<string, string> }).env
-      ?.VITE_LESSON_CACHE_MAX_AGE || 0,
-  ) || 7 * 24 * 60 * 60 * 1000; // 7 days default
 
 export function useOfflineLesson(
   lesson: Lesson | undefined,
@@ -63,7 +51,6 @@ export function useOfflineLesson(
 
     let cancelled = false;
     const l: Lesson = lesson; // narrowed to non-undefined for use inside async closure
-    const slug = l.slug;
     const now = Date.now();
 
     async function loadContent(forceNetwork: boolean) {
@@ -71,23 +58,27 @@ export function useOfflineLesson(
       if (!cancelled) setError(null);
 
       try {
-        // 1. Check IndexedDB cache
-        const cached: CachedLesson | undefined = await getCachedLesson(slug);
-        const isFresh = cached && now - cached.fetchedAt < CACHE_MAX_AGE_MS;
+        // 1. Check Cache Storage API
+        const cache = await caches.open("content-runtime-cache");
+        const cachePath = l.filePath ? `/content/${l.filePath}` : null;
+        let cachedResponse = cachePath ? await cache.match(cachePath) : null;
 
-        if (!cancelled) setIsCached(!!cached);
+        if (!cancelled) setIsCached(!!cachedResponse);
 
-        // 2. Serve from cache when offline OR cache is fresh and not forced
-        if (!forceNetwork && (!isOnline || isFresh) && cached) {
-          if (!cancelled) {
-            setMarkdown(cached.markdown);
-            setSource("cache");
+        // 2. Serve from cache when offline OR cache is present and not forced
+        if (!forceNetwork && (!isOnline || cachedResponse)) {
+          if (cachedResponse) {
+            const cachedText = await cachedResponse.text();
+            if (!cancelled) {
+              setMarkdown(cachedText);
+              setSource("cache");
+            }
+            return;
           }
-          return;
         }
 
         // 3. Offline + not cached → show fallback
-        if (!isOnline && !cached) {
+        if (!isOnline && !cachedResponse) {
           if (!cancelled) {
             setMarkdown(
               `# ${l.title}\n\n> **You are offline** and this lesson has not been cached yet.\n> Connect to the internet to view this lesson for the first time.`,
@@ -101,21 +92,18 @@ export function useOfflineLesson(
         let text: string;
         if (l.filePath) {
           text = await fetchLessonContent(l.filePath);
+          // Explicitly update Cache Storage
+          try {
+            const cacheToUpdate = await caches.open("content-runtime-cache");
+            await cacheToUpdate.put(cachePath!, new Response(text));
+          } catch (e) {
+            console.warn("[useOfflineLesson] Failed to write cache:", e);
+          }
         } else {
           text = `# ${l.title}\n\n${l.explanation}`;
         }
 
-        // 5. Store in IndexedDB for offline reuse
-        await putCachedLesson({
-          slug,
-          markdown: text,
-          metaJson: JSON.stringify(lesson),
-          fetchedAt: now,
-        });
         if (!cancelled) setIsCached(true);
-
-        // 6. Background purge of old entries (fire-and-forget)
-        purgeExpiredLessons(CACHE_MAX_AGE_MS).catch(() => {});
 
         if (!cancelled) {
           setMarkdown(text);
@@ -127,12 +115,34 @@ export function useOfflineLesson(
         setError(e);
 
         // Last-resort: try cached version even if stale
-        const stale = await getCachedLesson(slug).catch(() => undefined);
-        if (!cancelled) {
-          if (stale) {
-            setMarkdown(stale.markdown);
-            setSource("cache");
-          } else {
+        if (l.filePath) {
+          try {
+            const cache = await caches.open("content-runtime-cache");
+            const fallbackResponse = await cache.match(
+              `/content/${l.filePath}`,
+            );
+            if (!cancelled) {
+              if (fallbackResponse) {
+                const text = await fallbackResponse.text();
+                setMarkdown(text);
+                setSource("cache");
+              } else {
+                setMarkdown(
+                  `# Error loading lesson\n\nCould not load **${l.title}**. Please check your connection.`,
+                );
+                setSource("fallback");
+              }
+            }
+          } catch {
+            if (!cancelled) {
+              setMarkdown(
+                `# Error loading lesson\n\nCould not load **${l.title}**. Please check your connection.`,
+              );
+              setSource("fallback");
+            }
+          }
+        } else {
+          if (!cancelled) {
             setMarkdown(
               `# Error loading lesson\n\nCould not load **${l.title}**. Please check your connection.`,
             );

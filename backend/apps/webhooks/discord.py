@@ -1,6 +1,7 @@
 """
 Discord Webhook Integration for Achievement Announcements.
 """
+
 import logging
 from dataclasses import dataclass
 from typing import Optional
@@ -16,6 +17,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class AchievementData:
     """Data class for achievement information."""
+
     user_id: int
     username: str
     achievement_name: str
@@ -37,26 +39,26 @@ def send_achievement_embed(
 ) -> bool:
     """
     Send an achievement announcement to Discord via webhook.
-    
+
     Creates a rich Discord embed with:
     - User avatar
     - Achievement icon
     - Achievement name and description
     - Badge/tier information
-    
+
     Args:
         achievement: AchievementData with user and achievement info
         webhook_url: Optional override for webhook URL (uses settings if not provided)
-        
+
     Returns:
         True if successful, False otherwise
     """
     url = webhook_url or get_discord_webhook_url()
-    
+
     if not url:
         logger.debug("Discord webhook URL not configured")
         return False
-    
+
     # Tier colors (Discord color values)
     tier_colors = {
         "bronze": 0xCD7F32,
@@ -66,7 +68,7 @@ def send_achievement_embed(
         "diamond": 0xB9F2FF,
     }
     default_color = 0x7CFC00  # Lawn green
-    
+
     embed = {
         "embeds": [
             {
@@ -86,23 +88,27 @@ def send_achievement_embed(
             }
         ]
     }
-    
+
     # Add description field
     if achievement.description:
-        embed["embeds"][0]["fields"].append({
-            "name": "📝 Details",
-            "value": achievement.description,
-            "inline": False,
-        })
-    
+        embed["embeds"][0]["fields"].append(
+            {
+                "name": "📝 Details",
+                "value": achievement.description,
+                "inline": False,
+            }
+        )
+
     # Add badge/pathway info if available
     if achievement.pathway_name:
-        embed["embeds"][0]["fields"].append({
-            "name": "🛤️ Pathway",
-            "value": achievement.pathway_name,
-            "inline": True,
-        })
-    
+        embed["embeds"][0]["fields"].append(
+            {
+                "name": "🛤️ Pathway",
+                "value": achievement.pathway_name,
+                "inline": True,
+            }
+        )
+
     if achievement.tier:
         tier_emoji = {
             "bronze": "🥉",
@@ -111,22 +117,26 @@ def send_achievement_embed(
             "platinum": "💎",
             "diamond": "💠",
         }
-        embed["embeds"][0]["fields"].append({
-            "name": "⭐ Tier",
-            "value": f"{tier_emoji.get(achievement.tier, '')} {achievement.tier.title()}",
-            "inline": True,
-        })
-    
+        embed["embeds"][0]["fields"].append(
+            {
+                "name": "⭐ Tier",
+                "value": f"{tier_emoji.get(achievement.tier, '')} {achievement.tier.title()}",
+                "inline": True,
+            }
+        )
+
     # Add thumbnail with achievement icon
     if achievement.achievement_icon:
         embed["embeds"][0]["thumbnail"] = {
             "url": achievement.achievement_icon,
         }
-    
+
     try:
         response = requests.post(url, json=embed, timeout=10)
         if response.status_code in (200, 204):
-            logger.info(f"Discord webhook sent for achievement: {achievement.achievement_name}")
+            logger.info(
+                f"Discord webhook sent for achievement: {achievement.achievement_name}"
+            )
             return True
         else:
             logger.warning(
@@ -148,7 +158,7 @@ def announce_achievement(
 ) -> bool:
     """
     Convenience function to announce an achievement.
-    
+
     Args:
         user: Django user model instance
         achievement_name: Name of the achievement
@@ -156,7 +166,7 @@ def announce_achievement(
         description: Description of the achievement
         pathway_name: Optional learning pathway name
         tier: Optional achievement tier (bronze, silver, gold, platinum)
-        
+
     Returns:
         True if successful, False otherwise
     """

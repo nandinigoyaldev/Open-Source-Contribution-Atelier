@@ -1,5 +1,6 @@
 import requests
 from typing import Dict, Any, Optional
+from urllib.parse import urlparse
 from .auth import get_github_token
 
 
@@ -26,17 +27,33 @@ class GithubService:
 
     def make_request(self, method: str, endpoint: str, **kwargs) -> Dict[str, Any]:
         """Make a GitHub API request"""
+        # Ensure endpoint is a relative path to prevent SSRF via URL injection
+        parsed_endpoint = urlparse(endpoint)
+        if parsed_endpoint.scheme or parsed_endpoint.netloc:
+            raise ValueError("Invalid endpoint: Must be a relative path")
+
         url = f"{self.base_url}/{endpoint.lstrip('/')}"
+
+        parsed_url = urlparse(url)
+        if parsed_url.netloc != "api.github.com" and not parsed_url.netloc.endswith(
+            ".github.com"
+        ):
+            raise ValueError("Invalid endpoint: Domain must be a github.com domain")
+
         headers = self._get_headers()
         headers.update(kwargs.pop("headers", {}))
+        kwargs.setdefault("timeout", 10)
 
         try:
             response = requests.request(method, url, headers=headers, **kwargs)
             response.raise_for_status()
             return response.json()
         except requests.exceptions.RequestException as e:
-            # If token expired, refresh and retry once
-            if response.status_code == 401:
+            # Only attempt the 401-refresh-and-retry path if we actually got
+            # a response back (connection-level failures like ConnectionError
+            # or Timeout never produce a response object).
+            resp = getattr(e, "response", None)
+            if resp is not None and resp.status_code == 401:
                 self._refresh_token()
                 headers = self._get_headers()
                 response = requests.request(method, url, headers=headers, **kwargs)
@@ -76,4 +93,4 @@ class GithubService:
 
 
 # Singleton instance
-github_service = GitHubService()
+github_service = GithubService()
