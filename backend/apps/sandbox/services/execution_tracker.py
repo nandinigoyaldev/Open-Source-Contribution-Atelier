@@ -24,6 +24,27 @@ class ExecutionTracker:
         key = cls._get_key(user_id, code, payload)
         cache.set(key, True, timeout=86400)  # Duplicate for 24 hours
 
+        try:
+            from apps.gamification.models import Streak
+            from django.utils import timezone
+            import datetime
+
+            today = timezone.localdate()
+            streak, _ = Streak.objects.get_or_create(user_id=user_id)
+
+            if streak.last_activity_date != today:
+                if streak.last_activity_date == today - datetime.timedelta(days=1):
+                    streak.current_streak += 1
+                else:
+                    streak.current_streak = 1
+                
+                streak.last_activity_date = today
+                if streak.current_streak > streak.longest_streak:
+                    streak.longest_streak = streak.current_streak
+                streak.save(update_fields=['current_streak', 'longest_streak', 'last_activity_date'])
+        except Exception:
+            pass
+
     @classmethod
     def clear_execution(cls, user_id, code, payload):
         key = cls._get_key(user_id, code, payload)
