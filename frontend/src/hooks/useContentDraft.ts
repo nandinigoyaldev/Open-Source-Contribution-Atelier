@@ -40,7 +40,9 @@ export type SaveStatus = "idle" | "saving" | "saved" | "error";
 
 export function useContentDraft(initialLessonId?: number) {
   const [modules, setModules] = useState<ModuleDraftData[]>([]);
-  const [activeLesson, setActiveLesson] = useState<LessonDraftData | null>(null);
+  const [activeLesson, setActiveLesson] = useState<LessonDraftData | null>(
+    null,
+  );
   const [isDirty, setIsDirty] = useState(false);
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const [isLoading, setIsLoading] = useState(true);

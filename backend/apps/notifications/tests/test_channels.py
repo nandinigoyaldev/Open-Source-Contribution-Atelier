@@ -9,7 +9,10 @@ from django.core import mail
 from django.urls import reverse
 from rest_framework.test import APIClient
 
-from apps.notifications.channels.base import get_registered_channels, get_channel_instance
+from apps.notifications.channels.base import (
+    get_registered_channels,
+    get_channel_instance,
+)
 from apps.notifications.models import (
     Notification,
     NotificationDelivery,
@@ -17,7 +20,10 @@ from apps.notifications.models import (
     NotificationPreference,
 )
 from apps.notifications.rate_limiter import ChannelRateLimiter
-from apps.notifications.tasks import dispatch_notification, process_notification_delivery
+from apps.notifications.tasks import (
+    dispatch_notification,
+    process_notification_delivery,
+)
 
 User = get_user_model()
 
@@ -68,7 +74,10 @@ class TestNotificationChannels:
         assert email_d.status == "sent"
         assert len(mail.outbox) == 1
         assert mail.outbox[0].to == ["testuser@example.com"]
-        assert "track/open" in mail.outbox[0].body or "track/open" in mail.outbox[0].alternatives[0][0]
+        assert (
+            "track/open" in mail.outbox[0].body
+            or "track/open" in mail.outbox[0].alternatives[0][0]
+        )
 
     def test_webhook_channel_hmac_signature(self, user):
         pref, _ = NotificationPreference.objects.get_or_create(user=user)
@@ -97,7 +106,9 @@ class TestNotificationChannels:
             assert "X-Signature-256" in headers
 
             body_json = kwargs["data"]
-            expected_sig = hmac.new(b"secret123", body_json.encode("utf-8"), hashlib.sha256).hexdigest()
+            expected_sig = hmac.new(
+                b"secret123", body_json.encode("utf-8"), hashlib.sha256
+            ).hexdigest()
             assert headers["X-Signature-256"] == f"sha256={expected_sig}"
 
     def test_sms_channel(self, user):
@@ -117,10 +128,14 @@ class TestNotificationChannels:
 
     def test_rate_limiting(self, user):
         for _ in range(10):
-            allowed, _ = ChannelRateLimiter.is_allowed(user.id, "email", max_requests=3, window_seconds=60)
+            allowed, _ = ChannelRateLimiter.is_allowed(
+                user.id, "email", max_requests=3, window_seconds=60
+            )
 
         # 11th call should be blocked
-        allowed, _ = ChannelRateLimiter.is_allowed(user.id, "email", max_requests=3, window_seconds=60)
+        allowed, _ = ChannelRateLimiter.is_allowed(
+            user.id, "email", max_requests=3, window_seconds=60
+        )
         assert allowed is False
 
     def test_retry_and_dead_letter_queue(self, user):
@@ -131,14 +146,19 @@ class TestNotificationChannels:
         )
         payload = {"title": "Failing", "message": "Failed"}
 
-        with patch("apps.notifications.channels.webhook_channel.WebhookChannel.deliver", side_effect=RuntimeError("Connection refused")):
+        with patch(
+            "apps.notifications.channels.webhook_channel.WebhookChannel.deliver",
+            side_effect=RuntimeError("Connection refused"),
+        ):
             for _ in range(3):
                 process_notification_delivery(delivery.id, payload)
                 delivery.refresh_from_db()
 
         assert delivery.status == "failed"
         assert delivery.retry_count == 3
-        dead_letter = NotificationDeadLetter.objects.filter(recipient=user, channel="webhook").first()
+        dead_letter = NotificationDeadLetter.objects.filter(
+            recipient=user, channel="webhook"
+        ).first()
         assert dead_letter is not None
         assert "Connection refused" in dead_letter.error_message
 
@@ -158,7 +178,9 @@ class TestNotificationChannels:
         assert delivery.status == "opened"
 
         # Track click
-        res_click = client.get(f"/api/notifications/track/click/{delivery.id}/?target=https://example.com")
+        res_click = client.get(
+            f"/api/notifications/track/click/{delivery.id}/?target=https://example.com"
+        )
         assert res_click.status_code == 302
         assert res_click.url == "https://example.com"
         delivery.refresh_from_db()
@@ -175,12 +197,21 @@ class TestNotificationChannels:
 
         updated_data = {
             "channel_preferences": {
-                "badge": {"in_app": True, "email": False, "push": True, "sms": True, "webhook": False, "slack": True}
+                "badge": {
+                    "in_app": True,
+                    "email": False,
+                    "push": True,
+                    "sms": True,
+                    "webhook": False,
+                    "slack": True,
+                }
             },
             "phone_number": "+19998887777",
             "webhook_url": "https://webhook.site/my-hook",
         }
-        put_res = client.put("/api/notifications/channels/", data=updated_data, format="json")
+        put_res = client.put(
+            "/api/notifications/channels/", data=updated_data, format="json"
+        )
         assert put_res.status_code == 200
         assert put_res.data["phone_number"] == "+19998887777"
         assert put_res.data["channel_preferences"]["badge"]["email"] is False

@@ -112,7 +112,8 @@ export function NotificationPreferences() {
         </p>
         <div className="flex items-center justify-between">
           <span className="text-sm font-bold text-black dark:text-white">
-            Status: {pushHook.subscribed ? "Subscribed ✅" : "Not Subscribed ❌"}
+            Status:{" "}
+            {pushHook.subscribed ? "Subscribed ✅" : "Not Subscribed ❌"}
           </span>
           {pushHook.subscribed ? (
             <button
@@ -153,7 +154,10 @@ export function NotificationPreferences() {
                 {CHANNELS.map((ch) => {
                   const Icon = ch.icon;
                   return (
-                    <th key={ch.id} className="py-3 px-4 font-bold text-center text-black dark:text-white">
+                    <th
+                      key={ch.id}
+                      className="py-3 px-4 font-bold text-center text-black dark:text-white"
+                    >
                       <div className="flex flex-col items-center gap-1">
                         <Icon size={16} />
                         <span>{ch.label}</span>
@@ -165,7 +169,8 @@ export function NotificationPreferences() {
             </thead>
             <tbody>
               {NOTIF_TYPES.map((nt) => {
-                const typeObj = (prefs.channel_preferences && prefs.channel_preferences[nt.id]) || {
+                const typeObj = (prefs.channel_preferences &&
+                  prefs.channel_preferences[nt.id]) || {
                   in_app: true,
                   email: true,
                   push: true,
@@ -175,7 +180,10 @@ export function NotificationPreferences() {
                 };
 
                 return (
-                  <tr key={nt.id} className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-900/50">
+                  <tr
+                    key={nt.id}
+                    className="border-b border-gray-100 dark:border-gray-800 hover:bg-gray-50 dark:hover:bg-gray-900/50"
+                  >
                     <td className="py-3 px-4 font-medium text-black dark:text-white">
                       {nt.label}
                     </td>
@@ -212,7 +220,9 @@ export function NotificationPreferences() {
             type="url"
             value={prefs.webhook_url || ""}
             placeholder="https://webhook.site/..."
-            onChange={(e) => setPrefs({ ...prefs, webhook_url: e.target.value })}
+            onChange={(e) =>
+              setPrefs({ ...prefs, webhook_url: e.target.value })
+            }
             onBlur={() => savePreferences(prefs)}
             className="w-full p-2.5 rounded-lg border-2 border-black dark:border-[#2e2924] bg-surface-low dark:bg-[#1f1c18] text-black dark:text-white"
           />
@@ -226,7 +236,9 @@ export function NotificationPreferences() {
             type="password"
             value={prefs.webhook_secret || ""}
             placeholder="whsec_..."
-            onChange={(e) => setPrefs({ ...prefs, webhook_secret: e.target.value })}
+            onChange={(e) =>
+              setPrefs({ ...prefs, webhook_secret: e.target.value })
+            }
             onBlur={() => savePreferences(prefs)}
             className="w-full p-2.5 rounded-lg border-2 border-black dark:border-[#2e2924] bg-surface-low dark:bg-[#1f1c18] text-black dark:text-white"
           />
@@ -240,7 +252,9 @@ export function NotificationPreferences() {
             type="tel"
             value={prefs.phone_number || ""}
             placeholder="+1234567890"
-            onChange={(e) => setPrefs({ ...prefs, phone_number: e.target.value })}
+            onChange={(e) =>
+              setPrefs({ ...prefs, phone_number: e.target.value })
+            }
             onBlur={() => savePreferences(prefs)}
             className="w-full p-2.5 rounded-lg border-2 border-black dark:border-[#2e2924] bg-surface-low dark:bg-[#1f1c18] text-black dark:text-white"
           />

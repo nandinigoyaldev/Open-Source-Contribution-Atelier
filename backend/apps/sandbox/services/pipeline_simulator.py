@@ -55,7 +55,10 @@ def validate_trigger_command(command: str) -> tuple[bool, str]:
     cmd = command.strip()
 
     if len(cmd) > MAX_COMMAND_LENGTH:
-        return False, f"Command exceeds maximum allowable length of {MAX_COMMAND_LENGTH} characters."
+        return (
+            False,
+            f"Command exceeds maximum allowable length of {MAX_COMMAND_LENGTH} characters.",
+        )
 
     if "\n" in cmd or "\r" in cmd:
         return False, "Command must not contain line breaks or newlines."

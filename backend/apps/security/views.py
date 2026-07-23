@@ -145,9 +145,7 @@ class VulnerabilitySummaryView(APIView):
             reports_on_date = VulnerabilityReport.objects.filter(
                 scan_date__date=date_val
             )
-            c_cnt = (
-                reports_on_date.aggregate(s=Sum("critical_count"))["s"] or 0
-            )
+            c_cnt = reports_on_date.aggregate(s=Sum("critical_count"))["s"] or 0
             h_cnt = reports_on_date.aggregate(s=Sum("high_count"))["s"] or 0
             m_cnt = reports_on_date.aggregate(s=Sum("medium_count"))["s"] or 0
             l_cnt = reports_on_date.aggregate(s=Sum("low_count"))["s"] or 0

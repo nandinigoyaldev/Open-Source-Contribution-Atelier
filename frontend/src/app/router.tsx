@@ -176,6 +176,12 @@ const LeaderboardPage = lazy(() =>
   })),
 );
 
+const ShopPage = lazy(() =>
+  import("../pages/ShopPage").then((module) => ({
+    default: module.ShopPage,
+  })),
+);
+
 const VerifyCertificatePage = lazy(() =>
   import("../pages/VerifyCertificatePage").then((module) => ({
     default: module.VerifyCertificatePage,
@@ -671,10 +677,18 @@ export function AppRouter() {
             }
           />
           <Route
-            path="/admin/content-studio/lessons/:id"
+            path="/leaderboard"
             element={
               <ProtectedRoute>
-                <LessonEditorPage />
+                <LeaderboardPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/shop"
+            element={
+              <ProtectedRoute>
+                <ShopPage />
               </ProtectedRoute>
             }
           />
@@ -694,7 +708,6 @@ export function AppRouter() {
               </ProtectedRoute>
             }
           />
-
 
           <Route
             path="/profile"
@@ -762,10 +775,8 @@ export function AppRouter() {
 
           <Route path="/pricing" element={<PricingPage />} />
 
-
           <Route path="/u/:username" element={<UserProfilePage />} />
         </Route>
-
       </Routes>
     </Suspense>
   );

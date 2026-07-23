@@ -25,17 +25,21 @@ class PushChannel(NotificationChannel):
         message = payload.get("message", "")
         meta = payload.get("meta", {})
 
-        push_payload = json.dumps({
-            "title": title,
-            "body": message,
-            "message": message,
-            "icon": meta.get("icon", "/logo.png"),
-            "data": meta,
-            "delivery_id": delivery.id,
-        })
+        push_payload = json.dumps(
+            {
+                "title": title,
+                "body": message,
+                "message": message,
+                "icon": meta.get("icon", "/logo.png"),
+                "data": meta,
+                "delivery_id": delivery.id,
+            }
+        )
 
         if not vapid_private_key:
-            logger.warning("VAPID_PRIVATE_KEY not configured; mocking FCM/WebPush dispatch")
+            logger.warning(
+                "VAPID_PRIVATE_KEY not configured; mocking FCM/WebPush dispatch"
+            )
             return True
 
         delivered_any = False

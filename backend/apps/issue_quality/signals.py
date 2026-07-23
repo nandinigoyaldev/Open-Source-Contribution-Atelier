@@ -19,14 +19,12 @@ def analyze_issue_quality(sender, instance, **kwargs):
     if not instance.id:  # Only for new issues
         scorer = QualityScorer()
         result = scorer.analyze_issue(
-            title=instance.issue_title,
-            body=instance.issue_body,
-            author=instance.author
+            title=instance.issue_title, body=instance.issue_body, author=instance.author
         )
-        
+
         # Update instance with analysis results
         for key, value in result.items():
             if hasattr(instance, key):
                 setattr(instance, key, value)
-        
+
         logger.info(f"Issue quality analyzed: {instance.issue_title[:50]}")

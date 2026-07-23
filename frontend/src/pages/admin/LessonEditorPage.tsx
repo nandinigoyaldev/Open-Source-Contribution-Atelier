@@ -6,7 +6,8 @@ import { Save, Check, Loader2, Globe } from "lucide-react";
 export function LessonEditorPage() {
   const { id } = useParams<{ id: string }>();
   const lessonId = id ? parseInt(id, 10) : undefined;
-  const { activeLesson, updateActiveLesson, saveStatus, saveDraft } = useContentDraft(lessonId);
+  const { activeLesson, updateActiveLesson, saveStatus, saveDraft } =
+    useContentDraft(lessonId);
 
   if (!activeLesson) {
     return (
@@ -39,15 +40,23 @@ export function LessonEditorPage() {
             {saveStatus === "saved" && (
               <>
                 <Check className="w-3.5 h-3.5 text-green-500" />
-                <span className="text-green-600 dark:text-green-400">Saved</span>
+                <span className="text-green-600 dark:text-green-400">
+                  Saved
+                </span>
               </>
             )}
-            {saveStatus === "idle" && <span className="text-muted">Autosave ready</span>}
-            {saveStatus === "error" && <span className="text-red-500">Save failed</span>}
+            {saveStatus === "idle" && (
+              <span className="text-muted">Autosave ready</span>
+            )}
+            {saveStatus === "error" && (
+              <span className="text-red-500">Save failed</span>
+            )}
           </div>
 
           <button
-            onClick={() => updateActiveLesson({ isPublished: !activeLesson.isPublished })}
+            onClick={() =>
+              updateActiveLesson({ isPublished: !activeLesson.isPublished })
+            }
             className={`flex items-center gap-2 text-xs font-black px-4 py-2 rounded-xl transition-all shadow-card-sm ${
               activeLesson.isPublished
                 ? "bg-green-600 text-white"

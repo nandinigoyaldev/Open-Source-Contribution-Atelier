@@ -112,7 +112,11 @@ class TestChallengeViewSetPermissionsAndQueryset(APITestCase):
         response = self.client.get("/api/challenges/")
         assert response.status_code == status.HTTP_200_OK
 
-        results = response.data if isinstance(response.data, list) else response.data.get("results", [])
+        results = (
+            response.data
+            if isinstance(response.data, list)
+            else response.data.get("results", [])
+        )
         slugs = [c["slug"] for c in results]
 
         # Anonymous user should see public challenges
@@ -125,7 +129,9 @@ class TestChallengeViewSetPermissionsAndQueryset(APITestCase):
         assert "null-org-private" not in slugs
 
     def test_anonymous_user_can_retrieve_public_challenge(self):
-        response = self.client.get(f"/api/challenges/{self.public_challenge_global.id}/")
+        response = self.client.get(
+            f"/api/challenges/{self.public_challenge_global.id}/"
+        )
         assert response.status_code == status.HTTP_200_OK
         assert response.data["slug"] == "global-public"
 
@@ -145,7 +151,11 @@ class TestChallengeViewSetPermissionsAndQueryset(APITestCase):
         response = self.client.get("/api/challenges/")
         assert response.status_code == status.HTTP_200_OK
 
-        results = response.data if isinstance(response.data, list) else response.data.get("results", [])
+        results = (
+            response.data
+            if isinstance(response.data, list)
+            else response.data.get("results", [])
+        )
         slugs = [c["slug"] for c in results]
 
         assert "global-public" in slugs
@@ -157,7 +167,9 @@ class TestChallengeViewSetPermissionsAndQueryset(APITestCase):
     # -------------------------------------------------------------------
     # Authenticated User With Organization
     # -------------------------------------------------------------------
-    def test_authenticated_user_with_org_sees_public_and_their_org_private_challenges(self):
+    def test_authenticated_user_with_org_sees_public_and_their_org_private_challenges(
+        self,
+    ):
         """
         User belonging to Org 1 should see:
         - All public challenges
@@ -168,7 +180,11 @@ class TestChallengeViewSetPermissionsAndQueryset(APITestCase):
         response = self.client.get("/api/challenges/")
         assert response.status_code == status.HTTP_200_OK
 
-        results = response.data if isinstance(response.data, list) else response.data.get("results", [])
+        results = (
+            response.data
+            if isinstance(response.data, list)
+            else response.data.get("results", [])
+        )
         slugs = [c["slug"] for c in results]
 
         assert "global-public" in slugs
@@ -184,7 +200,11 @@ class TestChallengeViewSetPermissionsAndQueryset(APITestCase):
         response = self.client.get("/api/challenges/")
         assert response.status_code == status.HTTP_200_OK
 
-        results = response.data if isinstance(response.data, list) else response.data.get("results", [])
+        results = (
+            response.data
+            if isinstance(response.data, list)
+            else response.data.get("results", [])
+        )
         slugs = [c["slug"] for c in results]
 
         assert "global-public" in slugs

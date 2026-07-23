@@ -254,7 +254,6 @@ class PipelineExecutionSerializer(serializers.ModelSerializer):
         return sanitized_or_reason
 
 
-
 class ConflictScenarioSerializer(serializers.ModelSerializer):
     class Meta:
         model = ConflictScenario

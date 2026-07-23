@@ -11,8 +11,10 @@ class SMSChannel(NotificationChannel):
     def deliver(self, delivery, recipient, payload: dict) -> bool:
         # Check if SMS is for critical alert or allowed
         meta = payload.get("meta", {})
-        is_critical = meta.get("is_critical", False) or payload.get("is_critical", False)
-        
+        is_critical = meta.get("is_critical", False) or payload.get(
+            "is_critical", False
+        )
+
         pref = getattr(recipient, "notificationpreference", None)
         phone_number = getattr(pref, "phone_number", None) if pref else None
         if not phone_number and hasattr(recipient, "user_profile"):
@@ -29,11 +31,16 @@ class SMSChannel(NotificationChannel):
         body = f"{payload.get('title')}: {payload.get('message')}"
 
         if not account_sid or not auth_token:
-            logger.info("[SMS Mock] Twilio credentials not set. Would send to %s: %s", phone_number, body)
+            logger.info(
+                "[SMS Mock] Twilio credentials not set. Would send to %s: %s",
+                phone_number,
+                body,
+            )
             return True
 
         try:
             from twilio.rest import Client  # type: ignore
+
             client = Client(account_sid, auth_token)
             client.messages.create(
                 body=body,
@@ -42,7 +49,9 @@ class SMSChannel(NotificationChannel):
             )
             return True
         except ImportError:
-            logger.warning("Twilio package not installed, mocking SMS send to %s", phone_number)
+            logger.warning(
+                "Twilio package not installed, mocking SMS send to %s", phone_number
+            )
             return True
         except Exception as exc:
             logger.error("Failed to send SMS via Twilio to %s: %s", phone_number, exc)

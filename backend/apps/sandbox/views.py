@@ -552,7 +552,6 @@ class PipelineExecutionViewSet(viewsets.ModelViewSet):
     throttle_classes = [SlidingWindowScopedThrottle]
     throttle_scope = "sandbox_user"
 
-
     def get_queryset(self):
         return PipelineExecution.objects.filter(
             user=self.request.user

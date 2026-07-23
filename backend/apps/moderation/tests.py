@@ -33,7 +33,6 @@ class ModerationWorkflowTests(TestCase):
         )
         self.review_ct = ContentType.objects.get_for_model(PeerReview)
 
-
     def test_create_report(self):
         self.client.force_authenticate(user=self.user)
         response = self.client.post(
@@ -146,7 +145,7 @@ class ModerationWorkflowTests(TestCase):
             reporter=self.user,
             content_type=self.review_ct,
             object_id=self.review.id,
-            category=ContentReport.Category.SPAM
+            category=ContentReport.Category.SPAM,
         )
         self.client.force_authenticate(user=self.staff)
         response = self.client.post(
@@ -200,4 +199,3 @@ class ModerationWorkflowTests(TestCase):
 
         self.review.refresh_from_db()
         self.assertTrue(self.review.is_hidden)
-

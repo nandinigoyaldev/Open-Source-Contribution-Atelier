@@ -51,4 +51,3 @@ class ModerationAuditTrailListView(generics.ListAPIView):
             qs = qs.filter(created_at__date__lte=to_date)
 
         return qs.order_by("-created_at")
-

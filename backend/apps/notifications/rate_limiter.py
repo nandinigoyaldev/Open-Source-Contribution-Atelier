@@ -16,6 +16,7 @@ DEFAULT_CHANNEL_LIMITS = {
     "slack": 20,
 }
 
+
 class ChannelRateLimiter:
     """
     Sliding window rate limiter for (user, channel).
@@ -23,7 +24,13 @@ class ChannelRateLimiter:
     """
 
     @classmethod
-    def is_allowed(cls, user_id: int, channel_id: str, max_requests: int = None, window_seconds: int = 60) -> Tuple[bool, int]:
+    def is_allowed(
+        cls,
+        user_id: int,
+        channel_id: str,
+        max_requests: int = None,
+        window_seconds: int = 60,
+    ) -> Tuple[bool, int]:
         if max_requests is None:
             max_requests = DEFAULT_CHANNEL_LIMITS.get(channel_id, 10)
 
@@ -40,7 +47,11 @@ class ChannelRateLimiter:
             if len(valid_timestamps) >= max_requests:
                 logger.warning(
                     "Rate limit exceeded for user %s on channel %s (%d/%d in %ds)",
-                    user_id, channel_id, len(valid_timestamps), max_requests, window_seconds
+                    user_id,
+                    channel_id,
+                    len(valid_timestamps),
+                    max_requests,
+                    window_seconds,
                 )
                 return False, len(valid_timestamps)
 

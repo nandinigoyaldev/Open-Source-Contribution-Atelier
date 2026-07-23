@@ -30,10 +30,10 @@ import pytest
 from django.conf import settings
 from django.test import override_settings
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _get_logging_cfg() -> dict:
     """Return a *copy* of the project LOGGING dict from Django settings."""
@@ -43,6 +43,7 @@ def _get_logging_cfg() -> dict:
 # ===========================================================================
 # 1. Structural integrity of the LOGGING dict
 # ===========================================================================
+
 
 class TestLoggingConfigStructure:
     """Verify the shape and completeness of the merged LOGGING dict."""
@@ -62,22 +63,34 @@ class TestLoggingConfigStructure:
     def test_request_id_filter_present(self):
         filters = settings.LOGGING.get("filters", {})
         assert "request_id" in filters, "request_id filter must be declared"
-        assert filters["request_id"].get("()") == "apps.core.logging_filters.RequestIdFilter"
+        assert (
+            filters["request_id"].get("()")
+            == "apps.core.logging_filters.RequestIdFilter"
+        )
 
     def test_mask_sensitive_data_filter_present(self):
         filters = settings.LOGGING.get("filters", {})
-        assert "mask_sensitive_data" in filters, "mask_sensitive_data filter must be declared"
-        assert filters["mask_sensitive_data"].get("()") == "config.logging_filters.SensitiveDataFilter"
+        assert (
+            "mask_sensitive_data" in filters
+        ), "mask_sensitive_data filter must be declared"
+        assert (
+            filters["mask_sensitive_data"].get("()")
+            == "config.logging_filters.SensitiveDataFilter"
+        )
 
     # ── Formatters ─────────────────────────────────────────────────────────
 
     def test_json_audit_formatter_present(self):
         fmts = settings.LOGGING.get("formatters", {})
-        assert "json_audit" in fmts, "json_audit formatter must exist for structured audit logs"
+        assert (
+            "json_audit" in fmts
+        ), "json_audit formatter must exist for structured audit logs"
 
     def test_json_audit_formatter_contains_request_id_field(self):
         fmt_string = settings.LOGGING["formatters"]["json_audit"]["format"]
-        assert "request_id" in fmt_string, "json_audit formatter must include %(request_id)s"
+        assert (
+            "request_id" in fmt_string
+        ), "json_audit formatter must include %(request_id)s"
 
     def test_json_audit_formatter_contains_user_id_field(self):
         fmt_string = settings.LOGGING["formatters"]["json_audit"]["format"]
@@ -85,7 +98,9 @@ class TestLoggingConfigStructure:
 
     def test_verbose_formatter_present(self):
         fmts = settings.LOGGING.get("formatters", {})
-        assert "verbose" in fmts, "verbose formatter must exist for human-readable console output"
+        assert (
+            "verbose" in fmts
+        ), "verbose formatter must exist for human-readable console output"
 
     # ── Handlers ───────────────────────────────────────────────────────────
 
@@ -116,7 +131,9 @@ class TestLoggingConfigStructure:
     def test_file_audit_handler_declared(self):
         """file_audit handler must be declared even if suppressed in TESTING."""
         handlers = settings.LOGGING.get("handlers", {})
-        assert "file_audit" in handlers, "file_audit handler must be declared in LOGGING"
+        assert (
+            "file_audit" in handlers
+        ), "file_audit handler must be declared in LOGGING"
 
     def test_file_audit_handler_uses_json_audit_formatter(self):
         handler_cfg = settings.LOGGING["handlers"]["file_audit"]
@@ -128,9 +145,9 @@ class TestLoggingConfigStructure:
 
     def test_file_audit_filename_points_to_audit_log(self):
         filename = settings.LOGGING["handlers"]["file_audit"]["filename"]
-        assert "audit.log" in str(filename), (
-            f"file_audit handler filename must contain 'audit.log', got: {filename}"
-        )
+        assert "audit.log" in str(
+            filename
+        ), f"file_audit handler filename must contain 'audit.log', got: {filename}"
 
     # ── Loggers ────────────────────────────────────────────────────────────
 
@@ -177,6 +194,7 @@ class TestLoggingConfigStructure:
 # 2. No duplicate LOGGING assignment in settings source
 # ===========================================================================
 
+
 class TestNoDuplicateLoggingAssignment:
     """
     Regression test: parse the settings source and count top-level
@@ -184,7 +202,9 @@ class TestNoDuplicateLoggingAssignment:
     """
 
     def test_single_logging_assignment_in_source(self):
-        settings_path = Path(settings.__file__) if hasattr(settings, "__file__") else None
+        settings_path = (
+            Path(settings.__file__) if hasattr(settings, "__file__") else None
+        )
         # Locate settings.py relative to BASE_DIR
         base_dir = Path(settings.BASE_DIR)
         settings_file = base_dir / "config" / "settings.py"
@@ -193,8 +213,11 @@ class TestNoDuplicateLoggingAssignment:
         source = settings_file.read_text(encoding="utf-8")
         # Count lines that are a top-level LOGGING assignment (not a comment)
         assignment_lines = [
-            line for line in source.splitlines()
-            if line.startswith("LOGGING") and "=" in line and not line.lstrip().startswith("#")
+            line
+            for line in source.splitlines()
+            if line.startswith("LOGGING")
+            and "=" in line
+            and not line.lstrip().startswith("#")
         ]
         assert len(assignment_lines) == 1, (
             f"Expected exactly 1 top-level LOGGING assignment, found {len(assignment_lines)}: "
@@ -205,6 +228,7 @@ class TestNoDuplicateLoggingAssignment:
 # ===========================================================================
 # 3. Logging configuration loads without errors
 # ===========================================================================
+
 
 class TestLoggingConfigLoads:
     """Verify Django's dictConfig accepts the merged LOGGING dict."""
@@ -232,6 +256,7 @@ class TestLoggingConfigLoads:
 # 4. RequestIdFilter injects correct fields
 # ===========================================================================
 
+
 class TestRequestIdFilter:
     """Unit-test RequestIdFilter in isolation."""
 
@@ -245,8 +270,13 @@ class TestRequestIdFilter:
         try:
             f = RequestIdFilter()
             record = logging.LogRecord(
-                name="audit", level=logging.INFO,
-                pathname="", lineno=0, msg="test", args=(), exc_info=None,
+                name="audit",
+                level=logging.INFO,
+                pathname="",
+                lineno=0,
+                msg="test",
+                args=(),
+                exc_info=None,
             )
             result = f.filter(record)
             assert result is True
@@ -265,8 +295,13 @@ class TestRequestIdFilter:
 
         f = RequestIdFilter()
         record = logging.LogRecord(
-            name="audit", level=logging.INFO,
-            pathname="", lineno=0, msg="fallback test", args=(), exc_info=None,
+            name="audit",
+            level=logging.INFO,
+            pathname="",
+            lineno=0,
+            msg="fallback test",
+            args=(),
+            exc_info=None,
         )
         f.filter(record)
         assert record.request_id == "-"
@@ -277,15 +312,22 @@ class TestRequestIdFilter:
 # 5. SensitiveDataFilter masks PII
 # ===========================================================================
 
+
 class TestSensitiveDataFilter:
     """Unit-test SensitiveDataFilter masking behaviour."""
 
     def _apply(self, msg: str) -> str:
         from config.logging_filters import SensitiveDataFilter
+
         f = SensitiveDataFilter()
         record = logging.LogRecord(
-            name="test", level=logging.INFO,
-            pathname="", lineno=0, msg=msg, args=(), exc_info=None,
+            name="test",
+            level=logging.INFO,
+            pathname="",
+            lineno=0,
+            msg=msg,
+            args=(),
+            exc_info=None,
         )
         f.filter(record)
         return record.msg
@@ -306,10 +348,16 @@ class TestSensitiveDataFilter:
 
     def test_filter_returns_true(self):
         from config.logging_filters import SensitiveDataFilter
+
         f = SensitiveDataFilter()
         record = logging.LogRecord(
-            name="test", level=logging.INFO,
-            pathname="", lineno=0, msg="safe message", args=(), exc_info=None,
+            name="test",
+            level=logging.INFO,
+            pathname="",
+            lineno=0,
+            msg="safe message",
+            args=(),
+            exc_info=None,
         )
         assert f.filter(record) is True
 
@@ -317,6 +365,7 @@ class TestSensitiveDataFilter:
 # ===========================================================================
 # 6. Audit logger routes to the correct handlers
 # ===========================================================================
+
 
 class TestAuditLoggerRouting:
     """
@@ -336,6 +385,7 @@ class TestAuditLoggerRouting:
         # Temporarily point file_audit to a temp file so dictConfig doesn't
         # try to create audit.log in the test environment unexpectedly
         import copy
+
         cfg = copy.deepcopy(cfg)
         with tempfile.NamedTemporaryFile(suffix=".log", delete=False) as tmp:
             tmp_name = tmp.name
@@ -369,6 +419,7 @@ class TestAuditLoggerRouting:
 # 7. Audit file handler is suppressed in TESTING mode
 # ===========================================================================
 
+
 class TestAuditFileHandlerTestingMode:
     """
     In TESTING mode the file_audit handler must NOT appear in the audit
@@ -380,20 +431,21 @@ class TestAuditFileHandlerTestingMode:
         assert settings.TESTING is True, "This test must run inside pytest"
 
         audit_logger_cfg = settings.LOGGING["loggers"]["audit"]
-        assert "file_audit" not in audit_logger_cfg["handlers"], (
-            "file_audit handler must be suppressed in TESTING mode"
-        )
+        assert (
+            "file_audit" not in audit_logger_cfg["handlers"]
+        ), "file_audit handler must be suppressed in TESTING mode"
 
     def test_console_audit_still_present_in_testing(self):
         audit_logger_cfg = settings.LOGGING["loggers"]["audit"]
-        assert "console_audit" in audit_logger_cfg["handlers"], (
-            "console_audit handler must remain active even in TESTING mode"
-        )
+        assert (
+            "console_audit" in audit_logger_cfg["handlers"]
+        ), "console_audit handler must remain active even in TESTING mode"
 
 
 # ===========================================================================
 # 8. Audit message format is valid JSON
 # ===========================================================================
+
 
 class TestAuditMessageFormat:
     """

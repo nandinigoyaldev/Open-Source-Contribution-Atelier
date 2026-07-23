@@ -24,6 +24,7 @@ import { BADGES } from "../../constants/badges";
 import { DailyQuoteWidget } from "../ui/DailyQuoteWidget";
 import { NotesWidget } from "../ui/NotesWidget";
 import { OnboardingTour } from "../ui/OnboardingTour";
+import { QuestsPanel } from "./QuestsPanel";
 import { RecommendationsList } from "../ui/RecommendationsList";
 import SkeletonContributorDashboard from "../ui/skeletons/SkeletonContributorDashboard";
 import { CertificateModal } from "./CertificateModal";
@@ -599,6 +600,8 @@ export function ContributorDashboard() {
           </div>
 
           {/* Unlocked Achievements drawer */}
+          <QuestsPanel />
+
           <div className="rounded-[24px] border border-black/5 bg-white p-6 shadow-sm dark:bg-[#1f1c18] dark:border-white/5">
             <h2 className="text-lg font-black mb-4 flex items-center gap-2.5 pb-3 border-b border-slate-100 dark:border-slate-800">
               <Award className="w-5 h-5 text-[#8884d8]" /> Earned Badges (

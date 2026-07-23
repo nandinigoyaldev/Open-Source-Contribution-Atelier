@@ -6,28 +6,31 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('events', '0002_rename_events_doma_event_t_5c09ac_idx_events_doma_event_t_4e98ae_idx_and_more'),
+        (
+            "events",
+            "0002_rename_events_doma_event_t_5c09ac_idx_events_doma_event_t_4e98ae_idx_and_more",
+        ),
     ]
 
     operations = [
         migrations.RenameIndex(
-            model_name='domainevent',
-            new_name='idx_event_typestatus',
-            old_name='events_doma_event_t_4e98ae_idx',
+            model_name="domainevent",
+            new_name="idx_event_typestatus",
+            old_name="events_doma_event_t_4e98ae_idx",
         ),
         migrations.RenameIndex(
-            model_name='domainevent',
-            new_name='idx_event_namestatus',
-            old_name='events_doma_event_n_85b104_idx',
+            model_name="domainevent",
+            new_name="idx_event_namestatus",
+            old_name="events_doma_event_n_85b104_idx",
         ),
         migrations.RenameIndex(
-            model_name='domainevent',
-            new_name='idx_occurred_atstatus',
-            old_name='events_doma_occurre_8aec82_idx',
+            model_name="domainevent",
+            new_name="idx_occurred_atstatus",
+            old_name="events_doma_occurre_8aec82_idx",
         ),
         migrations.RenameIndex(
-            model_name='domainevent',
-            new_name='idx_actorevent_type',
-            old_name='events_doma_actor_i_3cb6c3_idx',
+            model_name="domainevent",
+            new_name="idx_actorevent_type",
+            old_name="events_doma_actor_i_3cb6c3_idx",
         ),
     ]

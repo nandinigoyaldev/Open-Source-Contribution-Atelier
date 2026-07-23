@@ -1,18 +1,19 @@
 from django.core.checks import Error, register, Tags
 from django.db import connections
 
+
 @register(Tags.database)
 def check_sqlite_wal_mode(app_configs, **kwargs):
     errors = []
-    
+
     for alias in connections:
         conn = connections[alias]
-        if conn.vendor == 'sqlite':
+        if conn.vendor == "sqlite":
             try:
                 with conn.cursor() as cursor:
                     cursor.execute("PRAGMA journal_mode;")
                     journal_mode = cursor.fetchone()[0].lower()
-                    
+
                     if journal_mode != "wal":
                         errors.append(
                             Error(
@@ -24,5 +25,5 @@ def check_sqlite_wal_mode(app_configs, **kwargs):
                         )
             except Exception as e:
                 pass
-                
+
     return errors

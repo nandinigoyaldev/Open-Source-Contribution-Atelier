@@ -14,7 +14,9 @@ def get_supported_locales() -> set[str]:
     """
     Returns a set of lowercase supported language codes.
     """
-    return {code.lower() for code, _ in getattr(settings, "LANGUAGES", [("en", "English")])}
+    return {
+        code.lower() for code, _ in getattr(settings, "LANGUAGES", [("en", "English")])
+    }
 
 
 def parse_accept_language(header: str) -> list[tuple[str, float]]:
@@ -139,11 +141,17 @@ def check_locale_switch_rate_limit(request, resolved_lang: str) -> bool:
 
     if not client_id:
         x_forwarded_for = request.META.get("HTTP_X_FORWARDED_FOR")
-        ip = x_forwarded_for.split(",")[0].strip() if x_forwarded_for else request.META.get("REMOTE_ADDR")
+        ip = (
+            x_forwarded_for.split(",")[0].strip()
+            if x_forwarded_for
+            else request.META.get("REMOTE_ADDR")
+        )
         client_id = f"locale_switch_ip_{ip}"
 
     # Find currently active language
-    current_lang = request.session.get("django_language") if hasattr(request, "session") else None
+    current_lang = (
+        request.session.get("django_language") if hasattr(request, "session") else None
+    )
     if not current_lang:
         # Fallback check on request attribute
         current_lang = getattr(request, "LANGUAGE_CODE", None)
@@ -180,7 +188,11 @@ class LocaleMiddleware:
                 request.session["django_language"] = resolved
         else:
             # If rate-limited, keep previous language or fall back to default
-            prev_lang = request.session.get("django_language") if hasattr(request, "session") else None
+            prev_lang = (
+                request.session.get("django_language")
+                if hasattr(request, "session")
+                else None
+            )
             if prev_lang:
                 translation.activate(prev_lang)
             else:
@@ -193,4 +205,3 @@ class LocaleMiddleware:
             return response
         finally:
             translation.deactivate()
-

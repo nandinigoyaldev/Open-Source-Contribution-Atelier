@@ -52,7 +52,11 @@ def max_size_for(upload_type: str) -> int:
     limits = getattr(
         settings,
         "UPLOAD_MAX_SIZES",
-        {"avatar": 5 * 1024 * 1024, "project": 50 * 1024 * 1024, "lesson": 50 * 1024 * 1024},
+        {
+            "avatar": 5 * 1024 * 1024,
+            "project": 50 * 1024 * 1024,
+            "lesson": 50 * 1024 * 1024,
+        },
     )
     return int(limits.get(upload_type, limits.get("project", 50 * 1024 * 1024)))
 
@@ -111,7 +115,9 @@ def detect_file_type(stream: BinaryIO) -> str:
     if _looks_like_text(header):
         lowered = header.lower()
         if any(marker in lowered for marker in DANGEROUS_TEXT_MARKERS):
-            raise ValidationError("Executable or server-side script content is not allowed.")
+            raise ValidationError(
+                "Executable or server-side script content is not allowed."
+            )
         return "markdown" if b"#" in header or b"```" in header else "text"
 
     raise ValidationError("Unsupported or unrecognized file signature.")
@@ -138,7 +144,9 @@ def validate_file(
         detected = detect_file_type(stream)
 
     if detected not in allowed_types:
-        raise ValidationError(f"{FILE_TYPES[detected].mime_type} is not allowed for this upload type.")
+        raise ValidationError(
+            f"{FILE_TYPES[detected].mime_type} is not allowed for this upload type."
+        )
 
     if extension not in FILE_TYPES[detected].extensions:
         raise ValidationError(

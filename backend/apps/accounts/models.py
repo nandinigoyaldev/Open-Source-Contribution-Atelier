@@ -285,9 +285,8 @@ class UserSession(models.Model):
             super().save(*args, **kwargs)
 
             # Re-evaluate sessions now that the current one is saved.
-            all_sessions = (
-                UserSession.objects.filter(user=self.user)
-                .order_by("-last_activity")
+            all_sessions = UserSession.objects.filter(user=self.user).order_by(
+                "-last_activity"
             )
 
             if all_sessions.count() > max_sessions:

@@ -57,14 +57,17 @@ export function LessonPreview({ lesson }: LessonPreviewProps) {
 
       {/* Markdown Content */}
       <div className="prose dark:prose-invert max-w-none">
-        <MarkdownRenderer content={lesson.content || "_No content entered yet._"} />
+        <MarkdownRenderer
+          content={lesson.content || "_No content entered yet._"}
+        />
       </div>
 
       {/* Render Quizzes if present */}
       {lesson.quizzes && lesson.quizzes.length > 0 && (
         <div className="mt-8 pt-6 border-t-2 border-dashed border-black/10 dark:border-[#2e2924]">
           <h3 className="text-lg font-black text-text dark:text-[#f0ebe2] mb-4 flex items-center gap-2">
-            <HelpCircle className="w-5 h-5 text-indigo-500" /> Lesson Quiz Questions
+            <HelpCircle className="w-5 h-5 text-indigo-500" /> Lesson Quiz
+            Questions
           </h3>
 
           <div className="flex flex-col gap-4">

@@ -22,7 +22,9 @@ class NotificationsWorker:
             elif notification_type == "pull_request":
                 return self._handle_pull_request(notification_data)
             else:
-                logger.info(f"Ignoring unhandled notification type: {notification_type}")
+                logger.info(
+                    f"Ignoring unhandled notification type: {notification_type}"
+                )
                 return {"status": "ignored", "type": notification_type}
 
         except Exception as e:

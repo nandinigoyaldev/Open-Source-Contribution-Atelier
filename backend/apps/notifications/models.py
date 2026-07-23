@@ -70,9 +70,13 @@ class NotificationPreference(models.Model):
     email_enabled = models.BooleanField(default=True)
     in_app_enabled = models.BooleanField(default=True)
     websocket_enabled = models.BooleanField(default=True)
-    digest_frequency = models.CharField(max_length=10, choices=DIGEST_CHOICES, default="none")
+    digest_frequency = models.CharField(
+        max_length=10, choices=DIGEST_CHOICES, default="none"
+    )
     digest_time = models.TimeField(default=datetime.time(8, 0))
-    channel_preferences = models.JSONField(default=default_channel_preferences, blank=True)
+    channel_preferences = models.JSONField(
+        default=default_channel_preferences, blank=True
+    )
     webhook_url = models.URLField(max_length=500, blank=True, null=True)
     webhook_secret = models.CharField(max_length=255, blank=True, null=True)
     phone_number = models.CharField(max_length=50, blank=True, null=True)
@@ -134,13 +138,21 @@ class NotificationDelivery(models.Model):
     class Meta:
         ordering = ["-created_at"]
         indexes = [
-            models.Index(fields=["recipient", "channel"], name="idx_delivery_recipient_chan"),
-            models.Index(fields=["status", "created_at"], name="idx_delivery_status_created"),
-            models.Index(fields=["notification", "channel"], name="idx_delivery_notif_chan"),
+            models.Index(
+                fields=["recipient", "channel"], name="idx_delivery_recipient_chan"
+            ),
+            models.Index(
+                fields=["status", "created_at"], name="idx_delivery_status_created"
+            ),
+            models.Index(
+                fields=["notification", "channel"], name="idx_delivery_notif_chan"
+            ),
         ]
 
     def __str__(self):
-        return f"Delivery #{self.id} [{self.channel}] -> {self.recipient} ({self.status})"
+        return (
+            f"Delivery #{self.id} [{self.channel}] -> {self.recipient} ({self.status})"
+        )
 
 
 class NotificationDeadLetter(models.Model):
@@ -167,4 +179,3 @@ class NotificationDeadLetter(models.Model):
 
     def __str__(self):
         return f"DeadLetter [{self.channel}] -> {self.recipient} (Retries: {self.retry_count})"
-

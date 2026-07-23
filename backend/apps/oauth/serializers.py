@@ -23,7 +23,10 @@ class OAuthClientSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         import secrets
-        raw_secret = validated_data.pop("client_secret", None) or secrets.token_urlsafe(32)
+
+        raw_secret = validated_data.pop("client_secret", None) or secrets.token_urlsafe(
+            32
+        )
         client_id = f"client_{secrets.token_hex(12)}"
         client = OAuthClient(client_id=client_id, **validated_data)
         client.set_client_secret(raw_secret)
@@ -61,13 +64,17 @@ class AuthorizeRequestSerializer(serializers.Serializer):
     response_type = serializers.CharField(default="code")
     scope = serializers.CharField(required=False, default="openid profile email")
     code_challenge = serializers.CharField(required=False, allow_blank=True, default="")
-    code_challenge_method = serializers.CharField(required=False, allow_blank=True, default="S256")
+    code_challenge_method = serializers.CharField(
+        required=False, allow_blank=True, default="S256"
+    )
     state = serializers.CharField(required=False, allow_blank=True, default="")
     nonce = serializers.CharField(required=False, allow_blank=True, default="")
 
     def validate_response_type(self, value):
         if value != "code":
-            raise serializers.ValidationError("Unsupported response_type. Must be 'code'.")
+            raise serializers.ValidationError(
+                "Unsupported response_type. Must be 'code'."
+            )
         return value
 
 
@@ -84,7 +91,9 @@ class TokenRequestSerializer(serializers.Serializer):
     def validate_grant_type(self, value):
         allowed = {"authorization_code", "client_credentials", "refresh_token"}
         if value not in allowed:
-            raise serializers.ValidationError(f"Invalid grant_type. Supported: {', '.join(allowed)}")
+            raise serializers.ValidationError(
+                f"Invalid grant_type. Supported: {', '.join(allowed)}"
+            )
         return value
 
 

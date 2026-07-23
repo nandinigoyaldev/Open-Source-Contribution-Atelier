@@ -7,7 +7,6 @@ app_name = "uploads"
 urlpatterns = [
     path("", views.DirectUploadView.as_view(), name="direct_upload"),
     path("start/", views.StartUploadView.as_view(), name="start_upload"),
-
     path(
         "chunk/<uuid:session_id>/", views.UploadChunkView.as_view(), name="upload_chunk"
     ),

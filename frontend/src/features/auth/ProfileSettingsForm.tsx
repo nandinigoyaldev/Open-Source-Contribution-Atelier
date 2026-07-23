@@ -39,7 +39,8 @@ function ActiveSessions() {
   };
 
   const revokeSession = async (sessionId: string) => {
-    if (!window.confirm("Are you sure you want to revoke this session?")) return;
+    if (!window.confirm("Are you sure you want to revoke this session?"))
+      return;
     try {
       await fetchApi(`/auth/sessions/${sessionId}/`, {
         method: "DELETE",
@@ -49,9 +50,9 @@ function ActiveSessions() {
       fetchSessions();
     } catch (error: any) {
       if (error?.status === 401) {
-         logout();
+        logout();
       } else {
-         addToast("Failed to revoke session", "error");
+        addToast("Failed to revoke session", "error");
       }
     }
   };
@@ -63,10 +64,18 @@ function ActiveSessions() {
       </h3>
       <div className="space-y-3">
         {sessions.map((s) => (
-          <div key={s.session_id} className="flex justify-between items-center rounded-2xl border-4 border-black bg-white px-5 py-4 shadow-card-sm">
+          <div
+            key={s.session_id}
+            className="flex justify-between items-center rounded-2xl border-4 border-black bg-white px-5 py-4 shadow-card-sm"
+          >
             <div>
-              <p className="font-bold text-black">{s.device_name || s.user_agent || "Unknown Device"}</p>
-              <p className="text-sm text-gray-600 font-medium">IP: {s.ip_address} • Last active: {new Date(s.last_activity).toLocaleString()}</p>
+              <p className="font-bold text-black">
+                {s.device_name || s.user_agent || "Unknown Device"}
+              </p>
+              <p className="text-sm text-gray-600 font-medium">
+                IP: {s.ip_address} • Last active:{" "}
+                {new Date(s.last_activity).toLocaleString()}
+              </p>
             </div>
             <button
               type="button"

@@ -33,7 +33,9 @@ class TestPipelineSimulatorValidation(TestCase):
         assert "\x07" not in sanitized
         assert sanitized == "[ERROR] Bad input\nLine 2\tTabbed"
 
-    def test_sanitize_input_string_enforces_max_length_and_strips_control_chars(self, *args):
+    def test_sanitize_input_string_enforces_max_length_and_strips_control_chars(
+        self, *args
+    ):
         long_input = "a" * 150000 + "\x00" + "b" * 10
         sanitized = sanitize_input_string(long_input, max_length=100000)
         assert len(sanitized) == 100000
@@ -92,7 +94,9 @@ class TestPipelineSimulatorValidation(TestCase):
         assert "control characters" in reason
 
     def test_run_pipeline_simulation_with_valid_code_and_command(self, *args):
-        user = User.objects.create_user(username="testuser_pipeline", password="password123")
+        user = User.objects.create_user(
+            username="testuser_pipeline", password="password123"
+        )
         pipeline = PipelineExecution.objects.create(
             user=user,
             trigger_command="git status",
@@ -103,16 +107,19 @@ class TestPipelineSimulatorValidation(TestCase):
 
         pipeline.refresh_from_db()
         jobs = list(pipeline.jobs.all())
-        assert pipeline.status == "success", f"Pipeline failed. Jobs: {[(j.job_type, j.status, j.log_output) for j in jobs]}"
+        assert (
+            pipeline.status == "success"
+        ), f"Pipeline failed. Jobs: {[(j.job_type, j.status, j.log_output) for j in jobs]}"
         assert len(jobs) == 3
         for job in jobs:
             assert job.status == "success"
             assert "\x1b" not in job.log_output
             assert "\x00" not in job.log_output
 
-
     def test_run_pipeline_simulation_with_invalid_trigger_command(self, *args):
-        user = User.objects.create_user(username="testuser_pipeline2", password="password123")
+        user = User.objects.create_user(
+            username="testuser_pipeline2", password="password123"
+        )
         pipeline = PipelineExecution.objects.create(
             user=user,
             trigger_command="rm -rf /",
@@ -133,7 +140,9 @@ class TestPipelineSimulatorValidation(TestCase):
         assert not serializer.is_valid()
         assert "trigger_command" in serializer.errors
 
-        valid_serializer = PipelineExecutionSerializer(data={"trigger_command": "git commit -m 'test'"})
+        valid_serializer = PipelineExecutionSerializer(
+            data={"trigger_command": "git commit -m 'test'"}
+        )
         assert valid_serializer.is_valid(), valid_serializer.errors
 
     def test_pipeline_execution_viewset_throttling(self, *args):

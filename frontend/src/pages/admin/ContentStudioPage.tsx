@@ -3,7 +3,16 @@ import { useContentDraft, LessonDraftData } from "../../hooks/useContentDraft";
 import { ModuleTree } from "../../components/admin/ModuleTree";
 import { EditorSplitPane } from "../../components/admin/EditorSplitPane";
 import { QuizQuestionForm } from "../../components/admin/QuizQuestionForm";
-import { Save, Eye, Check, Loader2, Globe, FileEdit, HelpCircle, GitFork } from "lucide-react";
+import {
+  Save,
+  Eye,
+  Check,
+  Loader2,
+  Globe,
+  FileEdit,
+  HelpCircle,
+  GitFork,
+} from "lucide-react";
 import api from "../../api";
 
 export function ContentStudioPage() {
@@ -18,12 +27,17 @@ export function ContentStudioPage() {
     refetchModules,
   } = useContentDraft();
 
-  const [activeTab, setActiveTab] = useState<"editor" | "quiz" | "frontmatter">("editor");
+  const [activeTab, setActiveTab] = useState<"editor" | "quiz" | "frontmatter">(
+    "editor",
+  );
 
   const handleAddModule = async () => {
     const title = prompt("Enter Module Title:", "New Module");
     if (!title) return;
-    const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+    const slug = title
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)/g, "");
     try {
       await api.post("/content/modules/", { title, slug, description: "" });
       refetchModules();
@@ -35,7 +49,10 @@ export function ContentStudioPage() {
   const handleAddLesson = async (moduleId: number) => {
     const title = prompt("Enter Lesson Title:", "New Lesson");
     if (!title) return;
-    const slug = title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/(^-|-$)/g, "");
+    const slug = title
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/(^-|-$)/g, "");
     try {
       const res = await api.post<LessonDraftData>("/content/lessons/", {
         module: moduleId,
@@ -81,10 +98,12 @@ export function ContentStudioPage() {
       <div className="flex flex-wrap items-center justify-between gap-4 pb-4 border-b-2 border-black/10 dark:border-[#2e2924]">
         <div>
           <h1 className="text-3xl font-black tracking-tight text-text dark:text-[#f0ebe2] flex items-center gap-2">
-            <FileEdit className="w-8 h-8 text-accent" /> Content Authoring Studio
+            <FileEdit className="w-8 h-8 text-accent" /> Content Authoring
+            Studio
           </h1>
           <p className="text-sm font-medium text-muted dark:text-[#c4bbae]">
-            WYSIWYG Admin Editor for Lessons & Quizzes with Live Preview & Autosave.
+            WYSIWYG Admin Editor for Lessons & Quizzes with Live Preview &
+            Autosave.
           </p>
         </div>
 
@@ -101,16 +120,24 @@ export function ContentStudioPage() {
               {saveStatus === "saved" && (
                 <>
                   <Check className="w-3.5 h-3.5 text-green-500" />
-                  <span className="text-green-600 dark:text-green-400">Saved</span>
+                  <span className="text-green-600 dark:text-green-400">
+                    Saved
+                  </span>
                 </>
               )}
-              {saveStatus === "idle" && <span className="text-muted">Autosave ready</span>}
-              {saveStatus === "error" && <span className="text-red-500">Save failed</span>}
+              {saveStatus === "idle" && (
+                <span className="text-muted">Autosave ready</span>
+              )}
+              {saveStatus === "error" && (
+                <span className="text-red-500">Save failed</span>
+              )}
             </div>
 
             {/* Publish / Draft Toggle */}
             <button
-              onClick={() => updateActiveLesson({ isPublished: !activeLesson.isPublished })}
+              onClick={() =>
+                updateActiveLesson({ isPublished: !activeLesson.isPublished })
+              }
               className={`flex items-center gap-2 text-xs font-black px-4 py-2 rounded-xl transition-all shadow-card-sm ${
                 activeLesson.isPublished
                   ? "bg-green-600 text-white hover:bg-green-700"
@@ -152,9 +179,12 @@ export function ContentStudioPage() {
           {!activeLesson ? (
             <div className="w-full py-20 px-6 bg-white dark:bg-[#151411] border-2 border-black/10 dark:border-[#2e2924] rounded-xl text-center flex flex-col items-center justify-center gap-3">
               <GitFork className="w-12 h-12 text-muted/40" />
-              <h3 className="text-xl font-bold text-text dark:text-[#f0ebe2]">No Lesson Selected</h3>
+              <h3 className="text-xl font-bold text-text dark:text-[#f0ebe2]">
+                No Lesson Selected
+              </h3>
               <p className="text-sm text-muted dark:text-[#a0988c] max-w-md">
-                Select a lesson from the curriculum tree on the left, or create a new lesson to start authoring.
+                Select a lesson from the curriculum tree on the left, or create
+                a new lesson to start authoring.
               </p>
             </div>
           ) : (
@@ -191,7 +221,8 @@ export function ContentStudioPage() {
                       : "bg-surface-low dark:bg-black/20 text-text/80 dark:text-[#c4bbae] hover:bg-black/10"
                   }`}
                 >
-                  <HelpCircle className="w-4 h-4" /> Quiz Questions ({activeLesson.quizzes?.length || 0})
+                  <HelpCircle className="w-4 h-4" /> Quiz Questions (
+                  {activeLesson.quizzes?.length || 0})
                 </button>
               </div>
 
@@ -211,30 +242,42 @@ export function ContentStudioPage() {
 
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="flex flex-col gap-1">
-                      <label className="text-xs font-bold text-muted uppercase">Lesson Title</label>
+                      <label className="text-xs font-bold text-muted uppercase">
+                        Lesson Title
+                      </label>
                       <input
                         type="text"
                         value={activeLesson.title}
-                        onChange={(e) => updateActiveLesson({ title: e.target.value })}
+                        onChange={(e) =>
+                          updateActiveLesson({ title: e.target.value })
+                        }
                         className="px-3 py-2 bg-surface-low dark:bg-[#1a1714] border border-black/20 dark:border-[#2e2924] rounded-lg font-bold text-sm text-text dark:text-[#f0ebe2]"
                       />
                     </div>
 
                     <div className="flex flex-col gap-1">
-                      <label className="text-xs font-bold text-muted uppercase">URL Slug</label>
+                      <label className="text-xs font-bold text-muted uppercase">
+                        URL Slug
+                      </label>
                       <input
                         type="text"
                         value={activeLesson.slug}
-                        onChange={(e) => updateActiveLesson({ slug: e.target.value })}
+                        onChange={(e) =>
+                          updateActiveLesson({ slug: e.target.value })
+                        }
                         className="px-3 py-2 bg-surface-low dark:bg-[#1a1714] border border-black/20 dark:border-[#2e2924] rounded-lg font-mono text-sm text-text dark:text-[#f0ebe2]"
                       />
                     </div>
 
                     <div className="flex flex-col gap-1">
-                      <label className="text-xs font-bold text-muted uppercase">Difficulty</label>
+                      <label className="text-xs font-bold text-muted uppercase">
+                        Difficulty
+                      </label>
                       <select
                         value={activeLesson.difficulty}
-                        onChange={(e) => updateActiveLesson({ difficulty: e.target.value })}
+                        onChange={(e) =>
+                          updateActiveLesson({ difficulty: e.target.value })
+                        }
                         className="px-3 py-2 bg-surface-low dark:bg-[#1a1714] border border-black/20 dark:border-[#2e2924] rounded-lg text-sm font-bold text-text dark:text-[#f0ebe2]"
                       >
                         <option value="beginner">Beginner</option>
@@ -244,33 +287,48 @@ export function ContentStudioPage() {
                     </div>
 
                     <div className="flex flex-col gap-1">
-                      <label className="text-xs font-bold text-muted uppercase">Estimated Minutes</label>
+                      <label className="text-xs font-bold text-muted uppercase">
+                        Estimated Minutes
+                      </label>
                       <input
                         type="number"
                         value={activeLesson.estimatedMinutes}
-                        onChange={(e) => updateActiveLesson({ estimatedMinutes: Number(e.target.value) })}
+                        onChange={(e) =>
+                          updateActiveLesson({
+                            estimatedMinutes: Number(e.target.value),
+                          })
+                        }
                         className="px-3 py-2 bg-surface-low dark:bg-[#1a1714] border border-black/20 dark:border-[#2e2924] rounded-lg text-sm font-bold text-text dark:text-[#f0ebe2]"
                       />
                     </div>
 
                     <div className="md:col-span-2 flex flex-col gap-1">
-                      <label className="text-xs font-bold text-muted uppercase">Description / Summary</label>
+                      <label className="text-xs font-bold text-muted uppercase">
+                        Description / Summary
+                      </label>
                       <textarea
                         rows={3}
                         value={activeLesson.description || ""}
-                        onChange={(e) => updateActiveLesson({ description: e.target.value })}
+                        onChange={(e) =>
+                          updateActiveLesson({ description: e.target.value })
+                        }
                         className="px-3 py-2 bg-surface-low dark:bg-[#1a1714] border border-black/20 dark:border-[#2e2924] rounded-lg text-sm text-text dark:text-[#f0ebe2]"
                       />
                     </div>
 
                     <div className="md:col-span-2 flex flex-col gap-1">
-                      <label className="text-xs font-bold text-muted uppercase">Tags (comma separated)</label>
+                      <label className="text-xs font-bold text-muted uppercase">
+                        Tags (comma separated)
+                      </label>
                       <input
                         type="text"
                         value={(activeLesson.tags || []).join(", ")}
                         onChange={(e) =>
                           updateActiveLesson({
-                            tags: e.target.value.split(",").map((t) => t.trim()).filter(Boolean),
+                            tags: e.target.value
+                              .split(",")
+                              .map((t) => t.trim())
+                              .filter(Boolean),
                           })
                         }
                         className="px-3 py-2 bg-surface-low dark:bg-[#1a1714] border border-black/20 dark:border-[#2e2924] rounded-lg text-sm text-text dark:text-[#f0ebe2]"

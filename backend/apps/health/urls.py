@@ -11,5 +11,7 @@ urlpatterns = [
     path("", views.health_view, name="health"),
     path("ready/", views.health_ready_view, name="health-ready"),
     path("live/", views.health_live_view, name="health-live"),
-    path("db/replication-lag/", views.replication_lag_view, name="health-replication-lag"),
+    path(
+        "db/replication-lag/", views.replication_lag_view, name="health-replication-lag"
+    ),
 ]

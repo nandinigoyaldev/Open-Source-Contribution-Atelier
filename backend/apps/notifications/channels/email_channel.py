@@ -39,12 +39,16 @@ class EmailChannel(NotificationChannel):
             html_content = render_to_string(template_name, context)
         except Exception:
             try:
-                html_content = render_to_string("notifications/default_email.html", context)
+                html_content = render_to_string(
+                    "notifications/default_email.html", context
+                )
             except Exception:
-                html_content = f"<html><body><h2>{title}</h2><p>{message_text}</p></body></html>"
+                html_content = (
+                    f"<html><body><h2>{title}</h2><p>{message_text}</p></body></html>"
+                )
 
         backend_url = getattr(settings, "BACKEND_URL", "http://localhost:8000")
-        
+
         # 1. Embed 1x1 tracking pixel
         open_tracking_url = f"{backend_url}/api/notifications/track/open/{delivery.id}/"
         tracking_pixel = f'<img src="{open_tracking_url}" width="1" height="1" alt="" style="display:none;" />'

@@ -5,6 +5,7 @@ from datetime import timedelta
 from django.db.models import Avg, Sum
 from .models import DeveloperExperienceMetric, DXSnapshot
 
+
 class DXScoreService:
     @staticmethod
     def calculate_current_score():
@@ -17,8 +18,10 @@ class DXScoreService:
 
         total = recent.count()
         failures = recent.filter(success=False).count()
-        avg_duration = recent.aggregate(Avg('execution_time_ms'))['execution_time_ms__avg'] or 0
-        
+        avg_duration = (
+            recent.aggregate(Avg("execution_time_ms"))["execution_time_ms__avg"] or 0
+        )
+
         # Calculate failure rate penalty (up to 50 points)
         failure_rate = failures / total
         failure_penalty = min(50, failure_rate * 100)
@@ -37,31 +40,33 @@ class AnomalyDetectionService:
         # Train IsolationForest on last 7 days of data
         metrics = DeveloperExperienceMetric.objects.filter(
             timestamp__gte=timezone.now() - timedelta(days=7)
-        ).values('execution_time_ms', 'success')
+        ).values("execution_time_ms", "success")
 
         if len(metrics) < 10:
             return False, 0.0
 
         df = pd.DataFrame(metrics)
-        df['success'] = df['success'].astype(int)
+        df["success"] = df["success"].astype(int)
 
         model = IsolationForest(contamination=0.1, random_state=42)
-        model.fit(df[['execution_time_ms', 'success']])
+        model.fit(df[["execution_time_ms", "success"]])
 
         # Check the most recent hour for anomalies
         recent_metrics = DeveloperExperienceMetric.objects.filter(
             timestamp__gte=timezone.now() - timedelta(hours=1)
-        ).values('execution_time_ms', 'success')
-        
+        ).values("execution_time_ms", "success")
+
         if not recent_metrics:
             return False, 0.0
-            
+
         recent_df = pd.DataFrame(recent_metrics)
-        recent_df['success'] = recent_df['success'].astype(int)
-        
-        predictions = model.predict(recent_df[['execution_time_ms', 'success']])
-        anomaly_score = model.decision_function(recent_df[['execution_time_ms', 'success']]).mean()
-        
+        recent_df["success"] = recent_df["success"].astype(int)
+
+        predictions = model.predict(recent_df[["execution_time_ms", "success"]])
+        anomaly_score = model.decision_function(
+            recent_df[["execution_time_ms", "success"]]
+        ).mean()
+
         is_anomaly = -1 in predictions
         return is_anomaly, anomaly_score
 
@@ -73,34 +78,42 @@ class RecommendationService:
         recent = DeveloperExperienceMetric.objects.filter(
             timestamp__gte=timezone.now() - timedelta(days=1)
         )
-        
+
         if not recent.exists():
             return recs
 
         # Rule 1: High failure rate
         failures = recent.filter(success=False)
         if failures.count() / recent.count() > 0.2:
-            recs.append({
-                "title": "High Failure Rate Detected",
-                "description": "More than 20% of workflows failed in the last 24h. Check recent commits for flaky tests."
-            })
-            
+            recs.append(
+                {
+                    "title": "High Failure Rate Detected",
+                    "description": "More than 20% of workflows failed in the last 24h. Check recent commits for flaky tests.",
+                }
+            )
+
         # Rule 2: Slow builds
-        builds = recent.filter(workflow_name__icontains='build')
+        builds = recent.filter(workflow_name__icontains="build")
         if builds.exists():
-            avg_build = builds.aggregate(Avg('execution_time_ms'))['execution_time_ms__avg']
-            if avg_build and avg_build > 8 * 60 * 1000: # 8 minutes
-                recs.append({
-                    "title": "Slow Builds",
-                    "description": "Average build time exceeds 8 minutes. Consider splitting CI jobs or caching dependencies."
-                })
-                
+            avg_build = builds.aggregate(Avg("execution_time_ms"))[
+                "execution_time_ms__avg"
+            ]
+            if avg_build and avg_build > 8 * 60 * 1000:  # 8 minutes
+                recs.append(
+                    {
+                        "title": "Slow Builds",
+                        "description": "Average build time exceeds 8 minutes. Consider splitting CI jobs or caching dependencies.",
+                    }
+                )
+
         # Rule 3: Lint failures
-        lints = recent.filter(workflow_name__icontains='lint', success=False)
+        lints = recent.filter(workflow_name__icontains="lint", success=False)
         if lints.count() > 5:
-            recs.append({
-                "title": "Frequent Lint Failures",
-                "description": "Multiple lint failures detected. Enforce pre-commit hooks locally."
-            })
-            
+            recs.append(
+                {
+                    "title": "Frequent Lint Failures",
+                    "description": "Multiple lint failures detected. Enforce pre-commit hooks locally.",
+                }
+            )
+
         return recs

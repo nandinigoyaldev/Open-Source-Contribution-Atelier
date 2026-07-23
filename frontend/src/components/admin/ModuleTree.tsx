@@ -1,5 +1,13 @@
 import React, { useState } from "react";
-import { Folder, FileText, Plus, Trash2, ChevronDown, ChevronRight, GripVertical } from "lucide-react";
+import {
+  Folder,
+  FileText,
+  Plus,
+  Trash2,
+  ChevronDown,
+  ChevronRight,
+  GripVertical,
+} from "lucide-react";
 import { ModuleDraftData, LessonDraftData } from "../../hooks/useContentDraft";
 
 interface ModuleTreeProps {
@@ -91,7 +99,7 @@ export function ModuleTree({
 
                 {!isCollapsed && (
                   <div className="p-1 flex flex-col gap-1">
-                    {(!mod.lessons || mod.lessons.length === 0) ? (
+                    {!mod.lessons || mod.lessons.length === 0 ? (
                       <div className="text-xs text-muted dark:text-[#a0988c] italic px-4 py-2">
                         No lessons in this module.
                       </div>

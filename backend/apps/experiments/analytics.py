@@ -48,21 +48,17 @@ def calculate_significance(experiment_id):
     results = {}
     for variant in experiment.variants:
         total = ExperimentEvent.objects.filter(
-            experiment=experiment,
-            variant=variant,
-            event_type='view'
+            experiment=experiment, variant=variant, event_type="view"
         ).count()
 
         conversions = ExperimentEvent.objects.filter(
-            experiment=experiment,
-            variant=variant,
-            event_type='conversion'
+            experiment=experiment, variant=variant, event_type="conversion"
         ).count()
 
         results[variant] = {
-            'views': total,
-            'conversions': conversions,
-            'rate': conversions / total if total > 0 else 0
+            "views": total,
+            "conversions": conversions,
+            "rate": conversions / total if total > 0 else 0,
         }
 
     # Chi-squared test of independence: is conversion rate independent of variant?
@@ -72,8 +68,8 @@ def calculate_significance(experiment_id):
     significant = False
 
     if len(variants) >= 2:
-        total_views = sum(results[v]['views'] for v in variants)
-        total_conversions = sum(results[v]['conversions'] for v in variants)
+        total_views = sum(results[v]["views"] for v in variants)
+        total_conversions = sum(results[v]["conversions"] for v in variants)
 
         if total_views > 0 and 0 < total_conversions < total_views:
             overall_rate = total_conversions / total_views
@@ -81,8 +77,8 @@ def calculate_significance(experiment_id):
             valid = True
 
             for v in variants:
-                n = results[v]['views']
-                observed_conv = results[v]['conversions']
+                n = results[v]["views"]
+                observed_conv = results[v]["conversions"]
                 observed_non_conv = n - observed_conv
 
                 expected_conv = n * overall_rate
@@ -93,7 +89,9 @@ def calculate_significance(experiment_id):
                     break
 
                 chi_sq += ((observed_conv - expected_conv) ** 2) / expected_conv
-                chi_sq += ((observed_non_conv - expected_non_conv) ** 2) / expected_non_conv
+                chi_sq += (
+                    (observed_non_conv - expected_non_conv) ** 2
+                ) / expected_non_conv
 
             if valid:
                 degrees_of_freedom = len(variants) - 1
@@ -102,9 +100,8 @@ def calculate_significance(experiment_id):
                 significant = p_value < 0.05
 
     return {
-        'variants': results,
-        'chi_squared': chi_squared_stat,
-        'p_value': p_value,
-        'significant': significant,
+        "variants": results,
+        "chi_squared": chi_squared_stat,
+        "p_value": p_value,
+        "significant": significant,
     }
-    

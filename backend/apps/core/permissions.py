@@ -15,6 +15,7 @@ For endpoints where you want an explicit **403 Forbidden** instead of
 permission inspects the object's tenant discriminator and returns
 ``False`` (→ 403) when it differs from the request's tenant.
 """
+
 from rest_framework.permissions import BasePermission, SAFE_METHODS
 
 

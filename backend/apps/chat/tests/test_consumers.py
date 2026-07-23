@@ -193,8 +193,9 @@ class TestChatConsumer:
 
     async def test_multi_tab_presence(self, auth_user, token):
         import asyncio
+
         headers = [(b"origin", b"http://localhost")]
-        
+
         # Connect tab 1
         comm1 = WebsocketCommunicator(
             application, f"/ws/chat/room1/?token={token}", headers=headers
@@ -212,7 +213,7 @@ class TestChatConsumer:
         await comm2.connect()
         await comm2.receive_json_from()  # connection_established
         await comm2.receive_json_from()  # presence_sync
-        
+
         # presence_joined should NOT be sent to comm1 because user is already present!
         # wait 0.5s to ensure no message
         assert await comm1.receive_nothing(timeout=0.5)
@@ -224,7 +225,7 @@ class TestChatConsumer:
         resp = await comm1.receive_json_from()
         assert resp["type"] == "typing"
         assert resp["action"] == "typing_stop"
-        
+
         # presence_left should NOT be sent because user still has tab 1
         assert await comm1.receive_nothing(timeout=0.5)
 

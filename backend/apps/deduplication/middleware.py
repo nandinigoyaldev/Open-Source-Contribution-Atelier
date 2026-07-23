@@ -20,11 +20,11 @@ class RequestCoalescer:
     """
     Coalesces identical concurrent requests.
     """
-    
+
     def __init__(self):
         self._pending_requests: Dict[str, Dict] = {}
         self._lock = threading.Lock()
-        self._cache_ttl = getattr(settings, 'REQUEST_CACHE_TTL', 60)  # 60 seconds
+        self._cache_ttl = getattr(settings, "REQUEST_CACHE_TTL", 60)  # 60 seconds
 
     def get_request_key(self, request) -> str:
         """
@@ -33,24 +33,24 @@ class RequestCoalescer:
         """
         # Basic key: method + path
         key_parts = [request.method, request.path]
-        
+
         # Add query params (sorted for consistency)
         if request.GET:
-            query_str = '&'.join(f"{k}={v}" for k, v in sorted(request.GET.items()))
+            query_str = "&".join(f"{k}={v}" for k, v in sorted(request.GET.items()))
             key_parts.append(query_str)
-        
+
         # Add body for POST/PUT/PATCH
-        if request.method in ['POST', 'PUT', 'PATCH'] and request.body:
+        if request.method in ["POST", "PUT", "PATCH"] and request.body:
             # Parse and sort body keys for consistency
             try:
                 body_dict = json.loads(request.body)
                 body_str = json.dumps(body_dict, sort_keys=True)
                 key_parts.append(body_str)
             except:
-                key_parts.append(request.body.decode('utf-8', errors='ignore'))
-        
+                key_parts.append(request.body.decode("utf-8", errors="ignore"))
+
         # Generate hash
-        key_string = '|'.join(key_parts)
+        key_string = "|".join(key_parts)
         return hashlib.md5(key_string.encode()).hexdigest()
 
     def get_cached_response(self, request_key: str) -> Optional[Dict]:
@@ -81,9 +81,9 @@ class RequestCoalescer:
         with self._lock:
             if request_key not in self._pending_requests:
                 self._pending_requests[request_key] = {
-                    'identifier': request_identifier,
-                    'started_at': time.time(),
-                    'waiting': [],
+                    "identifier": request_identifier,
+                    "started_at": time.time(),
+                    "waiting": [],
                 }
             return self._pending_requests[request_key]
 
@@ -93,7 +93,7 @@ class RequestCoalescer:
         """
         with self._lock:
             if request_key in self._pending_requests:
-                self._pending_requests[request_key]['waiting'].append(future)
+                self._pending_requests[request_key]["waiting"].append(future)
 
     def complete_request(self, request_key: str, result: Any):
         """
@@ -103,9 +103,9 @@ class RequestCoalescer:
             if request_key in self._pending_requests:
                 pending = self._pending_requests[request_key]
                 # Notify all waiters
-                for future in pending['waiting']:
+                for future in pending["waiting"]:
                     try:
-                        future['callback'](result)
+                        future["callback"](result)
                     except Exception as e:
                         logger.error(f"Error notifying waiter: {e}")
                 del self._pending_requests[request_key]
@@ -122,38 +122,42 @@ class DeduplicationMiddleware(MiddlewareMixin):
     """
     Middleware that deduplicates identical concurrent requests.
     """
-    
+
     def __init__(self, get_response):
         super().__init__(get_response)
         self.coalescer = RequestCoalescer()
-        self.enabled = getattr(settings, 'REQUEST_DEDUPLICATION_ENABLED', True)
-        self.cache_responses = getattr(settings, 'REQUEST_DEDUPLICATION_CACHE', True)
-        self.ignored_paths = getattr(settings, 'REQUEST_DEDUPLICATION_IGNORE', [
-            '/admin/',
-            '/static/',
-            '/media/',
-            '/api/auth/',
-            '/api/accounts/',
-        ])
+        self.enabled = getattr(settings, "REQUEST_DEDUPLICATION_ENABLED", True)
+        self.cache_responses = getattr(settings, "REQUEST_DEDUPLICATION_CACHE", True)
+        self.ignored_paths = getattr(
+            settings,
+            "REQUEST_DEDUPLICATION_IGNORE",
+            [
+                "/admin/",
+                "/static/",
+                "/media/",
+                "/api/auth/",
+                "/api/accounts/",
+            ],
+        )
 
     def _should_deduplicate(self, request) -> bool:
         """Check if request should be deduplicated."""
         if not self.enabled:
             return False
-        
+
         # Skip ignored paths
         for path in self.ignored_paths:
             if request.path.startswith(path):
                 return False
-        
+
         # Skip non-idempotent methods
-        if request.method not in ['GET', 'POST', 'PUT', 'PATCH']:
+        if request.method not in ["GET", "POST", "PUT", "PATCH"]:
             return False
-        
+
         # Skip file uploads
-        if request.content_type and 'multipart/form-data' in request.content_type:
+        if request.content_type and "multipart/form-data" in request.content_type:
             return False
-        
+
         return True
 
     def process_request(self, request):
@@ -164,7 +168,7 @@ class DeduplicationMiddleware(MiddlewareMixin):
             return None
 
         request_key = self.coalescer.get_request_key(request)
-        
+
         # Check cache first
         if self.cache_responses:
             cached = self.coalescer.get_cached_response(request_key)
@@ -179,11 +183,13 @@ class DeduplicationMiddleware(MiddlewareMixin):
             request._dedup_key = request_key
             request._dedup_waiting = True
             request._dedup_result = None
-            
+
             # Register as waiting
-            future = {'callback': lambda result: setattr(request, '_dedup_result', result)}
+            future = {
+                "callback": lambda result: setattr(request, "_dedup_result", result)
+            }
             self.coalescer.add_waiting_request(request_key, future)
-            
+
             # Return a placeholder - will be handled in process_response
             return None
 
@@ -191,28 +197,28 @@ class DeduplicationMiddleware(MiddlewareMixin):
         request._dedup_key = request_key
         request._dedup_waiting = False
         self.coalescer.register_pending_request(request_key, str(id(request)))
-        
+
         return None
 
     def process_response(self, request, response):
         """
         Process response - handle deduplication.
         """
-        if not hasattr(request, '_dedup_key'):
+        if not hasattr(request, "_dedup_key"):
             return response
 
         request_key = request._dedup_key
-        
+
         # If this request was waiting, return the result
-        if getattr(request, '_dedup_waiting', False):
-            result = getattr(request, '_dedup_result', None)
+        if getattr(request, "_dedup_waiting", False):
+            result = getattr(request, "_dedup_result", None)
             if result is not None:
                 return JsonResponse(result, status=200)
             # If no result yet, return original response
             return response
 
         # First request - cache the response
-        if response.status_code == 200 and hasattr(response, 'content'):
+        if response.status_code == 200 and hasattr(response, "content"):
             try:
                 response_data = json.loads(response.content)
                 if self.cache_responses:
@@ -222,7 +228,9 @@ class DeduplicationMiddleware(MiddlewareMixin):
 
         # Complete the request and notify waiters
         try:
-            response_data = json.loads(response.content) if hasattr(response, 'content') else {}
+            response_data = (
+                json.loads(response.content) if hasattr(response, "content") else {}
+            )
             self.coalescer.complete_request(request_key, response_data)
         except Exception as e:
             logger.error(f"Error completing request: {e}")
@@ -234,6 +242,6 @@ class DeduplicationMiddleware(MiddlewareMixin):
         """
         Handle exceptions - clean up pending requests.
         """
-        if hasattr(request, '_dedup_key'):
+        if hasattr(request, "_dedup_key"):
             self.coalescer.complete_request(request._dedup_key, None)
         return None

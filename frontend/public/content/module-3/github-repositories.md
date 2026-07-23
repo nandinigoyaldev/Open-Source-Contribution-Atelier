@@ -18,7 +18,7 @@ A typical repo contains:
 
 - Your code files — the actual work
 - `.git` folder — the hidden historian (never touch this!)
-<img width="911" height="397" alt="image" src="https://github.com/user-attachments/assets/f8c9d82d-fa04-435c-9af2-034f600b62d5" />
+  <img width="911" height="397" alt="image" src="https://github.com/user-attachments/assets/f8c9d82d-fa04-435c-9af2-034f600b62d5" />
 
 - `README.md` — a friendly "what is this project?" description
 - `LICENSE` — the permission slip for others to use your code

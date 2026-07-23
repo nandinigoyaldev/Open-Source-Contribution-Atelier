@@ -1,5 +1,11 @@
 from rest_framework import serializers
-from apps.ml_triage.models import Issue
+from apps.ml_triage.models import (
+    Issue,
+    Comment,
+    Reaction,
+    TrainingData,
+    IssuePrediction,
+)
 
 
 class IssueSerializer(serializers.ModelSerializer):
@@ -8,9 +14,25 @@ class IssueSerializer(serializers.ModelSerializer):
         fields = "__all__"
 
 
-class TrainingDataSerializer(serializers.Serializer):
-    id = serializers.IntegerField(required=False)
-    title = serializers.CharField()
-    description = serializers.CharField(required=False, allow_blank=True)
-    category = serializers.CharField(required=False)
-    priority = serializers.CharField(required=False)
+class CommentSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Comment
+        fields = "__all__"
+
+
+class ReactionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Reaction
+        fields = "__all__"
+
+
+class TrainingDataSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = TrainingData
+        fields = "__all__"
+
+
+class IssuePredictionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = IssuePrediction
+        fields = "__all__"

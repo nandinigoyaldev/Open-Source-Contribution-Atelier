@@ -13,7 +13,9 @@ def _prefs_payload(prefs: NotificationPreference) -> dict:
         "in_app": prefs.in_app_enabled,
         "websocket": prefs.websocket_enabled,
         "digest_frequency": prefs.digest_frequency,
-        "digest_time": prefs.digest_time.strftime("%H:%M") if prefs.digest_time else None,
+        "digest_time": (
+            prefs.digest_time.strftime("%H:%M") if prefs.digest_time else None
+        ),
     }
 
 
@@ -60,12 +62,21 @@ class NotificationPrefsView(APIView):
         if "digest_time" in request.data:
             digest_time_str = request.data["digest_time"]
             import datetime
+
             try:
-                prefs.digest_time = datetime.datetime.strptime(digest_time_str, "%H:%M").time()
+                prefs.digest_time = datetime.datetime.strptime(
+                    digest_time_str, "%H:%M"
+                ).time()
             except (ValueError, TypeError):
                 pass
         prefs.save(
-            update_fields=["email_enabled", "in_app_enabled", "websocket_enabled", "digest_frequency", "digest_time"]
+            update_fields=[
+                "email_enabled",
+                "in_app_enabled",
+                "websocket_enabled",
+                "digest_frequency",
+                "digest_time",
+            ]
         )
         return Response(_prefs_payload(prefs))
 
@@ -163,10 +174,13 @@ class UnsubscribePushView(APIView):
 
 class DigestAPIView(APIView):
     """GET /api/notifications/digest/ — returns grouped unread notifications"""
+
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
-        unread = Notification.objects.filter(recipient=request.user, is_read=False).order_by("-created_at")
+        unread = Notification.objects.filter(
+            recipient=request.user, is_read=False
+        ).order_by("-created_at")
         serializer = NotificationSerializer(unread, many=True)
         # Group by notif_type
         grouped = {}
@@ -180,6 +194,7 @@ class DigestAPIView(APIView):
 
 class DigestReadView(APIView):
     """POST /api/notifications/digest/read/"""
+
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request):

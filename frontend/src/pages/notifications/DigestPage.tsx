@@ -45,7 +45,10 @@ export default function DigestPage() {
     return (
       <div className="p-8 max-w-4xl mx-auto space-y-4">
         {[1, 2, 3].map((n) => (
-          <div key={n} className="h-24 bg-gray-200 dark:bg-gray-800 rounded-xl animate-pulse" />
+          <div
+            key={n}
+            className="h-24 bg-gray-200 dark:bg-gray-800 rounded-xl animate-pulse"
+          />
         ))}
       </div>
     );
@@ -75,20 +78,32 @@ export default function DigestPage() {
 
       {count === 0 ? (
         <div className="p-8 text-center border-4 border-black dark:border-[#2e2924] rounded-2xl bg-white dark:bg-[#151411]">
-          <p className="text-gray-500 dark:text-[#c4bbae]">You're all caught up!</p>
+          <p className="text-gray-500 dark:text-[#c4bbae]">
+            You're all caught up!
+          </p>
         </div>
       ) : (
         <div className="space-y-6">
           {Object.entries(grouped).map(([type, notifs]) => (
-            <div key={type} className="border-4 border-black dark:border-[#2e2924] rounded-2xl bg-white dark:bg-[#151411] overflow-hidden">
+            <div
+              key={type}
+              className="border-4 border-black dark:border-[#2e2924] rounded-2xl bg-white dark:bg-[#151411] overflow-hidden"
+            >
               <div className="p-4 border-b-4 border-black dark:border-[#2e2924] bg-surface-low dark:bg-[#1f1c18]">
                 <h2 className="text-xl font-bold uppercase">{type}</h2>
               </div>
               <div className="divide-y-2 divide-black dark:divide-[#2e2924]">
                 {notifs.map((notif) => (
-                  <div key={notif.id} className="p-4 hover:bg-gray-50 dark:hover:bg-[#1f1c18] transition-colors">
-                    <h3 className="font-bold text-black dark:text-white">{notif.title}</h3>
-                    <p className="text-gray-600 dark:text-[#c4bbae] mt-1">{notif.message}</p>
+                  <div
+                    key={notif.id}
+                    className="p-4 hover:bg-gray-50 dark:hover:bg-[#1f1c18] transition-colors"
+                  >
+                    <h3 className="font-bold text-black dark:text-white">
+                      {notif.title}
+                    </h3>
+                    <p className="text-gray-600 dark:text-[#c4bbae] mt-1">
+                      {notif.message}
+                    </p>
                     <span className="text-xs text-gray-400 mt-2 block">
                       {new Date(notif.created_at).toLocaleString()}
                     </span>

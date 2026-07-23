@@ -6,7 +6,8 @@ import { Save, Check, Loader2 } from "lucide-react";
 export function QuizBuilderPage() {
   const { lessonId } = useParams<{ lessonId: string }>();
   const id = lessonId ? parseInt(lessonId, 10) : undefined;
-  const { activeLesson, updateActiveLesson, saveStatus, saveDraft } = useContentDraft(id);
+  const { activeLesson, updateActiveLesson, saveStatus, saveDraft } =
+    useContentDraft(id);
 
   if (!activeLesson) {
     return (
@@ -39,11 +40,17 @@ export function QuizBuilderPage() {
             {saveStatus === "saved" && (
               <>
                 <Check className="w-3.5 h-3.5 text-green-500" />
-                <span className="text-green-600 dark:text-green-400">Saved</span>
+                <span className="text-green-600 dark:text-green-400">
+                  Saved
+                </span>
               </>
             )}
-            {saveStatus === "idle" && <span className="text-muted">Autosave ready</span>}
-            {saveStatus === "error" && <span className="text-red-500">Save failed</span>}
+            {saveStatus === "idle" && (
+              <span className="text-muted">Autosave ready</span>
+            )}
+            {saveStatus === "error" && (
+              <span className="text-red-500">Save failed</span>
+            )}
           </div>
 
           <button

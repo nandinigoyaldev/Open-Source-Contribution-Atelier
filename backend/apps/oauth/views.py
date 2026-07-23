@@ -43,23 +43,31 @@ class AuthorizationView(views.APIView):
         data = serializer.validated_data
 
         try:
-            client = OAuthClient.objects.get(client_id=data["client_id"], is_active=True)
+            client = OAuthClient.objects.get(
+                client_id=data["client_id"], is_active=True
+            )
         except OAuthClient.DoesNotExist:
-            return Response({"error": "invalid_client"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"error": "invalid_client"}, status=status.HTTP_400_BAD_REQUEST
+            )
 
         if data["redirect_uri"] not in client.redirect_uris:
-            return Response({"error": "invalid_redirect_uri"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"error": "invalid_redirect_uri"}, status=status.HTTP_400_BAD_REQUEST
+            )
 
-        return Response({
-            "client_id": client.client_id,
-            "client_name": client.name,
-            "redirect_uri": data["redirect_uri"],
-            "requested_scopes": data["scope"].split(),
-            "state": data.get("state", ""),
-            "code_challenge": data.get("code_challenge", ""),
-            "code_challenge_method": data.get("code_challenge_method", "S256"),
-            "nonce": data.get("nonce", ""),
-        })
+        return Response(
+            {
+                "client_id": client.client_id,
+                "client_name": client.name,
+                "redirect_uri": data["redirect_uri"],
+                "requested_scopes": data["scope"].split(),
+                "state": data.get("state", ""),
+                "code_challenge": data.get("code_challenge", ""),
+                "code_challenge_method": data.get("code_challenge_method", "S256"),
+                "nonce": data.get("nonce", ""),
+            }
+        )
 
     def post(self, request):
         serializer = AuthorizeRequestSerializer(data=request.data)
@@ -72,17 +80,25 @@ class AuthorizationView(views.APIView):
 
         if user_action == "deny":
             delimiter = "&" if "?" in redirect_uri else "?"
-            return Response({
-                "redirect_url": f"{redirect_uri}{delimiter}error=access_denied&state={state}"
-            })
+            return Response(
+                {
+                    "redirect_url": f"{redirect_uri}{delimiter}error=access_denied&state={state}"
+                }
+            )
 
         try:
-            client = OAuthClient.objects.get(client_id=data["client_id"], is_active=True)
+            client = OAuthClient.objects.get(
+                client_id=data["client_id"], is_active=True
+            )
         except OAuthClient.DoesNotExist:
-            return Response({"error": "invalid_client"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"error": "invalid_client"}, status=status.HTTP_400_BAD_REQUEST
+            )
 
         if redirect_uri not in client.redirect_uris:
-            return Response({"error": "invalid_redirect_uri"}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                {"error": "invalid_redirect_uri"}, status=status.HTTP_400_BAD_REQUEST
+            )
 
         code_str = f"authcode_{secrets.token_urlsafe(32)}"
         expires_at = timezone.now() + timedelta(minutes=10)
@@ -104,10 +120,13 @@ class AuthorizationView(views.APIView):
         if state:
             redirect_url += f"&state={state}"
 
-        return Response({
-            "code": auth_code.code,
-            "redirect_url": redirect_url,
-        }, status=status.HTTP_201_CREATED)
+        return Response(
+            {
+                "code": auth_code.code,
+                "redirect_url": redirect_url,
+            },
+            status=status.HTTP_201_CREATED,
+        )
 
 
 class TokenView(views.APIView):
@@ -123,27 +142,53 @@ class TokenView(views.APIView):
         if grant_type == "authorization_code":
             code_str = data.get("code")
             if not code_str:
-                return Response({"error": "invalid_request", "error_description": "Missing code"}, status=400)
+                return Response(
+                    {"error": "invalid_request", "error_description": "Missing code"},
+                    status=400,
+                )
 
             try:
-                auth_code = OAuthAuthorizationCode.objects.select_related("client", "user").get(code=code_str)
+                auth_code = OAuthAuthorizationCode.objects.select_related(
+                    "client", "user"
+                ).get(code=code_str)
             except OAuthAuthorizationCode.DoesNotExist:
-                return Response({"error": "invalid_grant", "error_description": "Invalid code"}, status=400)
+                return Response(
+                    {"error": "invalid_grant", "error_description": "Invalid code"},
+                    status=400,
+                )
 
             if not auth_code.is_valid():
-                return Response({"error": "invalid_grant", "error_description": "Expired or used code"}, status=400)
+                return Response(
+                    {
+                        "error": "invalid_grant",
+                        "error_description": "Expired or used code",
+                    },
+                    status=400,
+                )
 
             # Check client authentication for confidential clients
             if auth_code.client.client_type == OAuthClient.ClientType.CONFIDENTIAL:
                 client_secret = data.get("client_secret")
-                if not client_secret or not auth_code.client.check_client_secret(client_secret):
+                if not client_secret or not auth_code.client.check_client_secret(
+                    client_secret
+                ):
                     return Response({"error": "invalid_client"}, status=401)
 
             # Check PKCE
             if auth_code.code_challenge:
                 code_verifier = data.get("code_verifier", "")
-                if not _verify_pkce(code_verifier, auth_code.code_challenge, auth_code.code_challenge_method):
-                    return Response({"error": "invalid_grant", "error_description": "PKCE verification failed"}, status=400)
+                if not _verify_pkce(
+                    code_verifier,
+                    auth_code.code_challenge,
+                    auth_code.code_challenge_method,
+                ):
+                    return Response(
+                        {
+                            "error": "invalid_grant",
+                            "error_description": "PKCE verification failed",
+                        },
+                        status=400,
+                    )
 
             auth_code.is_used = True
             auth_code.save()
@@ -210,25 +255,48 @@ class TokenView(views.APIView):
                 access_token_expires_at=at_expires,
             )
 
-            return Response({
-                "access_token": token_obj.access_token,
-                "token_type": "Bearer",
-                "expires_in": 3600,
-                "scope": token_obj.scope,
-            }, status=200)
+            return Response(
+                {
+                    "access_token": token_obj.access_token,
+                    "token_type": "Bearer",
+                    "expires_in": 3600,
+                    "scope": token_obj.scope,
+                },
+                status=200,
+            )
 
         elif grant_type == "refresh_token":
             rt_str = data.get("refresh_token")
             if not rt_str:
-                return Response({"error": "invalid_request", "error_description": "Missing refresh_token"}, status=400)
+                return Response(
+                    {
+                        "error": "invalid_request",
+                        "error_description": "Missing refresh_token",
+                    },
+                    status=400,
+                )
 
             try:
-                old_token = OAuthToken.objects.select_related("client", "user").get(refresh_token=rt_str)
+                old_token = OAuthToken.objects.select_related("client", "user").get(
+                    refresh_token=rt_str
+                )
             except OAuthToken.DoesNotExist:
-                return Response({"error": "invalid_grant", "error_description": "Invalid refresh token"}, status=400)
+                return Response(
+                    {
+                        "error": "invalid_grant",
+                        "error_description": "Invalid refresh token",
+                    },
+                    status=400,
+                )
 
             if not old_token.is_refresh_token_valid():
-                return Response({"error": "invalid_grant", "error_description": "Refresh token is expired or revoked"}, status=400)
+                return Response(
+                    {
+                        "error": "invalid_grant",
+                        "error_description": "Refresh token is expired or revoked",
+                    },
+                    status=400,
+                )
 
             # Refresh Token Rotation: revoke old token set
             old_token.is_revoked = True
@@ -278,20 +346,37 @@ class OpenIDConfigView(views.APIView):
 
     def get(self, request):
         issuer = getattr(settings, "OIDC_ISSUER", "http://localhost:8000")
-        return Response({
-            "issuer": issuer,
-            "authorization_endpoint": f"{issuer}/oauth/authorize/",
-            "token_endpoint": f"{issuer}/oauth/token/",
-            "jwks_uri": f"{issuer}/.well-known/jwks.json",
-            "introspection_endpoint": f"{issuer}/oauth/introspect/",
-            "revocation_endpoint": f"{issuer}/oauth/revoke/",
-            "response_types_supported": ["code"],
-            "grant_types_supported": ["authorization_code", "client_credentials", "refresh_token"],
-            "subject_types_supported": ["public"],
-            "id_token_signing_alg_values_supported": ["RS256"],
-            "scopes_supported": ["openid", "profile", "email", "lesson:read", "progress:read", "progress:write"],
-            "token_endpoint_auth_methods_supported": ["client_secret_post", "client_secret_basic", "none"],
-        })
+        return Response(
+            {
+                "issuer": issuer,
+                "authorization_endpoint": f"{issuer}/oauth/authorize/",
+                "token_endpoint": f"{issuer}/oauth/token/",
+                "jwks_uri": f"{issuer}/.well-known/jwks.json",
+                "introspection_endpoint": f"{issuer}/oauth/introspect/",
+                "revocation_endpoint": f"{issuer}/oauth/revoke/",
+                "response_types_supported": ["code"],
+                "grant_types_supported": [
+                    "authorization_code",
+                    "client_credentials",
+                    "refresh_token",
+                ],
+                "subject_types_supported": ["public"],
+                "id_token_signing_alg_values_supported": ["RS256"],
+                "scopes_supported": [
+                    "openid",
+                    "profile",
+                    "email",
+                    "lesson:read",
+                    "progress:read",
+                    "progress:write",
+                ],
+                "token_endpoint_auth_methods_supported": [
+                    "client_secret_post",
+                    "client_secret_basic",
+                    "none",
+                ],
+            }
+        )
 
 
 class JWKSView(views.APIView):
@@ -310,16 +395,20 @@ class IntrospectionView(views.APIView):
         token_str = serializer.validated_data["token"]
 
         try:
-            token = OAuthToken.objects.select_related("client", "user").get(access_token=token_str)
+            token = OAuthToken.objects.select_related("client", "user").get(
+                access_token=token_str
+            )
             is_valid = token.is_access_token_valid()
-            return Response({
-                "active": is_valid,
-                "client_id": token.client.client_id,
-                "scope": token.scope,
-                "sub": str(token.user.id) if token.user else None,
-                "username": token.user.username if token.user else None,
-                "exp": int(token.access_token_expires_at.timestamp()),
-            })
+            return Response(
+                {
+                    "active": is_valid,
+                    "client_id": token.client.client_id,
+                    "scope": token.scope,
+                    "sub": str(token.user.id) if token.user else None,
+                    "username": token.user.username if token.user else None,
+                    "exp": int(token.access_token_expires_at.timestamp()),
+                }
+            )
         except OAuthToken.DoesNotExist:
             return Response({"active": False})
 

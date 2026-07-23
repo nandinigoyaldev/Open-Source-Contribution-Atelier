@@ -41,7 +41,9 @@ class CeleryMonitor:
         for queue in self.queues:
             current = queue_size.labels(queue_name=queue)._value.get()
             if current is not None and current > queue_threshold:
-                print(f"🚨 Queue backlog alert: '{queue}' has {current} pending tasks (threshold: {queue_threshold})")
+                print(
+                    f"🚨 Queue backlog alert: '{queue}' has {current} pending tasks (threshold: {queue_threshold})"
+                )
 
         if self.workers == 0:
             print("🚨 No active Celery workers detected")

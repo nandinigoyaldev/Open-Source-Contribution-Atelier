@@ -517,14 +517,13 @@ class ModuleDraftViewSet(viewsets.ModelViewSet):
             mod_id = mod_data.get("id")
             if mod_id:
                 ModuleDraft.objects.filter(id=mod_id).update(order=mod_idx)
-            
+
             lessons_data = mod_data.get("lessons", [])
             for les_idx, les_data in enumerate(lessons_data):
                 les_id = les_data.get("id")
                 if les_id:
                     LessonDraft.objects.filter(id=les_id).update(
-                        order=les_idx,
-                        module_id=mod_id if mod_id else None
+                        order=les_idx, module_id=mod_id if mod_id else None
                     )
         return response.Response({"status": "reordered"}, status=status.HTTP_200_OK)
 

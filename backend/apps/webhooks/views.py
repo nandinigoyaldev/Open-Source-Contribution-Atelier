@@ -38,12 +38,14 @@ class WebhookEndpointViewSet(viewsets.ModelViewSet):
 
         # Generate and assign new secret
         from .models import generate_secret
+
         new_secret = generate_secret()
         endpoint.secret = new_secret
         endpoint.save()
 
         # Audit logging for rotation
         from apps.cache.audit_logger import AuditLogger
+
         AuditLogger.log(
             user_id=str(request.user.id),
             action="secret_rotated",
@@ -64,7 +66,6 @@ class WebhookEndpointViewSet(viewsets.ModelViewSet):
         )
 
 
-
 class WebhookDeliveryViewSet(viewsets.ReadOnlyModelViewSet):
     serializer_class = WebhookDeliverySerializer
     permission_classes = [permissions.IsAuthenticated]
@@ -78,16 +79,20 @@ class WebhookDeliveryViewSet(viewsets.ReadOnlyModelViewSet):
         Returns the failed delivery ratio over the last 24 hours.
         """
         twenty_four_hours_ago = timezone.now() - timezone.timedelta(hours=24)
-        
+
         # Consider the base WebhookDelivery to compute ratio
         # Failed implies status is "failed" or "dead". Or we can just look at deliveries.
-        recent_deliveries = self.get_queryset().filter(created_at__gte=twenty_four_hours_ago)
+        recent_deliveries = self.get_queryset().filter(
+            created_at__gte=twenty_four_hours_ago
+        )
         total = recent_deliveries.count()
-        
+
         if total == 0:
             return Response({"failed_ratio": 0.0, "total": 0, "failed": 0})
-            
-        failed = recent_deliveries.filter(status__in=["failed", "dead", "retrying"]).count()
+
+        failed = recent_deliveries.filter(
+            status__in=["failed", "dead", "retrying"]
+        ).count()
         ratio = round((failed / total) * 100, 2)
-        
+
         return Response({"failed_ratio": ratio, "total": total, "failed": failed})
