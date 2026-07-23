@@ -21,8 +21,11 @@ def stripe_webhook(request):
     is_mock = (
         getattr(settings, "TESTING", False)
         or stripe.api_key == "sk_test_mock"
-        or sig_header is None
     )
+
+    if not is_mock and sig_header is None:
+        return HttpResponse("Missing Stripe-Signature header", status=400)
+
 
     if is_mock:
         try:
