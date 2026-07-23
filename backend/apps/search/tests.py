@@ -311,10 +311,11 @@ class MeilisearchIntegrationTests(TestCase):
         request = self.factory.get("/api/search/", {"q": "Title"})
         response = self.view(request)
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(len(response.data), 1)
-        self.assertEqual(response.data[0]["title"], "Meili Title")
+        results = response.data["results"] if isinstance(response.data, dict) else response.data
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]["title"], "Meili Title")
         self.assertEqual(
-            response.data[0]["highlighted_title"], "Meili <mark>Title</mark>"
+            results[0]["highlighted_title"], "Meili <mark>Title</mark>"
         )
 
     @patch("apps.search.views.get_meili_index")
@@ -346,3 +347,72 @@ class MeilisearchIntegrationTests(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertGreater(len(response.data), 0)
         self.assertEqual(response.data[0]["title"], "React Fallback")
+
+
+class SearchFilterInjectionSecurityTests(TestCase):
+    """Test security sanitization and validation against Meilisearch filter injection."""
+
+    def setUp(self):
+        self.factory = RequestFactory()
+        self.view = UnifiedSearchView.as_view()
+
+    def test_valid_content_type_filter_allowed(self):
+        """Valid alphanumeric content type names should be allowed."""
+        request = self.factory.get("/api/search/", {"q": "test", "type": "lesson"})
+        response = self.view(request)
+        self.assertEqual(response.status_code, 200)
+
+    def test_injection_single_quote_rejected(self):
+        """Injection attempt with single quote and OR condition must return 400."""
+        request = self.factory.get(
+            "/api/search/",
+            {"q": "git", "content_type_filter": "Lesson' OR id > 0"},
+        )
+        response = self.view(request)
+        self.assertEqual(response.status_code, 400)
+        errors = response.data.get("errors", response.data)
+        self.assertIn("type", errors)
+
+    def test_injection_semicolon_and_operators_rejected(self):
+        """Injection attempt with semicolons or operators must return 400."""
+        request = self.factory.get(
+            "/api/search/",
+            {"q": "git", "type": "lesson; DROP TABLE"},
+        )
+        response = self.view(request)
+        self.assertEqual(response.status_code, 400)
+
+    def test_injection_special_chars_rejected(self):
+        """Injection attempt with double quotes or parentheses must return 400."""
+        invalid_inputs = [
+            'lesson" OR 1=1',
+            "lesson(1)",
+            "lesson AND true",
+            "lesson=1",
+            "lesson > 0",
+        ]
+        for invalid in invalid_inputs:
+            with self.subTest(invalid=invalid):
+                request = self.factory.get("/api/search/", {"q": "git", "type": invalid})
+                response = self.view(request)
+                self.assertEqual(response.status_code, 400)
+
+    @patch("apps.search.views.get_meili_index")
+    def test_meilisearch_receives_sanitized_filter(self, mock_get_index):
+        """Verify Meilisearch search options receive properly validated content_type_name filter."""
+        from unittest.mock import MagicMock
+
+        mock_index = MagicMock()
+        mock_index.search.return_value = {"hits": []}
+        mock_get_index.return_value = mock_index
+
+        request = self.factory.get(
+            "/api/search/", {"q": "git", "type": "challenge"}
+        )
+        response = self.view(request)
+        self.assertEqual(response.status_code, 200)
+        mock_index.search.assert_called_once()
+        _, kwargs = mock_index.search.call_args
+        opts = kwargs if kwargs else _[1]
+        self.assertEqual(opts["filter"], ["content_type_name = 'challenge'"])
+

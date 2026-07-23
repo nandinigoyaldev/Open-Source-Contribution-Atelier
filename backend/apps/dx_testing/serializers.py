@@ -12,8 +12,6 @@ class DXMetricSerializer(serializers.ModelSerializer):
     class Meta:
         model = DXMetric
         fields = "__all__"
-
-
 class DXRecommendationSerializer(serializers.ModelSerializer):
     class Meta:
         model = DXRecommendation
