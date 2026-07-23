@@ -29,7 +29,8 @@ const GIT_COMMANDS: GitCommand[] = [
     category: "Getting Started",
     name: "Check Status",
     command: "git status",
-    description: "Show the working tree status (modified, staged, untracked files)",
+    description:
+      "Show the working tree status (modified, staged, untracked files)",
   },
 
   // Basic Snapshotting
@@ -57,14 +58,16 @@ const GIT_COMMANDS: GitCommand[] = [
     category: "Snapshotting",
     name: "Amend Commit",
     command: "git commit --amend",
-    description: "Modify the most recent commit (add forgotten files or edit message)",
+    description:
+      "Modify the most recent commit (add forgotten files or edit message)",
     example: "git commit --amend --no-edit",
   },
   {
     category: "Snapshotting",
     name: "View Changes",
     command: "git diff",
-    description: "Show unstaged changes between working directory and staging area",
+    description:
+      "Show unstaged changes between working directory and staging area",
   },
   {
     category: "Snapshotting",
@@ -290,7 +293,11 @@ interface GitCheatSheetProps {
   onInsertCommand?: (command: string) => void;
 }
 
-export function GitCheatSheet({ isOpen, onClose, onInsertCommand }: GitCheatSheetProps) {
+export function GitCheatSheet({
+  isOpen,
+  onClose,
+  onInsertCommand,
+}: GitCheatSheetProps) {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [copiedCommand, setCopiedCommand] = useState<string | null>(null);
@@ -313,7 +320,7 @@ export function GitCheatSheet({ isOpen, onClose, onInsertCommand }: GitCheatShee
           cmd.name.toLowerCase().includes(query) ||
           cmd.command.toLowerCase().includes(query) ||
           cmd.description.toLowerCase().includes(query) ||
-          cmd.category.toLowerCase().includes(query)
+          cmd.category.toLowerCase().includes(query),
       );
     }
 
@@ -364,7 +371,10 @@ export function GitCheatSheet({ isOpen, onClose, onInsertCommand }: GitCheatShee
         {/* Search & Filters */}
         <div className="px-6 py-4 border-b border-gray-700 space-y-3">
           <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" size={18} />
+            <Search
+              className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400"
+              size={18}
+            />
             <input
               type="text"
               value={searchQuery}
@@ -423,7 +433,9 @@ export function GitCheatSheet({ isOpen, onClose, onInsertCommand }: GitCheatShee
                         </span>
                         <h4 className="text-white font-medium">{cmd.name}</h4>
                       </div>
-                      <p className="text-sm text-gray-400 mb-2">{cmd.description}</p>
+                      <p className="text-sm text-gray-400 mb-2">
+                        {cmd.description}
+                      </p>
                       <div className="flex items-center gap-2">
                         <code className="text-sm bg-gray-800 text-green-400 px-3 py-1.5 rounded font-mono">
                           {cmd.command}
@@ -466,7 +478,11 @@ export function GitCheatSheet({ isOpen, onClose, onInsertCommand }: GitCheatShee
         {/* Footer */}
         <div className="px-6 py-3 border-t border-gray-700 bg-[#0f0f1d]">
           <p className="text-xs text-gray-500 text-center">
-            Press <kbd className="px-1.5 py-0.5 bg-gray-700 rounded text-gray-300">Esc</kbd> to close
+            Press{" "}
+            <kbd className="px-1.5 py-0.5 bg-gray-700 rounded text-gray-300">
+              Esc
+            </kbd>{" "}
+            to close
           </p>
         </div>
       </div>

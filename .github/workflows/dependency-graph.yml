@@ -1,0 +1,71 @@
+name: Generate Dependency Graph
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  generate-graph:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          cd backend
+          pip install -r requirements.txt
+          sudo apt-get update && sudo apt-get install -y graphviz
+
+      - name: Generate dependency graph
+        env:
+          DEBUG: 'False'
+        run: |
+          cd backend
+          python manage.py generate_graph --format svg --output dependency_graph.svg
+          python manage.py generate_graph --format mermaid --output dependency_graph.md
+          python manage.py generate_graph --format json --output dependency_graph.json
+
+      - name: Upload graph artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dependency-graph
+          path: |
+            backend/dependency_graph.svg
+            backend/dependency_graph.md
+            backend/dependency_graph.json
+
+      - name: Comment on PR
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const mermaid = fs.readFileSync('backend/dependency_graph.md', 'utf8');
+            const comment = `
+            ## 📊 Dependency Graph Generated
+
+            > A visual representation of app dependencies has been generated.
+
+            \`\`\`mermaid
+            ${mermaid}
+            \`\`\`
+
+            📎 [Download SVG](https://github.com/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId})
+            `;
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });

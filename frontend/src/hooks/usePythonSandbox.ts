@@ -12,13 +12,16 @@ export function usePythonSandbox() {
       new Worker(new URL("../workers/pythonWorker.ts", import.meta.url), {
         type: "module",
       }),
-    []
+    [],
   );
 
   const { executeCode, isExecuting, isReady } = useSandboxCore(createWorker);
 
   const runPythonCode = useCallback(
-    (code: string, timeoutMs: number = 5000): Promise<PythonExecutionResult> => {
+    (
+      code: string,
+      timeoutMs: number = 5000,
+    ): Promise<PythonExecutionResult> => {
       return executeCode<PythonExecutionResult>(
         { pythonCode: code },
         timeoutMs,
@@ -28,11 +31,12 @@ export function usePythonSandbox() {
         }),
         {
           output: "",
-          error: "Execution Timeout: The code took too long to run and was terminated.",
-        }
+          error:
+            "Execution Timeout: The code took too long to run and was terminated.",
+        },
       );
     },
-    [executeCode]
+    [executeCode],
   );
 
   return { runPythonCode, isExecuting, isReady };

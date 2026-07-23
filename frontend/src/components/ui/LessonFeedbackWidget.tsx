@@ -72,18 +72,26 @@ export function LessonFeedbackWidget({
       return fetchApi(`/content/lessons/${lessonSlug}/feedback/`, {
         method: "POST",
         body: JSON.stringify({
-          lesson: lessonSlug,
           rating,
           comment,
         }),
       });
     },
+
     onSuccess: () => {
       setHasSubmitted(true);
       setShowSuccess(true);
-      queryClient.invalidateQueries({ queryKey: ["lessonFeedbackMetrics", lessonSlug] });
-      queryClient.invalidateQueries({ queryKey: ["userLessonFeedback", lessonSlug] });
+
+      queryClient.invalidateQueries({
+        queryKey: ["lessonFeedbackMetrics", lessonSlug],
+      });
+
+      queryClient.invalidateQueries({
+        queryKey: ["userLessonFeedback", lessonSlug],
+      });
+
       onFeedbackSubmitted?.();
+
       setTimeout(() => setShowSuccess(false), 3000);
     },
   });
@@ -102,8 +110,12 @@ export function LessonFeedbackWidget({
     },
     onSuccess: () => {
       setShowSuccess(true);
-      queryClient.invalidateQueries({ queryKey: ["lessonFeedbackMetrics", lessonSlug] });
-      queryClient.invalidateQueries({ queryKey: ["userLessonFeedback", lessonSlug] });
+      queryClient.invalidateQueries({
+        queryKey: ["lessonFeedbackMetrics", lessonSlug],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["userLessonFeedback", lessonSlug],
+      });
       onFeedbackSubmitted?.();
       setTimeout(() => setShowSuccess(false), 3000);
     },
@@ -216,7 +228,10 @@ export function LessonFeedbackWidget({
 
         {/* Comment Input */}
         <div className="mb-4">
-          <label htmlFor="feedback-comment" className="block text-sm font-bold mb-2">
+          <label
+            htmlFor="feedback-comment"
+            className="block text-sm font-bold mb-2"
+          >
             Feedback (Optional)
           </label>
           <textarea

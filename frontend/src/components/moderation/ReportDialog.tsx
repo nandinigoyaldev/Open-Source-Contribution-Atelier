@@ -8,7 +8,12 @@ interface ReportDialogProps {
   objectId: number;
 }
 
-export function ReportDialog({ isOpen, onClose, contentType, objectId }: ReportDialogProps) {
+export function ReportDialog({
+  isOpen,
+  onClose,
+  contentType,
+  objectId,
+}: ReportDialogProps) {
   const [category, setCategory] = useState("SPAM");
   const [description, setDescription] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -44,11 +49,16 @@ export function ReportDialog({ isOpen, onClose, contentType, objectId }: ReportD
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
       <div className="bg-surface dark:bg-[#1a1816] w-full max-w-md rounded-2xl border-4 border-black p-6 shadow-card text-black dark:text-white">
-        <h2 className="text-2xl font-black mb-4 uppercase text-black dark:text-white">Report Content</h2>
-        
+        <h2 className="text-2xl font-black mb-4 uppercase text-black dark:text-white">
+          Report Content
+        </h2>
+
         {success ? (
           <div>
-            <p className="mb-6 font-bold text-green-600">Report submitted successfully. Thank you for keeping the community safe!</p>
+            <p className="mb-6 font-bold text-green-600">
+              Report submitted successfully. Thank you for keeping the community
+              safe!
+            </p>
             <button
               onClick={onClose}
               className="w-full py-3 bg-black text-white dark:bg-white dark:text-black font-bold rounded-lg border-2 border-black dark:border-white hover:-translate-y-1 transition-all"
@@ -79,7 +89,9 @@ export function ReportDialog({ isOpen, onClose, contentType, objectId }: ReportD
               </select>
             </div>
             <div>
-              <label className="block font-bold mb-2">Description (Optional)</label>
+              <label className="block font-bold mb-2">
+                Description (Optional)
+              </label>
               <textarea
                 rows={4}
                 value={description}

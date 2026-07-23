@@ -1,5 +1,7 @@
 import pytest
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
 from rest_framework.test import APIClient
 
 from apps.notifications.models import Notification
@@ -68,13 +70,15 @@ def test_mark_one_read_cannot_touch_other_users_notif(user_a, notif_for_b):
     assert response.status_code == 404
 
 
-def test_mark_all_read(user_a, notif_for_a):
+def test_mark_all_read(user_a, notif_for_a, user_b, notif_for_b):
     client = auth_client(user_a)
     response = client.post("/api/notifications/mark-all-read/")
     assert response.status_code == 200
     assert response.data["marked_read"] >= 1
     notif_for_a.refresh_from_db()
     assert notif_for_a.is_read is True
+    notif_for_b.refresh_from_db()
+    assert notif_for_b.is_read is False
 
 
 def test_lesson_completed_broadcasts_to_leaderboard_channel(db, user_a):

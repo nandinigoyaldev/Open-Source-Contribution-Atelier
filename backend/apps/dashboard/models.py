@@ -1,9 +1,12 @@
-from django.contrib.auth.models import User
+from django.conf import settings
+
 from django.db import models
 
 
-class Issue(models.Model):
-    objects = models.Manager()
+from apps.core.models import SoftDeleteModel
+
+
+class Issue(SoftDeleteModel):
 
     class Status(models.TextChoices):
         OPEN = "open", "Open"
@@ -20,7 +23,7 @@ class Issue(models.Model):
         default=0, help_text="Bonus points awarded during a multiplier event."
     )
     assigned_to = models.ForeignKey(
-        User,
+        settings.AUTH_USER_MODEL,
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
@@ -63,7 +66,7 @@ class PullRequest(models.Model):
         related_name="pull_requests",
     )
     user = models.ForeignKey(
-        User, on_delete=models.CASCADE, related_name="pull_requests"
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="pull_requests"
     )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -78,23 +81,3 @@ class PullRequest(models.Model):
             models.Index(fields=["issue", "status"], name="idx_pr_issue_status"),
             models.Index(fields=["status", "-created_at"], name="idx_pr_status_time"),
         ]
-
-
-class StreakFreeze(models.Model):
-    objects = models.Manager()
-    user = models.ForeignKey(
-        User, on_delete=models.CASCADE, related_name="streak_freezes"
-    )
-    purchased_at = models.DateTimeField(auto_now_add=True)
-    used_on_date = models.DateField(null=True, blank=True)
-    cost = models.PositiveIntegerField(default=100)
-
-    class Meta:
-        indexes = [
-            models.Index(
-                fields=["user", "used_on_date"], name="idx_streak_freeze_user_date"
-            ),
-        ]
-
-    def __str__(self):
-        return f"StreakFreeze({self.user.username}, used={self.used_on_date})"

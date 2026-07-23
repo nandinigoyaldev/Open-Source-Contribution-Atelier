@@ -1,6 +1,6 @@
 /**
  * WebWorker for secure code execution in isolated thread.
- * 
+ *
  * @file sandbox.worker.js
  * @location frontend/src/workers/sandbox.worker.js
  */
@@ -10,19 +10,25 @@
 // ============================================================
 
 const safeConsole = {
-  log: (...args) => postMessage({ type: 'console', method: 'log', args }),
-  error: (...args) => postMessage({ type: 'console', method: 'error', args }),
-  warn: (...args) => postMessage({ type: 'console', method: 'warn', args }),
-  info: (...args) => postMessage({ type: 'console', method: 'info', args }),
-  debug: (...args) => postMessage({ type: 'console', method: 'debug', args }),
-  table: (data) => postMessage({ type: 'console', method: 'table', args: [data] }),
-  clear: () => postMessage({ type: 'console', method: 'clear', args: [] }),
-  time: (label) => postMessage({ type: 'console', method: 'time', args: [label] }),
-  timeEnd: (label) => postMessage({ type: 'console', method: 'timeEnd', args: [label] }),
-  group: (label) => postMessage({ type: 'console', method: 'group', args: [label] }),
-  groupEnd: () => postMessage({ type: 'console', method: 'groupEnd', args: [] }),
-  groupCollapsed: (label) => postMessage({ type: 'console', method: 'groupCollapsed', args: [label] }),
-  trace: (...args) => postMessage({ type: 'console', method: 'trace', args }),
+  log: (...args) => postMessage({ type: "console", method: "log", args }),
+  error: (...args) => postMessage({ type: "console", method: "error", args }),
+  warn: (...args) => postMessage({ type: "console", method: "warn", args }),
+  info: (...args) => postMessage({ type: "console", method: "info", args }),
+  debug: (...args) => postMessage({ type: "console", method: "debug", args }),
+  table: (data) =>
+    postMessage({ type: "console", method: "table", args: [data] }),
+  clear: () => postMessage({ type: "console", method: "clear", args: [] }),
+  time: (label) =>
+    postMessage({ type: "console", method: "time", args: [label] }),
+  timeEnd: (label) =>
+    postMessage({ type: "console", method: "timeEnd", args: [label] }),
+  group: (label) =>
+    postMessage({ type: "console", method: "group", args: [label] }),
+  groupEnd: () =>
+    postMessage({ type: "console", method: "groupEnd", args: [] }),
+  groupCollapsed: (label) =>
+    postMessage({ type: "console", method: "groupCollapsed", args: [label] }),
+  trace: (...args) => postMessage({ type: "console", method: "trace", args }),
 };
 
 // ============================================================
@@ -38,10 +44,10 @@ let isExecuting = false;
 
 function executeCode(code, context = {}, timeout = 5000, executionId) {
   if (isExecuting) {
-    postMessage({ 
-      type: 'error', 
-      error: 'Another execution is already in progress',
-      executionId 
+    postMessage({
+      type: "error",
+      error: "Another execution is already in progress",
+      executionId,
     });
     return;
   }
@@ -57,10 +63,10 @@ function executeCode(code, context = {}, timeout = 5000, executionId) {
 
   // Set execution timeout
   executionTimeout = setTimeout(() => {
-    postMessage({ 
-      type: 'timeout', 
+    postMessage({
+      type: "timeout",
       message: `⚠️ Execution timed out after ${timeout}ms`,
-      executionId 
+      executionId,
     });
     isExecuting = false;
     executionTimeout = null;
@@ -74,50 +80,50 @@ function executeCode(code, context = {}, timeout = 5000, executionId) {
       console: safeConsole,
       // Block unsafe APIs
       setTimeout: () => {
-        postMessage({ 
-          type: 'warning', 
-          message: '⛔ setTimeout is not allowed in sandbox',
-          executionId 
+        postMessage({
+          type: "warning",
+          message: "⛔ setTimeout is not allowed in sandbox",
+          executionId,
         });
         return null;
       },
       setInterval: () => {
-        postMessage({ 
-          type: 'warning', 
-          message: '⛔ setInterval is not allowed in sandbox',
-          executionId 
+        postMessage({
+          type: "warning",
+          message: "⛔ setInterval is not allowed in sandbox",
+          executionId,
         });
         return null;
       },
       fetch: () => {
-        postMessage({ 
-          type: 'warning', 
-          message: '⛔ fetch is not allowed in sandbox',
-          executionId 
+        postMessage({
+          type: "warning",
+          message: "⛔ fetch is not allowed in sandbox",
+          executionId,
         });
         return null;
       },
       alert: () => {
-        postMessage({ 
-          type: 'warning', 
-          message: '⛔ alert is not allowed in sandbox',
-          executionId 
+        postMessage({
+          type: "warning",
+          message: "⛔ alert is not allowed in sandbox",
+          executionId,
         });
         return null;
       },
       prompt: () => {
-        postMessage({ 
-          type: 'warning', 
-          message: '⛔ prompt is not allowed in sandbox',
-          executionId 
+        postMessage({
+          type: "warning",
+          message: "⛔ prompt is not allowed in sandbox",
+          executionId,
         });
         return null;
       },
       confirm: () => {
-        postMessage({ 
-          type: 'warning', 
-          message: '⛔ confirm is not allowed in sandbox',
-          executionId 
+        postMessage({
+          type: "warning",
+          message: "⛔ confirm is not allowed in sandbox",
+          executionId,
         });
         return null;
       },
@@ -135,32 +141,32 @@ function executeCode(code, context = {}, timeout = 5000, executionId) {
     // Create function from code with sandbox context
     const func = new Function(
       ...Object.keys(sandboxContext),
-      `"use strict";\n${code}`
+      `"use strict";\n${code}`,
     );
 
     // Execute with context
     const result = func(...Object.values(sandboxContext));
 
     // Handle promise result
-    if (result && typeof result.then === 'function') {
+    if (result && typeof result.then === "function") {
       result
         .then((asyncResult) => {
           const executionTime = performance.now() - startTime;
-          postMessage({ 
-            type: 'result', 
+          postMessage({
+            type: "result",
             result: asyncResult,
             executionTime,
-            executionId 
+            executionId,
           });
         })
         .catch((error) => {
           const executionTime = performance.now() - startTime;
-          postMessage({ 
-            type: 'error', 
+          postMessage({
+            type: "error",
             error: error.message || String(error),
             stack: error.stack,
             executionTime,
-            executionId 
+            executionId,
           });
         })
         .finally(() => {
@@ -172,11 +178,11 @@ function executeCode(code, context = {}, timeout = 5000, executionId) {
         });
     } else {
       const executionTime = performance.now() - startTime;
-      postMessage({ 
-        type: 'result', 
+      postMessage({
+        type: "result",
         result,
         executionTime,
-        executionId 
+        executionId,
       });
       isExecuting = false;
       if (executionTimeout) {
@@ -186,12 +192,12 @@ function executeCode(code, context = {}, timeout = 5000, executionId) {
     }
   } catch (error) {
     const executionTime = performance.now() - startTime;
-    postMessage({ 
-      type: 'error', 
+    postMessage({
+      type: "error",
       error: error.message || String(error),
       stack: error.stack,
       executionTime,
-      executionId 
+      executionId,
     });
     isExecuting = false;
     if (executionTimeout) {
@@ -209,11 +215,11 @@ self.onmessage = (event) => {
   const { type, code, context, timeout, executionId } = event.data;
 
   switch (type) {
-    case 'execute':
+    case "execute":
       executeCode(code, context, timeout, executionId);
       break;
 
-    case 'terminate':
+    case "terminate":
       if (executionTimeout) {
         clearTimeout(executionTimeout);
         executionTimeout = null;
@@ -223,10 +229,10 @@ self.onmessage = (event) => {
       break;
 
     default:
-      postMessage({ 
-        type: 'error', 
+      postMessage({
+        type: "error",
         error: `Unknown message type: ${type}`,
-        executionId 
+        executionId,
       });
   }
 };
@@ -236,18 +242,18 @@ self.onmessage = (event) => {
 // ============================================================
 
 self.onerror = (error) => {
-  postMessage({ 
-    type: 'error', 
-    error: error.message || 'Worker error occurred',
+  postMessage({
+    type: "error",
+    error: error.message || "Worker error occurred",
     stack: error.stack,
   });
   isExecuting = false;
 };
 
 self.onunhandledrejection = (event) => {
-  postMessage({ 
-    type: 'error', 
-    error: event.reason?.message || 'Unhandled promise rejection',
+  postMessage({
+    type: "error",
+    error: event.reason?.message || "Unhandled promise rejection",
     stack: event.reason?.stack,
   });
   isExecuting = false;

@@ -12,6 +12,7 @@ import { X, ChevronRight, ChevronLeft, Sparkles } from "lucide-react";
 interface OnboardingTourProps {
   run: boolean;
   onFinish: () => void;
+  steps?: Step[];
 }
 
 function CustomTooltip({
@@ -110,8 +111,12 @@ function CustomTooltip({
   );
 }
 
-export function OnboardingTour({ run, onFinish }: OnboardingTourProps) {
-  const steps: Step[] = [
+export function OnboardingTour({
+  run,
+  onFinish,
+  steps: providedSteps,
+}: OnboardingTourProps) {
+  const defaultSteps: Step[] = [
     {
       target: "#tour-welcome",
       title: "Welcome to the Atelier! 🎉",
@@ -165,7 +170,7 @@ export function OnboardingTour({ run, onFinish }: OnboardingTourProps) {
       continuous
       run={run}
       scrollToFirstStep
-      steps={steps}
+      steps={providedSteps || defaultSteps}
       tooltipComponent={CustomTooltip}
       options={{
         zIndex: 10000,
