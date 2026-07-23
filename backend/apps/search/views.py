@@ -1,4 +1,5 @@
 import logging
+import re
 
 from django.conf import settings
 from django.contrib.postgres.search import (
@@ -12,6 +13,7 @@ from django.db import connection
 from django.db.models import Q
 from django.db.models.functions import Greatest
 from rest_framework import generics
+from rest_framework.exceptions import ValidationError
 from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
@@ -73,10 +75,11 @@ class UnifiedSearchView(generics.ListAPIView):
     Unified search API across all indexed models.
 
     Query parameters:
-      q         — required — the search term
-      type      — optional — filter by content type (lesson, challenge, issue, user …)
-      page      — optional — page number (default 1)
-      page_size — optional — results per page (default 20, max 100)
+      q                   — required — the search term
+      type                — optional — filter by content type (lesson, challenge, issue, user …)
+      content_type_filter — optional — alias for type filter parameter
+      page                — optional — page number (default 1)
+      page_size           — optional — results per page (default 20, max 100)
 
     Strategy:
       1. Try Meilisearch for typo-tolerant, relevant full-text search.
@@ -95,7 +98,23 @@ class UnifiedSearchView(generics.ListAPIView):
         if not q:
             return Response({"count": 0, "next": None, "previous": None, "results": []})
 
-        content_type_filter = request.query_params.get("type", "").strip().lower()
+        content_type_filter = (
+            request.query_params.get("type")
+            or request.query_params.get("content_type_filter")
+            or ""
+        ).strip().lower()
+
+        if content_type_filter:
+            # Server-side validation rejecting special characters, single quotes, semicolons, and operators
+            if not re.match(r"^[a-z0-9_-]{1,100}$", content_type_filter):
+                raise ValidationError(
+                    {
+                        "type": [
+                            "Invalid content_type_filter parameter. Special characters and filter "
+                            "operators are not allowed."
+                        ]
+                    }
+                )
 
         version = get_search_cache_version()
         cache_key = f"search_api:v{version}:q:{q}:type:{content_type_filter}"
@@ -141,8 +160,9 @@ class UnifiedSearchView(generics.ListAPIView):
                     "limit": 200,
                 }
                 if content_type_filter:
+                    escaped_filter = content_type_filter.replace("\\", "\\\\").replace("'", "\\'")
                     search_options["filter"] = [
-                        f"content_type_name = '{content_type_filter}'"
+                        f"content_type_name = '{escaped_filter}'"
                     ]
 
                 res = index.search(q, search_options)

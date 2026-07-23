@@ -45,7 +45,9 @@ class GitHubAppAuth:
 
     def get_installation_token(self) -> Optional[str]:
         """Get an installation access token for the GitHub App"""
-        # Check cache first
+        if not self.installation_id:
+            raise ValueError("GITHUB_INSTALLATION_ID not configured")
+
         cached_token = cache.get(self.cache_key)
         if cached_token:
             return cached_token

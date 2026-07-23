@@ -14,6 +14,14 @@ const dirname =
     : path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
+  build: {
+    sourcemap: "hidden",
+  },
+  define: {
+    "process.env.VERCEL_GIT_COMMIT_SHA": JSON.stringify(
+      process.env.VERCEL_GIT_COMMIT_SHA || ""
+    ),
+  },
   worker: {
     format: "es",
   },
