@@ -58,10 +58,27 @@ def send_web_push_notification(user_id, title, message, url=None):
             )
 
 
+try:
+    from celery import shared_task
+except ImportError:
+    def shared_task(*args, **kwargs):
+        if len(args) == 1 and callable(args[0]):
+            return args[0]
+        def decorator(func):
+            return func
+        return decorator
+
+
+@shared_task(name="notifications.send_bulk_email")
 def send_bulk_email(payload):
     """
     Sends bulk emails based on payload data.
+    Supports weekly_progress_summary, badge_earned_email, comment_posted_email,
+    and notification_digest templates.
     """
+    if not isinstance(payload, dict):
+        return
+
     template_id = payload.get("template_id")
     recipients = payload.get("recipients", [])
     data = payload.get("data", {})
@@ -74,30 +91,38 @@ def send_bulk_email(payload):
     html_message = None
     pdf_attachment = None
 
-    if template_id == "weekly_progress_summary":
-        subject = f"Your Weekly Progress Summary, {data.get('username')} 📊"
-        if data.get("xp_earned", 0) > 0:
-            subject = f"Wow, {data['xp_earned']} XP this week, {data['username']}! 🚀"
-        elif data.get("current_streak", 0) > 0:
-            subject = f"Don't lose your {data['current_streak']}-day streak, {data['username']}! 🔥"
+    from django.template.loader import render_to_string
+    from django.utils.html import strip_tags
 
-        from django.template.loader import render_to_string
-        from django.utils.html import strip_tags
+    if template_id == "weekly_progress_summary":
+        username = data.get("username", "")
+        subject = f"Your Weekly Progress Summary, {username} 📊"
+        if data.get("xp_earned", 0) > 0:
+            subject = f"Wow, {data['xp_earned']} XP this week, {username}! 🚀"
+        elif data.get("current_streak", 0) > 0:
+            subject = f"Don't lose your {data['current_streak']}-day streak, {username}! 🔥"
+
         from apps.progress.services.pdf_report_service import PDFReportGenerator
         from django.contrib.auth import get_user_model
 
         User = get_user_model()
         user_email = recipients[0] if recipients else None
 
-        html_message = render_to_string("notifications/weekly_digest.html", data)
-        message = strip_tags(html_message)
+        try:
+            html_message = render_to_string("notifications/weekly_digest.html", data)
+            message = strip_tags(html_message)
+        except Exception as exc:
+            logger.warning("Could not render weekly_digest.html: %s", exc)
 
         # Generate PDF attachment if a single user is matched
         if user_email:
             user = User.objects.filter(email=user_email).first()
             if user:
-                pdf_gen = PDFReportGenerator(user)
-                pdf_attachment = pdf_gen.generate()
+                try:
+                    pdf_gen = PDFReportGenerator(user)
+                    pdf_attachment = pdf_gen.generate()
+                except Exception as exc:
+                    logger.warning("Could not generate PDF report for %s: %s", user_email, exc)
 
     elif template_id == "badge_earned_email":
         badge_name = data.get("badge_name", "")
@@ -108,6 +133,18 @@ def send_bulk_email(payload):
             f"Congratulations! You earned the '{badge_name}' badge.\n\n"
             "Keep up the great work!"
         )
+        try:
+            html_message = render_to_string(
+                "notifications/badge_email.html",
+                {
+                    "title": f"Badge Unlocked: {badge_name}",
+                    "message": f"Congratulations {username}! You earned the '{badge_name}' badge.",
+                    **data,
+                },
+            )
+        except Exception:
+            pass
+
     elif template_id == "comment_posted_email":
         reviewer_name = data.get("reviewer_name", "")
         username = data.get("username", "")
@@ -119,6 +156,31 @@ def send_bulk_email(payload):
             f'"{feedback}"\n\n'
             "Log in to the platform to see the full details!"
         )
+        try:
+            html_message = render_to_string(
+                "notifications/comment_email.html",
+                {
+                    "title": f"New review by {reviewer_name}",
+                    "message": f"{reviewer_name} reviewed your submission: '{feedback}'",
+                    **data,
+                },
+            )
+        except Exception:
+            pass
+
+    elif template_id == "notification_digest":
+        freq = (
+            data.get("digest_frequency", "weekly").title()
+            if isinstance(data.get("digest_frequency"), str)
+            else "Weekly"
+        )
+        subject = f"Your {freq} Notification Digest"
+        try:
+            html_message = render_to_string("notifications/email/digest.html", data)
+            message = strip_tags(html_message)
+        except Exception as exc:
+            logger.warning("Could not render digest.html: %s", exc)
+
     from_email = getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@atelier.dev")
     email = EmailMultiAlternatives(
         subject=subject, body=message, from_email=from_email, to=recipients
@@ -130,12 +192,6 @@ def send_bulk_email(payload):
         email.attach("OSCA_Progress_Report.pdf", pdf_attachment, "application/pdf")
 
     email.send(fail_silently=False)
-
-
-try:
-    from celery import shared_task
-except ImportError:
-    shared_task = lambda x: x
 
 
 @shared_task
@@ -187,23 +243,22 @@ def send_notification_digests():
                 grouped[notif.notif_type] = []
             grouped[notif.notif_type].append(notif)
 
-        # Send Email
+        # Send Email via send_bulk_email task
         context = {
             "user": user,
+            "digest_frequency": pref.digest_frequency,
             "grouped_notifications": grouped,
             "total_count": unread_notifs.count(),
         }
-
-        subject = f"Your {pref.digest_frequency.title()} Notification Digest"
-        html_message = render_to_string("notifications/email/digest.html", context)
-        message = strip_tags(html_message)
-        from_email = getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@atelier.dev")
-
-        email = EmailMultiAlternatives(
-            subject=subject, body=message, from_email=from_email, to=[user.email]
-        )
-        email.attach_alternative(html_message, "text/html")
-        email.send(fail_silently=True)
+        payload = {
+            "template_id": "notification_digest",
+            "recipients": [user.email],
+            "data": context,
+        }
+        try:
+            send_bulk_email(payload)
+        except Exception as exc:
+            logger.error("Failed to send digest email for %s: %s", user.email, exc)
 
 
 from datetime import timedelta
