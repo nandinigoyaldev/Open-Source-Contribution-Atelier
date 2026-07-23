@@ -537,6 +537,7 @@ INSTALLED_APPS += [
     "channels",
     "apps.notifications.apps.NotificationsConfig",
     "apps.dashboard.apps.DashboardConfig",
+    "apps.predictions.apps.PredictionsConfig",
     "apps.chat.apps.ChatConfig",
     "django.contrib.postgres",
     "apps.search.apps.SearchConfig",
@@ -560,6 +561,7 @@ CONTENT_SECURITY_POLICY = {
         "data:",
     ],
 }
+
 
 # ──────────────────────────────────────────
 # Redis / Channels (graceful fallback when Redis is down)

@@ -4,6 +4,8 @@ import { useQuery } from "@tanstack/react-query";
 import { fetchApi } from "../lib/api";
 import { mockStudentStats, getTipOfTheDay } from "../lib/dashboardMockData";
 import { Link } from "react-router-dom";
+import SkeletonCard from "../components/ui/skeletons/SkeletonCard";
+import { PRReviewPredictionWidget } from "../components/PRReviewPredictionWidget";
 import SkeletonAdminDashboard from "../components/ui/skeletons/SkeletonAdminDashboard";
 import { useState, useMemo } from "react";
 import { useUserProgress } from "../hooks/useUserProgress";
@@ -11,6 +13,7 @@ import { useBookmarks } from "../hooks/useBookmarks";
 import { useOfflineReadyLessons } from "../hooks/useOfflineReadyLessons";
 import { useCurriculumLessons } from "../hooks/useCurriculum";
 import { BADGES } from "../constants/badges";
+
 import {
   Flame,
   ArrowRight,
@@ -153,7 +156,13 @@ export function DashboardPage() {
         </div>
       </section>
 
+      {/* PR Review Delay Prediction Widget */}
+      <section>
+        <PRReviewPredictionWidget />
+      </section>
+
       {/* Next Lesson + Stats Grid */}
+
       <section className="grid grid-cols-1 gap-6 md:grid-cols-[1.5fr_1fr]">
         {/* Next Lesson CTA */}
         <div className="rounded-[2rem] border-4 border-black bg-white dark:bg-[#1f1c18] dark:border-[#2e2924] p-6 shadow-card hover:-translate-y-0.5 transition-transform">
