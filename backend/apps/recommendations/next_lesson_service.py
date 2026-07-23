@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Dict, List, Optional, Tuple
 
+from django.db.models import Q
 from django.utils import timezone
 
 from apps.content.models import Lesson
@@ -28,7 +29,7 @@ class NextLessonRecommendationService:
     The response includes the breakdown so frontend can show a "why recommended" tooltip.
     """
 
-    def __init__(self, user):
+    def __init__(self, user: Any):
         self.user = user
 
     def get_next_lesson(self) -> Optional[Tuple[Lesson, Dict[str, Any]]]:
@@ -53,9 +54,19 @@ class NextLessonRecommendationService:
 
     def _get_candidate_lessons(self) -> List[Lesson]:
         org = getattr(self.user, "organization", None)
+        if org is None:
+            profile = getattr(self.user, "user_profile", None) or getattr(self.user, "profile", None)
+            org = getattr(profile, "organization", None) if profile else None
+
         qs = Lesson.objects.all().prefetch_related("prerequisites")
         if org is not None:
-            qs = qs.filter(organization=org)
+            org_id = getattr(org, "id", None)
+            org_name = getattr(org, "name", None)
+            qs = qs.filter(
+                Q(organization_id=org_id) | Q(organization__name=org_name) | Q(organization__isnull=True)
+            )
+        else:
+            qs = qs.filter(organization__isnull=True)
 
         completed_lesson_ids = LessonProgress.objects.filter(
             user=self.user, completed=True
