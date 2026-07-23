@@ -15,6 +15,16 @@ const preview: Preview = {
       // 'off' - skip a11y checks entirely
       test: "todo",
     },
+
+    // Capture Storybook stories at the 3 required viewport widths.
+    // Chromatic reads this to run snapshots in each mode on every PR.
+    chromatic: {
+      modes: {
+        mobile: { viewport: { width: 375, height: 812 } },
+        tablet: { viewport: { width: 768, height: 1024 } },
+        desktop: { viewport: { width: 1280, height: 800 } },
+      },
+    },
   },
 };
 

@@ -20,7 +20,9 @@
     "generate:api": "npx openapi-typescript http://127.0.0.1:8000/api/schema/ -o src/types/api.d.ts",
     "test:a11y": "playwright test accessibility",
     "test:a11y:ci": "playwright test accessibility --reporter=html,json,junit",
-    "test:a11y:report": "node tests/accessibility/generate-report.js"
+    "test:a11y:report": "node tests/accessibility/generate-report.js",
+    "test:visual": "playwright test e2e/visual/",
+    "test:visual:update": "playwright test e2e/visual/ --update-snapshots"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",
