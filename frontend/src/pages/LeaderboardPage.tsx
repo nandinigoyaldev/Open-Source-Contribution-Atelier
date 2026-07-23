@@ -11,6 +11,7 @@ import {
   Star,
   Flame,
   Sparkles,
+  X,
 } from "lucide-react";
 import { useAuth } from "../features/auth/AuthContext";
 import { ResponsiveTable } from "../components/ui/ResponsiveTable";
@@ -25,6 +26,14 @@ export function LeaderboardPage() {
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [timePeriod, setTimePeriod] = useState<TimePeriod>("all_time");
+
+  // ============================================
+  // ✅ CLEAR SEARCH FUNCTION (Issue #1965)
+  // ============================================
+  const clearSearch = useCallback(() => {
+    setSearch("");
+    setDebouncedSearch("");
+  }, []);
 
   // Debounce search
   useEffect(() => {
@@ -168,6 +177,13 @@ export function LeaderboardPage() {
     }
   };
 
+  // ===== HANDLE ENTER KEY =====
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Escape') {
+      clearSearch();
+    }
+  };
+
   return (
     <div className="space-y-10 max-w-7xl mx-auto pb-24 relative">
       <SectionCard eyebrow="Hall of Fame" title="Global Leaderboard">
@@ -225,15 +241,34 @@ export function LeaderboardPage() {
               {totalUsers.toLocaleString()}
             </span>
           </div>
+
+          {/* ===== SEARCH INPUT WITH CLEAR BUTTON (Issue #1965) ===== */}
           <div className="relative flex-1 xl:w-80 group">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-muted dark:text-[#8a8377] group-focus-within:text-indigo-500 transition-colors" />
+            
             <input
               type="text"
               placeholder="Search by username..."
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              className="w-full bg-white dark:bg-[#111] border-2 border-black/10 dark:border-white/10 pl-12 pr-4 py-3 rounded-2xl text-sm font-black text-text dark:text-white focus:outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/20 transition-all shadow-inner"
+              onKeyDown={handleKeyDown}
+              className="w-full bg-white dark:bg-[#111] border-2 border-black/10 dark:border-white/10 pl-12 pr-12 py-3 rounded-2xl text-sm font-black text-text dark:text-white focus:outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/20 transition-all shadow-inner"
+              aria-label="Search contributors by username"
             />
+
+            {/* ✅ CLEAR BUTTON */}
+            {search && (
+              <button
+                onClick={clearSearch}
+                className="absolute right-3 top-1/2 -translate-y-1/2 group/clear"
+                aria-label="Clear search"
+                title="Clear search"
+              >
+                <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 text-slate-500 dark:text-slate-400 hover:bg-slate-300 dark:hover:bg-slate-600 hover:text-slate-700 dark:hover:text-slate-300 transition-all duration-200 group-hover/clear:scale-110 active:scale-95">
+                  <X className="w-4 h-4" />
+                </span>
+              </button>
+            )}
           </div>
         </div>
       </div>
