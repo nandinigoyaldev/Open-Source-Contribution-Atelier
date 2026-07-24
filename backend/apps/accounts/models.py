@@ -128,15 +128,6 @@ class MagicLinkToken(models.Model):
     def __str__(self) -> str:
         return f"MagicLinkToken(user={self.user.username}, used={self.is_used})"
 
-    def is_expired(self) -> bool:
-        """Return True if the token is older than MAGIC_LINK_TIMEOUT_MINUTES."""
-        from datetime import timedelta
-
-        from django.utils import timezone
-
-        timeout = getattr(settings, "MAGIC_LINK_TIMEOUT_MINUTES", 15)
-        return timezone.now() > self.created_at + timedelta(minutes=timeout)
-
 
 def get_timezone_choices():
     from zoneinfo import available_timezones
