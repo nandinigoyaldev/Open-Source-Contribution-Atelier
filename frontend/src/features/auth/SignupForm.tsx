@@ -1,7 +1,9 @@
 import React, { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { fetchApi } from "../../lib/api";
 
 export function SignupForm() {
+  const navigate = useNavigate();
   const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -55,7 +57,7 @@ export function SignupForm() {
         requireAuth: false,
         body: JSON.stringify({ username, email, password }),
       });
-      window.location.href = "/verify-notice";
+      navigate("/verify-notice");
     } catch (err: unknown) {
       setError(
         err instanceof Error ? err.message : "Failed to create account.",

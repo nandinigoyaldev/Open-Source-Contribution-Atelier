@@ -36,6 +36,11 @@ export function CommunityPage() {
   const [sortOrder, setSortOrder] = useState<"desc" | "asc">("desc");
   const queryClient = useQueryClient();
 
+  // Local state overlay to merge incoming real-time websocket updates seamlessly
+  const [liveOverrides, setLiveOverrides] = useState<
+    Record<string, { prs_merged: number; xp: number }>
+  >({});
+
   const {
     data: leaderboardData,
     fetchNextPage,
@@ -84,20 +89,25 @@ export function CommunityPage() {
       }
       return [];
     });
+
     return flattened.map(
       (
         item: { username: string; prs_merged: number; xp: number },
         idx: number,
-      ) => ({
-        rank: idx + 1,
-        username: item.username,
-        avatar_url: `https://github.com/${item.username}.png`,
-        html_url: `https://github.com/${item.username}`,
-        contributions: item.prs_merged,
-        xp: item.xp,
-      }),
+      ) => {
+        // Merge real-time live data if it exists for this user context
+        const liveData = liveOverrides[item.username];
+        return {
+          rank: idx + 1,
+          username: item.username,
+          avatar_url: `https://github.com/${item.username}.png`,
+          html_url: `https://github.com/${item.username}`,
+          contributions: liveData ? liveData.prs_merged : item.prs_merged,
+          xp: liveData ? liveData.xp : item.xp,
+        };
+      },
     );
-  }, [leaderboardData]);
+  }, [leaderboardData, liveOverrides]);
 
   const filteredLeaderboard = useMemo(() => {
     return [...leaderboard]
@@ -134,20 +144,39 @@ export function CommunityPage() {
       import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api";
     const wsHost = apiBase.replace(/^https?:\/\//, "").replace(/\/api$/, "");
     const wsScheme = apiBase.startsWith("https") ? "wss" : "ws";
-    // Do NOT include the auth token in the URL query string — it would be
-    // visible in server access logs and browser history.  The leaderboard
-    // channel is public read; for write-protected actions the backend consumer
-    // should rely on session cookies or a first-message handshake.
-    const wsUrl = `${wsScheme}://${wsHost}/ws/leaderboard/`;
+
+    // Explicit route mapped directly to the shared real-time dashboard multiplex context
+    const wsUrl = `${wsScheme}://${wsHost}/ws/dashboard/`;
 
     const socket = new WebSocket(wsUrl);
 
     socket.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data);
-        if (data.type === "leaderboard_update") {
-          console.log("Leaderboard updated:", data.message);
-          queryClient.invalidateQueries({ queryKey: ["leaderboard"] });
+
+        // Handle explicit real-time cohort progression sync actions broadcasted by server groups
+        if (
+          data.type === "leaderboard_update" ||
+          data.action === "leaderboard_sync"
+        ) {
+          console.log("Real-time snapshot update received:", data.message);
+
+          if (data.username && typeof data.xp !== "undefined") {
+            setLiveOverrides((prev) => ({
+              ...prev,
+              [data.username]: {
+                prs_merged:
+                  data.prs_merged ||
+                  data.contributions ||
+                  prev[data.username]?.prs_merged ||
+                  0,
+                xp: data.xp,
+              },
+            }));
+          } else {
+            // Fallback for general structure mutations
+            queryClient.invalidateQueries({ queryKey: ["leaderboard"] });
+          }
         }
       } catch (err) {
         console.error("Failed to parse websocket message:", err);
@@ -177,7 +206,7 @@ export function CommunityPage() {
   ];
 
   return (
-    <div className="space-y-10 pt-24 max-w-7xl mx-auto px-4 pb-12 overflow-x-hidden">
+    <div className="space-y-10 pb-12 overflow-x-hidden">
       {/* Page Header */}
       <SectionCard
         eyebrow="Atelier Cohort"
@@ -188,23 +217,6 @@ export function CommunityPage() {
           open source contributors across the cohort.
         </p>
       </SectionCard>
-
-      {/* Stats row */}
-      {isLoading ? (
-        <div aria-busy="true">
-          <SkeletonStatGrid />
-        </div>
-      ) : (
-        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
-          {displayStats.map((item) => (
-            <SectionCard key={item.label} title={item.value.toString()}>
-              <p className="text-sm font-bold text-muted dark:text-[#c4bbae]">
-                {item.label}
-              </p>
-            </SectionCard>
-          ))}
-        </div>
-      )}
 
       {/* Leaderboard Table Grid */}
       <div className="grid gap-6 lg:grid-cols-[1.3fr_0.7fr]">
@@ -310,8 +322,7 @@ export function CommunityPage() {
               <Award size={22} /> Your Standings
             </h3>
             <p className="text-xs font-bold leading-relaxed text-black/75 dark:text-[#c4bbae]">
-              Solve more terminal exercises and answer theoretical quizzes to
-              climb up the Atelier rank. Re-sync your streak daily!
+              Solve exercises and quizzes to climb ranks.
             </p>
 
             <div className="bg-white p-4 rounded-2xl border-4 border-black shadow-card-sm dark:bg-[#151411] dark:border-[#2e2924]">
@@ -344,3 +355,5 @@ export function CommunityPage() {
     </div>
   );
 }
+
+export default CommunityPage;

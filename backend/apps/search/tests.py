@@ -1,4 +1,5 @@
 import unittest
+from unittest.mock import patch
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -218,3 +219,200 @@ class SearchCachingTests(TestCase):
 
         version2 = cache.get("search_api_version", 1)
         self.assertEqual(version2, version1 + 1)
+
+
+class MeilisearchIntegrationTests(TestCase):
+    def setUp(self):
+        from unittest.mock import MagicMock
+
+        self.factory = RequestFactory()
+        self.view = UnifiedSearchView.as_view()
+
+    @patch("apps.search.tasks.get_meili_index")
+    def test_tasks_sync_to_meilisearch(self, mock_get_index):
+        from unittest.mock import MagicMock
+
+        mock_index = MagicMock()
+        mock_get_index.return_value = mock_index
+
+        index_model_for_search(
+            app_label="content",
+            model_name="lesson",
+            object_id=999,
+            title="Meili Testing",
+            body_text="Testing meili integration",
+        )
+
+        mock_index.add_documents.assert_called_once()
+        args, _ = mock_index.add_documents.call_args
+        self.assertEqual(args[0][0]["title"], "Meili Testing")
+
+    @patch("apps.search.tasks.get_meili_index")
+    def test_tasks_deindex_from_meilisearch(self, mock_get_index):
+        from unittest.mock import MagicMock
+
+        mock_index = MagicMock()
+        mock_get_index.return_value = mock_index
+
+        from django.contrib.contenttypes.models import ContentType
+
+        content_type = ContentType.objects.get_for_model(SearchDocument)
+        doc = SearchDocument.objects.create(
+            content_type=content_type,
+            object_id=999,
+            title="Meili Deindex",
+            body_text="Testing deindex",
+        )
+
+        remove_model_from_search(
+            app_label=content_type.app_label,
+            model_name=content_type.model,
+            object_id=999,
+        )
+
+        mock_index.delete_document.assert_called_once_with(str(doc.id))
+
+    @patch("apps.search.views.get_meili_index")
+    def test_view_queries_meilisearch_successfully(self, mock_get_index):
+        from unittest.mock import MagicMock
+
+        mock_index = MagicMock()
+        mock_get_index.return_value = mock_index
+
+        mock_index.search.return_value = {
+            "hits": [
+                {
+                    "id": "1",
+                    "title": "Meili Title",
+                    "description": "Meili Desc",
+                    "body_text": "Meili Body",
+                    "content_type_name": "lesson",
+                    "_formatted": {
+                        "title": "Meili <mark>Title</mark>",
+                        "description": "Meili Desc",
+                        "body_text": "Meili Body",
+                    },
+                }
+            ]
+        }
+
+        from django.contrib.contenttypes.models import ContentType
+
+        content_type = ContentType.objects.get_for_model(SearchDocument)
+        SearchDocument.objects.create(
+            id=1,
+            content_type=content_type,
+            object_id=1,
+            title="Meili Title",
+            body_text="Meili Body",
+            content_type_name="lesson",
+        )
+
+        request = self.factory.get("/api/search/", {"q": "Title"})
+        response = self.view(request)
+        self.assertEqual(response.status_code, 200)
+        results = response.data["results"] if isinstance(response.data, dict) else response.data
+        self.assertEqual(len(results), 1)
+        self.assertEqual(results[0]["title"], "Meili Title")
+        self.assertEqual(
+            results[0]["highlighted_title"], "Meili <mark>Title</mark>"
+        )
+
+    @patch("apps.search.views.get_meili_index")
+    def test_view_postgres_fallback_on_meili_error(self, mock_get_index):
+        from unittest.mock import MagicMock
+
+        mock_index = MagicMock()
+        mock_index.search.side_effect = Exception("Meili connection error")
+        mock_get_index.return_value = mock_index
+
+        if not _is_postgres():
+            self.skipTest("Requires PostgreSQL")
+
+        from django.contrib.contenttypes.models import ContentType
+
+        content_type = ContentType.objects.get_for_model(SearchDocument)
+
+        # Let's index using the helper so the search vector is computed
+        index_model_for_search(
+            app_label=content_type.app_label,
+            model_name=content_type.model,
+            object_id=222,
+            title="React Fallback",
+            body_text="Testing FTS Fallback",
+        )
+
+        request = self.factory.get("/api/search/", {"q": "React"})
+        response = self.view(request)
+        self.assertEqual(response.status_code, 200)
+        self.assertGreater(len(response.data), 0)
+        self.assertEqual(response.data[0]["title"], "React Fallback")
+
+
+class SearchFilterInjectionSecurityTests(TestCase):
+    """Test security sanitization and validation against Meilisearch filter injection."""
+
+    def setUp(self):
+        self.factory = RequestFactory()
+        self.view = UnifiedSearchView.as_view()
+
+    def test_valid_content_type_filter_allowed(self):
+        """Valid alphanumeric content type names should be allowed."""
+        request = self.factory.get("/api/search/", {"q": "test", "type": "lesson"})
+        response = self.view(request)
+        self.assertEqual(response.status_code, 200)
+
+    def test_injection_single_quote_rejected(self):
+        """Injection attempt with single quote and OR condition must return 400."""
+        request = self.factory.get(
+            "/api/search/",
+            {"q": "git", "content_type_filter": "Lesson' OR id > 0"},
+        )
+        response = self.view(request)
+        self.assertEqual(response.status_code, 400)
+        errors = response.data.get("errors", response.data)
+        self.assertIn("type", errors)
+
+    def test_injection_semicolon_and_operators_rejected(self):
+        """Injection attempt with semicolons or operators must return 400."""
+        request = self.factory.get(
+            "/api/search/",
+            {"q": "git", "type": "lesson; DROP TABLE"},
+        )
+        response = self.view(request)
+        self.assertEqual(response.status_code, 400)
+
+    def test_injection_special_chars_rejected(self):
+        """Injection attempt with double quotes or parentheses must return 400."""
+        invalid_inputs = [
+            'lesson" OR 1=1',
+            "lesson(1)",
+            "lesson AND true",
+            "lesson=1",
+            "lesson > 0",
+        ]
+        for invalid in invalid_inputs:
+            with self.subTest(invalid=invalid):
+                request = self.factory.get("/api/search/", {"q": "git", "type": invalid})
+                response = self.view(request)
+                self.assertEqual(response.status_code, 400)
+
+    @patch("apps.search.views.get_meili_index")
+    def test_meilisearch_receives_sanitized_filter(self, mock_get_index):
+        """Verify Meilisearch search options receive properly validated content_type_name filter."""
+        from unittest.mock import MagicMock
+
+        mock_index = MagicMock()
+        mock_index.search.return_value = {"hits": []}
+        mock_get_index.return_value = mock_index
+
+        request = self.factory.get(
+            "/api/search/", {"q": "git", "type": "challenge"}
+        )
+        response = self.view(request)
+        self.assertEqual(response.status_code, 200)
+        mock_index.search.assert_called_once()
+        _, kwargs = mock_index.search.call_args
+        opts = kwargs if kwargs else _[1]
+        self.assertEqual(opts["filter"], ["content_type_name = 'challenge'"])
+

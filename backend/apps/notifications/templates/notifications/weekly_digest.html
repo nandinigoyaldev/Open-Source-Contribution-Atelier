@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Your Weekly Progress Digest</title>
+    <style>
+        body { font-family: 'Inter', sans-serif; background-color: #f9fafb; margin: 0; padding: 0; color: #111827; }
+        .container { max-width: 600px; margin: 0 auto; background-color: #ffffff; border-radius: 12px; overflow: hidden; margin-top: 40px; box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1); }
+        .header { background: linear-gradient(135deg, #4f46e5 0%, #7c3aed 100%); padding: 40px 20px; text-align: center; color: white; }
+        .header h1 { margin: 0; font-size: 24px; font-weight: 700; }
+        .header p { margin-top: 10px; font-size: 16px; opacity: 0.9; }
+        .content { padding: 32px 40px; }
+        .greeting { font-size: 18px; font-weight: 600; margin-bottom: 24px; }
+        .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-bottom: 32px; }
+        .stat-card { background-color: #f3f4f6; padding: 20px; border-radius: 8px; text-align: center; }
+        .stat-value { font-size: 28px; font-weight: 700; color: #4f46e5; margin-bottom: 4px; }
+        .stat-label { font-size: 14px; color: #6b7280; font-weight: 500; text-transform: uppercase; letter-spacing: 0.05em; }
+        .section { margin-bottom: 32px; }
+        .section-title { font-size: 16px; font-weight: 700; border-bottom: 2px solid #e5e7eb; padding-bottom: 8px; margin-bottom: 16px; color: #374151; }
+        .badge-list { list-style: none; padding: 0; margin: 0; }
+        .badge-list li { background-color: #fef3c7; color: #92400e; padding: 8px 12px; border-radius: 9999px; display: inline-block; font-size: 14px; font-weight: 600; margin-right: 8px; margin-bottom: 8px; }
+        .recs-list { padding-left: 20px; color: #4b5563; }
+        .recs-list li { margin-bottom: 8px; font-size: 15px; }
+        .footer { text-align: center; padding: 24px; background-color: #f9fafb; font-size: 12px; color: #9ca3af; border-top: 1px solid #e5e7eb; }
+        .footer a { color: #6b7280; text-decoration: underline; }
+        .btn { display: inline-block; background-color: #4f46e5; color: white; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: 600; margin-top: 16px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Your Weekly Progress Digest</h1>
+            <p>{{ start_date }} - {{ end_date }}</p>
+        </div>
+        
+        <div class="content">
+            <div class="greeting">Hi {{ username }},</div>
+            <p style="color: #4b5563; line-height: 1.6; margin-bottom: 24px;">
+                Here is a summary of everything you've achieved on the platform this past week. Keep up the momentum!
+            </p>
+
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-value">{{ xp_earned }}</div>
+                    <div class="stat-label">XP Earned</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">{{ lessons_completed }}</div>
+                    <div class="stat-label">Lessons Completed</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">{{ current_streak }}</div>
+                    <div class="stat-label">Day Streak</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">#{{ rank }}</div>
+                    <div class="stat-label">Leaderboard Rank</div>
+                </div>
+            </div>
+
+            {% if insights %}
+            <div class="section" style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); padding: 24px; border-radius: 12px; margin-bottom: 32px; border: 1px solid #fcd34d;">
+                <div style="display: flex; align-items: center; margin-bottom: 16px;">
+                    <span style="font-size: 24px; margin-right: 12px;">🧠</span>
+                    <h3 style="margin: 0; font-size: 18px; color: #92400e; font-weight: 700;">AI Learning Analysis</h3>
+                </div>
+                <p style="color: #b45309; font-size: 15px; margin-bottom: 12px; font-weight: 500;">{{ insights.insight_message }}</p>
+                
+                <div style="background-color: white; padding: 16px; border-radius: 8px; margin-bottom: 12px;">
+                    <div style="font-size: 13px; color: #6b7280; font-weight: 600; text-transform: uppercase; margin-bottom: 4px;">Weekly Accuracy</div>
+                    <div style="font-size: 24px; font-weight: 800; color: #d97706;">{{ insights.accuracy_score }}%</div>
+                </div>
+
+                <div style="font-size: 14px; color: #92400e;">
+                    <strong>Next Action:</strong> {{ insights.action_item }}
+                </div>
+            </div>
+            {% endif %}
+
+            {% if badges_earned %}
+            <div class="section">
+                <div class="section-title">🏆 New Badges Unlocked</div>
+                <ul class="badge-list">
+                    {% for badge in badges_earned %}
+                        <li>{{ badge }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+
+            {% if recommendations %}
+            <div class="section">
+                <div class="section-title">🎯 Recommended Next Steps</div>
+                <p style="color: #4b5563; font-size: 14px; margin-bottom: 12px;">Based on your progress, we think you'll love these:</p>
+                <ul class="recs-list">
+                    {% for rec in recommendations %}
+                        <li>{{ rec }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+
+            {% if new_content %}
+            <div class="section">
+                <div class="section-title">🚀 Newly Released Content</div>
+                <p style="color: #4b5563; font-size: 14px; margin-bottom: 12px;">Check out what's new this week:</p>
+                <ul class="recs-list">
+                    {% for item in new_content %}
+                        <li>{{ item }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+
+            <div style="text-align: center; margin-top: 32px;">
+                <p style="font-size: 14px; color: #4b5563; margin-bottom: 16px;">We've also attached your full personalized progress report as a PDF.</p>
+                <a href="https://atelier.dev/dashboard" class="btn">View Full Dashboard</a>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>You have {{ total_xp }} lifetime XP.</p>
+            <p>You are receiving this because you opted into weekly digests.</p>
+            <p><a href="https://atelier.dev/settings">Manage Email Preferences</a></p>
+        </div>
+    </div>
+</body>
+</html>

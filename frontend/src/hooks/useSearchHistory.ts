@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect } from "react";
 
-const STORAGE_KEY = 'search_history';
+const STORAGE_KEY = "search_history";
 const MAX_HISTORY = 5;
 
 export function useSearchHistory() {
@@ -21,10 +21,10 @@ export function useSearchHistory() {
   // Add new search
   const addSearch = (query: string) => {
     if (!query || !query.trim()) return;
-    
-    setHistory(prev => {
+
+    setHistory((prev) => {
       // Remove duplicate if exists
-      const filtered = prev.filter(item => item !== query);
+      const filtered = prev.filter((item) => item !== query);
       // Add to front, limit to MAX_HISTORY
       const newHistory = [query, ...filtered].slice(0, MAX_HISTORY);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(newHistory));
@@ -40,8 +40,8 @@ export function useSearchHistory() {
 
   // Remove single item
   const removeItem = (query: string) => {
-    setHistory(prev => {
-      const newHistory = prev.filter(item => item !== query);
+    setHistory((prev) => {
+      const newHistory = prev.filter((item) => item !== query);
       localStorage.setItem(STORAGE_KEY, JSON.stringify(newHistory));
       return newHistory;
     });

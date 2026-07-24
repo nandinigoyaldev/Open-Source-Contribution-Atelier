@@ -4,7 +4,7 @@
   border: 2px solid #2d2d44;
   overflow: hidden;
   margin: 20px 0;
-  font-family: 'Courier New', monospace;
+  font-family: "Courier New", monospace;
 }
 
 .terminal-header {
@@ -54,7 +54,7 @@
 }
 
 .prompt {
-  color: #4CAF50;
+  color: #4caf50;
   font-weight: bold;
 }
 
@@ -64,7 +64,7 @@
   border: none;
   color: #e0e0e0;
   font-size: 14px;
-  font-family: 'Courier New', monospace;
+  font-family: "Courier New", monospace;
   outline: none;
 }
 

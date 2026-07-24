@@ -1,0 +1,28 @@
+name: Auto-comment on Issue Assignment
+
+on:
+  issues:
+    types: [assigned, opened]
+
+permissions:
+  issues: write
+  contents: read
+
+jobs:
+  comment:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/github-script@v8
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const assignees = context.payload.issue.assignees || [];
+            if (assignees.length === 0) return;
+            const mentions = assignees.map(a => `@${a.login}`).join(', ');
+            const body = `Assigned to ${mentions} — acknowledged.`;
+            await github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.name,
+              body: body
+            });

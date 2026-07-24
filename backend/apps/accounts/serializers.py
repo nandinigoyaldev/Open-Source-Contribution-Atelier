@@ -1,13 +1,13 @@
 import re
 from datetime import timedelta
 
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
 from django.utils import timezone
 from rest_framework import serializers
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
-from rest_framework import serializers
-from .models import UserProfile
 
 
 def validate_strong_password(value):
@@ -35,6 +35,13 @@ class SignupSerializer(serializers.ModelSerializer):
         model = User
         fields = ("id", "username", "email", "password")
 
+    def validate_username(self, value):
+        """Reject duplicate usernames using a case-insensitive comparison."""
+        normalized = value.strip()
+        if User.objects.filter(username__iexact=normalized).exists():
+            raise serializers.ValidationError("Username is already taken.")
+        return normalized
+
     def validate_email(self, value):
         """Reject signup if the email address is already registered (case-insensitive)."""
         normalized = value.strip().lower()
@@ -60,6 +67,7 @@ class UserUpdateSerializer(serializers.ModelSerializer):
     twitter_url = serializers.URLField(required=False, allow_blank=True)
     linkedin_url = serializers.URLField(required=False, allow_blank=True)
     github_url = serializers.URLField(required=False, allow_blank=True)
+    bio = serializers.CharField(required=False, allow_blank=True)
 
     class Meta:
         model = User
@@ -72,6 +80,7 @@ class UserUpdateSerializer(serializers.ModelSerializer):
             "twitter_url",
             "linkedin_url",
             "github_url",
+            "bio",
         )
         extra_kwargs = {
             "email": {"required": False},
@@ -95,14 +104,15 @@ class UserUpdateSerializer(serializers.ModelSerializer):
         twitter_url = validated_data.pop("twitter_url", None)
         linkedin_url = validated_data.pop("linkedin_url", None)
         github_url = validated_data.pop("github_url", None)
+        bio = validated_data.pop("bio", None)
 
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
         if password:
             instance.set_password(password)
-            if hasattr(instance, "profile"):
-                instance.profile.last_password_change = timezone.now()
-                instance.profile.save(update_fields=["last_password_change"])
+            if hasattr(instance, "user_profile"):
+                instance.user_profile.last_password_change = timezone.now()
+                instance.user_profile.save(update_fields=["last_password_change"])
         instance.save()
 
         if (
@@ -112,6 +122,7 @@ class UserUpdateSerializer(serializers.ModelSerializer):
             or twitter_url is not None
             or linkedin_url is not None
             or github_url is not None
+            or bio is not None
         ):
             from apps.accounts.models import UserProfile
 
@@ -128,9 +139,26 @@ class UserUpdateSerializer(serializers.ModelSerializer):
                 profile.linkedin_url = linkedin_url
             if github_url is not None:
                 profile.github_url = github_url
+            if bio is not None:
+                profile.bio = bio
             profile.save()
 
         return instance
+
+
+class BulkUserListSerializer(serializers.ListSerializer):
+    def to_representation(self, data):
+        from apps.progress.services.milestone_track_service import MilestoneTrackService
+
+        users = list(data)
+        self.context["bulk_track_statuses"] = (
+            MilestoneTrackService.get_users_active_track_statuses(users)
+        )
+        self.context["bulk_next_milestones"] = (
+            MilestoneTrackService.get_users_next_milestones(users)
+        )
+
+        return super().to_representation(data)
 
 
 class UserListSerializer(serializers.ModelSerializer):
@@ -140,9 +168,12 @@ class UserListSerializer(serializers.ModelSerializer):
     twitter_url = serializers.SerializerMethodField()
     linkedin_url = serializers.SerializerMethodField()
     github_url = serializers.SerializerMethodField()
+    active_track_status = serializers.SerializerMethodField()
+    next_milestone = serializers.SerializerMethodField()
 
     class Meta:
         model = User
+        list_serializer_class = BulkUserListSerializer
         fields = (
             "id",
             "username",
@@ -154,42 +185,58 @@ class UserListSerializer(serializers.ModelSerializer):
             "twitter_url",
             "linkedin_url",
             "github_url",
+            "active_track_status",
+            "next_milestone",
         )
 
+    def get_active_track_status(self, obj):
+        if "bulk_track_statuses" in self.context:
+            return self.context["bulk_track_statuses"].get(obj.id)
+        from apps.progress.services.milestone_track_service import MilestoneTrackService
+
+        return MilestoneTrackService.get_user_active_track_status(obj)
+
+    def get_next_milestone(self, obj):
+        if "bulk_next_milestones" in self.context:
+            return self.context["bulk_next_milestones"].get(obj.id)
+        from apps.progress.services.milestone_track_service import MilestoneTrackService
+
+        return MilestoneTrackService.get_user_next_milestone(obj)
+
     def get_avatar_url(self, obj):
-        if hasattr(obj, "profile") and obj.profile.avatar:
+        if hasattr(obj, "user_profile") and obj.user_profile.avatar:
             request = self.context.get("request")
             if request:
-                return request.build_absolute_uri(obj.profile.avatar.url)
-            return obj.profile.avatar.url
+                return request.build_absolute_uri(obj.user_profile.avatar.url)
+            return obj.user_profile.avatar.url
         return None
 
     def get_cover_image_url(self, obj):
-        if hasattr(obj, "profile") and obj.profile.cover_image:
+        if hasattr(obj, "user_profile") and obj.user_profile.cover_image:
             request = self.context.get("request")
             if request:
-                return request.build_absolute_uri(obj.profile.cover_image.url)
-            return obj.profile.cover_image.url
+                return request.build_absolute_uri(obj.user_profile.cover_image.url)
+            return obj.user_profile.cover_image.url
         return None
 
     def get_timezone(self, obj):
-        if hasattr(obj, "profile"):
-            return obj.profile.timezone
+        if hasattr(obj, "user_profile"):
+            return obj.user_profile.timezone
         return "UTC"
 
     def get_twitter_url(self, obj):
-        if hasattr(obj, "profile") and obj.profile.twitter_url:
-            return obj.profile.twitter_url
+        if hasattr(obj, "user_profile") and obj.user_profile.twitter_url:
+            return obj.user_profile.twitter_url
         return ""
 
     def get_linkedin_url(self, obj):
-        if hasattr(obj, "profile") and obj.profile.linkedin_url:
-            return obj.profile.linkedin_url
+        if hasattr(obj, "user_profile") and obj.user_profile.linkedin_url:
+            return obj.user_profile.linkedin_url
         return ""
 
     def get_github_url(self, obj):
-        if hasattr(obj, "profile") and obj.profile.github_url:
-            return obj.profile.github_url
+        if hasattr(obj, "user_profile") and obj.user_profile.github_url:
+            return obj.user_profile.github_url
         return ""
 
 
@@ -207,14 +254,39 @@ class EmailOrUsernameTokenObtainPairSerializer(TokenObtainPairSerializer):
 
         result = super().validate(attrs)
 
-        if hasattr(self.user, "profile") and self.user.profile.last_password_change:
-            if timezone.now() > self.user.profile.last_password_change + timedelta(
+        if (
+            hasattr(self.user, "user_profile")
+            and self.user.user_profile.last_password_change
+        ):
+            if timezone.now() > self.user.user_profile.last_password_change + timedelta(
                 days=90
             ):
                 raise AuthenticationFailed(
                     "Password has expired. Please reset your password.",
                     code="password_expired",
                 )
+
+        request = self.context.get("request")
+        ip_address = None
+        user_agent = ""
+        if request:
+            ip_address = request.META.get("REMOTE_ADDR")
+            user_agent = request.META.get("HTTP_USER_AGENT", "")
+
+        from .models import UserSession
+
+        session = UserSession.objects.create(
+            user=self.user, ip_address=ip_address, user_agent=user_agent
+        )
+
+        refresh = self.get_token(self.user)
+        refresh["session_id"] = str(session.session_id)
+
+        access = refresh.access_token
+        access["session_id"] = str(session.session_id)
+
+        result["refresh"] = str(refresh)
+        result["access"] = str(access)
 
         return result
 
@@ -239,39 +311,6 @@ class PasswordResetConfirmSerializer(serializers.Serializer):
     def validate_new_password(self, value):
         return validate_strong_password(value)
 
-class AvatarUploadSerializer(serializers.Serializer):
-    avatar = serializers.ImageField(
-        max_length=255,
-        allow_empty_file=False,
-        use_url=True
-    )
-
-    def validate_avatar(self, value):
-        # Check file size (max 5MB)
-        if value.size > 5 * 1024 * 1024:
-            raise serializers.ValidationError("Image size must be under 5MB")
-        
-        # Check file extension
-        allowed_extensions = ['jpg', 'jpeg', 'png', 'gif', 'webp']
-        ext = value.name.split('.')[-1].lower()
-        if ext not in allowed_extensions:
-            raise serializers.ValidationError(
-                f"File type not supported. Use: {', '.join(allowed_extensions)}"
-            )
-        
-        return value
-
-class UserProfileSerializer(serializers.ModelSerializer):
-    avatar_url = serializers.SerializerMethodField()
-    
-    class Meta:
-        model = UserProfile
-        fields = ['avatar', 'avatar_url']
-    
-    def get_avatar_url(self, obj):
-        if obj.avatar:
-            return obj.avatar.url
-        return None
 
 # ─────────────────────────────────────────────────────────────────────────────
 # OTP (Email Verification) serializers
@@ -306,3 +345,37 @@ class MagicLinkVerifySerializer(serializers.Serializer):
     """Accept a magic link token to verify and login the user."""
 
     token = serializers.UUIDField()
+
+
+class ChangePasswordSerializer(serializers.Serializer):
+    old_password = serializers.CharField(required=True)
+    new_password = serializers.CharField(required=True, min_length=8)
+
+    def validate_new_password(self, value):
+        return validate_strong_password(value)
+
+
+class AvatarUploadSerializer(serializers.Serializer):
+    avatar = serializers.ImageField(required=True)
+
+
+class PasswordResetValidateTokenSerializer(serializers.Serializer):
+    token = serializers.UUIDField(required=True)
+
+
+from .models import UserSession
+
+
+class UserSessionSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = UserSession
+        fields = (
+            "id",
+            "session_id",
+            "ip_address",
+            "user_agent",
+            "device_name",
+            "created_at",
+            "last_activity",
+        )
+        read_only_fields = fields

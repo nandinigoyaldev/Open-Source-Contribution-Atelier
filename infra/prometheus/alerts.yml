@@ -1,0 +1,20 @@
+groups:
+  - name: django_alerts
+    rules:
+      - alert: HighDBConnections
+        expr: django_db_connections_total > 50
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High database connection pool usage on {{ $labels.instance }}"
+          description: "Django is using more than 50 database connections for the last 5 minutes."
+
+      - alert: SlowResponseTimes
+        expr: histogram_quantile(0.95, sum(rate(django_http_requests_latency_seconds_by_view_method_bucket[5m])) by (le, view, method)) > 1.0
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High API latency on {{ $labels.view }}"
+          description: "95th percentile of response times for {{ $labels.method }} {{ $labels.view }} is over 1 second for the last 5 minutes."

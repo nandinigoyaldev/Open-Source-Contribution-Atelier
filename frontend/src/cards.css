@@ -19,7 +19,7 @@
 }
 
 .card-secondary:hover {
-  border-color: #4CAF50;
+  border-color: #4caf50;
 }
 
 .card-danger:hover {
@@ -27,7 +27,7 @@
 }
 
 .card-warning:hover {
-  border-color: #FF9800;
+  border-color: #ff9800;
 }
 
 /* With image */

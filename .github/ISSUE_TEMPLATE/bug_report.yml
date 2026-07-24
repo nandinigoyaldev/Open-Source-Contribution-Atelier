@@ -1,62 +1,71 @@
 name: Bug Report
 description: Report a bug to help us improve the project
-title: "[BUG]: "
-labels: ["bug"]
+title: '[BUG]: '
+labels:
+- bug
 body:
-  - type: textarea
-    id: description
-    attributes:
-      label: Description
-      description: A clear and concise description of what the bug is.
-    validations:
-      required: true
-  - type: textarea
-    id: steps
-    attributes:
-      label: Steps to reproduce
-      description: Steps to reproduce the behavior.
-      placeholder: |
-        1. Go to '...'
-        2. Click on '...'
-        3. Scroll down to '...'
-        4. See error
-    validations:
-      required: true
-  - type: textarea
-    id: expected
-    attributes:
-      label: Expected behavior
-      description: What you expected to happen.
-    validations:
-      required: true
-  - type: textarea
-    id: actual
-    attributes:
-      label: Actual behavior
-      description: What actually happened.
-    validations:
-      required: true
-  - type: textarea
-    id: environment
-    attributes:
-      label: Environment
-      description: OS, Python/Django version, Node/Vite version, browser, etc.
-      placeholder: |
-        - OS: macOS / Windows / Linux
-        - Python version: 3.10
-        - Browser: Chrome / Safari
-    validations:
-      required: false
-  - type: textarea
-    id: screenshots
-    attributes:
-      label: Screenshots or Logs
-      description: Add screenshots, video, or logs to help explain your problem.
-    validations:
-      required: false
-  - type: checkboxes
-    id: program
-    attributes:
-      label: Contributor Program
-      options:
-        - label: I am contributing under SSoC 2026 / ECSoC 2026
+- type: textarea
+  id: description
+  attributes:
+    label: Description
+    description: A clear and concise description of what the bug is.
+  validations:
+    required: true
+- type: checkboxes
+  id: program
+  attributes:
+    label: Contributor Program
+    options:
+    - label: SSoC 2026
+    - label: ECSoC 2026
+- type: textarea
+  id: steps
+  attributes:
+    label: Steps to reproduce
+    description: Steps to reproduce the behavior.
+    placeholder: '1. Go to ''...''
+
+      2. Click on ''...''
+
+      3. Scroll down to ''...''
+
+      4. See error
+
+      '
+  validations:
+    required: true
+- type: textarea
+  id: expected
+  attributes:
+    label: Expected behavior
+    description: What you expected to happen.
+  validations:
+    required: true
+- type: textarea
+  id: actual
+  attributes:
+    label: Actual behavior
+    description: What actually happened.
+  validations:
+    required: true
+- type: textarea
+  id: environment
+  attributes:
+    label: Environment
+    description: OS, Python/Django version, Node/Vite version, browser, etc.
+    placeholder: '- OS: macOS / Windows / Linux
+
+      - Python version: 3.10
+
+      - Browser: Chrome / Safari
+
+      '
+  validations:
+    required: false
+- type: textarea
+  id: screenshots
+  attributes:
+    label: Screenshots or Logs
+    description: Add screenshots, video, or logs to help explain your problem.
+  validations:
+    required: false

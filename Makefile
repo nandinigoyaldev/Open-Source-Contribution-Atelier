@@ -1,9 +1,19 @@
+ifeq ($(OS),Windows_NT)
+    PYTHON := python
+    BIN_DIR := Scripts
+else
+    PYTHON := python3
+    BIN_DIR := bin
+endif
+
+VENV_BIN := backend/.venv/$(BIN_DIR)
+
 .PHONY: install start format test verify
 
 install:
 	@echo "Installing backend dependencies..."
-	python3 -m venv backend/.venv
-	backend/.venv/bin/pip install -r backend/requirements.txt
+	$(PYTHON) -m venv backend/.venv
+	$(VENV_BIN)/pip install -r backend/requirements.txt
 	@echo "Installing frontend dependencies..."
 	cd frontend && npm install
 
@@ -13,14 +23,14 @@ start:
 
 format:
 	@echo "Formatting backend code..."
-	backend/.venv/bin/black backend/ || black backend/
-	backend/.venv/bin/isort backend/ || isort backend/
+	$(VENV_BIN)/black backend/ || black backend/
+	$(VENV_BIN)/isort backend/ || isort backend/
 	@echo "Formatting frontend code..."
 	cd frontend && npm run format
 
 test:
 	@echo "Running backend tests..."
-	backend/.venv/bin/pytest backend/ || pytest backend/
+	$(VENV_BIN)/pytest backend/ || pytest backend/
 	@echo "Running frontend tests..."
 	cd frontend && npm run test
 

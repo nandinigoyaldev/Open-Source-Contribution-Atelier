@@ -15,10 +15,12 @@ class BadgeSerializer(serializers.ModelSerializer):
         model = Badge
         fields = "__all__"
 
+
 class DailyProgressSerializer(serializers.Serializer):
     date = serializers.DateField()
     count = serializers.IntegerField()
     lessons = serializers.ListField(child=serializers.CharField(), required=False)
+
 
 class UserBadgeSerializer(serializers.ModelSerializer):
     id = serializers.ReadOnlyField(source="badge.id")

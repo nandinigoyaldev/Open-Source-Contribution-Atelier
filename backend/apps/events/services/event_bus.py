@@ -77,10 +77,11 @@ class EventBus:
             # Process synchronously
             cls._process_handlers(event, handlers)
         else:
-            # Process asynchronously (via Celery)
+            # Process asynchronously (via Django-Q)
+            from django_q.tasks import async_task
             from apps.events.tasks import process_event
 
-            process_event.delay(str(event.id))
+            async_task(process_event, str(event.id))
 
     @classmethod
     def _process_handlers(cls, event: DomainEvent, handlers: List[Dict]):

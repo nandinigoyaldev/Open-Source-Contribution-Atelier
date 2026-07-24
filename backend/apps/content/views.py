@@ -17,6 +17,8 @@ from rest_framework import (
     viewsets,
 )
 from rest_framework.permissions import AllowAny
+from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from apps.challenges.models import Challenge
 from apps.challenges.serializers import ChallengeSerializer
@@ -24,11 +26,15 @@ from apps.progress.models import LessonProgress
 from apps.search.models import SearchDocument
 
 from . import semantic_search
-from .models import Lesson, Organization
+from .models import Lesson, LessonDraft, ModuleDraft, Organization, QuizDraft
+from .permissions import IsLessonUnlocked
 from .serializers import (
+    LessonDraftSerializer,
     LessonSearchSerializer,
     LessonSerializer,
+    ModuleDraftSerializer,
     OrganizationSerializer,
+    QuizDraftSerializer,
 )
 
 
@@ -64,6 +70,17 @@ class LessonViewSet(viewsets.ModelViewSet):
         serializer = self.get_serializer(lessons, many=True)
         return response.Response(serializer.data)
 
+    from rest_framework.decorators import action
+
+    @action(detail=True, methods=["get"])
+    def versions(self, request, pk=None):
+        from .serializers import LessonVersionSerializer
+
+        lesson = self.get_object()
+        versions = lesson.versions.all()
+        serializer = LessonVersionSerializer(versions, many=True)
+        return response.Response(serializer.data)
+
 
 class SearchView(views.APIView):
     def get(self, request):
@@ -75,6 +92,17 @@ class SearchView(views.APIView):
         challenge_ct = ContentType.objects.get_for_model(Challenge)
 
         def get_fts_objects(model_class, content_type):
+            from django.db import connection
+
+            org = getattr(request.user, "organization", None)
+            if not org:
+                return []
+            if connection.vendor != "postgresql":
+                return list(
+                    model_class.objects.filter(
+                        title__icontains=query, organization=org
+                    )[:50]
+                )
             docs = (
                 SearchDocument.objects.filter(  # type: ignore
                     content_type=content_type, search_vector=search_query
@@ -95,9 +123,10 @@ class SearchView(views.APIView):
             if not object_ids:
                 return []
 
-            objects = model_class.objects.filter(
-                id__in=object_ids, organization=request.user.organization
-            )
+            org = getattr(request.user, "organization", None)
+            if not org:
+                return []
+            objects = model_class.objects.filter(id__in=object_ids, organization=org)
             if model_class == Lesson:
                 objects = objects.prefetch_related("exercises", "prerequisites")
             # Sort them in the exact order returned by FTS
@@ -134,10 +163,14 @@ class SemanticSearchView(views.APIView):
             )
 
         # Apply multi-tenant filtering
+        org = getattr(request.user, "organization", None)
+        if not org:
+            return response.Response({"query": query, "results": []})
+
         lessons = (
             Lesson.objects.filter(
                 embedding__isnull=False,
-                organization=request.user.organization,
+                organization=org,
             )
             .annotate(trigram_similarity=TrigramSimilarity("title", query))
             .prefetch_related("exercises")
@@ -290,17 +323,18 @@ class LessonPDFView(views.APIView):
 
         return response_obj
 
-class LessonAccessCheckView(APIView):
+
+class LessonAccessCheckView(views.APIView):
     """
     Check if user can access a lesson.
     """
+
     permission_classes = [IsLessonUnlocked]
-    
+
     def get(self, request, slug):
-        return Response({
-            "has_access": True,
-            "message": "You have access to this lesson"
-        })
+        return Response(
+            {"has_access": True, "message": "You have access to this lesson"}
+        )
 
 
 import json
@@ -331,3 +365,176 @@ class QuizDetailView(views.APIView):
             )
 
         return response.Response(quiz_data)
+
+
+# --- Lesson Feedback Views ---
+from django.db.models import Count
+from django.db.models.functions import Coalesce
+
+from .models import Lesson, LessonFeedback
+from .serializers import (
+    LessonFeedbackCreateSerializer,
+    LessonFeedbackMetricsSerializer,
+    LessonFeedbackSerializer,
+)
+
+
+class LessonFeedbackListCreateView(generics.ListCreateAPIView):
+    """List all feedback for a lesson or create new feedback."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_serializer_class(self):
+        if self.request.method == "POST":
+            return LessonFeedbackCreateSerializer
+        return LessonFeedbackSerializer
+
+    def get_queryset(self):
+        lesson_slug = self.kwargs.get("lesson_slug")
+        return LessonFeedback.objects.filter(
+            lesson__slug=lesson_slug, is_deleted=False
+        ).select_related("user", "lesson")
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        context["lesson_slug"] = self.kwargs.get("lesson_slug")
+        return context
+
+    def perform_create(self, serializer):
+        lesson_slug = self.kwargs.get("lesson_slug")
+        try:
+            lesson = Lesson.objects.get(slug=lesson_slug)
+        except Lesson.DoesNotExist:
+            raise serializers.ValidationError({"lesson": "Lesson not found."})
+        serializer.save(user=self.request.user, lesson=lesson)
+
+
+class LessonFeedbackRetrieveUpdateDeleteView(generics.RetrieveUpdateDestroyAPIView):
+    """Retrieve, update, or delete a specific feedback entry."""
+
+    serializer_class = LessonFeedbackSerializer
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_queryset(self):
+        return LessonFeedback.objects.filter(
+            user=self.request.user,
+            is_deleted=False,
+        ).select_related("user", "lesson")
+
+    def perform_destroy(self, instance):
+        instance.delete()
+
+
+class LessonFeedbackMetricsView(views.APIView):
+    """Get aggregated feedback metrics for a lesson."""
+
+    permission_classes = [permissions.AllowAny]
+
+    def get(self, request, lesson_slug):
+        try:
+            lesson = Lesson.objects.get(slug=lesson_slug)
+        except Lesson.DoesNotExist:
+            return response.Response(
+                {"error": "Lesson not found"}, status=status.HTTP_404_NOT_FOUND
+            )
+
+        feedbacks = LessonFeedback.objects.filter(lesson=lesson, is_deleted=False)
+
+        total_count = feedbacks.count()
+
+        if total_count == 0:
+            metrics = {
+                "lesson_slug": lesson_slug,
+                "average_rating": 0.0,
+                "total_count": 0,
+                "rating_distribution": {
+                    "1": 0,
+                    "2": 0,
+                    "3": 0,
+                    "4": 0,
+                    "5": 0,
+                },
+            }
+        else:
+            # Calculate average rating
+            total_rating = sum(f.rating for f in feedbacks)
+            average_rating = total_rating / total_count
+
+            # Calculate rating distribution
+            distribution = {str(i): 0 for i in range(1, 6)}
+            for fb in feedbacks:
+                distribution[str(fb.rating)] += 1
+
+            metrics = {
+                "lesson_slug": lesson_slug,
+                "average_rating": round(average_rating, 2),
+                "total_count": total_count,
+                "rating_distribution": distribution,
+            }
+
+        serializer = LessonFeedbackMetricsSerializer(data=metrics)
+        serializer.is_valid(raise_exception=True)
+        return response.Response(serializer.data)
+
+
+class UserLessonFeedbackView(views.APIView):
+    """Get the current user's feedback for a specific lesson."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, lesson_slug):
+        try:
+            lesson = Lesson.objects.get(slug=lesson_slug)
+        except Lesson.DoesNotExist:
+            return response.Response(
+                {"error": "Lesson not found"}, status=status.HTTP_404_NOT_FOUND
+            )
+
+        try:
+            feedback = LessonFeedback.objects.get(
+                user=request.user, lesson=lesson, is_deleted=False
+            )
+            serializer = LessonFeedbackSerializer(feedback)
+            return response.Response(serializer.data)
+        except LessonFeedback.DoesNotExist:
+            return response.Response(
+                {"error": "No feedback found for this lesson"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+
+class ModuleDraftViewSet(viewsets.ModelViewSet):
+    queryset = ModuleDraft.objects.prefetch_related("lessons__quizzes").all()
+    serializer_class = ModuleDraftSerializer
+    permission_classes = [permissions.AllowAny]
+
+    from rest_framework.decorators import action
+
+    @action(detail=False, methods=["post"], url_path="reorder")
+    def reorder(self, request):
+        modules_data = request.data.get("modules", [])
+        for mod_idx, mod_data in enumerate(modules_data):
+            mod_id = mod_data.get("id")
+            if mod_id:
+                ModuleDraft.objects.filter(id=mod_id).update(order=mod_idx)
+
+            lessons_data = mod_data.get("lessons", [])
+            for les_idx, les_data in enumerate(lessons_data):
+                les_id = les_data.get("id")
+                if les_id:
+                    LessonDraft.objects.filter(id=les_id).update(
+                        order=les_idx, module_id=mod_id if mod_id else None
+                    )
+        return response.Response({"status": "reordered"}, status=status.HTTP_200_OK)
+
+
+class LessonDraftViewSet(viewsets.ModelViewSet):
+    queryset = LessonDraft.objects.prefetch_related("quizzes").all()
+    serializer_class = LessonDraftSerializer
+    permission_classes = [permissions.AllowAny]
+
+
+class QuizDraftViewSet(viewsets.ModelViewSet):
+    queryset = QuizDraft.objects.all()
+    serializer_class = QuizDraftSerializer
+    permission_classes = [permissions.AllowAny]

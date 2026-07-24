@@ -1,7 +1,7 @@
 /**
  * WebWorker for secure JavaScript/TypeScript code execution in isolated thread.
  * Uses Sucrase for TypeScript transpilation.
- * 
+ *
  * @file jsWorker.ts
  * @location frontend/src/workers/jsWorker.ts
  */
@@ -13,13 +13,13 @@ import { TraceEvent } from "../hooks/useTimelineEngine";
 interface WorkerMessage {
   id: string;
   code: string;
-  action?: 'execute_code' | 'execute_trace';
+  action?: "execute_code" | "execute_trace";
   timeout?: number;
 }
 
 interface WorkerResponse {
   id: string;
-  type: 'result' | 'error' | 'timeout' | 'console' | 'warning';
+  type: "result" | "error" | "timeout" | "console" | "warning";
   results?: string;
   error?: string;
   executionTime?: number;
@@ -68,7 +68,7 @@ self.addEventListener("message", async (event) => {
     if (action === "execute_trace") {
       // 2a. Instrument for tracing
       const instrumented = instrumentJS(compiled);
-      
+
       const __trace = (line: number, locals: Record<string, unknown>) => {
         // Variable values filter (no functions)
         const cleanLocals: Record<string, unknown> = {};
@@ -77,7 +77,7 @@ self.addEventListener("message", async (event) => {
             cleanLocals[key] = val;
           }
         }
-        
+
         traceEvents.push({
           step: stepCounter++,
           line,
@@ -143,17 +143,17 @@ self.addEventListener("message", async (event) => {
   }
 });
 
-self.addEventListener('error', (error: ErrorEvent) => {
+self.addEventListener("error", (error: ErrorEvent) => {
   self.postMessage({
-    type: 'error',
-    error: error.message || 'Worker error occurred',
+    type: "error",
+    error: error.message || "Worker error occurred",
   } as WorkerResponse);
 });
 
-self.addEventListener('unhandledrejection', (event: PromiseRejectionEvent) => {
+self.addEventListener("unhandledrejection", (event: PromiseRejectionEvent) => {
   self.postMessage({
-    type: 'error',
-    error: event.reason?.message || 'Unhandled promise rejection',
+    type: "error",
+    error: event.reason?.message || "Unhandled promise rejection",
   } as WorkerResponse);
 });
 

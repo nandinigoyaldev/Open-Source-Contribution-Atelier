@@ -1,17 +1,18 @@
 name: Blank Issue
 description: Create a blank issue with minimal structure
-title: "[ISSUE]: "
+title: '[ISSUE]: '
 body:
-  - type: textarea
-    id: description
-    attributes:
-      label: Description
-      description: Detailed description of the issue.
-    validations:
-      required: true
-  - type: checkboxes
-    id: program
-    attributes:
-      label: Contributor Program
-      options:
-        - label: I am contributing under SSoC 2026 / ECSoC 2026
+- type: textarea
+  id: description
+  attributes:
+    label: Description
+    description: Detailed description of the issue.
+  validations:
+    required: true
+- type: checkboxes
+  id: program
+  attributes:
+    label: Contributor Program
+    options:
+    - label: SSoC 2026
+    - label: ECSoC 2026

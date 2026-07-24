@@ -10,6 +10,8 @@ type UseWebSocketOptions = {
 
 type WebSocketState = {
   isConnected: boolean;
+  /** True after max reconnect attempts fail — callers should use REST fallback */
+  reconnectExhausted: boolean;
   lastMessage: unknown | null;
   error: Event | null;
 };
@@ -23,6 +25,7 @@ export function useWebSocket({
 }: UseWebSocketOptions) {
   const [state, setState] = useState<WebSocketState>({
     isConnected: false,
+    reconnectExhausted: false,
     lastMessage: null,
     error: null,
   });
@@ -31,6 +34,8 @@ export function useWebSocket({
   const reconnectCountRef = useRef(0);
   const reconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const onMessageRef = useRef(onMessage);
+  /** Ignore close events from intentionally replaced sockets */
+  const intentionalCloseRef = useRef(false);
 
   useEffect(() => {
     onMessageRef.current = onMessage;
@@ -42,17 +47,28 @@ export function useWebSocket({
     return `${url}${separator}token=${encodeURIComponent(token)}`;
   }, [url, token]);
 
+  const ws = new WebSocket(
+    `wss://${window.location.host}/ws/notifications/`,
+    ["token", token], // Subprotocol: token
+  );
+
   const cleanup = useCallback(() => {
     if (reconnectTimerRef.current) {
       clearTimeout(reconnectTimerRef.current);
       reconnectTimerRef.current = null;
     }
     if (wsRef.current) {
+      intentionalCloseRef.current = intentional;
       wsRef.current.onopen = null;
       wsRef.current.onclose = null;
       wsRef.current.onerror = null;
       wsRef.current.onmessage = null;
-      wsRef.current.close();
+      if (
+        wsRef.current.readyState === WebSocket.OPEN ||
+        wsRef.current.readyState === WebSocket.CONNECTING
+      ) {
+        wsRef.current.close();
+      }
       wsRef.current = null;
     }
   }, []);
@@ -60,29 +76,46 @@ export function useWebSocket({
   const connectRef = useRef<() => void>(() => {});
 
   const connect = useCallback(() => {
-    cleanup();
+    cleanup(true);
 
     if (!token) {
-      setState((s) => ({ ...s, isConnected: false }));
+      setState((s) => ({
+        ...s,
+        isConnected: false,
+        reconnectExhausted: false,
+      }));
       return;
     }
 
+    // Token refresh / new connect cycle resets exhaustion
+    setState((s) => ({ ...s, reconnectExhausted: false }));
+
     const wsUrl = buildUrl();
     const ws = new WebSocket(wsUrl);
+    intentionalCloseRef.current = false;
 
     ws.onopen = () => {
       reconnectCountRef.current = 0;
-      setState((s) => ({ ...s, isConnected: true, error: null }));
+      setState((s) => ({
+        ...s,
+        isConnected: true,
+        reconnectExhausted: false,
+        error: null,
+      }));
     };
 
     ws.onclose = () => {
       setState((s) => ({ ...s, isConnected: false }));
+      if (intentionalCloseRef.current) return;
+
       if (reconnectCountRef.current < maxReconnectAttempts) {
         reconnectCountRef.current += 1;
         reconnectTimerRef.current = setTimeout(
           () => connectRef.current(),
           reconnectInterval,
         );
+      } else {
+        setState((s) => ({ ...s, reconnectExhausted: true }));
       }
     };
 
@@ -108,20 +141,27 @@ export function useWebSocket({
   }, [connect]);
 
   const disconnect = useCallback(() => {
-    reconnectCountRef.current = maxReconnectAttempts;
-    cleanup();
-    setState((s) => ({ ...s, isConnected: false }));
-  }, [cleanup, maxReconnectAttempts]);
+    cleanup(true);
+    setState((s) => ({
+      ...s,
+      isConnected: false,
+      reconnectExhausted: false,
+    }));
+  }, [cleanup]);
 
-  const send = useCallback((data: unknown) => {
+  const send = useCallback((data: unknown): boolean => {
     if (wsRef.current?.readyState === WebSocket.OPEN) {
       wsRef.current.send(JSON.stringify(data));
+      return true;
     }
+    return false;
   }, []);
 
   useEffect(() => {
+    // Reconnect whenever URL or JWT token changes (token refresh)
+    reconnectCountRef.current = 0;
     connect();
-    return cleanup;
+    return () => cleanup(true);
   }, [connect, cleanup]);
 
   return {

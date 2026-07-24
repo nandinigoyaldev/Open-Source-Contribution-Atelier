@@ -38,8 +38,10 @@
   border-radius: 16px;
   padding: 24px 20px;
   position: relative;
-  transition: transform 0.3s ease, box-shadow 0.3s ease;
-  box-shadow: 6px 6px 0 rgba(0,0,0,0.1);
+  transition:
+    transform 0.3s ease,
+    box-shadow 0.3s ease;
+  box-shadow: 6px 6px 0 rgba(0, 0, 0, 0.1);
 }
 
 .dark .step-card {
@@ -49,7 +51,7 @@
 
 .step-card:hover {
   transform: translateY(-6px);
-  box-shadow: 8px 8px 0 rgba(0,0,0,0.15);
+  box-shadow: 8px 8px 0 rgba(0, 0, 0, 0.15);
 }
 
 .step-number {
@@ -108,7 +110,7 @@
     max-width: 350px;
     margin: 0 auto;
   }
-  
+
   .section-title {
     font-size: 24px;
   }

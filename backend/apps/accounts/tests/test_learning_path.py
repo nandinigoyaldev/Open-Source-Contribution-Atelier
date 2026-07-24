@@ -1,4 +1,6 @@
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
+
+User = get_user_model()
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
@@ -13,6 +15,7 @@ ALL_SLUGS = [
     "history-of-open-source",
     "benefits-of-contributing",
     "common-misconceptions",
+    "open-source-licenses",
     "repositories-and-commits",
     "branches",
     "merging",
