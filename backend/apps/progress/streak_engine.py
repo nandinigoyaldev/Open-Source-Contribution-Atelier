@@ -9,10 +9,12 @@ so they are trivially unit-testable without a database.
 from __future__ import annotations
 
 import logging
-from datetime import date, timedelta
-from typing import Optional
+import zoneinfo
+from datetime import date, datetime, timedelta
+from typing import Optional, Union
 
 from django.contrib.auth import get_user_model
+from django.utils import timezone
 
 User = get_user_model()
 from django.db import transaction
@@ -20,6 +22,39 @@ from django.db import transaction
 from .models import STREAK_MILESTONES, StreakProfile
 
 logger = logging.getLogger(__name__)
+
+
+def get_user_local_date(user: User, dt: Optional[Union[datetime, date]] = None) -> date:
+    """
+    Returns the calendar date for `dt` (or now) in the user's preferred timezone.
+    Falls back to UTC if profile or timezone is not set/invalid.
+    """
+    if dt is None:
+        dt = timezone.now()
+
+    if isinstance(dt, date) and not isinstance(dt, datetime):
+        return dt
+
+    if timezone.is_naive(dt):
+        dt = timezone.make_aware(dt, zoneinfo.ZoneInfo("UTC"))
+
+    tz_name = "UTC"
+    try:
+        if hasattr(user, "user_profile") and user.user_profile:
+            try:
+                user.user_profile.refresh_from_db(fields=["timezone"])
+            except Exception:
+                pass
+            tz_name = user.user_profile.timezone or "UTC"
+    except Exception:
+        tz_name = "UTC"
+
+    try:
+        user_tz = zoneinfo.ZoneInfo(tz_name)
+    except Exception:
+        user_tz = zoneinfo.ZoneInfo("UTC")
+
+    return dt.astimezone(user_tz).date()
 
 
 class StreakEngine:
@@ -100,21 +135,15 @@ class StreakEngine:
             return 1.0
 
     @classmethod
-    def record_activity(cls, user: User, activity_date: date) -> dict:
+    def record_activity(
+        cls, user: User, activity_date: Optional[Union[date, datetime]] = None
+    ) -> dict:
         """
-        Record a learning activity for *user* on *activity_date* and update
-        the StreakProfile accordingly.
-
-        Returns a dict with the new streak state and a flag indicating
-        whether a new multiplier tier was unlocked this call.
-
-        Streak rules
-        ~~~~~~~~~~~~
-        - Same day as last activity  → no change (idempotent).
-        - Next calendar day          → streak increments by 1.
-        - Any other gap              → streak resets to 1.
-        - longest_streak is updated whenever current_streak grows.
+        Record a learning activity for *user* on *activity_date* (evaluated in user timezone).
         """
+        if activity_date is None or isinstance(activity_date, datetime):
+            activity_date = get_user_local_date(user, activity_date)
+
         with transaction.atomic():
             profile = cls.get_or_create_profile(user)
 

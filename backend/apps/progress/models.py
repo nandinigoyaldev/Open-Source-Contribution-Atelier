@@ -475,7 +475,14 @@ class DailyActivity(models.Model):
 
         Returns (created: bool, streak_profile: StreakProfile).
         """
+        from datetime import datetime
+
         from django.db import transaction
+
+        from apps.progress.streak_engine import get_user_local_date
+
+        if isinstance(date, datetime):
+            date = get_user_local_date(user, date)
 
         # Ensure deterministic behavior under concurrency.
         with transaction.atomic():
@@ -978,7 +985,14 @@ class DailyActivity(models.Model):
 
         Returns (created: bool, streak_profile: StreakProfile).
         """
+        from datetime import datetime
+
         from django.db import transaction
+
+        from apps.progress.streak_engine import get_user_local_date
+
+        if isinstance(date, datetime):
+            date = get_user_local_date(user, date)
 
         # Ensure deterministic behavior under concurrency.
         with transaction.atomic():
@@ -1208,4 +1222,3 @@ class WeeklyGoal(models.Model):
             },
         )
         return goal
-
