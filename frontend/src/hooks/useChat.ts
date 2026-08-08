@@ -332,6 +332,8 @@ export function useChat({ roomId, token, username }: UseChatOptions) {
           setOnlineUsers((prev) =>
             prev.filter((u) => u.user_id !== msg.user_id),
           );
+          if (msg.username) typing.removeTypingUser(msg.username as string);
+          if (msg.user_id) typing.removeTypingUser(msg.user_id as number);
         }
       };
 
@@ -340,6 +342,14 @@ export function useChat({ roomId, token, username }: UseChatOptions) {
       );
     }
   }, [ws.lastMessage, typing, ws]);
+
+  // Clear typing indicators when disconnected or when switching room
+  useEffect(() => {
+    if (!ws.isConnected) {
+      typing.clearAllTypingUsers();
+    }
+  }, [ws.isConnected, typing]);
+
 
   const sendMessage = useCallback(
     async (text: string, parentId?: number) => {

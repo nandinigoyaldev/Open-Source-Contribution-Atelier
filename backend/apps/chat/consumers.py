@@ -202,13 +202,8 @@ class ChatConsumer(AsyncWebsocketConsumer):
                     self.group_name,
                     {
                         "type": "presence_left",
-
                         "username": username,
                         "user_id": user_id,
-
-                        "username": self.user.username,
-                        "user_id": self.user.id,
-
                     },
                 )
             await self.channel_layer.group_send(
