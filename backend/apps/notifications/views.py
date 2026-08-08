@@ -11,11 +11,15 @@ class NotificationPrefsView(APIView):
 
     def get(self, request):
         prefs, _ = NotificationPreference.objects.get_or_create(user=request.user)
+        user_profile = getattr(request.user, "user_profile", None)
+        receive_weekly_digest = user_profile.receive_weekly_digest if user_profile else True
         return Response(
             {
                 "email": prefs.email_enabled,
                 "in_app": prefs.in_app_enabled,
                 "websocket": prefs.websocket_enabled,
+                "receive_weekly_digest": receive_weekly_digest,
+                "weekly_digest": receive_weekly_digest,
             }
         )
 
@@ -34,13 +38,30 @@ class NotificationPrefsView(APIView):
                 "websocket", request.data.get("websocket_enabled")
             )
         prefs.save()
+
+        if "receive_weekly_digest" in request.data or "weekly_digest" in request.data:
+            val = request.data.get(
+                "receive_weekly_digest", request.data.get("weekly_digest")
+            )
+            from apps.accounts.models import UserProfile
+
+            profile, _ = UserProfile.objects.get_or_create(user=request.user)
+            profile.receive_weekly_digest = bool(val)
+            profile.save(update_fields=["receive_weekly_digest"])
+
+        user_profile = getattr(request.user, "user_profile", None)
+        receive_weekly_digest = user_profile.receive_weekly_digest if user_profile else True
+
         return Response(
             {
                 "email": prefs.email_enabled,
                 "in_app": prefs.in_app_enabled,
                 "websocket": prefs.websocket_enabled,
+                "receive_weekly_digest": receive_weekly_digest,
+                "weekly_digest": receive_weekly_digest,
             }
         )
+
 
 class NotificationListView(generics.ListAPIView):
     """GET /api/notifications/ — list current user's notifications"""

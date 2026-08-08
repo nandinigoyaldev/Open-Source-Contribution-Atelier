@@ -111,3 +111,11 @@ class WeeklyDigestServiceTests(TestCase):
         self.assertIn("Lesson 3", context["recommendations"])
         self.assertIn("Lesson 4", context["recommendations"])
         self.assertNotIn("Lesson 1", context["recommendations"])
+
+        # Verify new streak risk and learning path progress keys
+        self.assertTrue("streak_at_risk" in context)
+        self.assertTrue("learning_path_progress" in context)
+        self.assertEqual(context["learning_path_progress"]["completed_count"], 2)
+        self.assertEqual(context["learning_path_progress"]["total_count"], 4)
+        self.assertEqual(context["learning_path_progress"]["percentage"], 50.0)
+

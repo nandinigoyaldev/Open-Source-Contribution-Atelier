@@ -46,15 +46,32 @@ class WeeklyDigestService:
             source_type__in=["exercise", "quiz", "challenge"]
         ).count()
 
-        # 4. Current Streak
+        # 4. Current Streak & Streak Risk Check
         streak = StreakProfile.objects.filter(user=user).first()
         current_streak = streak.current_streak if streak else 0
+        today = now.date()
+        streak_at_risk = bool(
+            current_streak > 0
+            and (
+                not streak
+                or not streak.last_activity_date
+                or streak.last_activity_date < today
+            )
+        )
 
         # 5. Newly unlocked badges
-        badges_earned = UserBadge.objects.filter(
+        badges_earned_qs = UserBadge.objects.filter(
             user=user, earned_at__gte=one_week_ago
         ).select_related("badge")
-        badge_names = [ub.badge.name for ub in badges_earned]
+        badges_earned_details = [
+            {
+                "name": ub.badge.name,
+                "description": ub.badge.description,
+                "icon": ub.badge.icon_asset_url or "🏅",
+            }
+            for ub in badges_earned_qs
+        ]
+        badge_names = [b["name"] for b in badges_earned_details]
 
         # 6. Leaderboard / Total XP
         user_total_xp = (
@@ -66,21 +83,60 @@ class WeeklyDigestService:
         leaderboard = cls.get_cached_leaderboard()
         rank = leaderboard.get(user.id, User.objects.count())
 
-        # 7. Recommendations
-        completed_lesson_ids = LessonProgress.objects.filter(
-            user=user, completed=True
-        ).values_list("lesson_id", flat=True)
+        # 7. Learning Path / Skill Tree Progress
+        total_lessons_count = Lesson.objects.count()
+        completed_lesson_ids = set(
+            LessonProgress.objects.filter(user=user, completed=True).values_list(
+                "lesson_id", flat=True
+            )
+        )
+        overall_completed_count = len(completed_lesson_ids)
+        overall_progress_percent = (
+            round((overall_completed_count / total_lessons_count) * 100, 1)
+            if total_lessons_count > 0
+            else 0.0
+        )
+
+        from apps.content.models import LearningPath
+
+        paths_data = []
+        for path in LearningPath.objects.filter(is_published=True).prefetch_related("lessons"):
+            path_lessons = list(path.lessons.all())
+            path_total = len(path_lessons)
+            if path_total > 0:
+                path_completed = sum(1 for l in path_lessons if l.id in completed_lesson_ids)
+                path_pct = round((path_completed / path_total) * 100, 1)
+                paths_data.append(
+                    {
+                        "title": path.title,
+                        "completed": path_completed,
+                        "total": path_total,
+                        "percentage": path_pct,
+                    }
+                )
+
+        learning_path_progress = {
+            "completed_count": overall_completed_count,
+            "total_count": total_lessons_count,
+            "percentage": overall_progress_percent,
+            "paths": paths_data,
+        }
+
+        # 8. Recommendations (Suggested Next Steps based on user's path)
         recommended_lessons = Lesson.objects.exclude(
             id__in=completed_lesson_ids
         ).order_by("order")[:3]
-        recommendations = [lesson.title for lesson in recommended_lessons]
+        recommendation_list = [
+            {"title": lesson.title, "summary": lesson.summary, "slug": lesson.slug}
+            for lesson in recommended_lessons
+        ]
+        recommendations = [r["title"] for r in recommendation_list]
 
-        # 8. Newly Released Content
-        # Since Lesson doesn't have created_at, we use highest IDs as a proxy for newest content
+        # 9. Newly Released Content
         new_lessons = Lesson.objects.all().order_by("-id")[:4]
         new_content = [lesson.title for lesson in new_lessons]
 
-        # 9. Advanced Insights
+        # 10. Advanced Insights
         insights = InsightsEngine.generate_weekly_insights(user)
 
         return {
@@ -92,10 +148,15 @@ class WeeklyDigestService:
             "lessons_completed": lessons_completed,
             "quiz_challenge_count": quiz_challenge_count,
             "current_streak": current_streak,
+            "streak_at_risk": streak_at_risk,
             "badges_earned": badge_names,
+            "badges_earned_details": badges_earned_details,
+            "learning_path_progress": learning_path_progress,
             "recommendations": recommendations,
+            "recommendation_details": recommendation_list,
             "new_content": new_content,
             "insights": insights,
             "start_date": one_week_ago.strftime("%B %d, %Y"),
             "end_date": now.strftime("%B %d, %Y"),
         }
+

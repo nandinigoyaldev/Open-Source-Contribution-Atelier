@@ -68,6 +68,7 @@ class UserUpdateSerializer(serializers.ModelSerializer):
     linkedin_url = serializers.URLField(required=False, allow_blank=True)
     github_url = serializers.URLField(required=False, allow_blank=True)
     bio = serializers.CharField(required=False, allow_blank=True)
+    receive_weekly_digest = serializers.BooleanField(required=False)
 
     class Meta:
         model = User
@@ -81,6 +82,7 @@ class UserUpdateSerializer(serializers.ModelSerializer):
             "linkedin_url",
             "github_url",
             "bio",
+            "receive_weekly_digest",
         )
         extra_kwargs = {
             "email": {"required": False},
@@ -105,6 +107,7 @@ class UserUpdateSerializer(serializers.ModelSerializer):
         linkedin_url = validated_data.pop("linkedin_url", None)
         github_url = validated_data.pop("github_url", None)
         bio = validated_data.pop("bio", None)
+        receive_weekly_digest = validated_data.pop("receive_weekly_digest", None)
 
         for attr, value in validated_data.items():
             setattr(instance, attr, value)
@@ -123,6 +126,7 @@ class UserUpdateSerializer(serializers.ModelSerializer):
             or linkedin_url is not None
             or github_url is not None
             or bio is not None
+            or receive_weekly_digest is not None
         ):
             from apps.accounts.models import UserProfile
 
@@ -141,6 +145,8 @@ class UserUpdateSerializer(serializers.ModelSerializer):
                 profile.github_url = github_url
             if bio is not None:
                 profile.bio = bio
+            if receive_weekly_digest is not None:
+                profile.receive_weekly_digest = receive_weekly_digest
             profile.save()
 
         return instance

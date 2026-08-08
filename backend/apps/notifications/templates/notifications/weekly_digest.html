@@ -50,7 +50,7 @@
                     <div class="stat-label">Lessons Completed</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-value">{{ current_streak }}</div>
+                    <div class="stat-value">{{ current_streak }} 🔥</div>
                     <div class="stat-label">Day Streak</div>
                 </div>
                 <div class="stat-card">
@@ -58,6 +58,40 @@
                     <div class="stat-label">Leaderboard Rank</div>
                 </div>
             </div>
+
+            {% if streak_at_risk %}
+            <div style="background-color: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 16px; margin-bottom: 32px; color: #991b1b; font-size: 14px; font-weight: 500; display: flex; align-items: center;">
+                <span style="font-size: 20px; margin-right: 12px;">⚠️</span>
+                <div>
+                    <strong>Streak at Risk!</strong> You haven't completed an activity today. Complete a lesson today to keep your <strong>{{ current_streak }}-day streak</strong> alive!
+                </div>
+            </div>
+            {% endif %}
+
+            {% if learning_path_progress %}
+            <div class="section">
+                <div class="section-title">🗺️ Learning Path & Skill Tree Progress</div>
+                <div style="background-color: #f3f4f6; padding: 16px; border-radius: 8px; margin-bottom: 16px;">
+                    <div style="display: flex; justify-content: space-between; font-size: 14px; font-weight: 600; color: #374151; margin-bottom: 8px;">
+                        <span>Overall Path Completion</span>
+                        <span>{{ learning_path_progress.percentage }}% ({{ learning_path_progress.completed_count }}/{{ learning_path_progress.total_count }} lessons)</span>
+                    </div>
+                    <div style="background-color: #e5e7eb; border-radius: 9999px; height: 10px; overflow: hidden;">
+                        <div style="background-color: #4f46e5; height: 100%; width: {{ learning_path_progress.percentage }}%;"></div>
+                    </div>
+                </div>
+                {% if learning_path_progress.paths %}
+                <ul style="list-style: none; padding: 0; margin: 0; font-size: 14px; color: #4b5563;">
+                    {% for path in learning_path_progress.paths %}
+                    <li style="margin-bottom: 6px; display: flex; justify-content: space-between;">
+                        <span>📌 {{ path.title }}</span>
+                        <strong>{{ path.percentage }}%</strong>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% endif %}
+            </div>
+            {% endif %}
 
             {% if insights %}
             <div class="section" style="background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%); padding: 24px; border-radius: 12px; margin-bottom: 32px; border: 1px solid #fcd34d;">
@@ -91,8 +125,8 @@
 
             {% if recommendations %}
             <div class="section">
-                <div class="section-title">🎯 Recommended Next Steps</div>
-                <p style="color: #4b5563; font-size: 14px; margin-bottom: 12px;">Based on your progress, we think you'll love these:</p>
+                <div class="section-title">🎯 Suggested Next Steps</div>
+                <p style="color: #4b5563; font-size: 14px; margin-bottom: 12px;">Based on your learning path, we suggest taking on these next steps:</p>
                 <ul class="recs-list">
                     {% for rec in recommendations %}
                         <li>{{ rec }}</li>
