@@ -1,0 +1,32 @@
+version: "1.0"
+lesson_slug: "git-branching"
+description: "Allowlist for Git Branching exercises"
+allowed_commands:
+  status: {}
+  branch:
+    args_count:
+      min: 1
+      max: 2
+    pattern: "^feature-.*"
+    denied_flags:
+      - "-D"
+  checkout:
+    args_count:
+      min: 1
+      max: 2
+  switch:
+    args_count:
+      min: 1
+      max: 2
+  add:
+    args_count:
+      min: 1
+  commit:
+    required_flags:
+      - "-m"
+  log: {}
+
+denied_flags:
+  - "--force"
+  - "-f"
+  - "--hard"

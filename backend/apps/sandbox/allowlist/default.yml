@@ -1,0 +1,41 @@
+version: "1.0"
+description: "Default fallback allowlist for sandbox Git exercises"
+allowed_commands:
+  status: {}
+  init: {}
+  add:
+    args_count:
+      min: 1
+  commit:
+    required_flags:
+      - "-m"
+  branch:
+    args_count:
+      min: 0
+      max: 2
+  checkout:
+    args_count:
+      min: 1
+      max: 2
+  switch:
+    args_count:
+      min: 1
+      max: 2
+  merge:
+    args_count:
+      min: 1
+      max: 1
+  rebase:
+    args_count:
+      min: 1
+      max: 2
+  log: {}
+  pull: {}
+  push: {}
+  diff: {}
+  remote: {}
+
+denied_flags:
+  - "--force"
+  - "-f"
+  - "--hard"

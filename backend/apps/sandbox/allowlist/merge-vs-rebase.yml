@@ -1,0 +1,32 @@
+version: "1.0"
+lesson_slug: "merge-vs-rebase"
+description: "Allowlist for Merge vs Rebase exercises"
+allowed_commands:
+  status: {}
+  checkout:
+    args_count:
+      min: 1
+      max: 2
+  switch:
+    args_count:
+      min: 1
+      max: 2
+  merge:
+    args_count:
+      exact: 1
+  rebase:
+    args_count:
+      min: 1
+      max: 2
+  log: {}
+  add:
+    args_count:
+      min: 1
+  commit:
+    required_flags:
+      - "-m"
+
+denied_flags:
+  - "--force"
+  - "-f"
+  - "--hard"
