@@ -8,6 +8,7 @@ import { AppRouter } from "./router";
 import { queryClient } from "../lib/queryClient";
 import { CommandPalette } from "../components/CommandPalette";
 import { DocSearchModal } from "../components/docs/DocSearchModal";
+import { KeyboardShortcutsModal } from "../components/KeyboardShortcutsModal";
 import ReportIssueButton from "../components/ui/ReportIssueButton";
 import { ErrorBoundary } from "../components/ui/ErrorBoundary";
 import { NotificationProvider } from "../features/notifications/NotificationContext";
@@ -177,6 +178,7 @@ export function App({ children }: { children?: React.ReactNode }) {
             {children || <AppRouter />}
             <CommandPalette />
             <DocSearchModal />
+            <KeyboardShortcutsModal />
             <CustomCursor />
             <WebSocketStatusIndicator url="" />
 

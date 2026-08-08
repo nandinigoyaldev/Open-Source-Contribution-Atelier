@@ -19,12 +19,43 @@ const shortcuts: ShortcutRow[] = [
   {
     category: "Global",
     keys: ["?"],
-    description: "Toggle this Keyboard Shortcuts Help modal",
+    description: "Toggle this Keyboard Shortcuts Cheat Sheet modal",
   },
   {
     category: "Global / Modals",
     keys: ["Esc"],
-    description: "Close active modal or overlay",
+    description: "Close active modal, panel, or overlay",
+  },
+  // Lesson Navigation
+  {
+    category: "Lesson Navigation",
+    keys: ["Alt →", "Alt N"],
+    description: "Navigate to next lesson in current pathway",
+  },
+  {
+    category: "Lesson Navigation",
+    keys: ["Alt ←", "Alt P"],
+    description: "Navigate to previous lesson in current pathway",
+  },
+  {
+    category: "Lesson Navigation",
+    keys: ["Alt S", "Alt M"],
+    description: "Toggle lesson module outline sidebar",
+  },
+  {
+    category: "Lesson Navigation",
+    keys: ["Alt B"],
+    description: "Toggle lesson bookmark",
+  },
+  {
+    category: "Lesson Navigation",
+    keys: ["Alt C"],
+    description: "Toggle user notes panel",
+  },
+  {
+    category: "Lesson Navigation",
+    keys: ["Alt H"],
+    description: "Toggle mentor support request panel",
   },
   // Command Palette
   {
@@ -97,8 +128,14 @@ export const KeyboardShortcutsModal: React.FC = () => {
       }
     };
 
+    const handleCustomToggle = () => setIsOpen((prev) => !prev);
+
     window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
+    window.addEventListener("toggle-keyboard-shortcuts", handleCustomToggle);
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown);
+      window.removeEventListener("toggle-keyboard-shortcuts", handleCustomToggle);
+    };
   }, [isOpen]);
 
   return (

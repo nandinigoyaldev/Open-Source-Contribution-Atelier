@@ -23,7 +23,9 @@ import {
   WifiOff,
   HardDrive,
   Flag,
+  Keyboard,
 } from "lucide-react";
+import { toast } from "react-hot-toast";
 
 import SkeletonLesson from "../components/ui/skeletons/SkeletonLesson";
 import { useUserProgress } from "../hooks/useUserProgress";
@@ -540,6 +542,51 @@ useEffect(() => {
       element.removeEventListener("scroll", handleScroll);
     };
   }, [markdownContent]);
+
+  // 4. Keyboard Shortcuts for Lesson Navigation
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      const activeEl = document.activeElement;
+      const isInput =
+        activeEl &&
+        (activeEl.tagName === "INPUT" ||
+          activeEl.tagName === "TEXTAREA" ||
+          activeEl.getAttribute("contenteditable") === "true");
+
+      if (isInput) return;
+
+      if (e.altKey && (e.key === "ArrowRight" || e.key === "n" || e.key === "N")) {
+        e.preventDefault();
+        if (nextLesson) {
+          if (isCompleted) {
+            navigate(`/lessons/${nextLesson.slug}`);
+          } else {
+            toast.error("Complete the current lesson first to unlock the next module!");
+          }
+        }
+      } else if (e.altKey && (e.key === "ArrowLeft" || e.key === "p" || e.key === "P")) {
+        e.preventDefault();
+        if (previousLesson) {
+          navigate(`/lessons/${previousLesson.slug}`);
+        }
+      } else if (e.altKey && (e.key === "s" || e.key === "S" || e.key === "m" || e.key === "M")) {
+        e.preventDefault();
+        setIsSidebarOpen((prev) => !prev);
+      } else if (e.altKey && (e.key === "b" || e.key === "B")) {
+        e.preventDefault();
+        if (lesson) toggleBookmark(lesson.slug);
+      } else if (e.altKey && (e.key === "c" || e.key === "C")) {
+        e.preventDefault();
+        setIsNotePanelOpen((prev) => !prev);
+      } else if (e.altKey && (e.key === "h" || e.key === "H")) {
+        e.preventDefault();
+        setIsHelpPanelOpen((prev) => !prev);
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [navigate, nextLesson, previousLesson, isCompleted, lesson, toggleBookmark]);
 
   const handleCommandSubmit = async (
     e: React.FormEvent | React.KeyboardEvent,
@@ -1560,6 +1607,16 @@ useEffect(() => {
 
           {/* Mentor Help Trigger Row */}
           <div className="border-t-4 border-black p-4 bg-white dark:bg-[#151411] dark:border-[#2e2924] flex justify-end gap-4 flex-shrink-0 flex-wrap">
+            <button
+              onClick={() => {
+                window.dispatchEvent(new CustomEvent("toggle-keyboard-shortcuts"));
+              }}
+              className="px-4 py-2 bg-white text-text dark:bg-[#151411] dark:text-[#f0ebe2] font-black text-xs rounded-lg border-4 border-black shadow-card-sm hover:-translate-y-0.5 cursor-pointer flex items-center gap-1.5"
+              title="Press '?' for keyboard shortcuts cheat sheet"
+            >
+              <Keyboard className="w-3.5 h-3.5 text-[#FFCC00]" />
+              Shortcuts ⌨️
+            </button>
             <button
               onClick={() => {
                 setIsCommitCoachOpen(!isCommitCoachOpen);
