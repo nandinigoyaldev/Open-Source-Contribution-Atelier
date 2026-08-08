@@ -8,7 +8,7 @@ import {
   AlertCircle,
   Info,
 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { AppNotification } from "../../features/notifications/notificationSlice";
 
 interface NotificationDrawerProps {
@@ -34,6 +34,7 @@ export function NotificationDrawer({
   markAsRead,
   markAllAsRead,
 }: NotificationDrawerProps) {
+   const navigate = useNavigate();
   // Close on Escape key
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -133,10 +134,16 @@ export function NotificationDrawer({
                 <Link
                   key={notif.id}
                   to={getLink(notif)}
-                  onClick={() => {
-                    if (!notif.is_read) markAsRead(notif.id);
-                    onClose();
-                  }}
+                  onClick={async (e) => {
+                    if (!notif.is_read) {
+                     e.preventDefault();
+                     await markAsRead(notif.id);
+                     onClose();
+                     navigate(getLink(notif));
+                    } else {
+                     onClose();
+                    }
+                }}
                   className={`block p-4 rounded-xl border-2 border-black dark:border-[#2e2924] shadow-card-sm transition-all hover:-translate-y-0.5 hover:shadow-card hover:bg-surface-low dark:hover:bg-[#1f1c18] ${
                     !notif.is_read
                       ? "bg-[#C3C0FF]/10 border-l-8 border-l-[#4f46e5] dark:bg-[#C3C0FF]/5"

@@ -152,26 +152,30 @@ export function NotificationProvider({
     },
   });
 
-  const markAsRead = useCallback(
-    async (id: number) => {
-      if (!user || user.is_staff) return;
+const markAsRead = useCallback(
+  async (id: number) => {
+    if (!user || user.is_staff) return;
 
-      // Optimistic update
-      dispatch(markReadLocally(id));
+    // Optimistic update
+    dispatch(markReadLocally(id));
 
-      try {
-        // Use WS to mark read if possible, fallback to REST
-        sendMessage({ action: "mark_read", notification_id: id });
-        await fetchApi(`/notifications/${id}/mark-read/`, {
-          method: "PATCH",
-        });
-      } catch (error) {
-        console.error("Failed to mark notification as read", error);
-        dispatch(fetchNotifications(1));
-      }
-    },
-    [user, sendMessage, dispatch],
-  );
+    try {
+      // Use WS to mark read if possible, fallback to REST
+      sendMessage({
+        action: "mark_read",
+        notification_id: id,
+      });
+
+      await fetchApi(`/notifications/${id}/mark-read/`, {
+        method: "POST",
+      });
+    } catch (error) {
+      console.error("Failed to mark notification as read", error);
+      dispatch(fetchNotifications(1));
+    }
+  },
+  [user, sendMessage, dispatch],
+);
 
   const markAllAsRead = useCallback(async () => {
     if (!user || user.is_staff) return;
