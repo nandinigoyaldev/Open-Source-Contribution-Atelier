@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from dataclasses import dataclass
 
 import pyclamd
@@ -35,12 +36,22 @@ def get_clamav_client():
     return client
 
 
-def scan_file(file_path: str) -> ScanResult:
-    client = get_clamav_client()
-    result = client.scan_file(file_path)
-    if not result:
-        return ScanResult(infected=False)
+def scan_file(file_path: str, delete_on_complete: bool = False) -> ScanResult:
+    """
+    Scans an uploaded file via ClamAV and optionally purges the file from disk afterward.
+    """
+    try:
+        client = get_clamav_client()
+        result = client.scan_file(file_path)
+        if not result:
+            return ScanResult(infected=False)
 
-    _, details = next(iter(result.items()))
-    status, signature = details
-    return ScanResult(infected=status == "FOUND", signature=signature or "")
+        _, details = next(iter(result.items()))
+        status, signature = details
+        return ScanResult(infected=status == "FOUND", signature=signature or "")
+    finally:
+        if delete_on_complete and os.path.exists(file_path):
+            try:
+                os.remove(file_path)
+            except OSError:
+                pass
