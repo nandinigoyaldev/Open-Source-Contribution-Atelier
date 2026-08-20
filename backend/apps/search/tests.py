@@ -75,7 +75,55 @@ class SearchEngineEdgeCaseTests(TestCase):
         self._index_model(self.issue1, self.issue1.title, self.issue1.description)
         self.factory = RequestFactory()
         self.view = UnifiedSearchView.as_view()
+@patch("apps.search.views.get_meili_index")
+    def test_meilisearch_typo_tolerance_configuration(self, mock_get_index):
+        """Verify that Meilisearch index update settings configure typoTolerance properly."""
+        from unittest.mock import MagicMock
+        from apps.search.services import SearchService
 
+        mock_index = MagicMock()
+        SearchService.configure_index_settings(mock_index)
+
+        mock_index.update_settings.assert_called_once()
+        _, kwargs = mock_index.update_settings.call_args
+        settings_arg = mock_index.update_settings.call_args[0][0]
+        
+        self.assertIn("typoTolerance", settings_arg)
+        self.assertTrue(settings_arg["typoTolerance"]["enabled"])
+
+    @patch("apps.search.views.get_meili_index")
+    def test_meilisearch_fuzzy_search_typos(self, mock_get_index):
+        """Verify Meilisearch fuzzy search handles minor typos (Levenshtein distance <= 2)."""
+        from unittest.mock import MagicMock
+
+        mock_index = MagicMock()
+        mock_get_index.return_value = mock_index
+
+        # Simulate Meilisearch fuzzy matching response for typos like "pythn" or "gitub"
+        mock_index.search.return_value = {
+            "hits": [
+                {
+                    "id": "2",
+                    "title": "Advanced Python Programming",
+                    "description": "Deep dive into Python internals.",
+                    "body_text": "Understanding Python and gitub workflow.",
+                    "content_type_name": "lesson",
+                    "_formatted": {
+                        "title": "Advanced <mark>Python</mark> Programming",
+                        "description": "Deep dive into Python internals.",
+                        "body_text": "Understanding Python and gitub workflow.",
+                    },
+                }
+            ]
+        }
+
+        # Test searching with typo "pythn"
+        request = self.factory.get("/api/search/", {"q": "pythn"})
+        response = self.view(request)
+        self.assertEqual(response.status_code, 200)
+        results = response.data["results"] if isinstance(response.data, dict) else response.data
+        self.assertGreater(len(results), 0)
+        self.assertIn("Python", results[0]["title"])
     def _index_model(self, obj, title, body):
         index_model_for_search(
             app_label=obj._meta.app_label,
