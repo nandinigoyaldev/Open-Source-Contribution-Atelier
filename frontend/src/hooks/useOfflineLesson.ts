@@ -14,6 +14,7 @@
  *  - error          : Error | null
  *  - refresh()      : force a network re-fetch
  *  - isCached       : boolean — whether this slug exists in the local cache
+ *  - prefetchLesson : function to background prefetch a target lesson
  */
 import { useCallback, useEffect, useState } from "react";
 import { useNetworkStatus } from "../context/useNetworkStatus";
@@ -28,6 +29,7 @@ interface UseOfflineLessonResult {
   error: Error | null;
   refresh: () => void;
   isCached: boolean;
+  prefetchLesson: (targetLesson: Lesson) => Promise<void>;
 }
 
 export function useOfflineLesson(
@@ -46,12 +48,29 @@ export function useOfflineLesson(
     setRefreshCount((c) => c + 1);
   }, []);
 
+  const prefetchLesson = useCallback(async (targetLesson: Lesson) => {
+    if (!targetLesson?.filePath) return;
+    try {
+      const cache = await caches.open("content-runtime-cache");
+      const cachePath = `/content/${targetLesson.filePath}`;
+      
+      // Check if already cached
+      const existing = await cache.match(cachePath);
+      if (existing) return; // Skip if already cached
+
+      // Fetch and store in background
+      const text = await fetchLessonContent(targetLesson.filePath);
+      await cache.put(cachePath, new Response(text));
+    } catch (e) {
+      console.warn("[useOfflineLesson] Background prefetch failed:", e);
+    }
+  }, []);
+
   useEffect(() => {
     if (!lesson) return;
 
     let cancelled = false;
     const l: Lesson = lesson; // narrowed to non-undefined for use inside async closure
-    const now = Date.now();
 
     async function loadContent(forceNetwork: boolean) {
       if (!cancelled) setIsLoading(true);
@@ -163,5 +182,5 @@ export function useOfflineLesson(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lesson?.slug, isOnline, refreshCount]);
 
-  return { markdown, source, isLoading, error, refresh, isCached };
+  return { markdown, source, isLoading, error, refresh, isCached, prefetchLesson };
 }

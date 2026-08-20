@@ -51,7 +51,6 @@ import { AITutorFloatingPanel } from "../components/ui/AITutorPanel";
 import { Breadcrumb, type BreadcrumbItem } from "../components/ui/Breadcrumb";
 
 const SESSION_KEY_RECENT = "recentlyViewedLessonsV1";
-
 const MAX_RECENT_ITEMS = 3;
 
 function safeParseRecentlyViewedLessons(
@@ -161,16 +160,17 @@ export function LessonPage() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
-  return localStorage.getItem("lesson-sidebar-collapsed") === "true";
-});
+    return localStorage.getItem("lesson-sidebar-collapsed") === "true";
+  });
 
-useEffect(() => {
-  localStorage.setItem(
-    "lesson-sidebar-collapsed",
-    String(isSidebarCollapsed),
-  );
-}, [isSidebarCollapsed]);
+  useEffect(() => {
+    localStorage.setItem(
+      "lesson-sidebar-collapsed",
+      String(isSidebarCollapsed),
+    );
+  }, [isSidebarCollapsed]);
 
+  // HOOKS MOVED UP: Declared safely before any conditional early returns
   const curriculumLessonRefs = useMemo(
     () =>
       modules.flatMap((mod) =>
@@ -181,6 +181,7 @@ useEffect(() => {
       ),
     [modules],
   );
+
   const breadcrumbItems: BreadcrumbItem[] = useMemo(() => {
     if (!lesson) return [];
     const activeModule = modules.find((mod) =>
@@ -220,7 +221,6 @@ useEffect(() => {
   }, [isCached, lesson?.slug, refreshOfflineReady]);
 
   const sidebarRef = useRef<HTMLElement>(null);
-
   const closeSidebar = useCallback(() => setIsSidebarOpen(false), []);
 
   // Close sidebar on click-outside (mobile drawer)
@@ -268,7 +268,6 @@ useEffect(() => {
   const [quizFeedback, setQuizFeedback] = useState<
     "correct" | "incorrect" | "timeout" | null
   >(null);
-  // NEW: Cryptographic Nonce State
   const [quizNonce, setQuizNonce] = useState<string | null>(null);
   const [timeLeft, setTimeLeft] = useState<number | null>(null);
 
@@ -282,8 +281,7 @@ useEffect(() => {
   const calculateReadTime = (content: string) => {
     const wordsPerMinute = 200;
     const words = content.split(/\s+/).length;
-    const minutes = Math.ceil(words / wordsPerMinute);
-    return minutes;
+    return Math.ceil(words / wordsPerMinute);
   };
 
   // Note Panel
@@ -294,6 +292,7 @@ useEffect(() => {
   const mainContentRef = useRef<HTMLDivElement>(null);
   const [scrollProgress, setScrollProgress] = useState(0);
   const [showBackToTop, setShowBackToTop] = useState(false);
+
   const helpRequestMutation = useMutation({
     mutationFn: (message: string) => {
       if (!lesson) {
@@ -321,7 +320,7 @@ useEffect(() => {
       selected_answer: string;
       correct_answer: string;
       is_correct: boolean;
-      nonce: string; // NEW: Added nonce to payload
+      nonce: string;
     }) => {
       return fetchApi("/progress/quiz-attempts/", {
         method: "POST",
@@ -329,7 +328,6 @@ useEffect(() => {
       });
     },
     onError: (err: any) => {
-      // NEW: Intercept 403 Forbidden errors triggered by Replay Attacks
       if (err?.status === 403 || err?.message?.includes("403")) {
         alert(
           "Security Error: Replay attack detected or session expired. Please refresh.",
@@ -433,7 +431,6 @@ useEffect(() => {
   useEffect(() => {
     if (!lesson) return;
 
-    // Update session-based "Recently Viewed Lessons".
     try {
       const nextItem = { slug: lesson.slug, title: lesson.title };
       const raw = window.sessionStorage.getItem(SESSION_KEY_RECENT);
@@ -447,7 +444,7 @@ useEffect(() => {
         JSON.stringify(updated),
       );
     } catch {
-      // Ignore storage errors (private mode / quota / unsupported browsers)
+      // Ignore storage errors
     }
 
     setFeedback("");
@@ -462,11 +459,10 @@ useEffect(() => {
     setQuizNonce(null);
     setTimeLeft(null);
 
-    // Markdown is loaded via useOfflineLesson (network + IndexedDB / SW cache)
     refreshOfflineReady();
   }, [lesson, refreshOfflineReady]);
 
-  // NEW: Fetch Cryptographic Nonce for the current quiz question
+  // 3. Fetch Cryptographic Nonce for current quiz question
   useEffect(() => {
     if (!lesson || !lesson.quizzes || lesson.quizzes.length === 0) return;
 
@@ -535,37 +531,29 @@ useEffect(() => {
     }
   }, [timeLeft, quizFeedback, handleTimeout]);
 
-  // 3. Scroll tracking for reading progress + back to top
+  // 4. Scroll tracking for reading progress + back to top
   useEffect(() => {
     const element = mainContentRef.current;
-
     if (!element) return;
 
     const handleScroll = () => {
       const totalHeight = element.scrollHeight - element.clientHeight;
-
       if (totalHeight <= 0) {
         setScrollProgress(100);
       } else {
-          const scrollPercent =
-            (element.scrollTop / totalHeight) * 100;
-
-          setScrollProgress(
+        const scrollPercent = (element.scrollTop / totalHeight) * 100;
+        setScrollProgress(
           Math.min(100, Math.max(0, Math.round(scrollPercent))),
-          );
-      }   
-
+        );
+      }
       setShowBackToTop(element.scrollTop > 300);
     };
 
     element.addEventListener("scroll", handleScroll);
-
-    return () => {
-      element.removeEventListener("scroll", handleScroll);
-    };
+    return () => element.removeEventListener("scroll", handleScroll);
   }, [markdownContent]);
 
-  // 4. Keyboard Shortcuts for Lesson Navigation
+  // 5. Keyboard Shortcuts for Lesson Navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       const activeEl = document.activeElement;
@@ -576,6 +564,13 @@ useEffect(() => {
           activeEl.getAttribute("contenteditable") === "true");
 
       if (isInput) return;
+
+      const currentLessonIndex = lessonsList.findIndex(
+        (l) => l.slug === lesson?.slug,
+      );
+      const nextLesson = lessonsList[currentLessonIndex + 1];
+      const previousLesson = lessonsList[currentLessonIndex - 1];
+      const isCompleted = lesson ? isLessonCompleted(lesson.slug) : false;
 
       if (e.altKey && (e.key === "ArrowRight" || e.key === "n" || e.key === "N")) {
         e.preventDefault();
@@ -596,7 +591,7 @@ useEffect(() => {
         setIsSidebarOpen((prev) => !prev);
       } else if (e.altKey && (e.key === "b" || e.key === "B")) {
         e.preventDefault();
-        if (lesson) toggleBookmark(lesson.slug);
+        if (lesson) toggleBookmark({ slug: lesson.slug, isBookmarked: isBookmarked(lesson.slug) });
       } else if (e.altKey && (e.key === "c" || e.key === "C")) {
         e.preventDefault();
         setIsNotePanelOpen((prev) => !prev);
@@ -608,128 +603,9 @@ useEffect(() => {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [navigate, nextLesson, previousLesson, isCompleted, lesson, toggleBookmark]);
+  }, [navigate, lessonsList, lesson, isLessonCompleted, isBookmarked, toggleBookmark]);
 
-  const handleCommandSubmit = async (
-    e: React.FormEvent | React.KeyboardEvent,
-  ) => {
-    e.preventDefault();
-    if (!lesson || isExecuting) return;
-
-    setIsExecuting(true);
-    await new Promise((resolve) => setTimeout(resolve, 800));
-
-    const result = parseGitCommand(input, repoState);
-    if (result.error && result.newState.conflicts.length === 0) {
-      setTerminalOutput(result.error);
-      setFeedback("error");
-      setShowHint(true);
-      return;
-    } else {
-      setTerminalOutput(result.error || result.output || "");
-      setRepoState(result.newState);
-      if (result.newState.conflicts.length > 0 && lesson.conflictScenario) {
-        setConflictContent(lesson.conflictScenario.fileContent || "");
-      }
-    }
-
-    const expected = lesson.expected;
-    let isCorrect;
-
-    if (typeof expected === "string") {
-      isCorrect = normalizeCommand(input) === normalizeCommand(expected);
-    } else {
-      try {
-        isCorrect = expected.test(input.trim());
-      } catch {
-        isCorrect = input.trim() === String(expected);
-      }
-    }
-
-    if (isCorrect) {
-      setFeedback("correct");
-
-      const wasCompleted = isLessonCompleted(lesson.slug);
-
-      syncProgress({
-        lesson_slug: lesson.slug,
-        score: lesson.points || 20,
-        completed: true,
-      });
-
-      if (!wasCompleted) {
-        triggerConfetti();
-      }
-    } else {
-      setFeedback("error");
-      setShowHint(true);
-    }
-
-    setInput("");
-    setIsExecuting(false);
-  };
-
-  const handleQuizOptionCheck = () => {
-    if (selectedOption === null || !lesson || !lesson.quizzes) return;
-
-    // NEW: Block submission if nonce hasn't loaded yet
-    if (!quizNonce) {
-      alert(
-        "Security Check: Quiz session is initializing, please wait a second and try again.",
-      );
-      return;
-    }
-
-    const currentQuiz = lesson.quizzes[currentQuizIndex];
-    const isCorrect = selectedOption === currentQuiz.answer;
-
-    // Send attempt to backend with the injected nonce
-    quizAttemptMutation.mutate({
-      question_id: `${lesson.slug}-q${currentQuizIndex}`,
-      question_text: currentQuiz.question,
-      selected_answer: currentQuiz.options[selectedOption] || "",
-      correct_answer: currentQuiz.options[currentQuiz.answer] || "",
-      is_correct: isCorrect,
-      nonce: quizNonce, // NEW: Appended
-    });
-
-    if (isCorrect) {
-      setQuizFeedback("correct");
-      if (lesson.slug) {
-        syncProgress({
-          lesson_slug: lesson.slug,
-          score: lesson.points || 15,
-          completed: true,
-        });
-      }
-      const wasCompleted = isLessonCompleted(lesson.slug);
-      syncProgress({
-        lesson_slug: lesson.slug,
-        score: lesson.points || 20,
-        completed: true,
-      });
-      if (!wasCompleted) {
-        triggerConfetti();
-      }
-    } else {
-      setQuizFeedback("incorrect");
-    }
-  };
-
-  const handleNextQuizQuestion = () => {
-    setSelectedOption(null);
-    setQuizFeedback(null);
-    setQuizNonce(null); // Clear old nonce so the useEffect can fetch a new one
-    setTimeLeft(null);
-    setCurrentQuizIndex((prev) => prev + 1);
-  };
-
-  const handleHelpRequestSubmit = (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    if (!lesson || !helpMessage.trim()) return;
-    helpRequestMutation.mutate(helpMessage.trim());
-  };
-
+  // Conditional early returns are safely placed *after* all hooks have been invoked
   if (isLoading) {
     return (
       <div
@@ -768,7 +644,6 @@ useEffect(() => {
               onClick={() => {
                 setError(null);
                 setIsLoading(true);
-                // Re-trigger by bumping slug-based effect via navigate
                 navigate(0);
               }}
               className="flex-1 px-5 py-3 bg-primary text-black font-black text-sm rounded-xl border-4 border-black shadow-[3px_3px_0px_#000] hover:-translate-y-0.5 active:translate-y-0.5 transition-all"
@@ -801,6 +676,117 @@ useEffect(() => {
   const activeModuleId = modules.find((mod) =>
     mod.lessons.some((les) => les.slug === lesson.slug),
   )?.id;
+
+  const handleCommandSubmit = async (
+    e: React.FormEvent | React.KeyboardEvent,
+  ) => {
+    e.preventDefault();
+    if (!lesson || isExecuting) return;
+
+    setIsExecuting(true);
+    await new Promise((resolve) => setTimeout(resolve, 800));
+
+    const result = parseGitCommand(input, repoState);
+    if (result.error && result.newState.conflicts.length === 0) {
+      setTerminalOutput(result.error);
+      setFeedback("error");
+      setShowHint(true);
+      setIsExecuting(false);
+      return;
+    } else {
+      setTerminalOutput(result.error || result.output || "");
+      setRepoState(result.newState);
+      if (result.newState.conflicts.length > 0 && lesson.conflictScenario) {
+        setConflictContent(lesson.conflictScenario.fileContent || "");
+      }
+    }
+
+    const expected = lesson.expected;
+    let isCorrect;
+
+    if (typeof expected === "string") {
+      isCorrect = normalizeCommand(input) === normalizeCommand(expected);
+    } else {
+      try {
+        isCorrect = expected.test(input.trim());
+      } catch {
+        isCorrect = input.trim() === String(expected);
+      }
+    }
+
+    if (isCorrect) {
+      setFeedback("correct");
+      const wasCompleted = isLessonCompleted(lesson.slug);
+
+      syncProgress({
+        lesson_slug: lesson.slug,
+        score: lesson.points || 20,
+        completed: true,
+      });
+
+      if (!wasCompleted) {
+        triggerConfetti();
+      }
+    } else {
+      setFeedback("error");
+      setShowHint(true);
+    }
+
+    setInput("");
+    setIsExecuting(false);
+  };
+
+  const handleQuizOptionCheck = () => {
+    if (selectedOption === null || !lesson || !lesson.quizzes) return;
+
+    if (!quizNonce) {
+      alert(
+        "Security Check: Quiz session is initializing, please wait a second and try again.",
+      );
+      return;
+    }
+
+    const currentQuiz = lesson.quizzes[currentQuizIndex];
+    const isCorrect = selectedOption === currentQuiz.answer;
+
+    quizAttemptMutation.mutate({
+      question_id: `${lesson.slug}-q${currentQuizIndex}`,
+      question_text: currentQuiz.question,
+      selected_answer: currentQuiz.options[selectedOption] || "",
+      correct_answer: currentQuiz.options[currentQuiz.answer] || "",
+      is_correct: isCorrect,
+      nonce: quizNonce,
+    });
+
+    if (isCorrect) {
+      setQuizFeedback("correct");
+      const wasCompleted = isLessonCompleted(lesson.slug);
+      syncProgress({
+        lesson_slug: lesson.slug,
+        score: lesson.points || 20,
+        completed: true,
+      });
+      if (!wasCompleted) {
+        triggerConfetti();
+      }
+    } else {
+      setQuizFeedback("incorrect");
+    }
+  };
+
+  const handleNextQuizQuestion = () => {
+    setSelectedOption(null);
+    setQuizFeedback(null);
+    setQuizNonce(null);
+    setTimeLeft(null);
+    setCurrentQuizIndex((prev) => prev + 1);
+  };
+
+  const handleHelpRequestSubmit = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!lesson || !helpMessage.trim()) return;
+    helpRequestMutation.mutate(helpMessage.trim());
+  };
 
   return (
     <div className="w-full h-screen flex flex-col overflow-hidden bg-white dark:bg-[#0a0a0f]">
@@ -849,11 +835,11 @@ useEffect(() => {
           }
         >
           <div className="space-y-6">
-          {!isSidebarCollapsed && (
-            <div className="pt-2">
-              <RecentlyViewedLessonsWidget />
-            </div>
-          )}
+            {!isSidebarCollapsed && (
+              <div className="pt-2">
+                <RecentlyViewedLessonsWidget />
+              </div>
+            )}
 
             {modules.map((mod, modIdx) => (
               <div key={mod.id} className="space-y-2">
@@ -865,9 +851,9 @@ useEffect(() => {
                                : "text-muted dark:text-[#c4bbae] border-transparent"
                            }`}
                 >
-                {isSidebarCollapsed
+                  {isSidebarCollapsed
                     ? `M${modIdx + 1}`
-                    : `Module {modIdx + 1}: {mod.title}`}
+                    : `Module ${modIdx + 1}: ${mod.title}`}
                 </h3>
                 <div className="space-y-1">
                   {mod.lessons.map(
@@ -901,7 +887,6 @@ useEffect(() => {
                             {!isSidebarCollapsed && (
                               <span className="truncate">{les.title}</span>
                             )}
-
                           </div>
                           {les.difficulty === "advanced" && (
                             <span className="text-[8px] bg-red-100 text-red-700 px-1 py-0.5 rounded border border-red-700">
@@ -937,7 +922,6 @@ useEffect(() => {
             <div className="max-w-3xl mx-auto space-y-6">
               <Breadcrumb items={breadcrumbItems} className="mb-2" />
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-
                 <div>
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="text-[10px] font-mono font-black bg-accent text-black px-3 py-1 rounded-full border-2 border-black rotate-[-1deg] inline-block shadow-card-sm uppercase">
@@ -1064,7 +1048,7 @@ useEffect(() => {
                         <div className="mt-8 border-t pt-4 text-sm text-muted-foreground">
                           <strong>Last updated:</strong>{" "}
                           {new Date(lesson.updatedAt).toLocaleDateString()}
-                       </div>
+                        </div>
                       )}
                     </React.Suspense>
                   </article>
@@ -1093,459 +1077,6 @@ useEffect(() => {
                       <Flag className="w-4 h-4 text-red-600 dark:text-red-400" />
                       Report a problem
                     </a>
-                  );
-                })()}
-              </div>
-
-              <div className="pt-8 space-y-6">
-                {(() => {
-                  const plugin =
-                    lessonPluginRegistry.getPluginForLesson(lesson);
-                  if (plugin) {
-                    const PluginComponent = plugin.component;
-                    return (
-                      <div className="mt-8">
-                        <PluginComponent
-                          lesson={lesson}
-                          onSuccess={(score) => {
-                            const wasCompleted = isCompleted;
-                            syncProgress({
-                              lesson_slug: lesson.slug,
-                              score: score || lesson.points || 20,
-                              completed: true,
-                            });
-                            if (!wasCompleted) {
-                              triggerConfetti();
-                            }
-                          }}
-                        />
-                      </div>
-                    );
-                  }
-
-                  return lesson.pythonExercise ? (
-                    <div className="mt-8">
-                      {new URLSearchParams(window.location.search).get(
-                        "session",
-                      ) ? (
-                        <CollabPythonSandbox
-                          exercise={lesson.pythonExercise}
-                          roomId={
-                            new URLSearchParams(window.location.search).get(
-                              "session",
-                            )!
-                          }
-                          onSuccess={() => {
-                            const wasCompleted = isCompleted;
-                            syncProgress({
-                              lesson_slug: lesson.slug,
-                              score: lesson.points || 20,
-                              completed: true,
-                            });
-                            if (!wasCompleted) {
-                              triggerConfetti();
-                            }
-                          }}
-                        />
-                      ) : (
-                        <PythonSandbox
-                          exercise={lesson.pythonExercise}
-                          onSuccess={() => {
-                            const wasCompleted = isCompleted;
-                            syncProgress({
-                              lesson_slug: lesson.slug,
-                              score: lesson.points || 20,
-                              completed: true,
-                            });
-                            if (!wasCompleted) {
-                              triggerConfetti();
-                            }
-                          }}
-                        />
-                      )}
-                    </div>
-                  ) : lesson.jsExercise ? (
-                    <div className="mt-8">
-                      <JSSandbox
-                        exercise={lesson.jsExercise}
-                        onSuccess={() => {
-                          const wasCompleted = isCompleted;
-                          syncProgress({
-                            lesson_slug: lesson.slug,
-                            score: lesson.points || 20,
-                            completed: true,
-                          });
-                          if (!wasCompleted) {
-                            triggerConfetti();
-                          }
-                        }}
-                      />
-                    </div>
-                  ) : lesson.debugExercise ? (
-                    <div className="mt-8">
-                      <InteractiveDebugger
-                        exercise={lesson.debugExercise}
-                        onSuccess={() => {
-                          const wasCompleted = isCompleted;
-                          syncProgress({
-                            lesson_slug: lesson.slug,
-                            score: lesson.points || 30,
-                            completed: true,
-                          });
-                          if (!wasCompleted) {
-                            triggerConfetti();
-                          }
-                        }}
-                      />
-                    </div>
-                  ) : hasQuiz ? (
-                    <div className="rounded-2xl border-4 border-black bg-white p-6 shadow-card dark:bg-[#1f1c18] dark:border-[#2e2924]">
-                      <div className="flex items-center justify-between mb-4">
-                        <span className="font-mono text-xs text-primary uppercase tracking-widest font-black">
-                          Knowledge Check: Question {currentQuizIndex + 1} of{" "}
-                          {lesson.quizzes!.length}
-                        </span>
-                        <div className="flex items-center gap-3">
-                          {timeLeft !== null && (
-                            <div
-                              className={`text-xs font-black px-2 py-0.5 rounded-full border-2 ${
-                                timeLeft <= 5
-                                  ? "bg-red-100 text-red-600 border-red-600 animate-pulse"
-                                  : "bg-surface text-text border-black dark:border-[#2e2924] dark:text-[#f0ebe2]"
-                              }`}
-                            >
-                              ⏱{" "}
-                              {Math.floor(timeLeft / 60)
-                                .toString()
-                                .padStart(2, "0")}
-                              :{(timeLeft % 60).toString().padStart(2, "0")}
-                            </div>
-                          )}
-                          <span className="text-xs font-black text-accent bg-black text-white px-2 py-0.5 rounded-full dark:bg-[#2e2924]">
-                            {lesson.points || 15} XP
-                          </span>
-                        </div>
-                      </div>
-
-                      <h3 className="text-lg font-black mb-4 text-text dark:text-[#f0ebe2]">
-                        {lesson.quizzes![currentQuizIndex].question}
-                      </h3>
-
-                      <div className="space-y-3">
-                        {lesson.quizzes![currentQuizIndex].options.map(
-                          (option, idx) => {
-                            const isSelected = selectedOption === idx;
-                            const currentQuiz =
-                              lesson.quizzes![currentQuizIndex];
-                            const isCorrectOption = idx === currentQuiz.answer;
-
-                            // Determine background color based on quiz state
-                            let bgColor = "";
-                            if (quizFeedback !== null) {
-                              // After answer submitted: show green for correct, red for incorrect
-                              if (isCorrectOption) {
-                                bgColor =
-                                  "bg-green-600 border-green-800 text-white";
-                              } else if (
-                                isSelected &&
-                                quizFeedback === "incorrect"
-                              ) {
-                                bgColor =
-                                  "bg-red-600 border-red-800 text-white";
-                              }
-                            }
-
-                            if (!bgColor) {
-                              bgColor = isSelected
-                                ? "bg-accent shadow-card-sm -translate-y-0.5"
-                                : "bg-surface hover:bg-surface-low dark:bg-[#151411]";
-                            }
-
-                            return (
-                              <button
-                                key={idx}
-                                onClick={() => {
-                                  if (quizFeedback !== null) return;
-                                  setSelectedOption(idx);
-                                }}
-                                disabled={quizFeedback !== null}
-                                className={`w-full text-left p-4 rounded-lg border-4 border-black font-bold text-sm transition-all flex items-center justify-between ${bgColor}`}
-                              >
-                                <span>{option}</span>
-                                <div
-                                  className={`w-4 h-4 rounded-full border-2 border-black flex items-center justify-center ${
-                                    isSelected ? "bg-black" : ""
-                                  }`}
-                                />
-                              </button>
-                            );
-                          },
-                        )}
-                      </div>
-
-                      {quizFeedback === "correct" && (
-                        <div
-                          role="alert"
-                          aria-live="assertive"
-                          className="mt-4 p-4 bg-green-50 text-green-800 border-4 border-green-600 rounded-lg font-bold text-sm"
-                        >
-                          🎉 Correct!{" "}
-                          {lesson.quizzes![currentQuizIndex].explanation}
-                        </div>
-                      )}
-
-                      {quizFeedback === "incorrect" && (
-                        <div
-                          role="alert"
-                          aria-live="assertive"
-                          className="mt-4 p-4 bg-red-50 text-red-800 border-4 border-red-600 rounded-lg font-bold text-sm"
-                        >
-                          ❌ Incorrect. Try reviewing the lesson material again.
-                        </div>
-                      )}
-
-                      {quizFeedback === "timeout" && (
-                        <div
-                          role="alert"
-                          aria-live="assertive"
-                          className="mt-4 p-4 bg-orange-50 text-orange-800 border-4 border-orange-600 rounded-lg font-bold text-sm"
-                        >
-                          ⏳ Time's Up! You ran out of time for this question.
-                        </div>
-                      )}
-
-                      <div className="mt-6 flex justify-end">
-                        {quizFeedback === "correct" ? (
-                          currentQuizIndex < lesson.quizzes!.length - 1 ? (
-                            <button
-                              onClick={handleNextQuizQuestion}
-                              className="px-5 py-2.5 bg-accent text-black font-black text-sm rounded-lg border-4 border-black shadow-card-sm hover:-translate-y-0.5 transition-all cursor-pointer"
-                            >
-                              Next Question
-                            </button>
-                          ) : (
-                            <button
-                              onClick={() => {
-                                const wasCompleted = isCompleted;
-                                syncProgress({
-                                  lesson_slug: lesson.slug,
-                                  score: lesson.points || 15,
-                                  completed: true,
-                                });
-                                if (!wasCompleted) {
-                                  triggerConfetti();
-                                }
-                              }}
-                              className="px-6 py-2 bg-black text-white font-bold rounded-lg border-2 border-black shadow-brutal transition-transform active:translate-y-0.5"
-                            >
-                              Finish Lesson
-                            </button>
-                          )
-                        ) : (
-                          <button
-                            onClick={handleQuizOptionCheck}
-                            disabled={selectedOption === null}
-                            className="px-5 py-2.5 bg-primary text-black font-black text-sm rounded-lg border-4 border-black shadow-card-sm hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-card-sm disabled:opacity-50 transition-all cursor-pointer"
-                          >
-                            Submit Answer
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  ) : repoState.conflicts.length !== 0 ? (
-                    <div className="rounded-2xl border-4 bg-surface-low p-6 shadow-card dark:bg-[#1f1c18] dark:border-[#2e2924] border-black mt-8">
-                      <h3 className="text-xl font-black mb-4 flex items-center gap-2 text-text dark:text-[#f0ebe2]">
-                        <span>📝</span> Resolve Merge Conflict
-                      </h3>
-                      <p className="text-sm text-muted mb-4 dark:text-[#c4bbae]">
-                        Edit the file below to resolve the conflict markers,
-                        then save your changes.
-                      </p>
-                      <textarea
-                        value={conflictContent}
-                        onChange={(e) => setConflictContent(e.target.value)}
-                        className="w-full h-64 p-4 font-mono text-sm bg-surface-lowest text-text border-2 border-black rounded-lg outline-none mb-4 whitespace-pre"
-                        spellCheck={false}
-                      />
-                      <div className="flex justify-end">
-                        <button
-                          onClick={() => {
-                            if (
-                              conflictContent.includes("<<<<<<<") ||
-                              conflictContent.includes("=======") ||
-                              conflictContent.includes(">>>>>>>")
-                            ) {
-                              setFeedback("error");
-                              return;
-                            }
-                            setRepoState((prev) => ({
-                              ...prev,
-                              conflicts: [],
-                            }));
-                            setFeedback("correct");
-                          }}
-                          className="px-5 py-2.5 bg-primary text-black font-black text-sm rounded-lg border-4 border-black shadow-card-sm hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-card-sm transition-all cursor-pointer"
-                        >
-                          Save & Mark Resolved
-                        </button>
-                      </div>
-                      {feedback === "error" && (
-                        <div className="mt-4 text-red-700 font-bold bg-red-50 p-3 rounded-lg border-2 border-red-600">
-                          ❌ Please remove all conflict markers
-                          (&lt;&lt;&lt;&lt;&lt;&lt;&lt;, =======,
-                          &gt;&gt;&gt;&gt;&gt;&gt;&gt;).
-                        </div>
-                      )}
-                    </div>
-                  ) : hasConflict && feedback === "correct" ? (
-                    <div className="mt-8">
-                      <div
-                        role="status"
-                        className="mt-6 text-green-700 font-bold bg-green-50 p-4 rounded-lg border-4 border-green-600 animate-bounce"
-                      >
-                        ✅ Correct! You successfully resolved the merge
-                        conflict.
-                      </div>
-                    </div>
-                  ) : (
-                    <div
-                      className={`rounded-2xl border-4 bg-surface-low p-6 shadow-card dark:bg-[#1f1c18] dark:border-[#2e2924]
-                    ${
-                      feedback === "error"
-                        ? "border-red-600 shake-error"
-                        : "border-black"
-                    }`}
-                    >
-                      <h3 className="text-xl font-black mb-4 flex items-center gap-2 text-text dark:text-[#f0ebe2]">
-                        <span>💻</span> Sandbox terminal check
-                        <span className="ml-auto">
-                          <ContextualGitCheatSheet
-                            lessonSlug={lesson.slug}
-                            moduleId={
-                              moduleIdFromFilePath(lesson.filePath) ||
-                              (lesson.category?.startsWith("module-")
-                                ? lesson.category
-                                : undefined)
-                            }
-                            onInsertCommand={(command) => setInput(command)}
-                          />
-                        </span>
-                      </h3>
-
-                      <GitGraph state={repoState} />
-
-                      <p className="text-xs text-muted mb-4 dark:text-[#c4bbae]">
-                        Solve the drill by executing the appropriate git command
-                        below:
-                      </p>
-
-                      <form
-                        onSubmit={handleCommandSubmit}
-                        className="space-y-4"
-                      >
-                        <div className="flex items-center gap-2">
-                          <span className="font-mono text-primary font-black">
-                            $
-                          </span>
-                          <input
-                            className="flex-1 min-w-0 rounded-lg border-4 border-black bg-surface-lowest px-4 py-2.5 text-text font-bold outline-none placeholder:text-muted/40 dark:bg-[#151411] dark:border-[#2e2924]"
-                            placeholder={
-                              lesson.hint || "Type your git command here"
-                            }
-                            value={input}
-                            onChange={(e) => setInput(e.target.value)}
-                            onKeyDown={(e) => {
-                              if (e.key === "Tab") {
-                                e.preventDefault();
-                                if (suggestions.length === 1) {
-                                  setInput(suggestions[0].completionText);
-                                } else if (
-                                  commonCompletionPrefix &&
-                                  commonCompletionPrefix.length > input.length
-                                ) {
-                                  setInput(commonCompletionPrefix);
-                                }
-                              }
-                              if (
-                                (e.metaKey || e.ctrlKey) &&
-                                e.key === "Enter"
-                              ) {
-                                e.preventDefault();
-                                handleCommandSubmit(
-                                  e as unknown as React.FormEvent,
-                                );
-                              }
-                            }}
-                            disabled={feedback === "correct" || isExecuting}
-                            autoFocus
-                          />
-                          <button
-                            type="submit"
-                            className="px-5 py-2.5 bg-primary text-black font-black text-sm rounded-lg border-4 border-black shadow-card-sm hover:-translate-y-0.5 active:translate-y-0.5 active:shadow-card-sm disabled:opacity-50 transition-all cursor-pointer flex items-center justify-center gap-2 min-w-[72px]"
-                            disabled={
-                              feedback === "correct" ||
-                              !input.trim() ||
-                              isExecuting
-                            }
-                          >
-                            {isExecuting ? (
-                              <span
-                                className="flex items-center gap-1 inline-flex"
-                                aria-hidden="true"
-                              >
-                                <span className="w-1.5 h-1.5 bg-current rounded-full animate-bounce [animation-delay:-0.3s]" />
-                                <span className="w-1.5 h-1.5 bg-current rounded-full animate-bounce [animation-delay:-0.15s]" />
-                                <span className="w-1.5 h-1.5 bg-current rounded-full animate-bounce" />
-                              </span>
-                            ) : (
-                              "Run"
-                            )}
-                          </button>
-                        </div>
-
-                        {terminalOutput && (
-                          <pre className="p-4 bg-[#151411] text-[#f0ebe2] font-mono text-xs rounded-lg border-4 border-black whitespace-pre-wrap overflow-x-auto shadow-inner">
-                            {terminalOutput}
-                          </pre>
-                        )}
-
-                        {feedback === "correct" && (
-                          <div
-                            role="status"
-                            aria-live="assertive"
-                            className="text-green-700 font-bold bg-green-50 p-4 rounded-lg border-4 border-green-600 animate-bounce"
-                          >
-                            ✅ Correct! Progress synchronized to the Atelier
-                            server.
-                          </div>
-                        )}
-
-                        {feedback === "error" && (
-                          <div
-                            role="alert"
-                            aria-live="assertive"
-                            className="text-red-700 font-bold bg-red-50 p-4 rounded-lg border-4 border-red-600"
-                          >
-                            ❌ Not quite. Command output did not match sandbox
-                            expectations.
-                          </div>
-                        )}
-
-                        <button
-                          type="button"
-                          onClick={() => setShowHint(!showHint)}
-                          className="text-xs underline text-muted font-black dark:text-[#c4bbae] block"
-                        >
-                          {showHint ? "Hide Hints" : "Need a hint?"}
-                        </button>
-
-                        {showHint && (
-                          <div className="p-4 bg-white rounded-lg border-4 border-black italic text-xs font-bold dark:bg-[#151411] dark:border-[#2e2924] shadow-card-sm">
-                            💡 {lesson.hint}
-                          </div>
-                        )}
-                      </form>
-                    </div>
                   );
                 })()}
               </div>
@@ -1600,14 +1131,13 @@ useEffect(() => {
             </div>
           </div>
 
-          {/* Mentor Help Trigger Row */}
+          {/* Footer controls row */}
           <div className="border-t-4 border-black p-4 bg-white dark:bg-[#151411] dark:border-[#2e2924] flex justify-end gap-4 flex-shrink-0 flex-wrap">
             <button
               onClick={() => {
                 window.dispatchEvent(new CustomEvent("toggle-keyboard-shortcuts"));
               }}
               className="px-4 py-2 bg-white text-text dark:bg-[#151411] dark:text-[#f0ebe2] font-black text-xs rounded-lg border-4 border-black shadow-card-sm hover:-translate-y-0.5 cursor-pointer flex items-center gap-1.5"
-              title="Press '?' for keyboard shortcuts cheat sheet"
             >
               <Keyboard className="w-3.5 h-3.5 text-[#FFCC00]" />
               Shortcuts ⌨️
@@ -1761,7 +1291,6 @@ useEffect(() => {
           </div>
         )}
 
-        {/* Lesson Feedback Widget */}
         {lesson && isCompleted && (
           <LessonFeedbackWidget lessonSlug={lesson.slug} />
         )}
@@ -1774,7 +1303,7 @@ useEffect(() => {
           />
         )}
       </div>
-      
+
       <AITutorFloatingPanel
         lessonSlug={lesson.slug}
         lessonTitle={lesson.title}
