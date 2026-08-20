@@ -1,6 +1,8 @@
+import json
 import logging
 
 logger = logging.getLogger(__name__)
+from django.http import StreamingHttpResponse
 from rest_framework import permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -38,10 +40,38 @@ class TutorAskView(APIView):
             except Exception as e:
                 logger.warning("Caught exception: %s", e)
 
-        answer = AiTutorService.get_response(
-            question=question,
-            lesson_context=lesson_context,
-            history=history,
-        )
+        def event_stream():
+            try:
+                # Assumes AiTutorService provides a generator method for streaming chunks,
+                # e.g., AiTutorService.get_streaming_response(...)
+                stream_generator = getattr(
+                    AiTutorService, "get_streaming_response", None
+                )
+                
+                if stream_generator:
+                    for chunk in stream_generator(
+                        question=question,
+                        lesson_context=lesson_context,
+                        history=history,
+                    ):
+                        yield f"data: {json.dumps({'chunk': chunk})}\n\n"
+                else:
+                    # Fallback if streaming isn't natively configured on service yet
+                    answer = AiTutorService.get_response(
+                        question=question,
+                        lesson_context=lesson_context,
+                        history=history,
+                    )
+                    yield f"data: {json.dumps({'chunk': answer})}\n\n"
 
-        return Response({"answer": answer})
+                yield "data: [DONE]\n\n"
+            except Exception as e:
+                logger.error("Streaming error: %s", e)
+                yield f"data: {json.dumps({'error': str(e)})}\n\n"
+
+        response = StreamingHttpResponse(
+            event_stream(), content_type="text/event-stream"
+        )
+        response["Cache-Control"] = "no-cache"
+        response["X-Accel-Buffering"] = "no"
+        return response
