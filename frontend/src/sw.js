@@ -24,6 +24,20 @@ registerRoute(
   }),
 );
 
+// Cache Vite code-split dynamic module chunks (.js files under /assets/)
+registerRoute(
+  ({ request, url }) => request.destination === 'script' && url.pathname.startsWith('/assets/'),
+  new CacheFirst({
+    cacheName: "atelier-modules-v1",
+    plugins: [
+      new ExpirationPlugin({
+        maxEntries: 50,
+        maxAgeSeconds: 30 * 24 * 60 * 60, // 30 days
+      }),
+    ],
+  }),
+);
+
 // Cache API GET responses for instant dashboard/progress loads
 // Serves cached data immediately, revalidates in background
 const API_CACHE_PATHS = [
@@ -83,6 +97,30 @@ self.addEventListener("activate", (event) => {
       await self.clients.claim();
     })(),
   );
+});
+
+// Fallback offline error handler for dynamic chunk loading failures
+self.addEventListener("fetch", (event) => {
+  if (event.request.destination === 'script' && event.request.url.includes('/assets/')) {
+    event.respondWith(
+      caches.match(event.request).then((cachedResponse) => {
+        return (
+          cachedResponse ||
+          fetch(event.request).then((networkResponse) => {
+            return caches.open("atelier-modules-v1").then((cache) => {
+              cache.put(event.request, networkResponse.clone());
+              return networkResponse;
+            });
+          }).catch(() => {
+            return caches.match('/offline.html') || new Response('Failed to fetch dynamically imported module offline.', {
+              status: 503,
+              headers: { 'Content-Type': 'text/plain' },
+            });
+          })
+        );
+      })
+    );
+  }
 });
 
 self.addEventListener("sync", (event) => {
