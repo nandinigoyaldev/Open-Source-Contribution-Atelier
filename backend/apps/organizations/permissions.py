@@ -1,6 +1,38 @@
+from django.core.cache import cache
 from rest_framework.permissions import SAFE_METHODS, BasePermission
 
 from .models import OrganizationMembership
+
+ORG_CACHE_TTL = 300
+
+
+def get_cached_organization_role(user_id, organization_id):
+    """
+    Returns the cached role of a user in an organization ('owner', 'admin', 'member', or None).
+    Automatically invalidated upon membership create/update/delete via signals.
+    """
+    if not user_id or not organization_id:
+        return None
+
+    cache_key = f"org:user_role:{user_id}:{organization_id}"
+    role = cache.get(cache_key)
+    if role is not None:
+        return role if role != "__NONE__" else None
+
+    membership = (
+        OrganizationMembership.objects.filter(
+            organization_id=organization_id, user_id=user_id
+        )
+        .values_list("role", flat=True)
+        .first()
+    )
+
+    cache.set(
+        cache_key,
+        membership if membership is not None else "__NONE__",
+        ORG_CACHE_TTL,
+    )
+    return membership
 
 
 class IsOrganizationMember(BasePermission):
@@ -12,9 +44,8 @@ class IsOrganizationMember(BasePermission):
     def has_object_permission(self, request, view, obj):
         if not request.user or not request.user.is_authenticated:
             return False
-        return OrganizationMembership.objects.filter(
-            organization=obj, user=request.user
-        ).exists()
+        role = get_cached_organization_role(request.user.id, getattr(obj, "id", getattr(obj, "pk", None)))
+        return role is not None
 
 
 class IsOrganizationAdminOrOwner(BasePermission):
@@ -28,17 +59,16 @@ class IsOrganizationAdminOrOwner(BasePermission):
         if not request.user or not request.user.is_authenticated:
             return False
 
-        membership = OrganizationMembership.objects.filter(
-            organization=obj, user=request.user
-        ).first()
+        org_id = getattr(obj, "id", getattr(obj, "pk", None))
+        role = get_cached_organization_role(request.user.id, org_id)
 
-        if membership is None:
+        if role is None:
             return False
 
         if request.method in SAFE_METHODS:
             return True
 
-        return membership.is_admin_or_owner
+        return role in (OrganizationMembership.ROLE_OWNER, OrganizationMembership.ROLE_ADMIN)
 
 
 class IsMembershipOrgAdminOrOwner(BasePermission):
@@ -57,14 +87,12 @@ class IsMembershipOrgAdminOrOwner(BasePermission):
         if organization_id is None:
             return False
 
-        membership = OrganizationMembership.objects.filter(
-            organization_id=organization_id, user=request.user
-        ).first()
+        role = get_cached_organization_role(request.user.id, organization_id)
 
-        if membership is None:
+        if role is None:
             return False
 
         if request.method in SAFE_METHODS:
             return True
 
-        return membership.is_admin_or_owner
+        return role in (OrganizationMembership.ROLE_OWNER, OrganizationMembership.ROLE_ADMIN)
