@@ -1,239 +1,78 @@
-import secrets
-import uuid
+import hashlib
+import hmac
+import json
+import logging
+import requests
 
-from django.conf import settings
-from django.db import models
-from django.utils import timezone
-
-
-def generate_secret():
-    return secrets.token_hex(32)
+logger = logging.getLogger(__name__)
 
 
-class WebhookEndpoint(models.Model):
-    user = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE,
-        related_name="webhooks",
-        help_text="The user or organization that owns this webhook.",
-    )
-    target_url = models.URLField(
-        max_length=512, help_text="The endpoint URL where webhook events will be sent."
-    )
-    is_active = models.BooleanField(
-        default=True, help_text="Whether this webhook is currently enabled."
-    )
-    events = models.JSONField(
-        default=list,
-        help_text="A list of event types this webhook is subscribed to (e.g. ['lesson.completed', 'user.signup']).",
-    )
-    encrypted_secret = models.TextField(
-        null=True,
-        blank=True,
-        help_text="Encrypted shared secret used to sign the webhook payloads.",
-    )
-    encrypted_old_secret = models.TextField(
-        null=True,
-        blank=True,
-        help_text="Encrypted previous shared secret (for rotation grace period).",
-    )
-    old_secret_expires_at = models.DateTimeField(
-        null=True,
-        blank=True,
-        help_text="Expiration timestamp for the old secret.",
-    )
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
+def send_webhook_delivery(delivery_id: int):
+    """
+    Retrieves a webhook delivery, computes the HMAC SHA256 signature 
+    using the endpoint's secret, attaches the X-Atelier-Signature header, 
+    and posts the payload to the target URL.
+    """
+    from apps.webhooks.models import WebhookDelivery
 
-    @property
-    def secret(self):
-        # 1. Return decrypted active secret if present
-        if self.encrypted_secret:
-            from apps.cache.audit_logger import AuditLogger
+    try:
+        delivery = WebhookDelivery.objects.select_related("endpoint").get(pk=delivery_id)
+    except WebhookDelivery.DoesNotExist:
+        logger.error(f"WebhookDelivery with ID {delivery_id} does not exist.")
+        return False
 
-            AuditLogger.log(
-                user_id=str(self.user.id) if self.user else "system",
-                action="secret_accessed",
-                resource="webhook_endpoint",
-                resource_id=str(self.id) if self.id else None,
-                method="GET",
-                ip_address="127.0.0.1",
-                status_code=200,
-            )
-            from .security import decrypt_secret
+    endpoint = delivery.endpoint
+    if not endpoint or not endpoint.is_active:
+        logger.warning(f"Skipping delivery {delivery_id}: endpoint is inactive or missing.")
+        return False
 
-            return decrypt_secret(self.encrypted_secret)
+    # Serialize payload data consistently
+    payload_data = delivery.payload
+    body = json.dumps(payload_data, separators=(",", ":")).encode("utf-8")
 
-        # 2. Fall back to legacy plaintext secret_plain if present in database (for transition/migration)
-        if hasattr(self, "secret_plain") and self.secret_plain:
-            from apps.cache.audit_logger import AuditLogger
+    # Retrieve decrypted active secret using the model property
+    secret_key = endpoint.secret
+    if not secret_key:
+        logger.error(f"Webhook endpoint {endpoint.id} has no valid secret configured.")
+        return False
 
-            AuditLogger.log(
-                user_id=str(self.user.id) if self.user else "system",
-                action="secret_accessed",
-                resource="webhook_endpoint",
-                resource_id=str(self.id) if self.id else None,
-                method="GET",
-                ip_address="127.0.0.1",
-                status_code=200,
-            )
-            return self.secret_plain
+    # Compute HMAC SHA256 signature hex digest
+    signature = hmac.new(
+        secret_key.encode("utf-8"),
+        body,
+        hashlib.sha256
+    ).hexdigest()
 
-        return None
+    headers = {
+        "Content-Type": "application/json",
+        "X-Atelier-Signature": f"sha256={signature}",
+    }
 
-    @secret.setter
-    def secret(self, value):
-        if value:
-            from .security import encrypt_secret
-
-            self.encrypted_secret = encrypt_secret(value)
-            self._raw_secret = value
-            if hasattr(self, "secret_plain"):
-                self.secret_plain = None
+    try:
+        response = requests.post(
+            endpoint.target_url,
+            data=body,
+            headers=headers,
+            timeout=10,
+        )
+        
+        # Update delivery status based on response
+        delivery.status_code = response.status_code
+        delivery.response_body = response.text[:2000] # Truncate log if needed
+        
+        if 200 <= response.status_code < 300:
+            delivery.status = "success"
+            logger.info(f"Successfully delivered webhook {delivery.id} to {endpoint.target_url}")
         else:
-            self.encrypted_secret = None
-            self._raw_secret = None
-            if hasattr(self, "secret_plain"):
-                self.secret_plain = None
-
-    def get_valid_secrets(self) -> list[str]:
-        valid_list = []
-        active_sec = self.secret
-        if active_sec:
-            valid_list.append(active_sec)
-
-        if self.encrypted_old_secret and self.old_secret_expires_at:
-            if timezone.now() < self.old_secret_expires_at:
-                from .security import decrypt_secret
-
-                old_sec = decrypt_secret(self.encrypted_old_secret)
-                if old_sec:
-                    valid_list.append(old_sec)
-
-        return valid_list
-
-    def save(self, *args, **kwargs):
-        is_new = self.pk is None
-        # If no active secret is set (neither encrypted nor plain)
-        if not self.encrypted_secret and (
-            not hasattr(self, "secret_plain") or not self.secret_plain
-        ):
-            raw_val = generate_secret()
-            from .security import encrypt_secret
-
-            self.encrypted_secret = encrypt_secret(raw_val)
-            self._raw_secret = raw_val
-            if hasattr(self, "secret_plain"):
-                self.secret_plain = None
-
-            # Log secret creation
-            from apps.cache.audit_logger import AuditLogger
-
-            AuditLogger.log(
-                user_id=str(self.user.id) if self.user else "system",
-                action="secret_created",
-                resource="webhook_endpoint",
-                resource_id=None,
-                method="CREATE",
-                ip_address="127.0.0.1",
-                status_code=201,
-            )
-        super().save(*args, **kwargs)
-
-    def __str__(self):
-        return f"{self.target_url} ({self.user.username})"
-
-
-class WebhookDelivery(models.Model):
-    endpoint = models.ForeignKey(
-        WebhookEndpoint, on_delete=models.CASCADE, related_name="deliveries"
-    )
-    event_type = models.CharField(max_length=128)
-    payload = models.JSONField()
-    status = models.CharField(
-        max_length=32,
-        choices=[
-            ("pending", "Pending"),
-            ("success", "Success"),
-            ("failed", "Failed"),
-            ("retrying", "Retrying"),
-            ("dead", "Dead"),
-        ],
-        default="pending",
-    )
-    status_code = models.IntegerField(null=True, blank=True)
-    response_body = models.TextField(blank=True)
-    # Retry tracking
-    attempt_count = models.PositiveIntegerField(
-        default=0, help_text="Number of delivery attempts made so far."
-    )
-    next_retry_at = models.DateTimeField(
-        null=True,
-        blank=True,
-        help_text="When the next retry should be attempted.",
-    )
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
-    def __str__(self):
-        return f"Delivery {self.id} for {self.endpoint.target_url}"
-
-
-class DeadLetterWebhook(models.Model):
-    """
-    Stores webhook deliveries that have permanently failed after all retries.
-    Operators can inspect these and optionally requeue them via the admin
-    or the `replay_dead_webhooks` management command.
-    """
-
-    delivery = models.OneToOneField(
-        WebhookDelivery,
-        on_delete=models.CASCADE,
-        related_name="dead_letter",
-        help_text="The original delivery that exhausted all retries.",
-    )
-    reason = models.TextField(
-        help_text="The final error or non-2xx status that caused permanent failure."
-    )
-    replayed = models.BooleanField(
-        default=False,
-        help_text="Whether this entry has been manually requeued for replay.",
-    )
-    replayed_at = models.DateTimeField(
-        null=True,
-        blank=True,
-        help_text="Timestamp of the most recent replay attempt.",
-    )
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    def __str__(self):
-        return f"DLQ entry for delivery {self.delivery_id}"
-
-
-class WebhookDeliveryLog(models.Model):
-    """
-    Persists immutable logs of individual webhook delivery attempts.
-    """
-
-    delivery = models.ForeignKey(
-        WebhookDelivery,
-        on_delete=models.CASCADE,
-        related_name="logs",
-        help_text="The delivery this attempt is associated with.",
-    )
-    status_code = models.IntegerField(
-        null=True, blank=True, help_text="HTTP status code returned, if any."
-    )
-    response_body = models.TextField(
-        blank=True, help_text="Response body or error details."
-    )
-    key_id = models.CharField(
-        max_length=64,
-        null=True,
-        blank=True,
-        help_text="The key ID used to verify (or attempted) the delivery signature.",
-    )
-    attempted_at = models.DateTimeField(auto_now_add=True)
-
-    def __str__(self):
-        return f"Log for Delivery {self.delivery_id} - Status {self.status_code}"
+            delivery.status = "failed"
+            logger.warning(f"Webhook {delivery.id} failed with status {response.status_code}")
+            
+        delivery.save()
+        return response.status_code
+        
+    except requests.RequestException as e:
+        logger.error(f"Network error during delivery of webhook {delivery.id}: {e}")
+        delivery.status = "failed"
+        delivery.response_body = str(e)
+        delivery.save()
+        return None

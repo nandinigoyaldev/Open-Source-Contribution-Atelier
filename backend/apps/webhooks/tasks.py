@@ -75,7 +75,8 @@ def _move_to_dlq(delivery: WebhookDelivery, reason: str) -> None:
 
 def deliver_webhook(delivery_id, attempt=1):
     """
-    Attempt to deliver a webhook payload. On failure, schedules a retry with
+    Attempt to deliver a webhook payload signed with an HMAC SHA256 signature 
+    in the X-Atelier-Signature header. On failure, schedules a retry with
     exponential backoff. After MAX_RETRIES exhausted, moves the delivery to
     the Dead Letter Queue (DeadLetterWebhook).
     """
@@ -90,7 +91,7 @@ def deliver_webhook(delivery_id, attempt=1):
 
     headers = {
         "Content-Type": "application/json",
-        "X-Webhook-Signature": signature,
+        "X-Atelier-Signature": f"sha256={signature}",
         "X-Webhook-Event": delivery.event_type,
         "X-Webhook-Attempt": str(attempt),
     }
