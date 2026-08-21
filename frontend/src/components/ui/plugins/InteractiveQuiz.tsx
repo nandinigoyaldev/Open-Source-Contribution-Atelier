@@ -53,6 +53,17 @@ export function InteractiveQuiz({ id }: InteractiveQuizProps) {
     },
   });
 
+  const handleClearDraft = useCallback(() => {
+    quizDraft.clearDraft();
+    setSelectedOption(null);
+  }, [quizDraft]);
+
+  useEffect(() => {
+    if (!submitted && selectedOption !== null) {
+      quizDraft.saveDraft(0, selectedOption, null, null);
+    }
+  }, [selectedOption, submitted, quizDraft]);
+
   if (isLoading) {
     return (
       <div className="p-4 border-4 border-black/20 animate-pulse bg-surface-low rounded-xl">
@@ -82,17 +93,6 @@ export function InteractiveQuiz({ id }: InteractiveQuizProps) {
       });
     }
   };
-
-  const handleClearDraft = useCallback(() => {
-    quizDraft.clearDraft();
-    setSelectedOption(null);
-  }, [quizDraft]);
-
-  useEffect(() => {
-    if (!submitted && selectedOption !== null) {
-      quizDraft.saveDraft(0, selectedOption, null, null);
-    }
-  }, [selectedOption, submitted, quizDraft]);
 
   return (
     <div className="my-6 rounded-2xl border-4 border-black bg-white p-6 shadow-card dark:bg-[#1f1c18] dark:border-[#2e2924]">

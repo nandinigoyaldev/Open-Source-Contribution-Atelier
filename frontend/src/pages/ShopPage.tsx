@@ -22,6 +22,7 @@ import {
 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { CARD_FOCUS_RING } from "../lib/a11yFocus";
+import { Skeleton } from "../components/ui/Skeleton";
 
 export interface ShopItemData {
   id: number;
@@ -409,8 +410,33 @@ export function ShopPage() {
       {activeTab === "store" && (
         <section className="space-y-6">
           {isLoading ? (
-            <div className="flex items-center justify-center py-20">
-              <Loader2 className="w-10 h-10 animate-spin text-black dark:text-white" />
+            <div
+              className="grid grid-cols-1 md:grid-cols-2 gap-6"
+              data-testid="shop-loading-skeleton"
+            >
+              {Array.from({ length: 4 }).map((_, i) => (
+                <div
+                  key={i}
+                  className="rounded-[2rem] border-4 border-black bg-white dark:bg-[#1f1c18] dark:border-[#2e2924] p-6 shadow-card space-y-4"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-4">
+                      <Skeleton className="w-16 h-16 rounded-2xl shrink-0" />
+                      <div className="space-y-2">
+                        <Skeleton className="h-4 w-20 rounded-full" />
+                        <Skeleton className="h-6 w-40 rounded" />
+                      </div>
+                    </div>
+                    <Skeleton className="h-8 w-20 rounded-full" />
+                  </div>
+                  <Skeleton className="h-4 w-full rounded" />
+                  <Skeleton className="h-4 w-3/4 rounded" />
+                  <div className="pt-2 flex items-center justify-between border-t-2 border-dashed border-gray-200 dark:border-[#2e2924]">
+                    <Skeleton className="h-4 w-28 rounded" />
+                    <Skeleton className="h-10 w-28 rounded-xl" />
+                  </div>
+                </div>
+              ))}
             </div>
           ) : filteredItems.length === 0 ? (
             <div className="rounded-[2rem] border-4 border-black bg-white dark:bg-[#1f1c18] dark:border-[#2e2924] p-12 text-center shadow-card space-y-3">
