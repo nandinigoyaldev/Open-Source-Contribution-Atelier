@@ -80,6 +80,14 @@ async function prerender() {
     }
   }
 
+  // Copy dist/client contents to dist for Vercel/production serving
+  try {
+    fs.cpSync(toAbsolute("dist/client"), toAbsolute("dist"), { recursive: true });
+    console.log("✓ Copied dist/client assets to root dist/");
+  } catch (copyErr) {
+    console.error("✗ Failed copying dist/client assets to dist:", copyErr);
+  }
+
   console.log("Prerendering completed successfully.");
 }
 

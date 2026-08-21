@@ -1,6 +1,5 @@
 import { describe, it, expect } from "vitest";
 import { render } from "@testing-library/react";
-import "@testing-library/jest-dom";
 import { Skeleton } from "../Skeleton";
 import SkeletonContributorDashboard from "./SkeletonContributorDashboard";
 
@@ -10,8 +9,9 @@ describe("Skeleton Framework Tests", () => {
     const skeletonEl = container.firstChild as HTMLElement;
 
     expect(skeletonEl).toBeInTheDocument();
-    expect(skeletonEl).toHaveClass("animate-shimmer");
-    expect(skeletonEl).toHaveClass("bg-gradient-to-r");
+    expect(skeletonEl).toHaveClass("animate-pulse");
+    expect(skeletonEl).toHaveClass("bg-slate-200");
+    expect(skeletonEl).toHaveClass("dark:bg-slate-700/60");
     expect(skeletonEl).toHaveClass("rounded");
   });
 
@@ -21,7 +21,8 @@ describe("Skeleton Framework Tests", () => {
     );
     const skeletonEl = container.firstChild as HTMLElement;
 
-    expect(skeletonEl).toHaveClass("animate-shimmer");
+    expect(skeletonEl).toHaveClass("animate-pulse");
+    expect(skeletonEl).toHaveClass("bg-slate-200");
     expect(skeletonEl).toHaveClass("h-6");
     expect(skeletonEl).toHaveClass("w-36");
     expect(skeletonEl).toHaveClass("rounded-full");
@@ -34,7 +35,7 @@ describe("Skeleton Framework Tests", () => {
     expect(container.querySelector(".max-w-7xl")).toBeInTheDocument();
 
     // Verify that multiple skeleton primitive components are instantiated inside
-    const skeletons = container.querySelectorAll(".animate-shimmer");
+    const skeletons = container.querySelectorAll(".animate-pulse");
     expect(skeletons.length).toBeGreaterThan(10); // It has numerous placeholders
   });
 });
