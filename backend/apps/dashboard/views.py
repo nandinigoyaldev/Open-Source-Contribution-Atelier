@@ -364,7 +364,7 @@ class ContributorDashboardView(APIView):
                     "badge__slug", flat=True
                 )
             )
-            # StreakFreeze has been migrated to StreakProfile.streak_freezes
+            
             spent_points = 0
             available_points = total_xp - spent_points
             unused_freezes_count = (
@@ -378,7 +378,7 @@ class ContributorDashboardView(APIView):
                 "prs_merged": prs_merged,
                 "total_xp": total_xp,
                 "streak_days": streak_days,
-                "longest_streak": longest_streak,  # ADDED THIS TO API
+                "longest_streak": longest_streak,
                 "rank": rank,
                 "earned_badges": earned_badges,
                 "available_points": available_points,
@@ -539,7 +539,6 @@ class ContributorDashboardView(APIView):
         return Response(data)
 
 
-
 class ModeratorAnalyticsView(APIView):
     def get_permissions(self):
         from rest_framework import permissions
@@ -597,9 +596,6 @@ class ModeratorAnalyticsView(APIView):
         )
 
 
-from zoneinfo import available_timezones
-
-
 class UsageAnalyticsView(APIView):
     def get_permissions(self):
         from rest_framework import permissions
@@ -641,7 +637,6 @@ class UsageAnalyticsView(APIView):
         )
 
         # 4. Lesson Completion Rates
-        total_lessons = Lesson.objects.count()
         lesson_completion_rates = []
         for lesson in Lesson.objects.all():
             total = LessonProgress.objects.filter(lesson=lesson).count()
@@ -669,7 +664,7 @@ class UsageAnalyticsView(APIView):
             .order_by("month")
         )
 
-        # 6. Average Session Duration (approximated via DailyActivity count per user)
+        # 6. Average Session Duration
         from django.db.models import Avg
 
         avg_sessions = (
@@ -803,4 +798,3 @@ class AnalyticsExportCSVView(APIView):
         response = StreamingHttpResponse(csv_stream(), content_type="text/csv")
         response["Content-Disposition"] = f'attachment; filename="{filename}"'
         return response
-
