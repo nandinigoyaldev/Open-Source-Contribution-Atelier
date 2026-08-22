@@ -5,6 +5,7 @@ import { TerminalReplay } from "../components/ui/TerminalReplay";
 import { Map, Link2, AlertCircle, X } from "lucide-react";
 import { Step } from "react-joyride";
 import { useTerminalReplayFromHash } from "../hooks/useTerminalReplayFromHash";
+import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import {
   DEFAULT_SHARE_DEMO_COMMANDS,
   buildReplayShareUrl,
@@ -181,7 +182,15 @@ export function SandboxPage() {
       )}
 
       <div className="flex-1 min-h-[500px]">
-        <ProjectWorkspace />
+        <PanelGroup
+          direction="horizontal"
+          autoSaveId="python-sandbox-layout"
+          className="h-full w-full rounded-xl border-2 border-black dark:border-[#2e2924]"
+        >
+          <Panel defaultSize={100} minSize={30}>
+            <ProjectWorkspace />
+          </Panel>
+        </PanelGroup>
       </div>
 
       <OnboardingTour
