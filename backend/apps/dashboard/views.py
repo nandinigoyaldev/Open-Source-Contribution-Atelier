@@ -1,13 +1,12 @@
 import csv
 from datetime import timedelta
+from zoneinfo import available_timezones
 
 from django.contrib.auth import get_user_model
-from django.http import StreamingHttpResponse
-
-User = get_user_model()
 from django.db import models
-from django.db.models import Count, F, IntegerField, OuterRef, Q, Subquery, Sum, Value
-from django.db.models.functions import Coalesce, TruncDate
+from django.db.models import Avg, Count, F, IntegerField, OuterRef, Q, Subquery, Sum, Value
+from django.db.models.functions import Coalesce, TruncDate, TruncMonth
+from django.http import StreamingHttpResponse
 from django.utils import timezone
 from rest_framework import permissions, serializers
 from rest_framework.generics import ListAPIView
@@ -24,8 +23,12 @@ from apps.progress.models import (
     DailyActivity,
     LessonProgress,
     QuizAttempt,
+    StreakProfile,
+    UserBadge,
     XPEvent,
 )
+
+User = get_user_model()
 
 
 class LeaderboardPagination(PageNumberPagination):
@@ -48,7 +51,6 @@ class LeaderboardView(ListAPIView):
     """
     Paginated contributor leaderboard ordered by total XP.
     """
-
     serializer_class = LeaderboardSerializer
     pagination_class = LeaderboardPagination
 
@@ -123,21 +125,11 @@ class LeaderboardView(ListAPIView):
         return (
             User.objects.filter(is_staff=False)
             .annotate(
-                prs_merged=Coalesce(
-                    Subquery(prs_merged, output_field=IntegerField()), Value(0)
-                ),
-                issues_solved=Coalesce(
-                    Subquery(issues_solved, output_field=IntegerField()), Value(0)
-                ),
-                lesson_xp=Coalesce(
-                    Subquery(lesson_progress, output_field=IntegerField()), Value(0)
-                ),
-                issues_xp=Coalesce(
-                    Subquery(issues_xp, output_field=IntegerField()), Value(0)
-                ),
-                challenge_xp=Coalesce(
-                    Subquery(challenge_bonus_xp, output_field=IntegerField()), Value(0)
-                ),
+                prs_merged=Coalesce(Subquery(prs_merged, output_field=IntegerField()), Value(0)),
+                issues_solved=Coalesce(Subquery(issues_solved, output_field=IntegerField()), Value(0)),
+                lesson_xp=Coalesce(Subquery(lesson_progress, output_field=IntegerField()), Value(0)),
+                issues_xp=Coalesce(Subquery(issues_xp, output_field=IntegerField()), Value(0)),
+                challenge_xp=Coalesce(Subquery(challenge_bonus_xp, output_field=IntegerField()), Value(0)),
             )
             .annotate(
                 xp=F("lesson_xp") + F("issues_xp") + F("challenge_xp"),
@@ -151,12 +143,8 @@ class AdminDashboardView(APIView):
     API view for Admin Dashboard stats.
     Only users with 'Admin' role can access this.
     """
-
     def get_permissions(self):
-        from rest_framework import permissions
-
         from apps.core.permissions import HasAnyRole
-
         return [permissions.IsAuthenticated(), HasAnyRole(["Admin"])]
 
     def get(self, request):
@@ -164,24 +152,15 @@ class AdminDashboardView(APIView):
         data = cache.get(cache_key)
 
         if data is None:
-            # 1. Calculate system-wide stats
             total_issues = Issue.objects.count()
             solved_issues = Issue.objects.filter(status=Issue.Status.SOLVED).count()
             open_issues = Issue.objects.filter(status=Issue.Status.OPEN).count()
-            in_progress_issues = Issue.objects.filter(
-                status=Issue.Status.IN_PROGRESS
-            ).count()
+            in_progress_issues = Issue.objects.filter(status=Issue.Status.IN_PROGRESS).count()
 
             total_prs = PullRequest.objects.count()
-            merged_prs = PullRequest.objects.filter(
-                status=PullRequest.Status.MERGED
-            ).count()
-            pending_prs_count = PullRequest.objects.filter(
-                status=PullRequest.Status.OPEN
-            ).count()
-            closed_prs = PullRequest.objects.filter(
-                status=PullRequest.Status.CLOSED
-            ).count()
+            merged_prs = PullRequest.objects.filter(status=PullRequest.Status.MERGED).count()
+            pending_prs_count = PullRequest.objects.filter(status=PullRequest.Status.OPEN).count()
+            closed_prs = PullRequest.objects.filter(status=PullRequest.Status.CLOSED).count()
 
             active_contributors = (
                 User.objects.filter(is_staff=False)
@@ -202,31 +181,28 @@ class AdminDashboardView(APIView):
                 "active_contributors": active_contributors,
             }
 
-            # 2. Pending PRs queue
             pending_prs_qs = (
                 PullRequest.objects.filter(status=PullRequest.Status.OPEN)
                 .select_related("user", "issue")
                 .order_by("-created_at")
             )
 
-            pending_prs = []
-            for pr in pending_prs_qs:
-                pending_prs.append(
-                    {
-                        "id": pr.id,
-                        "title": pr.title,
-                        "contributor": pr.user.username,
-                        "issue_title": pr.issue.title if pr.issue else "No Issue Link",
-                        "created_at": pr.created_at.strftime("%Y-%m-%dT%H:%M:%SZ"),
-                    }
-                )
+            pending_prs = [
+                {
+                    "id": pr.id,
+                    "title": pr.title,
+                    "contributor": pr.user.username,
+                    "issue_title": pr.issue.title if pr.issue else "No Issue Link",
+                    "created_at": pr.created_at.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                }
+                for pr in pending_prs_qs
+            ]
 
             data = {
                 "system_stats": system_stats,
                 "pending_prs": pending_prs,
             }
 
-            # Cache for 5 minutes
             cache.set(cache_key, data, 300)
 
         return Response(data)
@@ -237,7 +213,6 @@ class PublicLandingStatsView(APIView):
     Public API view returning summary stats for the landing page.
     No authentication required.
     """
-
     permission_classes = [permissions.AllowAny]
 
     def get(self, request):
@@ -248,9 +223,7 @@ class PublicLandingStatsView(APIView):
             total_users = User.objects.filter(is_staff=False).count()
             total_lessons_solved = LessonProgress.objects.filter(completed=True).count()
             total_xp = (
-                XPEvent.objects.filter(source_type="lesson").aggregate(
-                    total=Sum("xp_delta")
-                )["total"]
+                XPEvent.objects.filter(source_type="lesson").aggregate(total=Sum("xp_delta"))["total"]
                 or 0
             )
 
@@ -260,7 +233,6 @@ class PublicLandingStatsView(APIView):
                 "total_xp": total_xp,
             }
 
-            # Cache for 5 minutes
             cache.set(cache_key, data, 300)
 
         return Response(data)
@@ -271,45 +243,31 @@ class ContributorDashboardView(APIView):
     API view for Contributor Dashboard stats.
     Accessible to any authenticated user.
     """
-
     permission_classes = [permissions.IsAuthenticated]
 
     def _calculate_field(self, user, field):
         if field == "personal_stats":
-            issues_solved = Issue.objects.filter(
-                assigned_to=user, status=Issue.Status.SOLVED
-            ).count()
-            prs_merged = PullRequest.objects.filter(
-                user=user, status=PullRequest.Status.MERGED
-            ).count()
+            issues_solved = Issue.objects.filter(assigned_to=user, status=Issue.Status.SOLVED).count()
+            prs_merged = PullRequest.objects.filter(user=user, status=PullRequest.Status.MERGED).count()
 
             lesson_xp = (
-                LessonProgress.objects.filter(user=user, completed=True).aggregate(
-                    total=Sum("score")
-                )["total"]
+                LessonProgress.objects.filter(user=user, completed=True).aggregate(total=Sum("score"))["total"]
                 or 0
             )
-            issues_agg = Issue.objects.filter(
-                assigned_to=user, status=Issue.Status.SOLVED
-            ).aggregate(p_sum=Sum("points"), b_sum=Sum("bonus_points"))
+            issues_agg = Issue.objects.filter(assigned_to=user, status=Issue.Status.SOLVED).aggregate(
+                p_sum=Sum("points"), b_sum=Sum("bonus_points")
+            )
             issues_xp = (issues_agg["p_sum"] or 0) + (issues_agg["b_sum"] or 0)
             challenge_bonus_xp = (
-                ChallengeCompletion.objects.filter(user=user).aggregate(
-                    total=Sum("bonus_earned")
-                )["total"]
+                ChallengeCompletion.objects.filter(user=user).aggregate(total=Sum("bonus_earned"))["total"]
                 or 0
             )
             total_xp = lesson_xp + issues_xp + challenge_bonus_xp
 
-            # --- NEW CLEAN STREAK LOGIC ---
-            from apps.progress.models import StreakProfile
-
             streak_profile, _ = StreakProfile.objects.get_or_create(user=user)
             streak_days = streak_profile.current_streak
             longest_streak = streak_profile.longest_streak
-            # ------------------------------
 
-            # Determine Rank based on user XP vs others
             lesson_xp_sub = (
                 LessonProgress.objects.filter(user=OuterRef("pk"), completed=True)
                 .values("user")
@@ -317,9 +275,7 @@ class ContributorDashboardView(APIView):
                 .values("total")
             )
             issues_xp_sub = (
-                Issue.objects.filter(
-                    assigned_to=OuterRef("pk"), status=Issue.Status.SOLVED
-                )
+                Issue.objects.filter(assigned_to=OuterRef("pk"), status=Issue.Status.SOLVED)
                 .values("assigned_to")
                 .annotate(total=Sum("points") + Sum("bonus_points"))
                 .values("total")
@@ -334,20 +290,11 @@ class ContributorDashboardView(APIView):
             better_users_count = (
                 User.objects.filter(is_staff=False)
                 .annotate(
-                    u_lxp=Coalesce(
-                        Subquery(lesson_xp_sub, output_field=IntegerField()), Value(0)
-                    ),
-                    u_ixp=Coalesce(
-                        Subquery(issues_xp_sub, output_field=IntegerField()), Value(0)
-                    ),
-                    u_cxp=Coalesce(
-                        Subquery(challenge_xp_sub, output_field=IntegerField()),
-                        Value(0),
-                    ),
+                    u_lxp=Coalesce(Subquery(lesson_xp_sub, output_field=IntegerField()), Value(0)),
+                    u_ixp=Coalesce(Subquery(issues_xp_sub, output_field=IntegerField()), Value(0)),
+                    u_cxp=Coalesce(Subquery(challenge_xp_sub, output_field=IntegerField()), Value(0)),
                 )
-                .annotate(
-                    user_total_xp=F("u_lxp") + F("u_ixp") + F("u_cxp"),
-                )
+                .annotate(user_total_xp=F("u_lxp") + F("u_ixp") + F("u_cxp"))
                 .filter(
                     Q(user_total_xp__gt=total_xp)
                     | Q(user_total_xp=total_xp, username__lt=user.username)
@@ -357,14 +304,9 @@ class ContributorDashboardView(APIView):
             )
             rank = better_users_count + 1
 
-            from apps.progress.models import UserBadge
-
             earned_badges = list(
-                UserBadge.objects.filter(user=user).values_list(
-                    "badge__slug", flat=True
-                )
+                UserBadge.objects.filter(user=user).values_list("badge__slug", flat=True)
             )
-            # StreakFreeze has been migrated to StreakProfile.streak_freezes
             spent_points = 0
             available_points = total_xp - spent_points
             unused_freezes_count = (
@@ -378,7 +320,7 @@ class ContributorDashboardView(APIView):
                 "prs_merged": prs_merged,
                 "total_xp": total_xp,
                 "streak_days": streak_days,
-                "longest_streak": longest_streak,  # ADDED THIS TO API
+                "longest_streak": longest_streak,
                 "rank": rank,
                 "earned_badges": earned_badges,
                 "available_points": available_points,
@@ -391,20 +333,17 @@ class ContributorDashboardView(APIView):
                 .exclude(status=Issue.Status.SOLVED)
                 .order_by("-created_at")
             )
-
-            assigned_issues = []
-            for issue in assigned_issues_qs:
-                assigned_issues.append(
-                    {
-                        "id": issue.id,
-                        "title": issue.title,
-                        "description": issue.description,
-                        "status": issue.status,
-                        "points": issue.points,
-                        "created_at": issue.created_at.strftime("%Y-%m-%dT%H:%M:%SZ"),
-                    }
-                )
-            return assigned_issues
+            return [
+                {
+                    "id": issue.id,
+                    "title": issue.title,
+                    "description": issue.description,
+                    "status": issue.status,
+                    "points": issue.points,
+                    "created_at": issue.created_at.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                }
+                for issue in assigned_issues_qs
+            ]
 
         elif field == "recent_prs":
             recent_prs_qs = (
@@ -412,24 +351,17 @@ class ContributorDashboardView(APIView):
                 .select_related("issue")
                 .order_by("-created_at")[:10]
             )
-
-            recent_prs = []
-            for pr in recent_prs_qs:
-                recent_prs.append(
-                    {
-                        "id": pr.id,
-                        "title": pr.title,
-                        "status": pr.status,
-                        "issue_title": pr.issue.title if pr.issue else "No Issue Link",
-                        "created_at": pr.created_at.strftime("%Y-%m-%dT%H:%M:%SZ"),
-                        "merged_at": (
-                            pr.merged_at.strftime("%Y-%m-%dT%H:%M:%SZ")
-                            if pr.merged_at
-                            else None
-                        ),
-                    }
-                )
-            return recent_prs
+            return [
+                {
+                    "id": pr.id,
+                    "title": pr.title,
+                    "status": pr.status,
+                    "issue_title": pr.issue.title if pr.issue else "No Issue Link",
+                    "created_at": pr.created_at.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                    "merged_at": pr.merged_at.strftime("%Y-%m-%dT%H:%M:%SZ") if pr.merged_at else None,
+                }
+                for pr in recent_prs_qs
+            ]
 
         elif field == "progress_tracker":
             completed_lessons = (
@@ -439,9 +371,7 @@ class ContributorDashboardView(APIView):
             )
             total_lessons = Lesson.objects.count()
             completion_percentage = (
-                int((completed_lessons / total_lessons) * 100)
-                if total_lessons > 0
-                else 0
+                int((completed_lessons / total_lessons) * 100) if total_lessons > 0 else 0
             )
 
             return {
@@ -451,14 +381,9 @@ class ContributorDashboardView(APIView):
             }
 
         elif field == "active_track":
-            from apps.progress.services.milestone_track_service import (
-                MilestoneTrackService,
-            )
-
+            from apps.progress.services.milestone_track_service import MilestoneTrackService
             return {
-                "active_track_status": MilestoneTrackService.get_user_active_track_status(
-                    user
-                ),
+                "active_track_status": MilestoneTrackService.get_user_active_track_status(user),
                 "next_milestone": MilestoneTrackService.get_user_next_milestone(user),
             }
 
@@ -468,21 +393,18 @@ class ContributorDashboardView(APIView):
                 .select_related("lesson")
                 .order_by("-updated_at")[:3]
             )
-            continue_learning_list = []
-            for lp in incomplete_qs:
-                progress_pct = min(100, int(lp.score)) if lp.score else 0
-                continue_learning_list.append(
-                    {
-                        "id": lp.lesson.id,
-                        "lesson_slug": lp.lesson.slug,
-                        "lesson_title": lp.lesson.title,
-                        "summary": lp.lesson.summary,
-                        "progress_percentage": progress_pct,
-                        "score": lp.score,
-                        "updated_at": lp.updated_at.strftime("%Y-%m-%dT%H:%M:%SZ"),
-                    }
-                )
-            return continue_learning_list
+            return [
+                {
+                    "id": lp.lesson.id,
+                    "lesson_slug": lp.lesson.slug,
+                    "lesson_title": lp.lesson.title,
+                    "summary": lp.lesson.summary,
+                    "progress_percentage": min(100, int(lp.score)) if lp.score else 0,
+                    "score": lp.score,
+                    "updated_at": lp.updated_at.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                }
+                for lp in incomplete_qs
+            ]
 
         elif field == "weekly_goal":
             from apps.progress.models import WeeklyGoal
@@ -495,8 +417,8 @@ class ContributorDashboardView(APIView):
 
     def get(self, request):
         user = request.user
-
         fields_param = request.query_params.get("fields")
+        
         if fields_param:
             requested_fields = [f.strip() for f in fields_param.split(",") if f.strip()]
         else:
@@ -510,9 +432,6 @@ class ContributorDashboardView(APIView):
                 "weekly_goal",
             ]
 
-        data = {}
-        from apps.core.cache.coalescing import CoalescingCache
-
         valid_fields = [
             "personal_stats",
             "assigned_issues",
@@ -522,36 +441,31 @@ class ContributorDashboardView(APIView):
             "continue_learning",
             "weekly_goal",
         ]
+
+        data = {}
+        from apps.core.cache.coalescing import CoalescingCache
+
         for field in requested_fields:
             if field not in valid_fields:
                 continue
 
             cache_key = f"dashboard_contributor_{field}_{user.id}"
-
-            def compute_field_data(u=user, f=field):
-                return self._calculate_field(u, f)
-
             field_data = CoalescingCache().get_or_set_coalesced(
-                cache_key, 300, compute_field_data
+                cache_key, 300, lambda u=user, f=field: self._calculate_field(u, f)
             )
             data[field] = field_data
 
         return Response(data)
 
 
-
 class ModeratorAnalyticsView(APIView):
     def get_permissions(self):
-        from rest_framework import permissions
-
         from apps.core.permissions import HasAnyRole
-
         return [permissions.IsAuthenticated(), HasAnyRole(["Admin", "Moderator"])]
 
     def get(self, request):
         thirty_days_ago = timezone.now() - timedelta(days=30)
 
-        # 1. Registrations
         registrations = (
             User.objects.select_related("profile")
             .filter(date_joined__gte=thirty_days_ago)
@@ -561,7 +475,6 @@ class ModeratorAnalyticsView(APIView):
             .order_by("date")
         )
 
-        # 2. Course Enrollments vs Completions
         progress_stats = (
             LessonProgress.objects.filter(updated_at__gte=thirty_days_ago)
             .annotate(date=TruncDate("updated_at"))
@@ -573,14 +486,12 @@ class ModeratorAnalyticsView(APIView):
             .order_by("date")
         )
 
-        # 3. Quiz Performance
         quiz_stats = (
             QuizAttempt.objects.filter(created_at__gte=thirty_days_ago)
             .values("is_correct")
             .annotate(count=Count("id"))
         )
 
-        # 4. Coding Challenges
         challenge_stats = (
             CodeSubmission.objects.filter(created_at__gte=thirty_days_ago)
             .values("status")
@@ -597,15 +508,9 @@ class ModeratorAnalyticsView(APIView):
         )
 
 
-from zoneinfo import available_timezones
-
-
 class UsageAnalyticsView(APIView):
     def get_permissions(self):
-        from rest_framework import permissions
-
         from apps.core.permissions import HasAnyRole
-
         return [permissions.IsAuthenticated(), HasAnyRole(["Admin"])]
 
     def get(self, request):
@@ -613,16 +518,12 @@ class UsageAnalyticsView(APIView):
         thirty_days_ago = today - timedelta(days=30)
         twelve_months_ago = today - timedelta(days=365)
 
-        # 1. Daily Active Users (last 30 days)
         daily_active = (
             DailyActivity.objects.filter(date__gte=thirty_days_ago)
             .values("date")
             .annotate(count=Count("user", distinct=True))
             .order_by("date")
         )
-
-        # 2. Monthly Active Users (last 12 months)
-        from django.db.models.functions import TruncMonth
 
         monthly_active = (
             DailyActivity.objects.filter(date__gte=twelve_months_ago)
@@ -632,7 +533,6 @@ class UsageAnalyticsView(APIView):
             .order_by("month")
         )
 
-        # 3. Most Popular Lessons (by completion count)
         popular_lessons = (
             LessonProgress.objects.filter(completed=True)
             .values("lesson__slug", "lesson__title")
@@ -640,14 +540,10 @@ class UsageAnalyticsView(APIView):
             .order_by("-count")[:10]
         )
 
-        # 4. Lesson Completion Rates
-        total_lessons = Lesson.objects.count()
         lesson_completion_rates = []
         for lesson in Lesson.objects.all():
             total = LessonProgress.objects.filter(lesson=lesson).count()
-            completed = LessonProgress.objects.filter(
-                lesson=lesson, completed=True
-            ).count()
+            completed = LessonProgress.objects.filter(lesson=lesson, completed=True).count()
             rate = round((completed / total * 100), 1) if total > 0 else 0
             lesson_completion_rates.append(
                 {
@@ -660,7 +556,6 @@ class UsageAnalyticsView(APIView):
             )
         lesson_completion_rates.sort(key=lambda x: x["completion_rate"], reverse=True)
 
-        # 5. User Signup Trend (last 12 months)
         signup_trend = (
             User.objects.filter(date_joined__gte=twelve_months_ago)
             .annotate(month=TruncMonth("date_joined"))
@@ -668,9 +563,6 @@ class UsageAnalyticsView(APIView):
             .annotate(count=Count("id"))
             .order_by("month")
         )
-
-        # 6. Average Session Duration (approximated via DailyActivity count per user)
-        from django.db.models import Avg
 
         avg_sessions = (
             DailyActivity.objects.filter(date__gte=thirty_days_ago)
@@ -682,7 +574,6 @@ class UsageAnalyticsView(APIView):
             (avg_sessions["avg_active_days"] or 0) * 15, 1
         )
 
-        # 7. Geographic Distribution (by timezone)
         geo_distribution = (
             User.objects.filter(
                 profile__timezone__isnull=False,
@@ -714,7 +605,6 @@ class UsageAnalyticsView(APIView):
 
 class Echo:
     """An object that implements just the write method of the file-like interface."""
-
     def write(self, value):
         return value
 
@@ -724,7 +614,6 @@ class AnalyticsExportCSVView(APIView):
     Server-side streamed CSV export for analytics dashboard metrics.
     Supports filtering by date range (days) and dataset type.
     """
-
     permission_classes = [permissions.IsAuthenticated]
 
     def get(self, request):
@@ -734,7 +623,6 @@ class AnalyticsExportCSVView(APIView):
             days = 30
 
         dataset = request.query_params.get("dataset", "all").lower()
-
         now = timezone.now()
         start_date = now - timedelta(days=days)
 
@@ -803,4 +691,3 @@ class AnalyticsExportCSVView(APIView):
         response = StreamingHttpResponse(csv_stream(), content_type="text/csv")
         response["Content-Disposition"] = f'attachment; filename="{filename}"'
         return response
-
