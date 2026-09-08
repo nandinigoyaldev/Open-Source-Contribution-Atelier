@@ -345,6 +345,7 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
     "apps.core.middleware.AdminAuditMiddleware",
     "waffle.middleware.WaffleMiddleware",
+    "apps.feature_flags.middleware.FeatureFlagsMiddleware",
     "apps.core.middleware.ratelimit.RateLimitMiddleware",
     "apps.sandbox.middleware.SandboxExecutionLogMiddleware",
     "apps.core.middleware.api_version.APIVersionMiddleware",
