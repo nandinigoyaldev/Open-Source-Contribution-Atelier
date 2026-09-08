@@ -36,20 +36,32 @@ export function useTextToSpeech(text: string) {
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
 
   useEffect(() => {
-    if (typeof window !== "undefined" && window.speechSynthesis) {
-      setIsSupported(true);
-      setSettingsState(loadStoredSettings());
-
-      const updateVoices = () => {
-        const availableVoices = window.speechSynthesis.getVoices();
-        setVoices(availableVoices);
-      };
-
-      updateVoices();
-      if (window.speechSynthesis.onvoiceschanged !== undefined) {
-        window.speechSynthesis.onvoiceschanged = updateVoices;
-      }
+    if (typeof window === "undefined" || !window.speechSynthesis) {
+      return;
     }
+
+    const synth = window.speechSynthesis;
+    setIsSupported(true);
+    setSettingsState(loadStoredSettings());
+
+    // Guard against a late `voiceschanged` event still in flight when the
+    // component unmounts, so we never call setState on an unmounted hook.
+    let isMounted = true;
+
+    const updateVoices = () => {
+      if (!isMounted) return;
+      setVoices(synth.getVoices());
+    };
+
+    updateVoices();
+    // Use addEventListener (not `synth.onvoiceschanged = ...`) so we don't
+    // clobber another handler on this global object and can remove ours.
+    synth.addEventListener("voiceschanged", updateVoices);
+
+    return () => {
+      isMounted = false;
+      synth.removeEventListener("voiceschanged", updateVoices);
+    };
   }, []);
 
   const setSettings = useCallback((newSettings: Partial<TTSSettings>) => {
