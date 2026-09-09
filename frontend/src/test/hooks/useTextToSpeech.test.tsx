@@ -32,10 +32,16 @@ describe("useTextToSpeech", () => {
   let mockResume: any;
   let mockCancel: any;
   let mockGetVoices: any;
+  let voicesChangedHandlers: Array<() => void>;
+
+  const fireVoicesChanged = () => {
+    voicesChangedHandlers.forEach((handler) => handler());
+  };
 
   beforeEach(() => {
     localStorageMock.clear();
     originalSpeechSynthesis = window.speechSynthesis;
+    voicesChangedHandlers = [];
 
     mockSpeak = vi.fn();
     mockPause = vi.fn();
@@ -55,7 +61,16 @@ describe("useTextToSpeech", () => {
         resume: mockResume,
         cancel: mockCancel,
         getVoices: mockGetVoices,
-        onvoiceschanged: null,
+        addEventListener: vi.fn((event: string, handler: () => void) => {
+          if (event === "voiceschanged") voicesChangedHandlers.push(handler);
+        }),
+        removeEventListener: vi.fn((event: string, handler: () => void) => {
+          if (event === "voiceschanged") {
+            voicesChangedHandlers = voicesChangedHandlers.filter(
+              (h) => h !== handler,
+            );
+          }
+        }),
       },
     });
 
@@ -175,7 +190,7 @@ describe("useTextToSpeech", () => {
     });
   });
 
-  it("should update voice dynamically onvoiceschanged", () => {
+  it("should update voice dynamically on the voiceschanged event", () => {
     const { result } = renderHook(() => useTextToSpeech("Hello"));
     expect(result.current.voices.length).toBe(3);
 
@@ -187,13 +202,37 @@ describe("useTextToSpeech", () => {
     ]);
 
     act(() => {
-      if (window.speechSynthesis.onvoiceschanged) {
-        // @ts-ignore
-        window.speechSynthesis.onvoiceschanged();
-      }
+      fireVoicesChanged();
     });
 
     expect(result.current.voices.length).toBe(4);
+  });
+
+  it("registers exactly one voiceschanged listener and removes it on unmount", () => {
+    const { unmount } = renderHook(() => useTextToSpeech("Hello"));
+
+    expect(window.speechSynthesis.addEventListener).toHaveBeenCalledWith(
+      "voiceschanged",
+      expect.any(Function),
+    );
+    expect(voicesChangedHandlers.length).toBe(1);
+
+    unmount();
+
+    expect(window.speechSynthesis.removeEventListener).toHaveBeenCalledWith(
+      "voiceschanged",
+      expect.any(Function),
+    );
+    expect(voicesChangedHandlers.length).toBe(0);
+  });
+
+  it("does not throw or update state if a voiceschanged event fires after unmount", () => {
+    const { unmount } = renderHook(() => useTextToSpeech("Hello"));
+    const staleHandler = voicesChangedHandlers[0];
+
+    unmount();
+
+    expect(() => staleHandler()).not.toThrow();
   });
 
   // EDGE CASES
