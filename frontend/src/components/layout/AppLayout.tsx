@@ -31,14 +31,14 @@ export function AppLayout() {
         {/* Top bar: always visible except on lesson pages */}
         {!isLessonPage && <Navigation />}
 
-        <div className="flex min-h-[calc(100vh-3.5rem)]">
+        <div className="flex h-[calc(100vh-3.5rem)]">
           {/* Side nav: desktop only, not on lesson pages */}
           {!isLessonPage && <SideNav />}
 
           <main
             id="main-content"
             tabIndex={-1}
-            className={`flex-1 min-w-0 ${
+            className={`flex-1 min-w-0 overflow-y-auto ${
               isLessonPage
                 ? "w-full min-h-screen"
                 : "pt-4 min-h-screen max-w-full overflow-x-hidden px-3 sm:px-6 lg:px-8 pb-20 sm:pb-24 lg:pb-10"
