@@ -164,9 +164,7 @@ export function LessonPage() {
   >([]);
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(() => {
-    return localStorage.getItem("lesson-sidebar-collapsed") === "true";
-  });
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
   const [isZenMode, setIsZenMode] = useState<boolean>(false);
 
   // 1. Intercept Escape key to cleanly exit Zen reading mode
@@ -180,13 +178,6 @@ export function LessonPage() {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
-
-  useEffect(() => {
-    localStorage.setItem(
-      "lesson-sidebar-collapsed",
-      String(isSidebarCollapsed),
-    );
-  }, [isSidebarCollapsed]);
 
   const curriculumLessonRefs = useMemo(
     () =>
@@ -1015,7 +1006,6 @@ export function LessonPage() {
             isOpen={isSidebarOpen}
             onClose={closeSidebar}
             isSidebarCollapsed={isSidebarCollapsed}
-            setIsSidebarCollapsed={setIsSidebarCollapsed}
             title={
               <>
                 <BookOpen size={18} className="text-primary" />
