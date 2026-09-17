@@ -40,8 +40,7 @@
       "git-status",
       "git-remote"
     ],
-    "module-6": ["git-status", "git-pull", "git-push", "git-log", "git-diff"],
-    "module-7": [
+    "module-6": [
       "git-rebase",
       "git-status",
       "git-add",
@@ -49,8 +48,7 @@
       "git-log",
       "git-diff",
       "git-merge"
-    ],
-    "module-8": ["git-clone", "git-remote", "git-status", "git-log"]
+    ]
   },
   "lessons": {
     "repositories-and-commits": [
@@ -116,9 +114,7 @@
   "slugToModule": {
     "what-is-open-source": "module-1",
     "why-open-source-matters": "module-1",
-    "history-of-open-source": "module-1",
     "benefits-of-contributing": "module-1",
-    "common-misconceptions": "module-1",
     "open-source-licenses": "module-1",
     "repositories-and-commits": "module-2",
     "branches": "module-2",
@@ -129,17 +125,15 @@
     "forks": "module-3",
     "pull-requests": "module-3",
     "issues": "module-3",
-    "discussions": "module-3",
-    "organizations": "module-3",
     "respect-and-communication": "module-4",
     "read-readme-and-contributing": "module-4",
     "professional-prs-and-issues": "module-4",
     "maintainer-review-processes": "module-4",
+    "finding-projects": "module-4",
     "first-contribution-walkthrough": "module-5",
-    "contribution-lifecycle": "module-6",
-    "rebasing-and-squashing": "module-7",
-    "conflict-resolution": "module-7",
-    "code-reviews-and-cicd": "module-7",
-    "finding-projects": "module-8"
+    "contribution-lifecycle": "module-5",
+    "rebasing-and-squashing": "module-6",
+    "conflict-resolution": "module-6",
+    "code-reviews-and-cicd": "module-6"
   }
 }

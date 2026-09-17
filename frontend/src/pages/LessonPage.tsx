@@ -153,6 +153,7 @@ export function LessonPage() {
     {
       id: string;
       title: string;
+      sandbox?: boolean;
       lessons: {
         slug: string;
         title: string;
@@ -1031,6 +1032,13 @@ export function LessonPage() {
 
               {modules.map((mod, modIdx) => (
                 <div key={mod.id} className="space-y-2">
+                  {mod.sandbox && !isSidebarCollapsed && (
+                    <div className="pt-4 mt-2 border-t-2 border-dashed border-black/15 dark:border-[#2e2924]">
+                      <span className="text-[9px] uppercase tracking-widest font-bold text-muted dark:text-[#c4bbae] px-2">
+                        Practice
+                      </span>
+                    </div>
+                  )}
                   <h3
                     className={`font-mono text-[10px] uppercase tracking-wider font-bold px-2 py-1.5 rounded-lg border-2 transition-all
                              ${
@@ -1040,8 +1048,10 @@ export function LessonPage() {
                              }`}
                   >
                     {isSidebarCollapsed
-                      ? `M${modIdx + 1}`
-                      : `Module ${modIdx + 1}: ${mod.title}`}
+                      ? mod.sandbox
+                        ? "P"
+                        : `M${modIdx + 1}`
+                      : `${mod.title}`}
                   </h3>
                   <div className="space-y-1">
                     {mod.lessons.map(

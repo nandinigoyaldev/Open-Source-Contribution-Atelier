@@ -70,8 +70,8 @@ export function buildModulesFromLessons(lessons: Lesson[]) {
     if (!categoryMap.has(cat)) categoryMap.set(cat, []);
     categoryMap.get(cat)!.push(lesson);
   }
-  return Array.from(categoryMap.entries()).map(([title, mods]) => ({
-    id: title.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+  return Array.from(categoryMap.entries()).map(([title, mods], index) => ({
+    id: String(index + 1),
     title,
     lessons: mods,
   }));
@@ -82,7 +82,7 @@ export const fallbackLessons: Lesson[] = [
   {
     id: 1,
     slug: "level-1-what-is-open-source",
-    category: "Level 1 — What is Open Source?",
+    category: "Level 1 — Getting Started",
     difficulty: "beginner",
     title: "Demystifying Open Source & Roles",
     description: "Understand what open source software means, how collaboration functions, and the key roles of Maintainers vs Contributors.",
@@ -135,7 +135,7 @@ export const fallbackLessons: Lesson[] = [
   {
     id: 2,
     slug: "level-1-licenses-and-releases",
-    category: "Level 1 — What is Open Source?",
+    category: "Level 1 — Getting Started",
     difficulty: "beginner",
     title: "Open Source Licenses & Governance",
     description: "Learn how licenses grant legal rights to use and modify code (MIT, Apache 2.0, GPL) and how releases work.",
@@ -177,7 +177,7 @@ export const fallbackLessons: Lesson[] = [
   {
     id: 3,
     slug: "level-2-git-three-trees-and-status",
-    category: "Level 2 — Git Fundamentals",
+    category: "Level 2 — Git Basics",
     difficulty: "beginner",
     title: "The Three Areas of Git & Working Tree State",
     description: "Master the 3-tree architecture of Git: Working Directory, Staging Area, and Repository snapshots.",
@@ -219,7 +219,7 @@ export const fallbackLessons: Lesson[] = [
   {
     id: 4,
     slug: "level-2-branching-and-switching",
-    category: "Level 2 — Git Fundamentals",
+    category: "Level 2 — Git Basics",
     difficulty: "beginner",
     title: "Branching & Work Isolation",
     description: "Learn how branches isolate experiments and features so the main branch stays clean and deployable.",
@@ -264,7 +264,7 @@ export const fallbackLessons: Lesson[] = [
   {
     id: 5,
     slug: "level-2-atomic-commits-and-diffs",
-    category: "Level 2 — Git Fundamentals",
+    category: "Level 2 — Git Basics",
     difficulty: "beginner",
     title: "Atomic Commits & Clear Messages",
     description: "Learn how to craft atomic commits, inspect diffs with git diff, and write descriptive commit messages.",
@@ -307,7 +307,7 @@ export const fallbackLessons: Lesson[] = [
   {
     id: 6,
     slug: "level-3-fork-vs-clone-ecosystem",
-    category: "Level 3 — GitHub Mechanics",
+    category: "Level 3 — Setting Up",
     difficulty: "beginner",
     title: "Fork vs Clone & Remotes (Origin & Upstream)",
     description: "Master the GitHub remote model: Forking repositories, cloning your fork, and synchronizing with upstream.",
@@ -351,7 +351,7 @@ export const fallbackLessons: Lesson[] = [
   {
     id: 7,
     slug: "level-3-issues-labels-and-templates",
-    category: "Level 3 — GitHub Mechanics",
+    category: "Level 3 — Setting Up",
     difficulty: "beginner",
     title: "Project Governance: CONTRIBUTING.md & Issue Templates",
     description: "Understand repository guidelines: README, CONTRIBUTING.md, CODE_OF_CONDUCT.md, and structured issue templates.",
@@ -392,7 +392,7 @@ export const fallbackLessons: Lesson[] = [
   {
     id: 8,
     slug: "level-4-exploring-repositories-and-scoping",
-    category: "Level 4 — Finding Your First Contribution",
+    category: "Level 4 — Community Guidelines",
     difficulty: "intermediate",
     title: "Finding Beginner-Friendly Issues & Scoping",
     description: "Learn how to filter issues, evaluate whether a task is within your current skillset, and claim it politely.",
@@ -436,7 +436,7 @@ export const fallbackLessons: Lesson[] = [
   {
     id: 9,
     slug: "level-5-the-end-to-end-workflow",
-    category: "Level 5 — The Contribution Workflow",
+    category: "Level 5 — Your First Contribution",
     difficulty: "intermediate",
     title: "The End-to-End 10-Step Contribution Lifecycle",
     description: "Walk through the full contribution lifecycle: Fork → Clone → Branch → Fix → Test → Commit → Push → PR → Review → Merge.",
@@ -480,7 +480,7 @@ export const fallbackLessons: Lesson[] = [
   {
     id: 10,
     slug: "level-6-crafting-exceptional-prs",
-    category: "Level 6 — Pull Requests & Code Review",
+    category: "Level 6 — Advanced Skills",
     difficulty: "intermediate",
     title: "Crafting PRs, Linking Issues & Review Etiquette",
     description: "Write stellar PR descriptions, link issues automatically (Fixes #104), and handle code reviews constructively.",
@@ -521,7 +521,7 @@ export const fallbackLessons: Lesson[] = [
   {
     id: 11,
     slug: "level-6-resolving-merge-conflicts",
-    category: "Level 6 — Pull Requests & Code Review",
+    category: "Level 6 — Advanced Skills",
     difficulty: "advanced",
     title: "Resolving Merge Conflicts Confidently",
     description: "Understand why merge conflicts occur and learn the step-by-step procedure to resolve conflict markers cleanly.",
