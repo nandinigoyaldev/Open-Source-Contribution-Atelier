@@ -33,7 +33,7 @@ export function AppLayout() {
           className={
             location.pathname.startsWith("/lessons/")
               ? "w-full min-h-screen"
-              : "lg:pl-[240px] pt-[72px] min-h-screen max-w-full overflow-x-hidden"
+              : "pt-16 min-h-screen max-w-full overflow-x-hidden"
           }
         >
           <div
