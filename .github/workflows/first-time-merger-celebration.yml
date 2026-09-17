@@ -40,7 +40,7 @@ jobs:
                 ``,
                 `### 🌟 Keep Contributing:`,
                 `- Add your contributor badge to your GitHub profile \`README.md\`!`,
-                `- Check out more open issues labeled \`good first issue\` or \`ECSoC26\`!`,
+                `- Check out more open issues labeled \`good first issue\` or \`help wanted\`!`,
                 ``,
                 `Happy coding! 💻✨`
               ].join('\n');

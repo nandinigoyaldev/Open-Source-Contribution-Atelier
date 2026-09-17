@@ -12,13 +12,6 @@ body:
     validations:
       required: true
 
-  - type: checkboxes
-    id: program
-    attributes:
-      label: Contributor Program
-      options:
-        - label: ECSoC 2026
-
   - type: textarea
     id: steps
     attributes:

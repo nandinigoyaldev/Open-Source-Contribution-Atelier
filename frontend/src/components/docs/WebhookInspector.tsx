@@ -165,8 +165,8 @@ const ISSUES_EVENT_PAYLOAD = {
       type: "User",
     },
     labels: [
-      { id: 10, name: "ECSoC26", color: "e4e669" },
-      { id: 11, name: "ECSoC26-L2", color: "fbca04" },
+      { id: 10, name: "enhancement", color: "a2eeef" },
+      { id: 11, name: "good first issue", color: "7057ff" },
       { id: 12, name: "documentation", color: "0075ca" },
       { id: 13, name: "frontend", color: "d4c5f9" },
     ],

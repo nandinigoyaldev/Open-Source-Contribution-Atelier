@@ -53,7 +53,7 @@ describe("ShopPage Tooltips & Requirements", () => {
 
     // Item 104 (Diamond Badge) requires Level 5 / 750 XP
     expect(
-      await screen.findByText("ECSoC '26 Diamond Contributor Badge"),
+      await screen.findByText("SSSoC & ECSoC '26 Diamond Contributor Badge"),
     ).toBeInTheDocument();
 
     // Lock requirement button / badge text

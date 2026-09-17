@@ -76,7 +76,7 @@ jobs:
               ? `\n🔥 **7-Day Hot Streak Active!** You've merged **${recentMergedCount} PRs** in the past 7 days! Keep up the momentum!`
               : '';
 
-            const tweetText = encodeURIComponent(`🎉 Excited to share that my Pull Request #${pr.number} ("${pr.title}") has been merged into Open-Source Contribution Atelier under #ECSoC26! 🚀\n\nCheck out the project: https://github.com/${owner}/${repo}`);
+            const tweetText = encodeURIComponent(`🎉 Excited to share that my Pull Request #${pr.number} ("${pr.title}") has been merged into Open-Source Contribution Atelier! 🚀\n\nCheck out the project: https://github.com/${owner}/${repo}`);
             const linkedinText = encodeURIComponent(`https://github.com/${owner}/${repo}/pull/${pr.number}`);
 
             const certBody = [
@@ -145,4 +145,4 @@ jobs:
           git config --global user.name "github-actions[bot]"
           git config --global user.email "github-actions[bot]@users.noreply.github.com"
           git add LEADERBOARD.md
-          git diff --quiet && git diff --staged --quiet || (git commit -m "docs: update ECSoC 26 leaderboard [skip ci]" && git push)
+          git diff --quiet && git diff --staged --quiet || (git commit -m "docs: update contributor leaderboard [skip ci]" && git push)

@@ -97,7 +97,7 @@ export function RegexPlayground() {
               <Zap className="w-3.5 h-3.5" /> Developer Tool
             </span>
             <span className="bg-accent/20 text-accent text-xs font-bold px-2.5 py-1 rounded-md border border-accent/40">
-              ECSoC 2026
+              Atelier Studio
             </span>
           </div>
           <h1 className="text-2xl md:text-3xl font-black text-text dark:text-[#f0ebe2]">

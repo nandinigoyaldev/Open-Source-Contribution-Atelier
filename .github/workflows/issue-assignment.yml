@@ -1,4 +1,4 @@
-name: Issue Assignment & ECSoC Labeler
+name: Issue Assignment & Quality Triage
 
 on:
   issues:
@@ -27,7 +27,7 @@ jobs:
             const title = (issue.title || '').trim();
             const body = (issue.body || '').trim();
 
-            // 1. Low-Quality Issue Auto-Triage Check
+            // Low-Quality Issue Auto-Triage Check
             if (title.length < 10 || body.length < 30) {
               try {
                 await github.rest.issues.getLabel({ owner, repo, name: 'needs-more-info' });
@@ -44,34 +44,6 @@ jobs:
                 body: `⚠️ @${issue.user.login}, thank you for creating this issue! Please provide additional details (e.g. reproduction steps, environment details, or problem description) so maintainers can review and assign it.`
               });
               console.log(`Labeled issue #${issue.number} as needs-more-info due to brevity.`);
-            }
-
-            // 2. Check if ECSoC 2026 checkbox is checked
-            const isEcsocChecked = /-\s*\[x\]\s*ecsoc\s*2026/i.test(body) ||
-                                   /-\s*\[x\]\s*ecsoc/i.test(body) ||
-                                   /-\s*\[x\]\s*ecosc/i.test(body) ||
-                                   /-\s*\[x\]\s*ssoc/i.test(body);
-
-            if (isEcsocChecked) {
-              const labelName = 'ECSoC26';
-              try {
-                await github.rest.issues.getLabel({ owner, repo, name: labelName });
-              } catch (e) {
-                await github.rest.issues.createLabel({
-                  owner,
-                  repo,
-                  name: labelName,
-                  color: 'd4c5f9',
-                  description: 'ECSoC 2026 Program Issue'
-                });
-              }
-              await github.rest.issues.addLabels({
-                owner,
-                repo,
-                issue_number: issue.number,
-                labels: [labelName]
-              });
-              console.log(`Added label ${labelName} to issue #${issue.number}`);
             }
 
   handle-issue-assignment:
@@ -119,8 +91,7 @@ jobs:
 
             // Check if comment is claiming the issue
             const isClaimCommand = /\b(\/claim|!claim|\/assign|!assign|claim)\b/i.test(commentText) ||
-                                 /\b(can i work|can i take|can i claim|i want to work|i'd like to work|please assign|can i be assigned|assign me|i want to contribute|can i contribute)\b/i.test(commentText) ||
-                                 /\b(ecsoc26?|ecosc|ssoc26?)\b/i.test(commentText);
+                                 /\b(can i work|can i take|can i claim|i want to work|i'd like to work|please assign|can i be assigned|assign me|i want to contribute|can i contribute)\b/i.test(commentText);
 
             if (!isClaimCommand) return;
 
@@ -136,24 +107,6 @@ jobs:
                 });
               }
               return;
-            }
-
-            // Check if the issue has the ECSoC26 label
-            const issueLabels = (issue.labels || []).map(l => l.name.toLowerCase());
-            const isEcsocIssue = issueLabels.some(l => l.includes('ecsoc') || l.includes('ecosc') || l.includes('ssoc') || l === 'ecsoc26');
-
-            if (isEcsocIssue) {
-              const hasEcsocKeyword = /\b(ecsoc26?|ecsoc\s*2026|ecosc|ssoc26?|ssoc)\b/i.test(commentText);
-
-              if (!hasEcsocKeyword) {
-                await github.rest.issues.createComment({
-                  owner,
-                  repo,
-                  issue_number: issue.number,
-                  body: `⚠️ @${commenter}, this issue is reserved for **ECSoC 2026** contributors! To claim this issue, please include the keyword \`ecsoc26\` or \`ecosc\` in your comment (e.g., \`/claim ecsoc26\`).`
-                });
-                return;
-              }
             }
 
             // Enforce max 5 assigned issues limit per user
@@ -186,13 +139,12 @@ jobs:
                 assignees: [commenter]
               });
 
-              const ecsocNotice = isEcsocIssue ? ' under **ECSoC 2026**' : '';
               await github.rest.issues.createComment({
                 owner,
                 repo,
                 issue_number: issue.number,
                 body: [
-                  `### 🚀 Assigned to @${commenter}${ecsocNotice}! 🎉`,
+                  `### 🚀 Assigned to @${commenter}! 🎉`,
                   ``,
                   `Issue successfully assigned to @${commenter}!`,
                   `1. Please link this issue in your Pull Request description using \`Fixes #${issue.number}\`.`,

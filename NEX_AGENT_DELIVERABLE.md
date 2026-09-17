@@ -1,6 +1,6 @@
 # Deliverable for issue #2883
 
-GH mega-sweep — created 2026-08-27, 3 comments, labels: enhancement, frontend, Medium, ECSoC26, ui/ux
+GH mega-sweep — created 2026-08-27, 3 comments, labels: enhancement, frontend, Medium, ui/ux
 
 ## Code
 

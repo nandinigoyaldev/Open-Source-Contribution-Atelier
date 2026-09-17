@@ -252,7 +252,7 @@ export function FullStackDocsPage() {
               Full-Stack Architecture & Feature Directory 📖
             </span>
             <span className="font-black text-xs bg-amber-300 text-black px-3 py-1.5 rounded-full border-2 border-black shadow-card-sm flex items-center gap-1">
-              <Zap className="w-3.5 h-3.5 fill-black" /> ECSoC '26 Ready
+              <Zap className="w-3.5 h-3.5 fill-black" /> Production Ready
             </span>
           </div>
 

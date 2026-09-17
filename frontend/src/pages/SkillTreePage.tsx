@@ -519,7 +519,7 @@ export const SkillTreePage: React.FC = () => {
                   Contributor Pathway
                 </span>
                 <span className="text-xs text-slate-400">
-                  ECSoC 2026 Edition
+                  Open Source Mastery Edition
                 </span>
               </div>
               <h1 className="text-3xl sm:text-4xl font-black text-white tracking-tight">

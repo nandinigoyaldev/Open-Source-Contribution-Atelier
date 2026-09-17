@@ -179,12 +179,15 @@ export function LeaderboardPage() {
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-3 max-w-xl">
             <div className="flex items-center gap-2 flex-wrap">
-              <span className="font-black text-xs bg-white/90 text-black px-4 py-2 rounded-full border-2 border-black inline-block shadow-card-sm">
-                ECSoC '26 Live Leaderboard 🏆
+              <span className="font-black text-xs bg-amber-300 text-black px-4 py-2 rounded-full border-2 border-black inline-block shadow-card-sm">
+                🥈 SSSoC '26 Rank #2 Overall
+              </span>
+              <span className="font-black text-xs bg-purple-300 text-black px-4 py-2 rounded-full border-2 border-black inline-block shadow-card-sm">
+                🏅 ECSoC '26 Rank #14 Overall
               </span>
               <span className="font-black text-xs bg-black text-white px-3 py-1.5 rounded-full border-2 border-black shadow-card-sm flex items-center gap-1">
                 <Zap className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />{" "}
-                Real-time XP
+                Hall of Fame & Live XP
               </span>
             </div>
 
@@ -193,8 +196,8 @@ export function LeaderboardPage() {
             </h1>
 
             <p className="text-white/90 font-bold text-base sm:text-lg leading-relaxed">
-              Earn points by merging Pull Requests, completing curriculum
-              modules, and maintaining active contribution streaks!
+              Celebrating our historic SSSoC '26 & ECSoC '26 victories! Earn points by merging Pull Requests, completing curriculum
+              modules, and building open source together!
             </p>
           </div>
 
@@ -406,7 +409,7 @@ export function LeaderboardPage() {
           <div className="flex items-center gap-2 flex-wrap">
             {[
               { id: "all_time", label: "All Time 🏆" },
-              { id: "seasonal", label: "ECSoC '26 ⚡" },
+              { id: "seasonal", label: "SSSoC & ECSoC '26 Legacy ⚡" },
               { id: "weekly", label: "Weekly 🔥" },
             ].map((tp) => (
               <button

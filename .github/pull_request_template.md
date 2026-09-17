@@ -4,9 +4,6 @@
 
 Fixes #<!-- issue number -->
 
-## 🏆 Program Participation
-- [ ] **Elite Coder Summer of Code (ECSoC 2026)**
-
 ## Type of Change
 
 - [ ] 🐛 Bug fix (non-breaking change which fixes an issue)

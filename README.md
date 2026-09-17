@@ -9,7 +9,7 @@ pinned: false
 ---
 
 
-![CI](https://github.com/MILAN-123865/Open-Source-Contribution-Atelier/actions/workflows/ci.yml/badge.svg)
+![CI](https://github.com/nandinigoyaldev/Open-Source-Contribution-Atelier/actions/workflows/ci.yml/badge.svg)
 
 
 <br />
@@ -43,20 +43,28 @@ pinned: false
 
 ---
 
-## 🏆 ECSoC 2026 Program & Quick Links
+## 🏆 Hall of Fame & Seasonal Milestones
 
 <div align="center">
 
-[![ECSoC 2026 Active](https://img.shields.io/badge/Program-ECSoC_2026_Active-8A2BE2?style=for-the-badge&logo=github)](LEADERBOARD.md)
-[![Leaderboard](https://img.shields.io/badge/ECSoC-Leaderboard_🏆-4ECDC4?style=for-the-badge&logo=github)](LEADERBOARD.md)
+[![SSSoC 2026 Top 2](https://img.shields.io/badge/SSSoC_'26-Rank_%232_🥈-FFD700?style=for-the-badge&logo=trophy&logoColor=black)](LEADERBOARD.md)
+[![ECSoC 2026 Top 14](https://img.shields.io/badge/ECSoC_'26-Rank_%2314_🏅-8A2BE2?style=for-the-badge&logo=github)](LEADERBOARD.md)
+[![Hall of Fame](https://img.shields.io/badge/Hall_of_Fame-Leaderboard_🏆-4ECDC4?style=for-the-badge&logo=github)](LEADERBOARD.md)
 
 </div>
 
-Welcome to **ECSoC 2026** at Open-Source Contribution Atelier! Please review our program guides before contributing:
-- 📊 **[Official ECSoC '26 Leaderboard](LEADERBOARD.md)**
-- 📌 **[Participation & Claiming Guide (Issue #2498)](https://github.com/nandinigoyaldev/Open-Source-Contribution-Atelier/issues/2498)**
-- 📌 **[PR Rules & Security Policy (Issue #2499)](https://github.com/nandinigoyaldev/Open-Source-Contribution-Atelier/issues/2499)**
-- 📌 **[Rewards & Tiers (Issue #2500)](https://github.com/nandinigoyaldev/Open-Source-Contribution-Atelier/issues/2500)**
+### 💖 A Heartfelt Community Journey
+> *"From a humble repository to a top-ranked open-source powerhouse: together we learned, mentored, solved bugs, and proved that anyone can become an open-source hero."*
+
+During the 2026 Open Source Season, **Open-Source Contribution Atelier** achieved historic milestones thanks to an incredible community of contributors, reviewers, and mentors:
+- 🥈 **SSSoC '26 (Summer Season of Code)** — Finished **Top 2nd Overall** across all participating national projects!
+- 🏅 **ECSoC '26 (Elite Coder Summer of Code)** — Finished **Top 14th Overall** in an intensely competitive season!
+- 🌟 **Hundreds of PRs merged**, dozens of first-time open-source contributors mentored, and lifelong developer friendships created.
+
+Explore our full honors, rankings, and legacy badges:
+- 📊 **[Official Hall of Fame & Contributor Leaderboard](LEADERBOARD.md)**
+- 🤝 **[Community Contributing Guidelines](CONTRIBUTING.md)**
+- 🔒 **[Security Policy](SECURITY.md)**
 
 ---
 

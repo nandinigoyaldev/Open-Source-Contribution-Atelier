@@ -34,7 +34,7 @@ jobs:
               const welcomeBody = [
                 `## 🌟 Welcome to Open-Source Contribution Atelier, @${author}! 🎉`,
                 ``,
-                `Thank you for opening your **very first Pull Request** in this repository! We are thrilled to have you participating in **ECSoC 2026**.`,
+                `Thank you for opening your **very first Pull Request** in this repository! We are thrilled to welcome you to the **Open-Source Contribution Atelier** community! 🚀`,
                 ``,
                 `### 🛠️ Quick Checklist for Your First Contribution:`,
                 `1. 🧪 **Pre-Push Checks**: Verify tests pass locally (\`pytest\` for backend, \`npm test\` for frontend).`,

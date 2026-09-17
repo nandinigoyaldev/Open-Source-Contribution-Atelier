@@ -94,9 +94,9 @@ const DEFAULT_SHOP_ITEMS: ShopItemData[] = [
   },
   {
     id: 104,
-    name: "ECSoC '26 Diamond Contributor Badge",
+    name: "SSSoC & ECSoC '26 Diamond Contributor Badge",
     description:
-      "Showcase an official ECSoC 2026 Diamond Contributor badge on your profile and PR certificate comments.",
+      "Showcase a commemorative SSSoC & ECSoC 2026 Diamond Contributor badge on your profile and PR certificate comments.",
     item_type: "badge_unlock",
     cost: 750,
     icon_emoji: "💎",
@@ -126,7 +126,7 @@ const DEFAULT_SHOP_ITEMS: ShopItemData[] = [
     id: 106,
     name: "Fast-Track PR Review Ticket 🚀",
     description:
-      "Grants priority maintainer review queue placement for your open ECSoC Pull Request.",
+      "Grants priority maintainer review queue placement for your open Pull Request.",
     item_type: "perk",
     cost: 400,
     icon_emoji: "🚀",

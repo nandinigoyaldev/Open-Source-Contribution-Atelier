@@ -50,7 +50,7 @@ jobs:
                     owner,
                     repo,
                     issue_number: issue.number,
-                    body: `🛠️ @${user} has been automatically **unassigned** from Issue #${issue.number} due to 72 hours of inactivity.\n\nThis issue is now open for other contributors to claim! Use \`/claim ecsoc26\` to claim it.`
+                    body: `🛠️ @${user} has been automatically **unassigned** from Issue #${issue.number} due to 72 hours of inactivity.\n\nThis issue is now open for other contributors to claim! Use \`/claim\` or \`/assign\` to claim it.`
                   });
                   console.log(`Unassigned ${user} from issue #${issue.number}`);
                 }
