@@ -31,6 +31,7 @@ export interface Lesson {
   tips: string[];
   exercises?: Exercise[];
   quizzes?: QuizQuestion[];
+  filePath?: string;
   order: number;
 }
 
@@ -651,4 +652,12 @@ export async function fetchLessonsApi(): Promise<Lesson[]> {
 
 export function getLessonBySlug(slug: string): Lesson | undefined {
   return fallbackLessons.find((l) => l.slug === slug) || fallbackLessons[0];
+}
+
+export async function fetchLessonContent(filePath: string): Promise<string> {
+  const resp = await fetch(`/content/${filePath}`);
+  if (!resp.ok) {
+    throw new Error(`Failed to fetch lesson content: ${resp.status}`);
+  }
+  return resp.text();
 }
