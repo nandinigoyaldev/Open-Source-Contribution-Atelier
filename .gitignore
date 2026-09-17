@@ -1,5 +1,6 @@
-# General
+# Environment & Secrets
 .env
+*.env
 docker-compose.override.yml
 *.log
 .DS_Store
@@ -14,14 +15,21 @@ docker-compose.override.yml
 
 # Virtual environment
 backend/.venv/
+.venv/
+venv/
 
 # SQLite DB
 backend/db.sqlite3
 backend/db.sqlite3-wal
 backend/db.sqlite3-shm
+*.sqlite3
 
-# E2E Test Results & Media
+# E2E Test Results, Reports & Media
 frontend/e2e/test-results/
+playwright-report/
+blob-report/
+test-results/
+coverage/
 *.webm
 
 # Node & Build
@@ -33,8 +41,9 @@ frontend/.next/
 
 # Build artifacts
 frontend/dist/
+dist/
 
-# Generated Django static files (collectstatic output)
+# Generated Django static files
 backend/staticfiles/
 
 # Generated service worker
@@ -43,12 +52,17 @@ frontend/public/sw.js
 # TypeScript incremental build info
 *.tsbuildinfo
 
-# Lint output
+# Third-party temporary tool data
+.freebuff/
+
+# Lint & audit output
 lint_output.txt
 
-# Vercel
+# Deployments
 .vercel/
 
-# Misc
+# IDE
 .idea/
 .vscode/
+*.swp
+*.swo
