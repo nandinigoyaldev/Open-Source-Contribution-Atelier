@@ -2,8 +2,8 @@
   "modules": [
     {
       "id": "module-1",
-      "title": "Introduction to Open Source",
-      "description": "Learn what open source is, why it matters, and clarify common misconceptions.",
+      "title": "Getting Started",
+      "description": "Understand what open source is, why it matters, and how to get involved.",
       "lessons": [
         {
           "slug": "what-is-open-source",
@@ -29,7 +29,7 @@
         },
         {
           "slug": "why-open-source-matters",
-          "title": "Why Open Source Matters",
+          "title": "Why It Matters",
           "description": "Explore the societal and technical impacts of open source projects.",
           "difficulty": "beginner",
           "estimatedMinutes": 6,
@@ -46,28 +46,6 @@
               ],
               "answer": 2,
               "explanation": "Collaborating openly exposes code to community reviews, improving quality, security, and accelerating learning."
-            }
-          ]
-        },
-        {
-          "slug": "history-of-open-source",
-          "title": "History of Open Source",
-          "description": "Discover the roots of the Free Software Movement and the transition to Open Source.",
-          "difficulty": "beginner",
-          "estimatedMinutes": 8,
-          "points": 15,
-          "filePath": "module-1/history-of-open-source.md",
-          "quizzes": [
-            {
-              "question": "Who founded the Free Software Foundation (FSF) and spearheaded the GNU Project?",
-              "options": [
-                "Linus Torvalds",
-                "Richard Stallman",
-                "Bill Gates",
-                "Ada Lovelace"
-              ],
-              "answer": 1,
-              "explanation": "Richard Stallman launched the GNU project in 1983 and founded the FSF in 1985 to promote computer user freedom."
             }
           ]
         },
@@ -94,30 +72,8 @@
           ]
         },
         {
-          "slug": "common-misconceptions",
-          "title": "Common Misconceptions",
-          "description": "Debunking myths about code perfection and contribution types in open source.",
-          "difficulty": "beginner",
-          "estimatedMinutes": 7,
-          "points": 15,
-          "filePath": "module-1/common-misconceptions.md",
-          "quizzes": [
-            {
-              "question": "Is open source contribution limited only to writing code?",
-              "options": [
-                "Yes, non-code contributions are deleted by maintainers.",
-                "No, you can contribute through documentation, design, issue reviews, translations, and community management.",
-                "Yes, only pull requests containing backend files are counted.",
-                "No, but writing code is the only way to earn badges."
-              ],
-              "answer": 1,
-              "explanation": "Open source relies heavily on documentation, translations, design, bug triage, and mentoring, which are highly valued non-code contributions."
-            }
-          ]
-        },
-        {
           "slug": "open-source-licenses",
-          "title": "Choosing and Understanding Open Source Licenses",
+          "title": "Open Source Licenses",
           "description": "Learn the difference between permissive and copyleft licenses before your first contribution.",
           "difficulty": "beginner",
           "estimatedMinutes": 6,
@@ -163,7 +119,7 @@
     },
     {
       "id": "module-2",
-      "title": "Git Fundamentals",
+      "title": "Git Basics",
       "description": "Master local version control, staging, commits, and local branches.",
       "lessons": [
         {
@@ -212,7 +168,7 @@
         },
         {
           "slug": "git-workflow",
-          "title": "Staging & Reviewing Status",
+          "title": "Staging & Status",
           "description": "Daily developer routine: check, stage, and commit.",
           "difficulty": "beginner",
           "estimatedMinutes": 8,
@@ -225,13 +181,13 @@
     },
     {
       "id": "module-3",
-      "title": "GitHub Fundamentals",
-      "description": "Navigate issues, fork repos, create pull requests, and organize code.",
+      "title": "Setting Up",
+      "description": "Configure your development environment for open source contributions.",
       "lessons": [
         {
           "slug": "github-repositories",
-          "title": "GitHub Repositories",
-          "description": "Understand hosting, forks, stars, and pull request tabs.",
+          "title": "GitHub Account & Profile",
+          "description": "Set up your GitHub account, profile, and understand repository basics.",
           "difficulty": "beginner",
           "estimatedMinutes": 6,
           "points": 15,
@@ -252,7 +208,7 @@
         },
         {
           "slug": "forks",
-          "title": "Forks",
+          "title": "Forks & Clones",
           "description": "Creating your own copy of an upstream repository to build features.",
           "difficulty": "beginner",
           "estimatedMinutes": 7,
@@ -296,7 +252,7 @@
         },
         {
           "slug": "issues",
-          "title": "GitHub Issues",
+          "title": "Issues",
           "description": "Reporting bugs, requesting features, and discussing repository state.",
           "difficulty": "beginner",
           "estimatedMinutes": 6,
@@ -315,57 +271,13 @@
               "explanation": "GitHub Issues are the primary tracking mechanism for tasks, feature discussions, bug reports, and planning checklists."
             }
           ]
-        },
-        {
-          "slug": "discussions",
-          "title": "GitHub Discussions",
-          "description": "Participating in Q&A, community forums, and general chats.",
-          "difficulty": "beginner",
-          "estimatedMinutes": 5,
-          "points": 15,
-          "filePath": "module-3/discussions.md",
-          "quizzes": [
-            {
-              "question": "What makes GitHub Discussions different from GitHub Issues?",
-              "options": [
-                "Discussions allow you to run backend code directly.",
-                "Discussions are for open-ended community chat, ideas, and questions, while Issues track concrete work tasks.",
-                "Discussions require special licensing keys to access.",
-                "Discussions are automatically resolved after 24 hours."
-              ],
-              "answer": 1,
-              "explanation": "Discussions offer a forum-like space for open conversation, support, and brainstorming, keeping Issues focused strictly on project development tasks."
-            }
-          ]
-        },
-        {
-          "slug": "organizations",
-          "title": "GitHub Organizations",
-          "description": "Working with repositories under team structures.",
-          "difficulty": "beginner",
-          "estimatedMinutes": 5,
-          "points": 15,
-          "filePath": "module-3/organizations.md",
-          "quizzes": [
-            {
-              "question": "What is a GitHub Organization?",
-              "options": [
-                "A company that writes private code only.",
-                "A shared account that groups people and repositories under a single collaborative entity.",
-                "A local folder on your computer that organizes Git branches.",
-                "A standard that formats pull request descriptions."
-              ],
-              "answer": 1,
-              "explanation": "Organizations enable multiple people to manage shared projects and repositories together with fine-grained access permissions."
-            }
-          ]
         }
       ]
     },
     {
       "id": "module-4",
-      "title": "Open Source Etiquette",
-      "description": "Unwritten rules of professional communication and respect in open source communities.",
+      "title": "Community Guidelines",
+      "description": "Learn the unwritten rules of respectful communication and professional contributions.",
       "lessons": [
         {
           "slug": "respect-and-communication",
@@ -435,7 +347,7 @@
         },
         {
           "slug": "maintainer-review-processes",
-          "title": "Review & Revision Habits",
+          "title": "Handling Code Reviews",
           "description": "Understand how code reviews work and how to handle revision requests.",
           "difficulty": "beginner",
           "estimatedMinutes": 6,
@@ -454,13 +366,35 @@
               "explanation": "Code review is a standard collaborative practice. Revisions are normal and help align code quality with project architecture."
             }
           ]
+        },
+        {
+          "slug": "finding-projects",
+          "title": "Finding Projects",
+          "description": "Using search filters, discovering projects, and participating in open source events.",
+          "difficulty": "beginner",
+          "estimatedMinutes": 8,
+          "points": 15,
+          "filePath": "module-8/finding-projects.md",
+          "quizzes": [
+            {
+              "question": "Which GitHub labels are most suitable for newcomers seeking their first contribution?",
+              "options": [
+                "critical-bug, security-alert, blocks-release",
+                "good-first-issue, first-timers-only, beginner-friendly",
+                "wontfix, duplicate, invalid",
+                "documentation-only, backend-refactor"
+              ],
+              "answer": 1,
+              "explanation": "Maintainers tag newcomer-friendly tasks with 'good first issue' or 'first-timers-only' to indicate they are self-contained and require minimal context."
+            }
+          ]
         }
       ]
     },
     {
       "id": "module-5",
-      "title": "First Contribution Walkthrough",
-      "description": "A step-by-step interactive command line practice for setting up your first PR.",
+      "title": "Your First Contribution",
+      "description": "Walk through the full contribution lifecycle from fork to merge.",
       "lessons": [
         {
           "slug": "first-contribution-walkthrough",
@@ -472,14 +406,7 @@
           "filePath": "module-5/first-contribution-walkthrough.md",
           "expected": "git push -u origin feat/my-first-pr",
           "hint": "Set upstream and push the branch feat/my-first-pr: git push -u origin feat/my-first-pr"
-        }
-      ]
-    },
-    {
-      "id": "module-6",
-      "title": "Real Contribution Workflow",
-      "description": "Trace the step-by-step lifecycle of a professional contribution.",
-      "lessons": [
+        },
         {
           "slug": "contribution-lifecycle",
           "title": "The PR Lifecycle",
@@ -505,9 +432,9 @@
       ]
     },
     {
-      "id": "module-7",
-      "title": "Advanced Open Source",
-      "description": "Syncing forks, rebasing, squashing, conflict resolution, and CI/CD checks.",
+      "id": "module-6",
+      "title": "Advanced Skills",
+      "description": "Rebasing, conflict resolution, and CI/CD for experienced contributors.",
       "lessons": [
         {
           "slug": "rebasing-and-squashing",
@@ -537,7 +464,7 @@
         },
         {
           "slug": "code-reviews-and-cicd",
-          "title": "CI/CD and Check Lists",
+          "title": "CI/CD & Checks",
           "description": "Understanding test checks, lints, and pull request requirements.",
           "difficulty": "intermediate",
           "estimatedMinutes": 8,
@@ -560,38 +487,10 @@
       ]
     },
     {
-      "id": "module-8",
-      "title": "Finding Projects",
-      "description": "Locating open source repositories and understanding labels.",
-      "lessons": [
-        {
-          "slug": "finding-projects",
-          "title": "Good First Issues and Finding Open Source Programs",
-          "description": "Using search filters, discovering projects, and participating in open source events.",
-          "difficulty": "beginner",
-          "estimatedMinutes": 8,
-          "points": 15,
-          "filePath": "module-8/finding-projects.md",
-          "quizzes": [
-            {
-              "question": "Which GitHub labels are most suitable for newcomers seeking their first contribution?",
-              "options": [
-                "critical-bug, security-alert, blocks-release",
-                "good-first-issue, first-timers-only, beginner-friendly",
-                "wontfix, duplicate, invalid",
-                "documentation-only, backend-refactor"
-              ],
-              "answer": 1,
-              "explanation": "Maintainers tag newcomer-friendly tasks with 'good first issue' or 'first-timers-only' to indicate they are self-contained and require minimal context."
-            }
-          ]
-        }
-      ]
-    },
-    {
-      "id": "module-python",
-      "title": "Interactive Python Sandboxes",
-      "description": "Learn to code using an interactive Python Sandbox.",
+      "id": "module-sandbox",
+      "title": "Practice Sandboxes",
+      "description": "Interactive coding exercises to practice your skills.",
+      "sandbox": true,
       "lessons": [
         {
           "slug": "hello-python",
@@ -607,14 +506,7 @@
             "testCode": "assert add(2, 3) == 5, 'add(2, 3) should return 5'\nassert add(-1, 1) == 0, 'add(-1, 1) should return 0'\nprint('Tests passed!')",
             "hint": "Use the return keyword to send back the sum."
           }
-        }
-      ]
-    },
-    {
-      "id": "module-rust",
-      "title": "Interactive Rust Sandbox",
-      "description": "Learn to code using an interactive Rust Sandbox with syntax highlighting.",
-      "lessons": [
+        },
         {
           "slug": "hello-rust",
           "title": "Hello, Rust",
@@ -629,14 +521,7 @@
             "expected": "fn add(a: i32, b: i32) -> i32 {\n    a + b\n}",
             "hint": "In Rust, the last expression in a function is returned implicitly. Omit the semicolon to return the value."
           }
-        }
-      ]
-    },
-    {
-      "id": "module-javascript",
-      "title": "Interactive JS/TS Sandbox",
-      "description": "Learn to code using an interactive JavaScript Sandbox.",
-      "lessons": [
+        },
         {
           "slug": "hello-javascript",
           "title": "Hello, JavaScript",
@@ -651,14 +536,7 @@
             "testCode": "if (typeof multiply !== 'function') throw new Error('multiply function is not defined');\nif (multiply(2, 3) !== 6) throw new Error('multiply(2, 3) should return 6');",
             "hint": "Use the return keyword to send back the product (a * b)."
           }
-        }
-      ]
-    },
-    {
-      "id": "module-debug",
-      "title": "Interactive Code Debugging",
-      "description": "Learn to step through execution, inspect variables, and track call stacks in real time.",
-      "lessons": [
+        },
         {
           "slug": "debugging-101",
           "title": "Interactive Debugger",

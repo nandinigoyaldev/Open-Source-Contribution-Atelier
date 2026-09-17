@@ -9,6 +9,25 @@ export interface Exercise {
   points?: number;
 }
 
+export interface JSExercise {
+  starterCode: string;
+  testCode?: string;
+}
+
+export interface PythonExercise {
+  starterCode: string;
+  testCode: string;
+}
+
+export interface RustExercise {
+  starterCode: string;
+  expected?: string;
+}
+
+export interface DebugExercise {
+  starterCode: string;
+}
+
 export interface QuizQuestion {
   question: string;
   options: string[];
@@ -36,14 +55,27 @@ export interface Lesson {
 }
 
 export const SEVEN_LEVELS = [
-  { id: "level-1", title: "Level 1 — What is Open Source?", badge: "🌱 Level 1", desc: "Foundations, roles, licenses & releases" },
-  { id: "level-2", title: "Level 2 — Git Fundamentals", badge: "⚡ Level 2", desc: "Three areas, status, branches & atomic commits" },
-  { id: "level-3", title: "Level 3 — GitHub Mechanics", badge: "🐙 Level 3", desc: "Forks, clones, remotes, issues & templates" },
-  { id: "level-4", title: "Level 4 — Finding Your First Contribution", badge: "🔍 Level 4", desc: "Good first issues, scoping & etiquette" },
-  { id: "level-5", title: "Level 5 — The Contribution Workflow", badge: "🔄 Level 5", desc: "End-to-end 10-step lifecycle simulation" },
-  { id: "level-6", title: "Level 6 — Pull Requests & Code Review", badge: "📝 Level 6", desc: "Exceptional PRs, issue links & merge conflicts" },
-  { id: "level-7", title: "Level 7 — Real-World OSS Skills", badge: "🏆 Level 7", desc: "Reading codebases, issue triage & maintainership" },
+  { id: "level-1", title: "Level 1 — Getting Started", badge: "🌱 Level 1", desc: "What open source is, why it matters & licenses" },
+  { id: "level-2", title: "Level 2 — Git Basics", badge: "⚡ Level 2", desc: "Repos, branches, merging & daily workflow" },
+  { id: "level-3", title: "Level 3 — Setting Up", badge: "🐙 Level 3", desc: "GitHub account, forks, PRs & issues" },
+  { id: "level-4", title: "Level 4 — Community Guidelines", badge: "🔍 Level 4", desc: "Communication, etiquette & finding projects" },
+  { id: "level-5", title: "Level 5 — Your First Contribution", badge: "🔄 Level 5", desc: "End-to-end contribution lifecycle" },
+  { id: "level-6", title: "Level 6 — Advanced Skills", badge: "📝 Level 6", desc: "Rebasing, conflicts & CI/CD" },
 ];
+
+export function buildModulesFromLessons(lessons: Lesson[]) {
+  const categoryMap = new Map<string, Lesson[]>();
+  for (const lesson of lessons) {
+    const cat = lesson.category || "General";
+    if (!categoryMap.has(cat)) categoryMap.set(cat, []);
+    categoryMap.get(cat)!.push(lesson);
+  }
+  return Array.from(categoryMap.entries()).map(([title, mods]) => ({
+    id: title.toLowerCase().replace(/[^a-z0-9]+/g, "-"),
+    title,
+    lessons: mods,
+  }));
+}
 
 export const fallbackLessons: Lesson[] = [
   // LEVEL 1
