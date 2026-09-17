@@ -35,6 +35,11 @@ export const ToastProvider: React.FC<{ children: ReactNode }> = ({
 
   const addToast = useCallback(
     (message: string, type: ToastType, duration: number = 5000) => {
+      if (type === "error") {
+        console.error(`[Toast] ${message}`);
+        return;
+      }
+
       const id = Math.random().toString(36).substring(2, 9);
       setToasts((prev) => [
         ...prev.filter((t) => !(t.message === message && t.type === type)),
