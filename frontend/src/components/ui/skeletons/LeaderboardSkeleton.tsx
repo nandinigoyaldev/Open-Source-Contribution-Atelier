@@ -8,6 +8,9 @@ function LeaderboardSkeletonRow() {
       <td className="w-16 px-4 py-4 text-center">
         <Skeleton className="mx-auto h-4 w-8 rounded" />
       </td>
+      <td className="px-3 py-4 text-center">
+        <Skeleton className="mx-auto h-3 w-6 rounded" />
+      </td>
       <td className="px-4 py-4">
         <div className="flex items-center gap-3">
           <Skeleton className="h-9 w-9 shrink-0 rounded-full" />

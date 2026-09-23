@@ -1,0 +1,279 @@
+/* ===================================================
+   LIVE LEADERBOARD — Animation & Style System
+   =================================================== */
+
+/* ---- Live Pulse Badge ---- */
+@keyframes pulse-ring {
+  0%   { transform: scale(0.85); opacity: 1; }
+  70%  { transform: scale(1.6);  opacity: 0; }
+  100% { transform: scale(0.85); opacity: 0; }
+}
+
+.live-dot {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.live-dot::before {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border-radius: 50%;
+  background: #22c55e;
+  animation: pulse-ring 1.6s cubic-bezier(0.455, 0.03, 0.515, 0.955) infinite;
+}
+
+/* ---- Refresh Countdown Ring ---- */
+@keyframes countdown-ring {
+  from { stroke-dashoffset: 0; }
+  to   { stroke-dashoffset: 113; } /* 2π × 18 ≈ 113 */
+}
+
+.countdown-ring {
+  animation: countdown-ring linear forwards;
+  transform-origin: center;
+  transform: rotate(-90deg);
+}
+
+/* ---- Rank Change Indicators ---- */
+@keyframes rank-up-flash {
+  0%   { background-color: rgba(34, 197, 94, 0.25); transform: translateX(-4px); }
+  50%  { background-color: rgba(34, 197, 94, 0.15); transform: translateX(0); }
+  100% { background-color: transparent; transform: translateX(0); }
+}
+
+@keyframes rank-down-flash {
+  0%   { background-color: rgba(239, 68, 68, 0.2); transform: translateX(4px); }
+  50%  { background-color: rgba(239, 68, 68, 0.1); transform: translateX(0); }
+  100% { background-color: transparent; transform: translateX(0); }
+}
+
+@keyframes rank-arrow-bounce {
+  0%, 100% { transform: translateY(0); }
+  40%       { transform: translateY(-4px); }
+  70%       { transform: translateY(2px); }
+}
+
+.rank-changed-up {
+  animation: rank-up-flash 1.2s ease-out forwards;
+}
+
+.rank-changed-down {
+  animation: rank-down-flash 1.2s ease-out forwards;
+}
+
+.rank-arrow {
+  animation: rank-arrow-bounce 0.6s ease-out;
+}
+
+/* ---- XP Number Roll ---- */
+@keyframes xp-pop {
+  0%   { transform: scale(1.0); color: inherit; }
+  30%  { transform: scale(1.35); color: #f59e0b; }
+  60%  { transform: scale(1.1); }
+  100% { transform: scale(1.0); }
+}
+
+.xp-updated {
+  animation: xp-pop 0.65s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+  display: inline-block;
+}
+
+/* ---- Podium #1 Gold Shimmer ---- */
+@keyframes gold-shimmer {
+  0%   { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+.podium-champion {
+  position: relative;
+  overflow: hidden;
+}
+
+.podium-champion::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    105deg,
+    transparent 30%,
+    rgba(255, 255, 255, 0.45) 50%,
+    transparent 70%
+  );
+  background-size: 200% 100%;
+  animation: gold-shimmer 2.8s ease-in-out infinite;
+  pointer-events: none;
+  border-radius: inherit;
+}
+
+/* ---- Podium #2 Silver Pulse ---- */
+@keyframes silver-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(148, 163, 184, 0); }
+  50%       { box-shadow: 0 0 16px 4px rgba(148, 163, 184, 0.35); }
+}
+
+.podium-silver {
+  animation: silver-pulse 3s ease-in-out infinite;
+}
+
+/* ---- Podium #3 Bronze Pulse ---- */
+@keyframes bronze-pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(180, 120, 60, 0); }
+  50%       { box-shadow: 0 0 16px 4px rgba(180, 120, 60, 0.3); }
+}
+
+.podium-bronze {
+  animation: bronze-pulse 3.5s ease-in-out infinite;
+}
+
+/* ---- Table Row Hover Glow ---- */
+.lb-row {
+  transition: background-color 0.18s ease, box-shadow 0.18s ease, transform 0.15s ease;
+}
+
+.lb-row:hover {
+  box-shadow: inset 0 0 0 2px rgba(245, 158, 11, 0.35);
+  transform: translateX(2px);
+}
+
+.lb-row-me {
+  box-shadow: inset 0 0 0 3px rgba(245, 158, 11, 0.6);
+}
+
+/* ---- Confetti Burst (CSS only) ---- */
+@keyframes confetti-fall {
+  0%   { transform: translateY(-20px) rotate(0deg) scale(1); opacity: 1; }
+  80%  { opacity: 0.8; }
+  100% { transform: translateY(120px) rotate(720deg) scale(0.4); opacity: 0; }
+}
+
+.confetti-piece {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  animation: confetti-fall 1.4s ease-in forwards;
+  pointer-events: none;
+}
+
+.confetti-wrap {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+  z-index: 10;
+}
+
+/* ---- Live Activity Ticker ---- */
+@keyframes ticker-slide-in {
+  from { transform: translateY(100%); opacity: 0; }
+  to   { transform: translateY(0);    opacity: 1; }
+}
+
+@keyframes ticker-fade-out {
+  from { opacity: 1; max-height: 56px; }
+  to   { opacity: 0; max-height: 0;    }
+}
+
+.ticker-event {
+  animation: ticker-slide-in 0.4s cubic-bezier(0.34, 1.4, 0.64, 1) forwards;
+}
+
+.ticker-event-exit {
+  animation: ticker-fade-out 0.35s ease-out forwards;
+}
+
+/* ---- Floating XP Badge (on rank-up) ---- */
+@keyframes xp-float-up {
+  0%   { transform: translateY(0) scale(0.8); opacity: 1; }
+  100% { transform: translateY(-48px) scale(1.1); opacity: 0; }
+}
+
+.xp-float {
+  position: absolute;
+  right: 8px;
+  top: 0;
+  font-size: 11px;
+  font-weight: 900;
+  color: #22c55e;
+  pointer-events: none;
+  animation: xp-float-up 1.1s ease-out forwards;
+  white-space: nowrap;
+}
+
+/* ---- Sparkle Stars (for tier upgrades) ---- */
+@keyframes sparkle {
+  0%   { transform: scale(0) rotate(0deg);   opacity: 1; }
+  60%  { transform: scale(1.3) rotate(90deg); opacity: 0.8; }
+  100% { transform: scale(0) rotate(180deg); opacity: 0; }
+}
+
+.sparkle {
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  pointer-events: none;
+  animation: sparkle 0.7s ease-out forwards;
+}
+
+/* ---- Animated Progress Bar (for XP within tier) ---- */
+@keyframes bar-fill {
+  from { width: 0%; }
+  to   { width: var(--bar-target); }
+}
+
+.xp-bar-fill {
+  animation: bar-fill 1s cubic-bezier(0.33, 1, 0.68, 1) forwards;
+}
+
+/* ---- Refresh spinner ---- */
+@keyframes lb-spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+.lb-spin {
+  animation: lb-spin 0.9s linear infinite;
+}
+
+/* ---- "Just joined" new entry row ---- */
+@keyframes new-entry {
+  0%   { background-color: rgba(99, 102, 241, 0.2); transform: scale(1.01); }
+  100% { background-color: transparent; transform: scale(1); }
+}
+
+.lb-new-entry {
+  animation: new-entry 1.6s ease-out forwards;
+}
+
+/* ---- Tier badge bounce-in ---- */
+@keyframes badge-bounce-in {
+  0%   { transform: scale(0); opacity: 0; }
+  60%  { transform: scale(1.2); opacity: 1; }
+  80%  { transform: scale(0.95); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.badge-enter {
+  animation: badge-bounce-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+/* ---- Hero section floating emojis ---- */
+@keyframes float-trophy {
+  0%, 100% { transform: translateY(0px) rotate(-5deg); }
+  50%       { transform: translateY(-12px) rotate(5deg); }
+}
+
+.trophy-float {
+  animation: float-trophy 3.5s ease-in-out infinite;
+}
+
+/* ---- Responsive helpers ---- */
+@media (max-width: 640px) {
+  .ticker-panel {
+    display: none;
+  }
+}
