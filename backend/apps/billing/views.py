@@ -80,7 +80,7 @@ class CheckoutSessionView(views.APIView):
             # but if they want to subscribe to a new plan, create a checkout session
             session = stripe.checkout.Session.create(
                 customer=sub.stripe_customer_id,
-                payment_method_types=["card"],
+                allowed_payment_method_types=["card"],
                 line_items=[
                     {
                         "price": plan.stripe_price_id,
