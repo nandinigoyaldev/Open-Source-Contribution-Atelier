@@ -10,7 +10,7 @@ channels-redis==4.3.0
 daphne==4.1.2
 gunicorn>=21.2.0
 pywebpush>=1.14.0
-redis>=5.0.0
+redis>=8.1.0
 django-filter>=23.0
 drf-spectacular>=0.29.0
 dj-database-url>=3.0.0
