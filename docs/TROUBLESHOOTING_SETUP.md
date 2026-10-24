@@ -15,6 +15,21 @@ Commands differ between shells. Use the equivalent command for your environment.
 
 If a Bash command fails in PowerShell or Command Prompt, use its platform equivalent rather than changing project files.
 
+## Backend `.env` Setup
+
+Copy [`backend/.env.example`](../backend/.env.example) to `backend/.env`. The file has two parts:
+
+* **Part 1: required for local dev** (`DEBUG`, `DJANGO_ENV`, `SECRET_KEY`, `DATABASE_URL`, `REDIS_URL`, CORS and `FRONTEND_URL`). Check these first.
+* **Part 2: optional, by feature** (OAuth, GitHub App, Stripe, email, web push, backups, S3, AI tutor, Sentry). Each block says what happens when it is left blank, so you can skip any feature you are not working on.
+
+Common startup errors:
+
+* `SECRET_KEY environment variable is not set`: `SECRET_KEY=` is present but empty. Give it a value or delete the line.
+* `Refusing to start: DEBUG=True while DJANGO_ENV=production`: use `DJANGO_ENV=development` locally.
+* `Invalid CORS origin` / `Insecure CORS origin`: with `DEBUG=False`, every entry in `CORS_ALLOWED_ORIGINS` needs `http://` or `https://` and no `*`.
+* Backend hangs on startup or reports a database connection error: `DATABASE_URL` points at a Postgres that is not running. Start Postgres, or comment the line out to use SQLite (`backend/db.sqlite3`).
+* Redis connection warnings: safe to ignore locally. The backend falls back to in-memory channels and cache. Set `FORCE_INMEMORY_CHANNEL_LAYER=1` to skip the Redis check.
+
 ## Node.js and Python Version Mismatches
 
 Check the versions being used:
