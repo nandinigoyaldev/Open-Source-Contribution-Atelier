@@ -39,7 +39,7 @@
     "@opentelemetry/context-zone": "^2.9.0",
     "@opentelemetry/exporter-trace-otlp-http": "^0.220.0",
     "@opentelemetry/instrumentation": "^0.220.0",
-    "@opentelemetry/instrumentation-document-load": "^0.65.0",
+    "@opentelemetry/instrumentation-document-load": "^0.69.0",
     "@opentelemetry/instrumentation-fetch": "^0.220.0",
     "@opentelemetry/sdk-trace-base": "^2.9.0",
     "@opentelemetry/sdk-trace-web": "^2.9.0",
