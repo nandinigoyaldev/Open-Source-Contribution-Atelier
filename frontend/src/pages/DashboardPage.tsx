@@ -1,46 +1,77 @@
 import { useMemo, useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useAuth } from "../features/auth/AuthContext";
-import { fallbackLessons, SEVEN_LEVELS, fetchLessonsApi, Lesson } from "../lib/lessons";
+import { fallbackLessons, fetchLessonsApi, Lesson } from "../lib/lessons";
+import { fetchApi } from "../lib/api";
 import {
   ArrowRight,
   BookOpen,
   CheckCircle2,
   Flame,
-  GitBranch,
   GitPullRequest,
   Lock,
   Play,
   SearchCode,
   Sparkles,
-  Star,
-  Target,
-  Terminal,
   Trophy,
   Zap,
 } from "lucide-react";
+
+interface RoadmapLesson {
+  slug: string;
+  completed: boolean;
+}
 
 export function DashboardPage() {
   const { user } = useAuth();
   const [lessons, setLessons] = useState<Lesson[]>(fallbackLessons);
   const [completedSlugs, setCompletedSlugs] = useState<Set<string>>(new Set());
 
-  // Load completed lessons from localStorage
   useEffect(() => {
     const saved = localStorage.getItem("completed_lesson_slugs");
     if (saved) {
       try {
         setCompletedSlugs(new Set(JSON.parse(saved)));
-      } catch {}
+      } catch (error) {
+        console.warn("Ignoring invalid saved lesson progress:", error);
+      }
     }
   }, []);
 
   useEffect(() => {
-    fetchLessonsApi().then((data) => {
-      if (data && data.length > 0) {
-        setLessons(data);
-      }
-    });
+    let active = true;
+
+    Promise.allSettled([
+      fetchLessonsApi(),
+      fetchApi<{ track?: RoadmapLesson[] }>("/content/roadmap/", {
+        suppressErrorToast: true,
+        maxRetries: 0,
+        timeoutMs: 5_000,
+        totalTimeoutMs: 5_000,
+      }),
+    ])
+      .then(([lessonResult, roadmapResult]) => {
+        if (!active) return;
+
+        if (lessonResult.status === "fulfilled" && lessonResult.value.length > 0) {
+          setLessons(lessonResult.value);
+        }
+
+        if (roadmapResult.status === "fulfilled" && roadmapResult.value.track) {
+          setCompletedSlugs(
+            new Set(
+              roadmapResult.value.track
+                .filter((lesson) => lesson.completed)
+                .map((lesson) => lesson.slug),
+            ),
+          );
+        }
+      })
+      .catch((error) => console.error("Failed to load dashboard data:", error));
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   // Determine current active lesson for "Continue Learning"
@@ -136,7 +167,7 @@ export function DashboardPage() {
         {/* Primary Call to Action */}
         <div className="flex flex-col sm:flex-row md:flex-col gap-3 flex-shrink-0">
           <Link
-            to={`/learn/${nextLesson.slug}`}
+            to={`/lessons/${nextLesson.slug}`}
             className="px-8 py-4 bg-amber-400 hover:bg-amber-300 text-black font-black text-sm rounded-2xl border-2 border-black shadow-card-sm hover:-translate-y-0.5 transition-all flex items-center justify-center gap-2"
           >
             <Play className="w-4 h-4 fill-black" />
@@ -145,7 +176,7 @@ export function DashboardPage() {
           </Link>
 
           <Link
-            to="/simulate"
+            to="/contributor-sandbox"
             className="px-6 py-3.5 bg-slate-100 dark:bg-[#1E1C18] hover:bg-slate-200 text-slate-800 dark:text-slate-200 font-bold text-xs rounded-2xl border border-black/20 text-center transition-colors"
           >
             ⚡ Open-Source Simulation
@@ -204,7 +235,7 @@ export function DashboardPage() {
             </p>
           </div>
           <Link
-            to="/learn"
+            to="/learning-path"
             className="text-xs font-black text-amber-600 dark:text-amber-400 hover:underline flex items-center gap-1 pt-2"
           >
             <span>Explore Curriculum</span>
@@ -226,7 +257,7 @@ export function DashboardPage() {
             </p>
           </div>
           <Link
-            to="/simulate"
+            to="/contributor-sandbox"
             className="text-xs font-black text-emerald-600 dark:text-emerald-400 hover:underline flex items-center gap-1 pt-2"
           >
             <span>Launch Simulation</span>
@@ -248,7 +279,7 @@ export function DashboardPage() {
             </p>
           </div>
           <Link
-            to="/triage"
+            to="/good-first-issues"
             className="text-xs font-black text-blue-600 dark:text-blue-400 hover:underline flex items-center gap-1 pt-2"
           >
             <span>Practice Triage</span>
