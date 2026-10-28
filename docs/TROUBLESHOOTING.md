@@ -170,7 +170,7 @@ To skip auto-detection and silence the startup warning:
 FORCE_INMEMORY_CHANNEL_LAYER=1
 ```
 
-Restart the backend after changing this.
+Restart the backend after changing this. This flag skips only the channel/cache Redis probe; rate-limit configuration still performs its separate Redis availability check.
 
 ### Relevant Environment Variables
 
@@ -308,4 +308,3 @@ The backend reads `ALLOWED_HOSTS` from the environment (comma-separated). If it 
 - `docker-compose.yml` (dev): root-level Compose configuration
 - `docker-compose.prod.yml` (prod): Compose configuration for production-style runs
 - [`TROUBLESHOOTING_SETUP.md`](TROUBLESHOOTING_SETUP.md): Local development troubleshooting FAQ (Windows & macOS)
-

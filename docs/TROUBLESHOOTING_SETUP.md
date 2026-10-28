@@ -61,7 +61,7 @@ To silence the connection check and skip the probe on startup:
    ```bash
    FORCE_INMEMORY_CHANNEL_LAYER=1
    ```
-2. Restart `python manage.py runserver`. The backend will immediately use the in-memory channel layer and local cache without running the channel/cache Redis probe. Rate-limit configuration also calls `is_redis_available()`. When `FORCE_INMEMORY_CHANNEL_LAYER=1` is set, the function returns early without attempting a Redis connection, so rate limiting selects the local backend by default.
+2. Restart `python manage.py runserver`. The backend will immediately use the in-memory channel layer and local cache without running the channel/cache Redis probe. Rate-limit configuration still performs its separate Redis availability check.
 
 ### Documented Environment Variables
 
