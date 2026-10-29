@@ -66,6 +66,8 @@ services:
       - MEILI_URL=http://meilisearch:7700
       - MEILI_MASTER_KEY=masterKey123
       - DEBUG=False
+      - SECRET_KEY=${SECRET_KEY:-lJ5d3ke8O2HyKD35WtQJ6hvuDWwUl9TCw-GdyO1F_sM_wnwBky7Wfl0q-w4r0Diz1cg}
+      - FIELD_ENCRYPTION_KEY=${FIELD_ENCRYPTION_KEY:-6lsX7camrNKsPueBKfs6zuZiwKKp9rVTo3mkJM3jHQI=}
     depends_on:
       - db
       - pgbouncer
@@ -100,6 +102,8 @@ services:
       - MEILI_URL=http://meilisearch:7700
       - MEILI_MASTER_KEY=masterKey123
       - DEBUG=False
+      - SECRET_KEY=${SECRET_KEY:-lJ5d3ke8O2HyKD35WtQJ6hvuDWwUl9TCw-GdyO1F_sM_wnwBky7Wfl0q-w4r0Diz1cg}
+      - FIELD_ENCRYPTION_KEY=${FIELD_ENCRYPTION_KEY:-6lsX7camrNKsPueBKfs6zuZiwKKp9rVTo3mkJM3jHQI=}
     depends_on:
       - db
       - meilisearch
