@@ -283,16 +283,23 @@ export function isNetworkError(error: unknown): boolean {
 }
 
 /**
- * Lightweight reachability probe: asks the backend for `/auth/google/` using a
- * simple GET (no CORS preflight, no auth). Django's `GoogleLoginView` only
- * accepts POST, so any HTTP response (even 405) proves the backend process is
- * reachable at `API_BASE`. Returns `false` on network failure / timeout /
- * CORS block — never throws.
+ * Lightweight reachability probe: asks the backend for `/health/live/` using a
+ * simple GET (no CORS preflight, no auth, no DB/Redis touch). The live view
+ * returns HTTP 200 as soon as the Django process is up, so any response
+ * proves the backend is reachable at `API_BASE`. Returns `false` on network
+ * failure / timeout / CORS block — never throws.
+ *
+ * A trailing "/api" on `API_BASE` is stripped so the health path resolves at
+ * the Django root (e.g. `http://localhost:8000/api` →
+ * `http://localhost:8000/health/live/`). In Vite dev mode with an empty
+ * `VITE_API_BASE_URL`, `API_BASE` is `origin + "/api"`, so stripping it lets
+ * the Vite dev proxy (`/health` → `127.0.0.1:8000`) forward the probe.
  */
 export async function checkBackendReachable(
   timeoutMs = 5_000,
 ): Promise<boolean> {
-  const url = `${API_BASE.replace(/\/$/, "")}/auth/google/`;
+  const base = API_BASE.replace(/\/api$/, "").replace(/\/$/, "");
+  const url = `${base}/health/live/`;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
@@ -301,7 +308,7 @@ export async function checkBackendReachable(
       signal: controller.signal,
       headers: { Accept: "application/json" },
     });
-    // A response of any status means the backend is up.
+    // Any HTTP response means the backend process is reachable.
     return true;
   } catch {
     return false;
