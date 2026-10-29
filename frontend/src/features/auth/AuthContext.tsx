@@ -55,7 +55,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       );
     }
     dispatch(loginTokens({ access: tokens.access, refresh: tokens.refresh }));
-    dispatch(checkUser());
+    // checkUser populates the user profile. If /auth/me/ is temporarily
+    // unreachable right after a successful Google / password login, do NOT
+    // clear the valid tokens and log the user out — the next profile refresh
+    // will recover. Swallow the rejection so a transient profile failure
+    // cannot destroy a freshly established session.
+    dispatch(checkUser()).catch(() => {
+      console.warn(
+        "[Auth] checkUser failed after login; keeping session intact.",
+      );
+    });
     broadcastAuthEvent("LOGIN");
   };
 

@@ -3,6 +3,7 @@
  */
 
 import type { UseGoogleLoginOptionsImplicitFlow } from "@react-oauth/google";
+import { API_BASE } from "./api";
 
 export function isDemoLoginEnabled(): boolean {
   const flag = import.meta.env.VITE_ALLOW_DEMO_LOGIN;
@@ -45,6 +46,35 @@ export function getGoogleFlow(): GoogleOAuthFlow {
   return import.meta.env.VITE_GOOGLE_OAUTH_FLOW === "auth-code"
     ? "auth-code"
     : "implicit";
+}
+
+/**
+ * Redirect URI sent to Google during the authorization-code flow.
+ *
+ * Must exactly match one of the "Authorized redirect URIs" registered in the
+ * Google Cloud Console OAuth client. Falls back to the current origin so the
+ * default implicit flow keeps working without any extra configuration.
+ */
+export function getGoogleRedirectUri(): string {
+  const configured = import.meta.env.VITE_GOOGLE_REDIRECT_URI;
+  if (configured && configured.trim()) {
+    const value = configured.trim();
+    // Validate it's an absolute URL so a misconfigured env var cannot silently
+    // break the authorization-code redirect_uri exchange.
+    try {
+      const parsed = new URL(value);
+      if (parsed.protocol !== "http:" && parsed.protocol !== "https:") {
+        throw new Error("redirect_uri must use http:// or https://");
+      }
+      return value;
+    } catch {
+      console.warn(
+        `[googleOAuth] Invalid VITE_GOOGLE_REDIRECT_URI "${value}", falling back to origin.`,
+      );
+    }
+  }
+  if (typeof window !== "undefined") return window.location.origin;
+  return "http://localhost:5173";
 }
 
 export type GoogleSigninHandlers = Pick<
@@ -102,9 +132,7 @@ export function buildGoogleLoginPayload(
     payload.code = response.code;
     // The backend must exchange the code with the exact redirect URI that was
     // used in the authorization request.
-    if (typeof window !== "undefined") {
-      payload.redirect_uri = window.location.origin;
-    }
+    payload.redirect_uri = getGoogleRedirectUri();
   }
 
   return payload;
@@ -241,4 +269,43 @@ export function formatGoogleOAuthError(
     "Google login failed on the server. " +
     "Check backend Google OAuth settings and try again."
   );
+}
+
+/**
+ * True when `fetchApi` could not reach the backend at all (connection
+ * refused, DNS failure, abort/timeout). Used to surface the backend /
+ * VITE_API_BASE_URL guidance instead of a cryptic network error.
+ */
+export function isNetworkError(error: unknown): boolean {
+  if (error instanceof TypeError) return true; // e.g. "Failed to fetch"
+  if (error instanceof DOMException) return true; // AbortError (timeout / user abort)
+  return false;
+}
+
+/**
+ * Lightweight reachability probe: asks the backend for `/auth/google/` using a
+ * simple GET (no CORS preflight, no auth). Django's `GoogleLoginView` only
+ * accepts POST, so any HTTP response (even 405) proves the backend process is
+ * reachable at `API_BASE`. Returns `false` on network failure / timeout /
+ * CORS block — never throws.
+ */
+export async function checkBackendReachable(
+  timeoutMs = 5_000,
+): Promise<boolean> {
+  const url = `${API_BASE.replace(/\/$/, "")}/auth/google/`;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    await fetch(url, {
+      method: "GET",
+      signal: controller.signal,
+      headers: { Accept: "application/json" },
+    });
+    // A response of any status means the backend is up.
+    return true;
+  } catch {
+    return false;
+  } finally {
+    clearTimeout(timer);
+  }
 }

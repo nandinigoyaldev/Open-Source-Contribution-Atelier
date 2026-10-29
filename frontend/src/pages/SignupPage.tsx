@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { AuthPageShell } from "../features/auth/AuthPageShell";
 import { fetchApi } from "../lib/api";
@@ -8,13 +8,15 @@ import { GitBranch } from "lucide-react";
 import PasswordStrengthMeter from "../components/PasswordStrengthMeter";
 import { DemoLoginButton } from "../features/auth/DemoLoginButton";
 import {
+  buildGoogleLoginPayload,
+  checkBackendReachable,
   formatGoogleOAuthError,
   googleLoginOptions,
-  buildGoogleLoginPayload,
   googlePopupErrorMessage,
   hasGoogleCredential,
 } from "../lib/googleOAuth";
 import { PasswordInput } from "../components/PasswordInput";
+import { toast } from "react-hot-toast";
 
 const githubAuthUrl =
   import.meta.env?.VITE_GITHUB_OAUTH_URL ||
@@ -29,11 +31,40 @@ export function SignupPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const googleInFlight = useRef(false);
   const navigate = useNavigate();
   const { login } = useAuth();
 
   const handleGithubSignIn = () => {
     window.location.href = githubAuthUrl;
+  };
+
+  const handleGoogleLogin = async () => {
+    setError("");
+    if (googleInFlight.current) return;
+    googleInFlight.current = true;
+    setIsGoogleLoading(true);
+
+    let googleStarted = false;
+    try {
+      const reachable = await checkBackendReachable();
+      if (!reachable) {
+        const message =
+          "Could not reach the API to finish Google login. " +
+          "Is the backend running, and is VITE_API_BASE_URL correct?";
+        setError(message);
+        toast.error(message);
+        return;
+      }
+      googleStarted = true;
+      googleLoginHandler();
+    } finally {
+      if (!googleStarted) {
+        googleInFlight.current = false;
+        setIsGoogleLoading(false);
+      }
+    }
   };
 
   const googleLoginHandler = useGoogleLogin(
@@ -49,20 +80,35 @@ export function SignupPage() {
           const tokens = await fetchApi("/auth/google/", {
             method: "POST",
             requireAuth: false,
+            cache: "no-store",
+            suppressErrorToast: true,
             body: JSON.stringify(payload),
           });
           login(tokens);
           sessionStorage.setItem("justLoggedIn", "true");
           navigate("/dashboard");
         } catch (err: unknown) {
-          setError(formatGoogleOAuthError(err, "backend"));
+          const message = formatGoogleOAuthError(err, "backend");
+          setError(message);
+          toast.error(message);
+        } finally {
+          googleInFlight.current = false;
+          setIsGoogleLoading(false);
         }
       },
-      onError: () => {
-        setError(formatGoogleOAuthError(undefined, "popup"));
+      onError: (errorResponse) => {
+        const message = formatGoogleOAuthError(errorResponse, "popup");
+        setError(message);
+        toast.error(message);
+        googleInFlight.current = false;
+        setIsGoogleLoading(false);
       },
       onNonOAuthError: (error) => {
-        setError(googlePopupErrorMessage(error));
+        const message = googlePopupErrorMessage(error);
+        setError(message);
+        toast.error(message);
+        googleInFlight.current = false;
+        setIsGoogleLoading(false);
       },
     }),
   );
@@ -119,7 +165,8 @@ export function SignupPage() {
         {/* ── OAUTH BUTTONS ── */}
         <button
           type="button"
-          onClick={() => googleLoginHandler()}
+          onClick={handleGoogleLogin}
+          disabled={isGoogleLoading}
           className="w-full bg-white border-4 border-black rounded-2xl py-3 px-4 flex items-center justify-center gap-3 font-bold hover:bg-surface-low transition-colors shadow-card-sm active:translate-y-1 active:shadow-none"
         >
           <svg className="w-6 h-6" viewBox="0 0 24 24" aria-hidden="true">
@@ -140,7 +187,7 @@ export function SignupPage() {
               d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"
             />
           </svg>
-          Sign up with Google
+          {isGoogleLoading ? "Signing in with Google…" : "Sign up with Google"}
         </button>
 
         <button

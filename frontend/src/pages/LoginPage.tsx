@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useGoogleLogin } from "@react-oauth/google";
 import { ArrowRight, GitBranch, Moon, Sparkles, Sun, X } from "lucide-react";
@@ -10,6 +10,7 @@ import { useTheme } from "../hooks/useTheme";
 import { fetchApi } from "../lib/api";
 import {
   buildGoogleLoginPayload,
+  checkBackendReachable,
   formatGoogleOAuthError,
   googleLoginOptions,
   googlePopupErrorMessage,
@@ -93,6 +94,8 @@ export function LoginPage() {
   const [useBackupCode, setUseBackupCode] = useState(false);
   const [error, setError] = useState("");
   const [isLoading, setIsLoading] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
+  const googleInFlight = useRef(false);
   const [activeWorkspaceStep, setActiveWorkspaceStep] = useState(0);
   const [activeSpark, setActiveSpark] = useState(0);
   const navigate = useNavigate();
@@ -117,6 +120,39 @@ export function LoginPage() {
     navigate(redirect);
   };
 
+  const handleGoogleLogin = async () => {
+    setError("");
+    // Guard against rapid double-clicks / multiple popups.
+    if (googleInFlight.current) return;
+    googleInFlight.current = true;
+    setIsGoogleLoading(true);
+
+    let googleStarted = false;
+    try {
+      // Fail fast with a clear message before opening the Google popup if the
+      // backend cannot be reached at all. Otherwise users go through the popup
+      // flow only to hit a network error at the very end.
+      const reachable = await checkBackendReachable();
+      if (!reachable) {
+        const message =
+          "Could not reach the API to finish Google login. " +
+          "Is the backend running, and is VITE_API_BASE_URL correct?";
+        setError(message);
+        toast.error(message);
+        return;
+      }
+      googleStarted = true;
+      googleLogin();
+    } finally {
+      // Only reset if the popup was never opened; the OAuth handlers below
+      // reset loading once the popup flow actually completes.
+      if (!googleStarted) {
+        googleInFlight.current = false;
+        setIsGoogleLoading(false);
+      }
+    }
+  };
+
   const googleLogin = useGoogleLogin(
     googleLoginOptions({
       onSuccess: async (tokenResponse: any) => {
@@ -129,6 +165,10 @@ export function LoginPage() {
           const tokens = await fetchApi("/auth/google/", {
             method: "POST",
             requireAuth: false,
+            // Auth endpoints must bypass any service-worker cache.
+            cache: "no-store",
+            // Errors are surfaced by this page; avoid duplicate toasts.
+            suppressErrorToast: true,
             body: JSON.stringify(payload),
           });
           finishLogin(tokens);
@@ -136,17 +176,24 @@ export function LoginPage() {
           const message = formatGoogleOAuthError(err, "backend");
           setError(message);
           toast.error(message);
+        } finally {
+          googleInFlight.current = false;
+          setIsGoogleLoading(false);
         }
       },
       onError: (errorResponse) => {
         const message = formatGoogleOAuthError(errorResponse, "popup");
         setError(message);
         toast.error(message);
+        googleInFlight.current = false;
+        setIsGoogleLoading(false);
       },
       onNonOAuthError: (oauthError) => {
         const message = googlePopupErrorMessage(oauthError);
         setError(message);
         toast.error(message);
+        googleInFlight.current = false;
+        setIsGoogleLoading(false);
       },
     }),
   );
@@ -457,11 +504,21 @@ export function LoginPage() {
                 </div>
                 <button
                   type="button"
-                  onClick={() => googleLogin()}
+                  onClick={handleGoogleLogin}
+                  disabled={isGoogleLoading}
                   className="flex w-full items-center justify-center gap-2 rounded-lg border border-slate-300 px-3 py-2.5 text-sm font-medium text-slate-700 transition hover:-translate-y-0.5 hover:border-indigo-300 hover:bg-indigo-50 hover:shadow-sm active:translate-y-0 dark:border-slate-700 dark:text-slate-200 dark:hover:border-indigo-500/50 dark:hover:bg-indigo-500/10"
                 >
-                  <GoogleMark />
-                  Continue with Google
+                  {isGoogleLoading ? (
+                    <span className="flex items-center gap-2">
+                      <GoogleMark />
+                      Signing in with Google…
+                    </span>
+                  ) : (
+                    <>
+                      <GoogleMark />
+                      Continue with Google
+                    </>
+                  )}
                 </button>
                 <div className="mt-4 hidden rounded-xl border border-indigo-100 bg-indigo-50/70 p-3 dark:border-indigo-400/15 dark:bg-indigo-500/[0.07] lg:block">
                   <div className="flex items-center gap-2 text-xs font-medium text-indigo-900 dark:text-indigo-200">

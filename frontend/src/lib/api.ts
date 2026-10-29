@@ -29,7 +29,7 @@ const getSafeEnvVar = (key: string): string => {
 };
 
 export const API_BASE =
-  getSafeEnvVar("VITE_API_BASE_URL").trim() ||
+  getSafeEnvVar("VITE_API_BASE_URL").trim().replace(/\/$/, "") ||
   (typeof window !== "undefined"
     ? `${window.location.origin}/api`
     : "http://127.0.0.1:8000/api");
