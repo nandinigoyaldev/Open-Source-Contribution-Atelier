@@ -2,6 +2,7 @@ from unittest.mock import Mock, patch
 from urllib.parse import parse_qs, urlparse
 
 import pytest
+import requests
 from django.contrib.auth import get_user_model
 
 User = get_user_model()
@@ -205,6 +206,146 @@ def test_google_login_invalid_token_returns_401(mock_get):
 
     assert response.status_code == 401
     assert response.data["detail"] == "Failed to verify Google token"
+
+
+@pytest.mark.django_db
+@patch("apps.accounts.views.http_requests.get")
+def test_google_login_audience_mismatch_returns_401(mock_get, settings):
+    settings.GOOGLE_CLIENT_ID = "expected-client.apps.googleusercontent.com"
+    client = APIClient()
+
+    tokeninfo = Mock()
+    tokeninfo.ok = True
+    tokeninfo.json.return_value = {
+        "aud": "different-client.apps.googleusercontent.com",
+        "email": "user@example.com",
+        "email_verified": True,
+    }
+    mock_get.return_value = tokeninfo
+
+    response = client.post(
+        "/api/auth/google/",
+        {"id_token": "header.payload.signature"},
+        format="json",
+    )
+
+    assert response.status_code == 401
+    assert response.data["code"] == "google_audience_mismatch"
+
+
+@pytest.mark.django_db
+@patch("apps.accounts.views.http_requests.get")
+def test_google_login_unverified_email_returns_401(mock_get, settings):
+    settings.DEBUG = False
+    settings.GOOGLE_CLIENT_ID = "expected-client.apps.googleusercontent.com"
+    client = APIClient()
+
+    userinfo = Mock()
+    userinfo.ok = True
+    userinfo.json.return_value = {
+        "email": "user@example.com",
+        "email_verified": False,
+    }
+    mock_get.return_value = userinfo
+
+    response = client.post(
+        "/api/auth/google/",
+        {"access_token": "some-access-token"},
+        format="json",
+    )
+
+    assert response.status_code == 401
+    assert response.data["code"] == "google_email_unverified"
+
+
+@pytest.mark.django_db
+def test_google_login_auth_code_missing_secret_returns_501(settings):
+    settings.GOOGLE_CLIENT_SECRET = ""
+    client = APIClient()
+
+    response = client.post(
+        "/api/auth/google/",
+        {"code": "auth-code-123"},
+        format="json",
+    )
+
+    assert response.status_code == 501
+    assert response.data["code"] == "google_oauth_not_configured"
+
+
+@pytest.mark.django_db
+@patch("apps.accounts.views.http_requests.post")
+def test_google_login_auth_code_exchange_unreachable_returns_502(mock_post, settings):
+    settings.GOOGLE_CLIENT_SECRET = "client-secret"
+    client = APIClient()
+
+    mock_post.side_effect = requests.RequestException("network down")
+
+    response = client.post(
+        "/api/auth/google/",
+        {"code": "auth-code-123"},
+        format="json",
+    )
+
+    assert response.status_code == 502
+    assert response.data["code"] == "google_unreachable"
+
+
+@pytest.mark.django_db
+@patch("apps.accounts.views.http_requests.post")
+def test_google_login_auth_code_exchange_rejected_returns_401(mock_post, settings):
+    settings.GOOGLE_CLIENT_SECRET = "client-secret"
+    client = APIClient()
+
+    rejected = Mock()
+    rejected.ok = False
+    rejected.status_code = 400
+    mock_post.return_value = rejected
+
+    response = client.post(
+        "/api/auth/google/",
+        {"code": "auth-code-123"},
+        format="json",
+    )
+
+    assert response.status_code == 401
+    assert response.data["code"] == "google_code_rejected"
+
+
+@pytest.mark.django_db
+@patch("apps.accounts.views.http_requests.post")
+@patch("apps.accounts.views.http_requests.get")
+def test_google_login_auth_code_flow_creates_user(mock_get, mock_post, settings):
+    settings.GOOGLE_CLIENT_SECRET = "client-secret"
+    settings.GOOGLE_CLIENT_ID = "expected-client.apps.googleusercontent.com"
+    client = APIClient()
+
+    token_resp = Mock()
+    token_resp.ok = True
+    token_resp.json.return_value = {
+        "id_token": "issued-id-token",
+        "access_token": "issued-access-token",
+    }
+    mock_post.return_value = token_resp
+
+    tokeninfo = Mock()
+    tokeninfo.ok = True
+    tokeninfo.json.return_value = {
+        "aud": "expected-client.apps.googleusercontent.com",
+        "email": "code-user@example.com",
+        "email_verified": True,
+    }
+    mock_get.return_value = tokeninfo
+
+    response = client.post(
+        "/api/auth/google/",
+        {"code": "auth-code-123", "redirect_uri": "http://localhost:5173"},
+        format="json",
+    )
+
+    assert response.status_code == 200
+    assert "access" in response.data
+    assert User.objects.filter(email="code-user@example.com").exists()
 
 
 @pytest.mark.django_db

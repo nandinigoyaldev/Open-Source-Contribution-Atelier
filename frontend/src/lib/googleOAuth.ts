@@ -14,6 +14,20 @@ export function isDemoLoginEnabled(): boolean {
 
 export type GoogleOAuthPhase = "popup" | "backend";
 
+/** Machine-readable codes the backend GoogleLoginView can return. */
+export type GoogleLoginErrorCode =
+  | "google_token_invalid"
+  | "google_audience_mismatch"
+  | "google_email_unverified"
+  | "google_no_email"
+  | "google_oauth_not_configured"
+  | "google_code_rejected"
+  | "google_unreachable"
+  | "no_token"
+  | "google_login_failed"
+  | "google_signup_failed"
+  | string;
+
 /** Scopes requested for every "Sign in with Google" entry point. */
 export const GOOGLE_SIGNIN_SCOPE = "openid email profile";
 
@@ -101,6 +115,18 @@ export function hasGoogleCredential(payload: Record<string, string>): boolean {
   return Boolean(payload.access_token || payload.credential || payload.code);
 }
 
+/**
+ * Read a machine-readable error code from a backend API error (duck-typed so
+ * we don't hard-depend on the ApiError class shape here).
+ */
+function backendErrorCode(error: unknown): string | null {
+  if (error && typeof error === "object" && "code" in error) {
+    const code = (error as { code?: unknown }).code;
+    return typeof code === "string" && code ? code : null;
+  }
+  return null;
+}
+
 /** Human-readable message for popup-level failures (closed popup, blocked...). */
 export function googlePopupErrorMessage(error?: unknown): string {
   const raw =
@@ -125,19 +151,73 @@ export function formatGoogleOAuthError(
   error: unknown,
   phase: GoogleOAuthPhase,
 ): string {
-  if (phase === "popup") {
-    return (
-      "Google sign-in failed or was cancelled. Check VITE_GOOGLE_CLIENT_ID, " +
-      "authorized JavaScript origins, and redirect URIs in Google Cloud Console."
-    );
-  }
-
   const message =
     error instanceof Error
       ? error.message
       : typeof error === "string"
         ? error
         : "";
+
+  if (phase === "popup") {
+    if (
+      message.match(/popup_closed|popup_failed_to_close|popup_failed_to_open/)
+    ) {
+      return "Google sign-in was cancelled. The popup was closed before finishing.";
+    }
+    if (message === "unknown" || !message) {
+      return (
+        "Google sign-in could not start. Check VITE_GOOGLE_CLIENT_ID and that " +
+        "http://localhost:5173 is an authorized JavaScript origin."
+      );
+    }
+    return (
+      "Google sign-in failed or was cancelled. Check VITE_GOOGLE_CLIENT_ID, " +
+      "authorized JavaScript origins, and redirect URIs in Google Cloud Console."
+    );
+  }
+
+  // Backend phase: surface the specific error code first so users get
+  // actionable guidance instead of a generic "failed" message.
+  const code = backendErrorCode(error);
+  switch (code) {
+    case "google_audience_mismatch":
+      return (
+        "Google account is registered to a different app. " +
+        "Make sure VITE_GOOGLE_CLIENT_ID matches the backend's GOOGLE_CLIENT_ID."
+      );
+    case "google_email_unverified":
+      return (
+        "Your Google email address isn't verified. " +
+        "Verify it with Google, then try again."
+      );
+    case "google_no_email":
+      return (
+        "Google didn't return an email address for this account. " +
+        "Grant the email scope and try again."
+      );
+    case "google_oauth_not_configured":
+      return (
+        "Google sign-in isn't configured on the server. " +
+        "Set GOOGLE_CLIENT_SECRET (auth-code flow) or use VITE_GOOGLE_OAUTH_FLOW=implicit."
+      );
+    case "google_code_rejected":
+    case "google_token_invalid":
+      return (
+        "Google rejected the sign-in token. " +
+        "Try signing in again, or remove and re-add your Google account."
+      );
+    case "google_unreachable":
+      return (
+        "Couldn't reach Google to complete sign-in. " +
+        "Check your connection and try again."
+      );
+    case "no_token":
+      return "Google returned no token to exchange.";
+    case "google_signup_failed":
+      return "Couldn't create your Google account. Please try again.";
+    default:
+    // Fall through to message-based heuristics below when no code matched.
+  }
 
   if (/timeout|network|failed to fetch|abort/i.test(message)) {
     return (

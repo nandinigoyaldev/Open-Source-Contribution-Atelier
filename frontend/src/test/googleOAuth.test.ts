@@ -30,6 +30,61 @@ describe("formatGoogleOAuthError", () => {
   });
 });
 
+describe("formatGoogleOAuthError backend phase (error codes)", () => {
+  const backendError = (code: string) => ({
+    status: 401,
+    code,
+    detail: "something went wrong",
+    message: "something went wrong",
+  });
+
+  it("audience mismatch tells the user to match client IDs", () => {
+    const msg = formatGoogleOAuthError(
+      backendError("google_audience_mismatch"),
+      "backend",
+    );
+    expect(msg).toMatch(/VITE_GOOGLE_CLIENT_ID/);
+    expect(msg).toMatch(/GOOGLE_CLIENT_ID/);
+  });
+
+  it("unverified email tells the user to verify with Google", () => {
+    const msg = formatGoogleOAuthError(
+      backendError("google_email_unverified"),
+      "backend",
+    );
+    expect(msg).toMatch(/verified/);
+  });
+
+  it("oauth not configured tells the user to set the secret or switch flow", () => {
+    const msg = formatGoogleOAuthError(
+      backendError("google_oauth_not_configured"),
+      "backend",
+    );
+    expect(msg).toMatch(/GOOGLE_CLIENT_SECRET|VITE_GOOGLE_OAUTH_FLOW/);
+  });
+
+  it("invalid token tells the user to re-auth", () => {
+    const msg = formatGoogleOAuthError(
+      backendError("google_token_invalid"),
+      "backend",
+    );
+    expect(msg).toMatch(/rejected/);
+  });
+
+  it("code rejected tells the user to try again", () => {
+    const msg = formatGoogleOAuthError(
+      backendError("google_code_rejected"),
+      "backend",
+    );
+    expect(msg).toMatch(/Try signing in again/);
+  });
+
+  it("falls back to message heuristics when no code is present", () => {
+    const msg = formatGoogleOAuthError(new Error("network timeout"), "backend");
+    expect(msg).toMatch(/backend|API/);
+  });
+});
+
 describe("isDemoLoginEnabled", () => {
   afterEach(() => {
     vi.unstubAllEnvs();
