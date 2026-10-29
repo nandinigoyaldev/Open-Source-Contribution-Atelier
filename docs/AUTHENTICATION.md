@@ -222,3 +222,13 @@ A request that fails validation, whichever rule fails and whichever endpoint, an
 
 On the frontend, `ApiError` exposes these as `fieldErrors` and `fieldCodes`, and the sign-up form shows them under each field.
 
+## Sign in with Google (social login)
+
+Users can sign up / sign in with a Google account via `POST /api/auth/google/`.
+The frontend opens a Google popup (`@react-oauth/google`), then exchanges the
+returned token/code with the backend, which verifies it against Google's
+tokeninfo/userinfo endpoints and issues a JWT.
+
+See [`docs/GOOGLE_LOGIN.md`](GOOGLE_LOGIN.md) for the Google Cloud Console
+setup, the required environment variables, and a troubleshooting table for
+every error code the endpoint can return.
