@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   ShieldAlert,
   Search,
@@ -20,9 +20,50 @@ import {
   AuditEventData,
 } from "../../components/admin/AuditEventDiff";
 import { toast } from "react-hot-toast";
+import { ApiError } from "../../lib/apiErrors";
+import {
+  EMPTY_AUDIT_FILTERS,
+  buildAuditQuery,
+  countActiveFilters,
+  describeResultCount,
+  serverFieldErrors,
+  validateAuditFilters,
+  type AuditFilterValues,
+} from "../../lib/auditFilters";
+
+const FILTER_DEBOUNCE_MS = 300;
+
+/** The value, once it has stopped changing for `delay` ms (so typing does not send a request per key). */
+function useDebounced<T>(value: T, delay: number): T {
+  const [debounced, setDebounced] = useState(value);
+  useEffect(() => {
+    const timer = setTimeout(() => setDebounced(value), delay);
+    return () => clearTimeout(timer);
+  }, [value, delay]);
+  return debounced;
+}
+
+const FILTER_LABEL =
+  "block mb-1 text-[11px] font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400";
+const FILTER_INPUT =
+  "w-full px-3 py-2 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-700 rounded-xl text-xs font-medium text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors";
+
+function FieldError({ message }: { message?: string }) {
+  return message ? (
+    <p
+      role="alert"
+      className="mt-1 text-[11px] font-semibold text-rose-600 dark:text-rose-400"
+    >
+      {message}
+    </p>
+  ) : null;
+}
 
 export function AuditLogViewerPage() {
   const { user, isLoading: authLoading } = useAuth();
+
+  // The server (IsAdminUser) is the real check; this only avoids sending requests that will be refused.
+  const accessDenied = !authLoading && user?.is_staff !== true;
 
   const [logs, setLogs] = useState<AuditEventData[]>([]);
   const [loading, setLoading] = useState(true);
@@ -30,13 +71,26 @@ export function AuditLogViewerPage() {
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(20);
 
-  // Filter States
-  const [searchQuery, setSearchQuery] = useState("");
-  const [actionFilter, setActionFilter] = useState("");
-  const [modelTypeFilter, setModelTypeFilter] = useState("");
-  const [actorFilter, setActorFilter] = useState("");
-  const [startDate, setStartDate] = useState("");
-  const [endDate, setEndDate] = useState("");
+  // What is typed in the filter inputs. Text inputs are sent to the server after a short pause.
+  const [filters, setFilters] =
+    useState<AuditFilterValues>(EMPTY_AUDIT_FILTERS);
+  const appliedFilters = useDebounced(filters, FILTER_DEBOUNCE_MS);
+  const [serverErrors, setServerErrors] = useState<{
+    byFilter: Partial<Record<keyof AuditFilterValues, string>>;
+    other: string[];
+  }>({ byFilter: {}, other: [] });
+  const latestRequest = useRef(0);
+
+  const setFilter = (key: keyof AuditFilterValues, value: string) => {
+    setFilters((prev) => ({ ...prev, [key]: value }));
+    setPage(1);
+  };
+
+  // The range is checked in the browser first, so an impossible date never reaches the server.
+  const clientErrors = validateAuditFilters(filters);
+  const hasClientErrors = Object.keys(clientErrors).length > 0;
+  const appliedHasErrors =
+    Object.keys(validateAuditFilters(appliedFilters)).length > 0;
 
   // Modal / Detail state
   const [selectedEvent, setSelectedEvent] = useState<AuditEventData | null>(
@@ -44,24 +98,25 @@ export function AuditLogViewerPage() {
   );
 
   const fetchLogs = useCallback(async () => {
+    if (accessDenied || appliedHasErrors) {
+      setLoading(false);
+      return;
+    }
+    const requestNumber = ++latestRequest.current;
     try {
       setLoading(true);
-      const params = new URLSearchParams();
-      params.set("page", String(page));
-      params.set("page_size", String(pageSize));
-
-      if (searchQuery.trim()) params.set("search", searchQuery.trim());
-      if (actionFilter) params.set("action", actionFilter);
-      if (modelTypeFilter.trim())
-        params.set("model_type", modelTypeFilter.trim());
-      if (actorFilter.trim()) params.set("actor", actorFilter.trim());
-      if (startDate) params.set("start_date", startDate);
-      if (endDate) params.set("end_date", endDate);
-
-      const data = await fetchApi(`/admin/audit/?${params.toString()}`);
+      const params = buildAuditQuery(appliedFilters, { page, pageSize });
+      const data = await fetchApi(`/admin/audit/?${params.toString()}`, {
+        suppressErrorToast: true,
+      });
+      // A slower, older response must not replace a newer one.
+      if (requestNumber !== latestRequest.current) return;
+      setServerErrors({ byFilter: {}, other: [] });
       if (data && Array.isArray(data.results)) {
         setLogs(data.results);
-        setTotalCount(data.count || data.results.length);
+        setTotalCount(
+          typeof data.count === "number" ? data.count : data.results.length,
+        );
       } else if (Array.isArray(data)) {
         setLogs(data);
         setTotalCount(data.length);
@@ -70,21 +125,23 @@ export function AuditLogViewerPage() {
         setTotalCount(0);
       }
     } catch (err: any) {
-      console.error("Failed to fetch audit logs:", err);
-      toast.error("Failed to load audit logs from server");
+      if (requestNumber !== latestRequest.current) return;
+      if (err instanceof ApiError && err.status === 400 && err.fieldErrors) {
+        // The server explained which filter it did not accept: show that, not stale rows.
+        setServerErrors(serverFieldErrors(err.fieldErrors));
+        setLogs([]);
+        setTotalCount(0);
+      } else if (err instanceof ApiError && err.status === 404 && page > 1) {
+        // The page no longer exists (the filters now match fewer events): go back to the first one.
+        setPage(1);
+      } else {
+        console.error("Failed to fetch audit logs:", err);
+        toast.error("Failed to load audit logs from server");
+      }
     } finally {
-      setLoading(false);
+      if (requestNumber === latestRequest.current) setLoading(false);
     }
-  }, [
-    page,
-    pageSize,
-    searchQuery,
-    actionFilter,
-    modelTypeFilter,
-    actorFilter,
-    startDate,
-    endDate,
-  ]);
+  }, [page, pageSize, appliedFilters, appliedHasErrors, accessDenied]);
 
   useEffect(() => {
     fetchLogs();
@@ -101,26 +158,16 @@ export function AuditLogViewerPage() {
   }, [selectedEvent]);
 
   const handleResetFilters = () => {
-    setSearchQuery("");
-    setActionFilter("");
-    setModelTypeFilter("");
-    setActorFilter("");
-    setStartDate("");
-    setEndDate("");
+    setFilters(EMPTY_AUDIT_FILTERS);
     setPage(1);
   };
 
   const handleExport = (format: "csv" | "json") => {
-    const params = new URLSearchParams();
-    params.set("export", format);
-
-    if (searchQuery.trim()) params.set("search", searchQuery.trim());
-    if (actionFilter) params.set("action", actionFilter);
-    if (modelTypeFilter.trim())
-      params.set("model_type", modelTypeFilter.trim());
-    if (actorFilter.trim()) params.set("actor", actorFilter.trim());
-    if (startDate) params.set("start_date", startDate);
-    if (endDate) params.set("end_date", endDate);
+    if (hasClientErrors) {
+      toast.error("Fix the date range before exporting.");
+      return;
+    }
+    const params = buildAuditQuery(filters, { exportFormat: format });
 
     const exportUrl = `${API_BASE}/admin/audit/?${params.toString()}`;
 
@@ -153,14 +200,32 @@ export function AuditLogViewerPage() {
       });
   };
 
-  const activeFilterCount =
-    (searchQuery ? 1 : 0) +
-    (actionFilter ? 1 : 0) +
-    (modelTypeFilter ? 1 : 0) +
-    (actorFilter ? 1 : 0) +
-    (startDate ? 1 : 0) +
-    (endDate ? 1 : 0);
+  if (accessDenied) {
+    return (
+      <div className="w-full min-h-screen bg-white dark:bg-slate-900 p-8">
+        <div
+          role="alert"
+          className="max-w-xl mx-auto p-6 rounded-2xl border border-rose-300 dark:border-rose-800 bg-rose-50 dark:bg-rose-950/40 text-rose-900 dark:text-rose-100"
+        >
+          <h1 className="text-lg font-black">Staff access required</h1>
+          <p className="text-sm mt-1">
+            The audit log is only available to staff accounts. Ask an
+            administrator if you need access.
+          </p>
+        </div>
+      </div>
+    );
+  }
 
+  const activeFilterCount = countActiveFilters(filters);
+  const resultText = describeResultCount(
+    page,
+    pageSize,
+    totalCount,
+    countActiveFilters(appliedFilters) > 0,
+  );
+
+  // Counts for the rows on this page only (the total above is for all matching events).
   const createdCount = logs.filter((l) => l.action === "created").length;
   const updatedCount = logs.filter((l) => l.action === "updated").length;
   const deletedCount = logs.filter((l) => l.action === "deleted").length;
@@ -204,14 +269,14 @@ export function AuditLogViewerPage() {
 
           <button
             onClick={() => handleExport("csv")}
-            className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-xs font-bold transition-all shadow-md"
+            className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold transition-all shadow-md"
           >
             <FileSpreadsheet className="w-4 h-4" /> Export CSV
           </button>
 
           <button
             onClick={() => handleExport("json")}
-            className="flex items-center gap-1.5 px-3.5 py-2 bg-purple-500 hover:bg-purple-600 text-white rounded-xl text-xs font-bold transition-all shadow-md"
+            className="flex items-center gap-1.5 px-3.5 py-2 bg-purple-700 hover:bg-purple-800 text-white rounded-xl text-xs font-bold transition-all shadow-md"
           >
             <FileCode className="w-4 h-4" /> Export JSON
           </button>
@@ -223,7 +288,7 @@ export function AuditLogViewerPage() {
         <div className="p-4 bg-slate-50 dark:bg-slate-800/60 border border-gray-200 dark:border-slate-800 rounded-2xl flex items-center justify-between shadow-sm">
           <div>
             <div className="text-gray-500 dark:text-gray-400 text-xs font-bold uppercase tracking-wider">
-              Total Logged Events
+              Matching Events
             </div>
             <div className="text-2xl font-black text-gray-900 dark:text-white mt-1">
               {totalCount} 📜
@@ -237,7 +302,7 @@ export function AuditLogViewerPage() {
         <div className="p-4 bg-slate-50 dark:bg-slate-800/60 border border-gray-200 dark:border-slate-800 rounded-2xl flex items-center justify-between shadow-sm">
           <div>
             <div className="text-gray-500 dark:text-gray-400 text-xs font-bold uppercase tracking-wider">
-              Records Created
+              Created (this page)
             </div>
             <div className="text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-1">
               {createdCount} 🐣
@@ -251,7 +316,7 @@ export function AuditLogViewerPage() {
         <div className="p-4 bg-slate-50 dark:bg-slate-800/60 border border-gray-200 dark:border-slate-800 rounded-2xl flex items-center justify-between shadow-sm">
           <div>
             <div className="text-gray-500 dark:text-gray-400 text-xs font-bold uppercase tracking-wider">
-              Records Updated
+              Updated (this page)
             </div>
             <div className="text-2xl font-black text-blue-600 dark:text-blue-400 mt-1">
               {updatedCount} 🔧
@@ -265,7 +330,7 @@ export function AuditLogViewerPage() {
         <div className="p-4 bg-slate-50 dark:bg-slate-800/60 border border-gray-200 dark:border-slate-800 rounded-2xl flex items-center justify-between shadow-sm">
           <div>
             <div className="text-gray-500 dark:text-gray-400 text-xs font-bold uppercase tracking-wider">
-              Records Deleted
+              Deleted (this page)
             </div>
             <div className="text-2xl font-black text-rose-600 dark:text-rose-400 mt-1">
               {deletedCount} 💥
@@ -278,7 +343,12 @@ export function AuditLogViewerPage() {
       </div>
 
       {/* Filter Toolbar Container */}
-      <div className="p-4 bg-slate-50 dark:bg-slate-800/60 border border-gray-200 dark:border-slate-800 rounded-2xl flex flex-col gap-4 shadow-sm">
+      <form
+        role="search"
+        aria-label="Filter audit events"
+        onSubmit={(e) => e.preventDefault()}
+        className="p-4 bg-slate-50 dark:bg-slate-800/60 border border-gray-200 dark:border-slate-800 rounded-2xl flex flex-col gap-4 shadow-sm"
+      >
         <div className="flex items-center justify-between gap-2">
           <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
             <Filter className="w-4 h-4 text-blue-500" /> Filters & Search
@@ -291,6 +361,7 @@ export function AuditLogViewerPage() {
 
           {activeFilterCount > 0 && (
             <button
+              type="button"
               onClick={handleResetFilters}
               className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-800 dark:text-gray-400 dark:hover:text-white transition-colors"
             >
@@ -300,82 +371,176 @@ export function AuditLogViewerPage() {
         </div>
 
         {/* Filter Inputs Grid */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
           {/* Free Text Search */}
-          <div className="lg:col-span-2 relative">
-            <Search className="w-4 h-4 absolute left-3 top-3 text-gray-400 dark:text-gray-500" />
-            <input
-              type="text"
-              placeholder="Search resource, ID, actor, correlation..."
-              value={searchQuery}
-              onChange={(e) => {
-                setSearchQuery(e.target.value);
-                setPage(1);
-              }}
-              className="w-full pl-9 pr-3 py-2 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-700 rounded-xl text-xs font-medium text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors"
-            />
+          <div className="lg:col-span-2">
+            <label htmlFor="audit-search" className={FILTER_LABEL}>
+              Search
+            </label>
+            <div className="relative">
+              <Search className="w-4 h-4 absolute left-3 top-2.5 text-gray-400 dark:text-gray-500" />
+              <input
+                id="audit-search"
+                type="text"
+                placeholder="Resource, ID, actor, correlation..."
+                value={filters.search}
+                onChange={(e) => setFilter("search", e.target.value)}
+                className={`${FILTER_INPUT} pl-9`}
+              />
+            </div>
           </div>
 
-          {/* Action Filter */}
+          {/* Actor */}
           <div>
+            <label htmlFor="audit-actor" className={FILTER_LABEL}>
+              Actor
+            </label>
+            <input
+              id="audit-actor"
+              type="text"
+              placeholder="Username or ID"
+              value={filters.actor}
+              onChange={(e) => setFilter("actor", e.target.value)}
+              aria-invalid={Boolean(serverErrors.byFilter.actor)}
+              className={FILTER_INPUT}
+            />
+            <FieldError message={serverErrors.byFilter.actor} />
+          </div>
+
+          {/* Action */}
+          <div>
+            <label htmlFor="audit-action" className={FILTER_LABEL}>
+              Action
+            </label>
             <select
-              value={actionFilter}
-              onChange={(e) => {
-                setActionFilter(e.target.value);
-                setPage(1);
-              }}
-              className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-700 rounded-xl text-xs font-medium text-gray-900 dark:text-white focus:outline-none focus:border-blue-500 transition-colors"
+              id="audit-action"
+              value={filters.action}
+              onChange={(e) => setFilter("action", e.target.value)}
+              aria-invalid={Boolean(serverErrors.byFilter.action)}
+              className={FILTER_INPUT}
             >
-              <option value="">All Actions</option>
+              <option value="">All actions</option>
               <option value="created">Created</option>
               <option value="updated">Updated</option>
               <option value="deleted">Deleted</option>
             </select>
+            <FieldError message={serverErrors.byFilter.action} />
           </div>
 
-          {/* Model Type Filter */}
+          {/* Operation (named admin event) */}
           <div>
+            <label htmlFor="audit-operation" className={FILTER_LABEL}>
+              Event type
+            </label>
             <input
+              id="audit-operation"
               type="text"
-              placeholder="Model Type (e.g. lesson)"
-              value={modelTypeFilter}
-              onChange={(e) => {
-                setModelTypeFilter(e.target.value);
-                setPage(1);
-              }}
-              className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-700 rounded-xl text-xs font-medium text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors"
+              placeholder="e.g. issue.updated"
+              value={filters.operation}
+              onChange={(e) => setFilter("operation", e.target.value)}
+              aria-invalid={Boolean(serverErrors.byFilter.operation)}
+              className={FILTER_INPUT}
             />
+            <FieldError message={serverErrors.byFilter.operation} />
           </div>
 
-          {/* Actor Filter */}
+          {/* Model Type */}
           <div>
+            <label htmlFor="audit-model-type" className={FILTER_LABEL}>
+              Model type
+            </label>
             <input
+              id="audit-model-type"
               type="text"
-              placeholder="Actor Username / ID"
-              value={actorFilter}
-              onChange={(e) => {
-                setActorFilter(e.target.value);
-                setPage(1);
-              }}
-              className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-700 rounded-xl text-xs font-medium text-gray-900 dark:text-white placeholder-gray-400 dark:placeholder-gray-500 focus:outline-none focus:border-blue-500 transition-colors"
+              placeholder="e.g. lesson"
+              value={filters.modelType}
+              onChange={(e) => setFilter("modelType", e.target.value)}
+              aria-invalid={Boolean(serverErrors.byFilter.modelType)}
+              className={FILTER_INPUT}
             />
+            <FieldError message={serverErrors.byFilter.modelType} />
           </div>
 
-          {/* Start Date */}
-          <div className="flex items-center gap-1 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-700 rounded-xl px-2">
-            <Calendar className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500 shrink-0" />
-            <input
-              type="date"
-              value={startDate}
-              onChange={(e) => {
-                setStartDate(e.target.value);
-                setPage(1);
-              }}
-              className="w-full bg-transparent py-2 text-xs font-medium text-gray-900 dark:text-white focus:outline-none"
-            />
+          {/* Date range */}
+          <div>
+            <label htmlFor="audit-start-date" className={FILTER_LABEL}>
+              From date
+            </label>
+            <div className="flex items-center gap-1 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-700 rounded-xl px-2">
+              <Calendar
+                className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500 shrink-0"
+                aria-hidden="true"
+              />
+              <input
+                id="audit-start-date"
+                type="date"
+                value={filters.startDate}
+                max={filters.endDate || undefined}
+                onChange={(e) => setFilter("startDate", e.target.value)}
+                aria-invalid={Boolean(
+                  clientErrors.startDate || serverErrors.byFilter.startDate,
+                )}
+                aria-describedby="audit-date-errors"
+                className="w-full bg-transparent py-2 text-xs font-medium text-gray-900 dark:text-white focus:outline-none"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label htmlFor="audit-end-date" className={FILTER_LABEL}>
+              To date (whole day included)
+            </label>
+            <div className="flex items-center gap-1 bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-700 rounded-xl px-2">
+              <Calendar
+                className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500 shrink-0"
+                aria-hidden="true"
+              />
+              <input
+                id="audit-end-date"
+                type="date"
+                value={filters.endDate}
+                min={filters.startDate || undefined}
+                onChange={(e) => setFilter("endDate", e.target.value)}
+                aria-invalid={Boolean(
+                  clientErrors.endDate || serverErrors.byFilter.endDate,
+                )}
+                aria-describedby="audit-date-errors"
+                className="w-full bg-transparent py-2 text-xs font-medium text-gray-900 dark:text-white focus:outline-none"
+              />
+            </div>
           </div>
         </div>
-      </div>
+
+        <div
+          id="audit-date-errors"
+          role="alert"
+          className="text-xs font-semibold text-rose-600 dark:text-rose-400 empty:hidden"
+        >
+          {[
+            clientErrors.startDate ?? serverErrors.byFilter.startDate,
+            clientErrors.endDate ?? serverErrors.byFilter.endDate,
+            ...serverErrors.other,
+          ]
+            .filter(Boolean)
+            .map((message) => (
+              <p key={message}>{message}</p>
+            ))}
+        </div>
+      </form>
+
+      {/* Result count: announced to screen readers when the filters or page change */}
+      <p
+        role="status"
+        aria-live="polite"
+        data-testid="audit-result-count"
+        className="text-xs font-semibold text-gray-600 dark:text-gray-300 -mb-3"
+      >
+        {loading
+          ? "Loading events…"
+          : hasClientErrors
+            ? "Fix the date range to see results."
+            : resultText}
+      </p>
 
       {/* Audit Log Data Table */}
       <AuditLogTable

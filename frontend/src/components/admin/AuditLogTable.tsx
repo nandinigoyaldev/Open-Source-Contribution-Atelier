@@ -210,6 +210,7 @@ export const AuditLogTable: React.FC<AuditLogTableProps> = ({
             </span>
             <select
               value={pageSize}
+              aria-label="Rows per page"
               onChange={(e) => onPageSizeChange(Number(e.target.value))}
               className="bg-white dark:bg-slate-900 border border-gray-300 dark:border-slate-700 text-gray-900 dark:text-gray-200 rounded px-2 py-1 focus:outline-none focus:border-blue-500 font-medium"
             >

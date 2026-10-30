@@ -4,11 +4,12 @@ import json
 from django.db.models import Q
 from django.http import HttpResponse, JsonResponse
 from rest_framework import generics, permissions
+from rest_framework.exceptions import ValidationError
 from rest_framework.pagination import PageNumberPagination
 
+from apps.audit.filters import parse_audit_filters
 from apps.audit.models import AuditEvent
 from apps.audit.serializers import AuditEventSerializer
-from apps.core.utils import parse_iso_datetime
 
 
 class AuditPagination(PageNumberPagination):
@@ -80,63 +81,50 @@ class AuditEventListView(generics.ListAPIView):
 
         queryset = AuditEvent.objects.select_related("actor").all()
 
+        # Bad filter values are a 400 with a message per field, never silently ignored.
+        filters, errors = parse_audit_filters(self.request.query_params)
+        if errors:
+            raise ValidationError(errors)
+
         # Structured free-text search across multiple fields
-        search_query = self.request.query_params.get(
-            "search"
-        ) or self.request.query_params.get("q")
-        if search_query:
-            search_query = search_query.strip()
+        if filters.search:
             queryset = queryset.filter(
-                Q(resource_type__icontains=search_query)
-                | Q(resource_id__icontains=search_query)
-                | Q(actor__username__icontains=search_query)
-                | Q(correlation_id__icontains=search_query)
-                | Q(user_agent__icontains=search_query)
+                Q(resource_type__icontains=filters.search)
+                | Q(resource_id__icontains=filters.search)
+                | Q(actor__username__icontains=filters.search)
+                | Q(correlation_id__icontains=filters.search)
+                | Q(user_agent__icontains=filters.search)
             )
 
-        actor = self.request.query_params.get("actor")
-        if actor:
-            actor = actor.strip()
-            if actor.isdigit():
-                queryset = queryset.filter(actor_id=actor)
+        if filters.actor:
+            if filters.actor.isdigit():
+                queryset = queryset.filter(actor_id=filters.actor)
             else:
-                queryset = queryset.filter(actor__username__icontains=actor)
+                queryset = queryset.filter(actor__username__icontains=filters.actor)
 
-        # Support both resource_type and model_type query params
-        resource_type = self.request.query_params.get(
-            "resource_type"
-        ) or self.request.query_params.get("model_type")
-        if resource_type:
-            queryset = queryset.filter(resource_type__icontains=resource_type.strip())
-
-        resource_id = self.request.query_params.get("resource_id")
-        if resource_id:
-            queryset = queryset.filter(resource_id=resource_id.strip())
-
-        action = self.request.query_params.get("action")
-        if action:
-            queryset = queryset.filter(action=action.strip())
-
-        correlation_id = self.request.query_params.get("correlation_id")
-        if correlation_id:
-            queryset = queryset.filter(correlation_id=correlation_id.strip())
-
+        # resource_type and its older name model_type are the same filter
+        if filters.resource_type:
+            queryset = queryset.filter(resource_type__icontains=filters.resource_type)
+        if filters.resource_id:
+            queryset = queryset.filter(resource_id=filters.resource_id)
+        if filters.action:
+            queryset = queryset.filter(action=filters.action)
+        if filters.correlation_id:
+            queryset = queryset.filter(correlation_id=filters.correlation_id)
         # Named admin operation, e.g. ?operation=issue.updated
-        operation = self.request.query_params.get("operation")
-        if operation:
-            queryset = queryset.filter(extra__operation=operation.strip())
+        if filters.operation:
+            queryset = queryset.filter(extra__operation=filters.operation)
 
-        start_date = self.request.query_params.get("start_date")
-        if start_date:
-            dt = parse_iso_datetime(start_date)
-            if dt:
-                queryset = queryset.filter(created_at__gte=dt)
-
-        end_date = self.request.query_params.get("end_date")
-        if end_date:
-            dt = parse_iso_datetime(end_date)
-            if dt:
-                queryset = queryset.filter(created_at__lte=dt)
+        if filters.start is not None:
+            queryset = queryset.filter(created_at__gte=filters.start)
+        if filters.end is not None:
+            queryset = queryset.filter(
+                **{
+                    (
+                        "created_at__lte" if filters.end_inclusive else "created_at__lt"
+                    ): filters.end
+                }
+            )
 
         return queryset
 
