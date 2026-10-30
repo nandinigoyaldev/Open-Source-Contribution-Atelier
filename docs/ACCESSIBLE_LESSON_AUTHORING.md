@@ -100,7 +100,7 @@ Code examples are an important part of technical lessons. They should be easy to
 
 ### Good example
 
-`````md
+````md
 Create a branch named `feature-login`:
 
 ```bash
@@ -108,6 +108,7 @@ git switch -c feature-login
 ```
 
 Expected result: Git switches to the newly created `feature-login` branch.
+````
 
 ### Bad example
 
@@ -116,7 +117,6 @@ Expected result: Git switches to the newly created `feature-login` branch.
 git sw -c
 ```
 ````
-`````
 
 The bad example is incomplete, has no language identifier, and does not explain what the command does.
 
