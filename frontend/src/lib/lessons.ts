@@ -51,6 +51,7 @@ export interface Lesson {
   exercises?: Exercise[];
   quizzes?: QuizQuestion[];
   filePath?: string;
+  conflictScenario?: { fileContent?: string };
   order: number;
 }
 

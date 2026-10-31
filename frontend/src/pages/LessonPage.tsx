@@ -31,6 +31,8 @@ import { useTerminalAutocomplete } from "../hooks/useTerminalAutocomplete";
 import { ShellState } from "../hooks/useGitShell";
 import { useBookmarks } from "../hooks/useBookmarks";
 import { useQuizDraft } from "../hooks/useQuizDraft";
+import { useUnsavedChanges } from "../hooks/useUnsavedChanges";
+import { UnsavedChangesDialog } from "../components/ui/UnsavedChangesDialog";
 import { useNotifications } from "../features/notifications/NotificationContext";
 import { useOfflineLesson } from "../hooks/useOfflineLesson";
 import { useOfflineReadyLessons } from "../hooks/useOfflineReadyLessons";
@@ -283,6 +285,19 @@ export function LessonPage() {
   // Quiz draft persistence
   const quizDraft = useQuizDraft(lesson?.slug);
   const [hasRestoredDraft, setHasRestoredDraft] = useState(false);
+
+  // Warn before leaving with an unsubmitted command or an unsaved conflict edit
+  const hasUnsavedWork =
+    input.trim() !== "" ||
+    (repoState.conflicts.length > 0 &&
+      conflictContent !== (lesson?.conflictScenario?.fileContent || ""));
+  const unsavedGuard = useUnsavedChanges({
+    isDirty: hasUnsavedWork,
+    message:
+      "You have unsaved work in this lesson. Discard it and leave the page?",
+    interceptLinks: true,
+  });
+  const { guardedNavigate } = unsavedGuard;
 
   // Help Request panel
   const [isHelpPanelOpen, setIsHelpPanelOpen] = useState(false);
@@ -715,7 +730,7 @@ export function LessonPage() {
         e.preventDefault();
         if (nextLesson) {
           if (isCompleted) {
-            navigate(`/lessons/${nextLesson.slug}`);
+            guardedNavigate(`/lessons/${nextLesson.slug}`);
           } else {
             toast.error(
               "Complete the current lesson first to unlock the next module!",
@@ -728,7 +743,7 @@ export function LessonPage() {
       ) {
         e.preventDefault();
         if (previousLesson) {
-          navigate(`/lessons/${previousLesson.slug}`);
+          guardedNavigate(`/lessons/${previousLesson.slug}`);
         }
       } else if (
         e.altKey &&
@@ -751,7 +766,7 @@ export function LessonPage() {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [
-    navigate,
+    guardedNavigate,
     nextLesson,
     previousLesson,
     isCompleted,
@@ -1752,6 +1767,7 @@ export function LessonPage() {
                         ? "bg-accent text-black"
                         : "bg-[#e2e8f0] text-black/50 border-black/35 cursor-not-allowed opacity-75"
                     }`}
+                    aria-disabled={!isCompleted}
                     onClick={(e) => {
                       if (!isCompleted) {
                         e.preventDefault();
@@ -1960,6 +1976,13 @@ export function LessonPage() {
       <AITutorFloatingPanel
         lessonSlug={lesson.slug}
         lessonTitle={lesson.title}
+      />
+
+      <UnsavedChangesDialog
+        open={unsavedGuard.isBlocked}
+        message={unsavedGuard.message}
+        onStay={unsavedGuard.stay}
+        onDiscard={unsavedGuard.discard}
       />
     </div>
   );
