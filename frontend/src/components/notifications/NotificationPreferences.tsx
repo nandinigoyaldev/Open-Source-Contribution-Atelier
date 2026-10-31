@@ -3,6 +3,7 @@ import { fetchApi } from "../../lib/api";
 import { Mail, Bell, RefreshCw, Smartphone, Webhook, Send } from "lucide-react";
 import toast from "react-hot-toast";
 import { usePushNotifications } from "../../hooks/usePushNotifications";
+import { NotificationTimezonePreference } from "./NotificationTimezonePreference";
 
 const NOTIF_TYPES = [
   { id: "badge", label: "Badge Earned" },
@@ -102,6 +103,7 @@ export function NotificationPreferences() {
 
   return (
     <div className="space-y-6">
+      <NotificationTimezonePreference />
       {/* Push Subscription Card */}
       <div className="rounded-2xl border-4 border-black dark:border-[#2e2924] bg-white dark:bg-[#151411] p-6 shadow-card">
         <h2 className="font-display text-xl font-black uppercase text-black dark:text-white mb-2">

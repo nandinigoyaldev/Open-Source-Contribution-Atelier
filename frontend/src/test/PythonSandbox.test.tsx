@@ -48,6 +48,15 @@ describe("PythonSandbox UI", () => {
     expect(screen.getByText("Run")).toBeInTheDocument();
   });
 
+  it("keeps edited code when the same exercise rerenders", () => {
+    const props = { exercise: defaultExercise, onSuccess: mockOnSuccess };
+    const { rerender } = render(<PythonSandbox {...props} />);
+    const editor = screen.getByRole("textbox");
+    fireEvent.change(editor, { target: { value: "print('edited')" } });
+    rerender(<PythonSandbox {...props} />);
+    expect(editor).toHaveValue("print('edited')");
+  });
+
   it("displays execution output", async () => {
     mockRunPythonCode.mockResolvedValueOnce({ output: "hello", error: null });
 
@@ -146,7 +155,9 @@ describe("PythonSandbox output display controls (#2714)", () => {
 
   it("persists the chosen font size to localStorage and applies it", () => {
     renderSandbox();
-    fireEvent.change(screen.getByLabelText("Font"), { target: { value: "16" } });
+    fireEvent.change(screen.getByLabelText("Font"), {
+      target: { value: "16" },
+    });
 
     expect(localStorage.getItem("pythonSandbox.output.fontSize")).toBe("16");
     expect(screen.getByText("No output...")).toHaveStyle({ fontSize: "16px" });
