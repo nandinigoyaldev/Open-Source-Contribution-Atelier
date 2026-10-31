@@ -686,6 +686,16 @@ export function LessonPage() {
     };
   }, [lesson?.slug, lessonsList, markdownContent]);
 
+  // These are read by the shortcut effect below, so they must be declared
+  // before it (they used to sit after the early returns, which crashed the
+  // page with "Cannot access 'nextLesson' before initialization").
+  const currentLessonIndex = lessonsList.findIndex(
+    (l) => l.slug === lesson?.slug,
+  );
+  const previousLesson = lessonsList[currentLessonIndex - 1];
+  const nextLesson = lessonsList[currentLessonIndex + 1];
+  const isCompleted = lesson ? isLessonCompleted(lesson.slug) : false;
+
   // 4. Keyboard Shortcuts for Lesson Navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -929,15 +939,8 @@ export function LessonPage() {
 
   if (!lesson) return null;
 
-  const currentLessonIndex = lessonsList.findIndex(
-    (l) => l.slug === lesson.slug,
-  );
-  const previousLesson = lessonsList[currentLessonIndex - 1];
-  const nextLesson = lessonsList[currentLessonIndex + 1];
-
   const hasQuiz = lesson.quizzes && lesson.quizzes.length > 0;
   const hasConflict = !!lesson.conflictScenario;
-  const isCompleted = isLessonCompleted(lesson.slug);
   const activeModuleId = modules.find((mod) =>
     mod.lessons.some((les) => les.slug === lesson.slug),
   )?.id;

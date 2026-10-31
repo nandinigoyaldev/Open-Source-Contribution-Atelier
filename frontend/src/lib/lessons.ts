@@ -682,7 +682,13 @@ export async function fetchLessonsApi(): Promise<Lesson[]> {
   return fallbackLessons;
 }
 
-export { fetchLessonsApi as fetchLessonsApiResult };
+export async function fetchLessonsApiResult(): Promise<{
+  lessons: Lesson[];
+  fromApi: boolean;
+}> {
+  const lessons = await fetchLessonsApi();
+  return { lessons, fromApi: lessons !== fallbackLessons };
+}
 
 export function getLessonBySlug(slug: string): Lesson | undefined {
   return fallbackLessons.find((l) => l.slug === slug) || fallbackLessons[0];
