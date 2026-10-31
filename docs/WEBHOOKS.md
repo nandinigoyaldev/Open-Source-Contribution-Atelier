@@ -62,6 +62,7 @@ def verify_signature(payload_body, secret_token, header_signature):
 - **Update Endpoint**: `PATCH /api/webhooks/endpoints/{id}/`
 - **Delete Endpoint**: `DELETE /api/webhooks/endpoints/{id}/`
 - **List Deliveries**: `GET /api/webhooks/deliveries/` (View history of webhook dispatches and their statuses).
+- **Retry a failed delivery**: `POST /api/webhooks/deliveries/{id}/replay/`. Only the owner of the endpoint can call it (anyone else gets a `404`). It works on a delivery that is `failed` or `dead`; for any other status, including one that is already being retried, it answers `409` with the current status, so a double click sends the webhook once. The response has the refreshed `delivery`.
 
 ## 5. Delivery and Retry Behavior
 Our event dispatch service utilizes Celery for asynchronous processing, ensuring reliable delivery without blocking the main application flow.

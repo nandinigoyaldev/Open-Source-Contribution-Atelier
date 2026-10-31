@@ -6,9 +6,12 @@ from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 
-from .models import WebhookDelivery, WebhookEndpoint
+from .models import DeadLetterWebhook, WebhookDelivery, WebhookEndpoint
 from .serializers import WebhookDeliverySerializer, WebhookEndpointSerializer
 from .tasks import deliver_webhook
+
+# A delivery can be retried by hand only from one of these states.
+REPLAYABLE_STATUSES = ("failed", "dead")
 
 
 class WebhookEndpointViewSet(viewsets.ModelViewSet):
@@ -127,14 +130,38 @@ class WebhookDeliveryViewSet(viewsets.ReadOnlyModelViewSet):
     @action(detail=True, methods=["post"], url_path="replay")
     def replay(self, request, pk=None):
         """
-        Manually replays a failed or completed webhook delivery payload.
+        Retry a failed delivery.
+
+        Only the owner of the endpoint can do this (other users get a 404, same
+        as for the rest of this viewset). Only a delivery that is ``failed`` or
+        ``dead`` can be retried; anything else, including one that is already
+        being retried, is a 409.
         """
         delivery = self.get_object()
 
-        # Reset status and attempt count for replay
-        delivery.status = "pending"
-        delivery.attempt_count = 0
-        delivery.save()
+        # Claim the delivery with one conditional UPDATE. Two clicks (or two
+        # tabs) at the same time cannot both pass this, so only one request
+        # sends the webhook and the other gets a 409.
+        claimed = WebhookDelivery.objects.filter(
+            pk=delivery.pk, status__in=REPLAYABLE_STATUSES
+        ).update(status="pending", attempt_count=0, next_retry_at=None)
+        if not claimed:
+            delivery.refresh_from_db()
+            return Response(
+                {
+                    "error": (
+                        f"Delivery {delivery.id} is {delivery.status}. "
+                        "Only failed deliveries can be retried."
+                    ),
+                    "status": delivery.status,
+                },
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        DeadLetterWebhook.objects.filter(delivery=delivery).update(
+            replayed=True, replayed_at=timezone.now()
+        )
+        delivery.refresh_from_db()
 
         try:
             deliver_webhook(delivery.id, attempt=1)
