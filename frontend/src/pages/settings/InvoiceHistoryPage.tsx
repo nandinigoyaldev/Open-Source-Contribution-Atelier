@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { fetchApi } from "../../lib/api";
 import { Download, ArrowLeft, Calendar, FileText } from "lucide-react";
 import { getAccessToken } from "../../lib/authToken";
@@ -13,23 +13,78 @@ interface Invoice {
   created_at: string;
 }
 
+// Follow only pagination parameters, never send auth to a server-provided host.
+function invoicePageEndpoint(link: unknown): string | null {
+  if (typeof link !== "string" || !link) return null;
+  try {
+    return `/billing/invoices/${new URL(link, "https://pagination.invalid").search}`;
+  } catch {
+    return null;
+  }
+}
+
 export function InvoiceHistoryPage() {
   const [invoices, setInvoices] = useState<Invoice[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const [error, setError] = useState("");
+  const [endpoint, setEndpoint] = useState("/billing/invoices/");
+  const [attempt, setAttempt] = useState(0);
+  const [links, setLinks] = useState<{
+    next: string | null;
+    previous: string | null;
+  }>({ next: null, previous: null });
+  const pending = useRef(false);
+
   useEffect(() => {
-    const fetchInvoices = async () => {
-      try {
-        const data = await fetchApi("/billing/invoices/");
-        setInvoices(data);
-      } catch (err) {
-        console.error("Failed to load invoices:", err);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchInvoices();
-  }, []);
+    const controller = new AbortController();
+    pending.current = true;
+    setLoading(true);
+    setError("");
+    fetchApi<
+      | Invoice[]
+      | { results: Invoice[]; next: string | null; previous: string | null }
+    >(endpoint, {
+      signal: controller.signal,
+      maxRetries: 0,
+      suppressErrorToast: true,
+    })
+      .then((data) => {
+        const rows = Array.isArray(data) ? data : data?.results;
+        if (!Array.isArray(rows)) throw new Error("Invalid invoice response");
+        if (controller.signal.aborted) return;
+        setInvoices(rows);
+        setLinks(
+          Array.isArray(data)
+            ? { next: null, previous: null }
+            : {
+                next: invoicePageEndpoint(data.next),
+                previous: invoicePageEndpoint(data.previous),
+              },
+        );
+      })
+      .catch(() => {
+        if (!controller.signal.aborted)
+          setError("We couldn’t load your invoices. Please try again.");
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) {
+          pending.current = false;
+          setLoading(false);
+        }
+      });
+    return () => controller.abort();
+  }, [endpoint, attempt]);
+
+  const loadPage = (link?: string | null) => {
+    if (pending.current) return;
+    pending.current = true;
+    setLoading(true);
+    if (link) {
+      setEndpoint(link);
+    }
+    setAttempt((value) => value + 1);
+  };
 
   const handleDownload = async (invoiceId: number) => {
     toast.success("Downloading invoice PDF...");
@@ -73,16 +128,6 @@ export function InvoiceHistoryPage() {
     }
   };
 
-  if (loading) {
-    return (
-      <div className="mx-auto max-w-4xl px-4 py-8">
-        <div className="text-xl font-bold uppercase animate-pulse text-black dark:text-white">
-          Loading billing statement history...
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="mx-auto max-w-4xl px-4 py-8">
       {/* Back to Billing */}
@@ -108,7 +153,26 @@ export function InvoiceHistoryPage() {
       </div>
 
       {/* Invoices List */}
-      {invoices.length > 0 ? (
+      {loading ? (
+        <p
+          role="status"
+          aria-live="polite"
+          className="text-xl font-bold text-black dark:text-white"
+        >
+          Loading billing statement history…
+        </p>
+      ) : error ? (
+        <div className="rounded-2xl border-2 border-red-500 p-6 space-y-3">
+          <p role="alert">{error}</p>
+          <button
+            type="button"
+            onClick={() => loadPage()}
+            className="px-4 py-2 rounded-lg border-2 border-current font-bold"
+          >
+            Retry loading invoices
+          </button>
+        </div>
+      ) : invoices.length > 0 ? (
         <div className="overflow-x-auto rounded-2xl border-4 border-black dark:border-[#2e2924] shadow-card bg-white dark:bg-[#151411]">
           <table className="w-full border-collapse text-left">
             <thead>
@@ -167,6 +231,7 @@ export function InvoiceHistoryPage() {
                       onClick={() => handleDownload(inv.id)}
                       className="inline-flex items-center justify-center p-2 rounded-xl border-2 border-black dark:border-[#2e2924] bg-surface-low dark:bg-[#1f1c18] hover:bg-primary hover:text-black transition-all"
                       title="Download PDF"
+                      aria-label={`Download invoice ${inv.stripe_invoice_id || inv.id} PDF`}
                     >
                       <Download size={16} />
                     </button>
@@ -178,10 +243,33 @@ export function InvoiceHistoryPage() {
         </div>
       ) : (
         <div className="rounded-2xl border-4 border-black dark:border-[#2e2924] bg-white dark:bg-[#151411] p-8 text-center shadow-card">
-          <p className="text-gray-500 dark:text-[#c4bbae] font-bold">
+          <p
+            role="status"
+            className="text-gray-500 dark:text-[#c4bbae] font-bold"
+          >
             No billing statements or invoices found in your account history.
           </p>
         </div>
+      )}
+      {!loading && !error && (links.next || links.previous) && (
+        <nav aria-label="Invoice pages" className="flex gap-4 mt-4">
+          <button
+            type="button"
+            disabled={!links.previous}
+            onClick={() => loadPage(links.previous)}
+            className="border-2 rounded-lg p-2 disabled:opacity-50"
+          >
+            Previous invoices
+          </button>
+          <button
+            type="button"
+            disabled={!links.next}
+            onClick={() => loadPage(links.next)}
+            className="border-2 rounded-lg p-2 disabled:opacity-50"
+          >
+            Next invoices
+          </button>
+        </nav>
       )}
     </div>
   );

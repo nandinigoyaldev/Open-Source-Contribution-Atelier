@@ -32,7 +32,7 @@ beforeAll(() => {
 
 // Reset timers and system clock to epoch 0 before each test
 beforeEach(() => {
-  vi.useFakeTimers();
+  vi.useFakeTimers({ shouldAdvanceTime: true });
   vi.setSystemTime(0);
 });
 
