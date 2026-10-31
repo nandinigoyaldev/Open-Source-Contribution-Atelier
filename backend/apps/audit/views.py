@@ -1,12 +1,9 @@
-import csv
-import json
-
 from django.db.models import Q
-from django.http import HttpResponse, JsonResponse
 from rest_framework import generics, permissions
 from rest_framework.exceptions import ValidationError
 from rest_framework.pagination import PageNumberPagination
 
+from apps.audit.export import EXPORT_FORMATS, export_response
 from apps.audit.filters import parse_audit_filters
 from apps.audit.models import AuditEvent
 from apps.audit.serializers import AuditEventSerializer
@@ -129,61 +126,16 @@ class AuditEventListView(generics.ListAPIView):
         return queryset
 
     def list(self, request, *args, **kwargs):
-        export_fmt = (
-            request.query_params.get("export")
-            or request.query_params.get("format")
-            or ""
-        ).lower()
+        export_param = request.query_params.get("export")
+        # "format" is also DRF's renderer switch (?format=api), so only the
+        # two export values count there.
+        legacy_fmt = (request.query_params.get("format") or "").lower()
 
-        if export_fmt in ["csv", "json"]:
-            queryset = self.filter_queryset(self.get_queryset())
-            serializer = self.get_serializer(queryset, many=True)
-
-            if export_fmt == "csv":
-                response = HttpResponse(content_type="text/csv")
-                response["Content-Disposition"] = (
-                    'attachment; filename="audit_logs.csv"'
-                )
-                writer = csv.writer(response)
-                writer.writerow(
-                    [
-                        "ID",
-                        "Timestamp",
-                        "Actor",
-                        "Action",
-                        "Model Type",
-                        "Resource ID",
-                        "Summary",
-                        "Correlation ID",
-                        "IP Address",
-                    ]
-                )
-
-                for item in serializer.data:
-                    writer.writerow(
-                        [
-                            item.get("id"),
-                            item.get("created_at"),
-                            item.get("actor_username") or "System",
-                            item.get("action"),
-                            item.get("resource_type"),
-                            item.get("resource_id"),
-                            item.get("summary"),
-                            item.get("correlation_id"),
-                            item.get("ip_address"),
-                        ]
-                    )
-                return response
-
-            if export_fmt == "json":
-                response = HttpResponse(
-                    json.dumps(serializer.data, indent=2),
-                    content_type="application/json",
-                )
-                response["Content-Disposition"] = (
-                    'attachment; filename="audit_logs.json"'
-                )
-                return response
+        if export_param or legacy_fmt in EXPORT_FORMATS:
+            # Same filters as the list, every matching row, streamed.
+            return export_response(
+                self.filter_queryset(self.get_queryset()), export_param or legacy_fmt
+            )
 
         return super().list(request, *args, **kwargs)
 
