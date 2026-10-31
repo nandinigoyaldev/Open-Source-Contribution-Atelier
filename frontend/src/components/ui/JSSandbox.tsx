@@ -24,6 +24,7 @@ export function JSSandbox({ exercise, onSuccess }: JSSandboxProps) {
 
   const [isTracing, setIsTracing] = useState(false);
   const timelineEngine = useTimelineEngine();
+  const { clearTrace } = timelineEngine;
 
   // Reset if exercise changes
   useEffect(() => {
@@ -31,8 +32,8 @@ export function JSSandbox({ exercise, onSuccess }: JSSandboxProps) {
     setOutput("");
     setError(null);
     setIsSuccess(false);
-    timelineEngine.clearTrace();
-  }, [exercise, timelineEngine]);
+    clearTrace();
+  }, [exercise, clearTrace]);
 
   const handleRun = async () => {
     if (isExecuting || !isReady) return;

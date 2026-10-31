@@ -104,7 +104,7 @@ export function SideNav() {
             <span className="font-black text-xs tracking-tight text-slate-900 dark:text-white block leading-tight">
               Open-Source
             </span>
-            <span className="text-[9px] font-mono text-amber-600 dark:text-amber-400 uppercase tracking-wider block font-bold">
+            <span className="text-[9px] font-mono text-amber-700 dark:text-amber-400 uppercase tracking-wider block font-bold">
               AI Mentor
             </span>
           </div>
@@ -186,7 +186,7 @@ export function SideNav() {
       {/* Admin Section */}
       <div className="px-3 py-4 border-t-2 border-slate-200 dark:border-[#2E2924]">
         <div className="px-3 mb-2">
-          <span className="text-[10px] font-mono uppercase tracking-wider text-slate-400 dark:text-slate-500">
+          <span className="text-[10px] font-mono uppercase tracking-wider text-slate-600 dark:text-slate-400">
             Admin
           </span>
         </div>
