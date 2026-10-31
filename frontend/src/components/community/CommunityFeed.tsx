@@ -1,4 +1,11 @@
-import { useState, useMemo, useRef, useCallback } from "react";
+import {
+  useState,
+  useMemo,
+  useRef,
+  useCallback,
+  type ReactNode,
+} from "react";
+import { Link } from "react-router-dom";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { fetchApi } from "../../lib/api";
 import {
@@ -40,6 +47,38 @@ interface FeedResponse {
   next: string | null;
   previous: string | null;
   results: FeedEntry[];
+}
+
+type FeedViewState =
+  | "loading"
+  | "error"
+  | "empty-new"
+  | "empty-filtered"
+  | "ready";
+
+const actionClass =
+  "inline-block px-4 py-2 border-4 border-black rounded-lg text-sm font-black bg-accent text-black shadow-card-sm";
+
+function FeedState({
+  title,
+  message,
+  action,
+}: {
+  title: string;
+  message: string;
+  action?: ReactNode;
+}) {
+  return (
+    <div className="text-center py-8 px-4 rounded-xl border-2 border-dashed border-black/20 dark:border-[#3a3a45]">
+      <p className="text-base font-black text-text dark:text-[#eef2f6]">
+        {title}
+      </p>
+      <p className="mt-1 text-sm font-bold text-muted dark:text-[#94a3b8]">
+        {message}
+      </p>
+      {action && <div className="mt-4">{action}</div>}
+    </div>
+  );
 }
 
 function FeedIcon({ type }: { type: FeedEntry["type"] }) {
@@ -163,31 +202,43 @@ export function CommunityFeed() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedType, setSelectedType] = useState<string>("all");
 
-  const { data, fetchNextPage, hasNextPage, isFetchingNextPage, isLoading } =
-    useInfiniteQuery<FeedResponse>({
-      queryKey: ["communityFeed"],
-      queryFn: async ({ pageParam }) => {
-        const url = pageParam
-          ? `/progress/feed/?page=${pageParam}`
-          : "/progress/feed/";
-        return fetchApi(url);
-      },
-      initialPageParam: 1,
-      getNextPageParam: (lastPage) => {
-        if (!lastPage.next) return undefined;
-        const url = new URL(lastPage.next);
-        const page = url.searchParams.get("page");
-        return page ? Number(page) : undefined;
-      },
-    });
+  const {
+    data,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+    isLoading,
+    isError,
+    refetch,
+  } = useInfiniteQuery<FeedResponse>({
+    queryKey: ["communityFeed"],
+    queryFn: async ({ pageParam }) => {
+      const url = pageParam
+        ? `/progress/feed/?page=${pageParam}`
+        : "/progress/feed/";
+      return fetchApi(url);
+    },
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) => {
+      if (!lastPage.next) return undefined;
+      const url = new URL(lastPage.next);
+      const page = url.searchParams.get("page");
+      return page ? Number(page) : undefined;
+    },
+  });
 
-  const { data: searchData, isLoading: isSearchLoading } = useQuery<{
+  const {
+    data: searchData,
+    isLoading: isSearchLoading,
+    isError: isSearchError,
+    refetch: refetchSearch,
+  } = useQuery<{
     results: FeedPost[];
     count: number;
   }>({
     queryKey: ["feedPostSearch", searchQuery, selectedType],
     queryFn: async () => {
-      let params = [];
+      const params = [];
       if (searchQuery.trim())
         params.push(`q=${encodeURIComponent(searchQuery.trim())}`);
       if (selectedType !== "all") params.push(`post_type=${selectedType}`);
@@ -219,6 +270,37 @@ export function CommunityFeed() {
 
   const isSearchActive =
     searchQuery.trim().length > 0 || selectedType !== "all";
+
+  const searchResults = searchData?.results ?? [];
+
+  let viewState: FeedViewState;
+  if (isSearchActive) {
+    if (isSearchLoading) viewState = "loading";
+    else if (isSearchError && !searchData) viewState = "error";
+    else if (searchResults.length === 0) viewState = "empty-filtered";
+    else viewState = "ready";
+  } else {
+    if (isLoading && entries.length === 0) viewState = "loading";
+    else if (isError && entries.length === 0) viewState = "error";
+    else if (entries.length === 0) viewState = "empty-new";
+    else viewState = "ready";
+  }
+
+  const announcements: Record<FeedViewState, string> = {
+    loading: "Loading community feed.",
+    error: "Could not load the community feed. A retry button is available.",
+    "empty-new": "No activity yet.",
+    "empty-filtered": "No posts match your search or filter.",
+    ready:
+      isSearchActive && searchData
+        ? `Found ${searchData.count} post${searchData.count === 1 ? "" : "s"}.`
+        : "",
+  };
+
+  const clearFilters = () => {
+    setSearchQuery("");
+    setSelectedType("all");
+  };
 
   return (
     <div className="rounded-2xl border-4 border-black bg-white p-4 sm:p-6 shadow-card dark:bg-[#1a1a24] dark:border-[#3a3a45]">
@@ -254,54 +336,92 @@ export function CommunityFeed() {
         </div>
       </div>
 
-      {isSearchActive ? (
-        <div>
-          {isSearchLoading ? (
-            <p className="text-sm text-muted animate-pulse font-bold py-4 text-center">
-              Searching community posts...
-            </p>
-          ) : !searchData?.results || searchData.results.length === 0 ? (
-            <p className="text-sm text-muted font-bold py-4 text-center">
-              No feed posts found for "{searchQuery}".
-            </p>
-          ) : (
-            <div className="space-y-3">
-              <p className="text-xs font-bold text-muted mb-2">
-                Found {searchData.count} post{searchData.count === 1 ? "" : "s"}
-                :
+      <div
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+        className="sr-only"
+        data-testid="feed-live-region"
+      >
+        {announcements[viewState]}
+      </div>
+
+      {viewState === "loading" ? (
+        <p
+          aria-busy="true"
+          className="text-sm text-muted animate-pulse font-bold py-4 text-center"
+        >
+          {isSearchActive ? "Searching community posts..." : "Loading feed..."}
+        </p>
+      ) : viewState === "error" ? (
+        <FeedState
+          title="Something went wrong"
+          message="We could not load the community feed. Please check your connection and try again."
+          action={
+            <button
+              type="button"
+              className={actionClass}
+              onClick={() => (isSearchActive ? refetchSearch() : refetch())}
+            >
+              Try again
+            </button>
+          }
+        />
+      ) : viewState === "empty-filtered" ? (
+        <FeedState
+          title="No posts found"
+          message={
+            searchQuery.trim()
+              ? `Nothing matches "${searchQuery}" with the current filter.`
+              : "Nothing matches the current filter."
+          }
+          action={
+            <button
+              type="button"
+              className={actionClass}
+              onClick={clearFilters}
+            >
+              Clear filters
+            </button>
+          }
+        />
+      ) : viewState === "empty-new" ? (
+        <FeedState
+          title="No activity yet"
+          message="Complete a lesson or ask for help, and your activity will show up here."
+          action={
+            <Link to="/learning-path" className={actionClass}>
+              Start learning
+            </Link>
+          }
+        />
+      ) : isSearchActive ? (
+        <div className="space-y-3">
+          <p className="text-xs font-bold text-muted mb-2">
+            Found {searchData?.count} post{searchData?.count === 1 ? "" : "s"}:
+          </p>
+          {searchResults.map((post) => (
+            <div
+              key={post.id}
+              className="p-3.5 rounded-xl border-2 border-black/10 dark:border-[#3a3a45]/50 bg-slate-50/50 dark:bg-slate-900/30 space-y-1.5"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-primary">
+                  @{post.author_username}
+                </span>
+                <span className="text-[10px] uppercase tracking-wider font-extrabold px-2 py-0.5 rounded-full bg-accent/10 text-accent border border-accent/20">
+                  {post.post_type}
+                </span>
+              </div>
+              <h4 className="text-sm font-black text-text dark:text-[#eef2f6]">
+                <HighlightText text={post.title} query={searchQuery} />
+              </h4>
+              <p className="text-xs text-muted dark:text-[#94a3b8] whitespace-pre-wrap">
+                <HighlightText text={post.body} query={searchQuery} />
               </p>
-              {searchData.results.map((post) => (
-                <div
-                  key={post.id}
-                  className="p-3.5 rounded-xl border-2 border-black/10 dark:border-[#3a3a45]/50 bg-slate-50/50 dark:bg-slate-900/30 space-y-1.5"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs font-bold text-primary">
-                      @{post.author_username}
-                    </span>
-                    <span className="text-[10px] uppercase tracking-wider font-extrabold px-2 py-0.5 rounded-full bg-accent/10 text-accent border border-accent/20">
-                      {post.post_type}
-                    </span>
-                  </div>
-                  <h4 className="text-sm font-black text-text dark:text-[#eef2f6]">
-                    <HighlightText text={post.title} query={searchQuery} />
-                  </h4>
-                  <p className="text-xs text-muted dark:text-[#94a3b8] whitespace-pre-wrap">
-                    <HighlightText text={post.body} query={searchQuery} />
-                  </p>
-                </div>
-              ))}
             </div>
-          )}
+          ))}
         </div>
-      ) : isLoading && entries.length === 0 ? (
-        <p className="text-sm text-muted animate-pulse font-bold">
-          Loading feed...
-        </p>
-      ) : entries.length === 0 ? (
-        <p className="text-sm text-muted font-bold">
-          No activity yet. Be the first to contribute!
-        </p>
       ) : (
         <div className="space-y-3">
           {entries.map((entry, idx) => {
