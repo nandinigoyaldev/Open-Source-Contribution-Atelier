@@ -728,7 +728,7 @@ export function LeaderboardPage() {
                     </tr>
                   </tbody>
                 ) : (
-                  <tbody className="divide-y-2 divide-black dark:divide-[#2e2924]">
+                  <tbody className="lb-body-enter divide-y-2 divide-black dark:divide-[#2e2924]">
                     {filteredList.map((row: RankedRow) => (
                       <tr key={row.username} className={rowClass(row)}>
                         {/* Rank */}
