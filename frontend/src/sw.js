@@ -282,7 +282,20 @@ async function syncProgressQueue() {
   }
 }
 
-async function syncQuizQueue() {
+// Overlapping triggers (page message + Background Sync event after a
+// reconnect) share one run, so a queued submission is never replayed twice.
+let quizSyncInFlight = null;
+
+function syncQuizQueue() {
+  if (!quizSyncInFlight) {
+    quizSyncInFlight = runQuizSync().finally(() => {
+      quizSyncInFlight = null;
+    });
+  }
+  return quizSyncInFlight;
+}
+
+async function runQuizSync() {
   console.log("[ServiceWorker] Starting offline quiz submission sync...");
   let db;
   try {

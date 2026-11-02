@@ -1,3 +1,4 @@
+import { usePageMeta } from "../hooks/usePageMeta";
 import React, { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useGoogleLogin } from "@react-oauth/google";
@@ -62,6 +63,9 @@ const VIBE_OPTIONS: VibeOption[] = [
 ];
 
 export function LandingPage() {
+  usePageMeta(
+    "Learn Git and open source contribution through interactive challenges, a hands-on sandbox and guided lessons on Open Source Contribution Atelier.",
+  );
   const navigate = useNavigate();
   const auth = useAuth();
   const login = auth.login;
@@ -236,7 +240,7 @@ export function LandingPage() {
           {/* Top Tag & Theme Toggle */}
           <div className="flex flex-wrap items-center justify-center lg:justify-start gap-3">
             <span className="font-black text-xs bg-accent text-black px-4 py-1.5 rounded-full border-2 border-black rotate-[-1deg] inline-flex items-center gap-1.5 shadow-card-sm">
-              <ShieldCheck size={14} /> AUTHORIZED ACCESS ONLY
+              <ShieldCheck size={14} aria-hidden="true" /> Learn by contributing
             </span>
             <button
               onClick={toggleTheme}
@@ -273,8 +277,12 @@ export function LandingPage() {
           {/* PLAYFUL ELEMENT: Sleek Interactive Mood Pill Row */}
           <div className="pt-2 max-w-lg mx-auto lg:mx-0 space-y-2.5">
             <div className="flex items-center gap-1.5 text-xs font-black uppercase text-black dark:text-[#f0ebe2] justify-center lg:justify-start">
-              <Sparkles size={14} className="text-amber-500 animate-spin" />{" "}
-              Select Dev Mood:
+              <Sparkles
+                size={14}
+                className="text-amber-500"
+                aria-hidden="true"
+              />{" "}
+              Choose your starting point
             </div>
 
             <div className="flex flex-wrap items-center justify-center lg:justify-start gap-2">
@@ -290,8 +298,9 @@ export function LandingPage() {
                         ? `${vibe.color} ${vibe.textColor} border-black shadow-card-sm -translate-y-0.5`
                         : "bg-white dark:bg-[#151411] border-black/20 dark:border-white/20 text-black dark:text-white hover:border-black hover:-translate-y-0.5"
                     }`}
+                    aria-pressed={isActive}
                   >
-                    <span>{vibe.emoji}</span>
+                    <span aria-hidden="true">{vibe.emoji}</span>
                     <span>{vibe.label}</span>
                   </button>
                 );
@@ -335,7 +344,10 @@ export function LandingPage() {
           </h2>
 
           {error && (
-            <div className="text-black font-bold text-sm bg-primary p-3 rounded-xl border-4 border-black shadow-card-sm mb-4">
+            <div
+              role="alert"
+              className="text-black font-bold text-sm bg-primary p-3 rounded-xl border-4 border-black shadow-card-sm mb-4"
+            >
               {error}
             </div>
           )}
@@ -386,6 +398,9 @@ export function LandingPage() {
 
           <form onSubmit={handleStandardLogin} className="space-y-3">
             <input
+              id="landing-username"
+              name="username"
+              aria-label="Email or username"
               className="w-full rounded-xl border-4 border-black dark:border-[#4a4238] bg-surface-lowest dark:bg-[#0f0e0c] px-4 py-3 text-text dark:text-[#f0ebe2] font-black outline-none placeholder:text-muted/60 dark:placeholder:text-[#9b8f80]/70 focus:bg-surface-low dark:focus:bg-[#1f1c18] focus:ring-0 transition-colors shadow-sm text-sm"
               placeholder="Email or username"
               value={email}
@@ -394,6 +409,7 @@ export function LandingPage() {
             />
             <PasswordInput
               id="landing-password"
+              name="password"
               className="w-full rounded-xl border-4 border-black dark:border-[#4a4238] bg-surface-lowest dark:bg-[#0f0e0c] px-4 py-3 text-text dark:text-[#f0ebe2] font-black outline-none placeholder:text-muted/60 dark:placeholder:text-[#9b8f80]/70 focus:bg-surface-low dark:focus:bg-[#1f1c18] focus:ring-0 transition-colors shadow-sm text-sm"
               placeholder="Password"
               value={password}
@@ -419,6 +435,7 @@ export function LandingPage() {
 
           <a
             href="/signup"
+            aria-label="Create an Open Source Contribution Atelier account"
             className="flex items-center justify-center w-full rounded-2xl border-4 border-black bg-[#C3C0FF] px-5 py-3.5 font-black text-black text-base shadow-card-sm hover:-translate-y-1 hover:shadow-card active:translate-y-0 active:shadow-none transition-all uppercase tracking-wide cursor-pointer"
           >
             Create an account

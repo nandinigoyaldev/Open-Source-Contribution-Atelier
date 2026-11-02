@@ -163,10 +163,13 @@ export function SignupPage() {
         )}
 
         {/* ── OAUTH BUTTONS ── */}
+
         <button
           type="button"
           onClick={handleGoogleLogin}
           disabled={isGoogleLoading}
+          aria-label="Sign up with Google"
+          title="Sign up with Google"
           className="w-full bg-white border-4 border-black rounded-2xl py-3 px-4 flex items-center justify-center gap-3 font-bold hover:bg-surface-low transition-colors shadow-card-sm active:translate-y-1 active:shadow-none"
         >
           <svg className="w-6 h-6" viewBox="0 0 24 24" aria-hidden="true">
@@ -195,6 +198,7 @@ export function SignupPage() {
           onClick={handleGithubSignIn}
           className="group relative w-full overflow-hidden bg-black text-white border-4 border-black rounded-lg py-3 px-4 flex items-center justify-center gap-3 font-black shadow-card-sm transition-all duration-300 hover:-translate-y-1 hover:bg-text hover:shadow-card-lg active:translate-y-1 active:shadow-none uppercase before:absolute before:inset-0 before:-translate-x-full before:bg-gradient-to-r before:from-transparent before:via-white/25 before:to-transparent before:transition-transform before:duration-500 hover:before:translate-x-full"
           aria-label="Sign up with GitHub"
+          title="Sign up with GitHub"
         >
           <GitBranch
             className="mr-2 inline-block relative transition-transform duration-300 group-hover:rotate-[-8deg] group-hover:scale-110"
@@ -207,7 +211,7 @@ export function SignupPage() {
 
         <DemoLoginButton
           label="🚀 Demo Mode (No Signup Needed)"
-          className="w-full bg-green-200 border-4 border-black rounded-2xl py-3 px-4 flex items-center justify-center gap-3 font-bold hover:bg-green-300 transition-colors shadow-card-sm active:translate-y-1 active:shadow-none text-sm cursor-pointer"
+          className="w-full bg-green-200 hover:bg-green-300 active:bg-green-400 text-slate-950 dark:text-slate-950 border-4 border-black rounded-2xl py-3 px-4 flex items-center justify-center gap-3 font-bold transition-colors shadow-card-sm active:translate-y-1 active:shadow-none text-sm cursor-pointer focus:outline-none focus:ring-2 focus:ring-black focus:ring-offset-2 dark:focus:ring-offset-slate-900 disabled:opacity-60 disabled:cursor-not-allowed"
         />
 
         <div className="flex items-center gap-[16px] my-4">
@@ -255,7 +259,7 @@ export function SignupPage() {
           </label>
           <PasswordInput
             id="signup-password"
-            className="w-full rounded-2xl border-4 border-black bg-white px-5 py-3 text-black font-bold outline-none placeholder:text-muted/60 focus:bg-tertiary shadow-card-sm transition-all focus:-translate-y-1 focus:shadow-card"
+            className="w-full rounded-2xl border-4 border-black bg-white pl-5 pr-12 py-3 text-black font-bold outline-none placeholder:text-muted/60 focus:bg-tertiary shadow-card-sm transition-all focus:-translate-y-1 focus:shadow-card"
             placeholder="••••••••"
             value={password}
             onChange={(e) => setPassword(e.target.value)}

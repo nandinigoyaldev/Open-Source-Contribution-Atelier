@@ -14,6 +14,7 @@ import { broadcastAuthEvent } from "../../lib/authSync";
 type User = {
   id: number;
   username: string;
+  first_name?: string;
   email: string;
   is_staff: boolean;
   avatar_url?: string | null;

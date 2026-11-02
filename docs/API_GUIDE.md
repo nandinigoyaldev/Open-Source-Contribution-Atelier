@@ -337,3 +337,42 @@ title,summary,content,difficulty,category,estimated_minutes
   "errors": []
 }
 ```
+
+### E. Learning Activity Timeline
+
+`GET /api/progress/activity/` (authenticated). The signed-in learner's own activity, newest first: lessons
+completed, quiz questions answered, certificates issued and badges earned. Read-only.
+
+| Query parameter | Meaning |
+| --- | --- |
+| `type` | Only these types: `lesson_completed`, `quiz_attempt`, `certificate_issued`, `badge_earned`. Repeat the parameter or separate with commas. Omit for every type. An unknown type is a `400`. |
+| `limit` | Page size, 1 to 100 (default 20). A larger value is capped; zero, negative or non-numeric is a `400`. |
+| `cursor` | The `next_cursor` of the previous page. An invalid cursor is a `400`. |
+
+```json
+{
+  "results": [
+    {
+      "id": "lesson_completed:12",
+      "type": "lesson_completed",
+      "occurred_at": "2026-10-27T09:30:00+00:00",
+      "title": "Git basics",
+      "description": "Score 80",
+      "metadata": { "lesson_slug": "git-basics", "score": 80 }
+    }
+  ],
+  "next_cursor": "WyIyMDI2LTEwLTI3VDA5OjMwOjAwKzAwOjAwIiwibGVzc29uX2NvbXBsZXRlZCIsMTJd",
+  "has_more": true,
+  "limit": 20,
+  "types": ["lesson_completed", "quiz_attempt", "certificate_issued", "badge_earned"]
+}
+```
+
+* `id` is `"<type>:<primary key>"`: unique and stable, safe to use as a list key.
+* Pagination is keyset based. The cursor is opaque; pass it back unchanged. Pages stay stable when new
+  activity arrives, and cost does not grow with the length of the history (one query per type).
+* Items with the same timestamp are ordered by type and id, so none is skipped or repeated.
+* An empty history is `200` with `"results": []`, `"has_more": false` and `"next_cursor": null`.
+* A completed lesson is dated by its last update, because lesson progress stores no separate completion time.
+
+The frontend page is `/activity` ("My activity" in the side navigation).

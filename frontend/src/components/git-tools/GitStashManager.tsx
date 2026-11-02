@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Layers,
@@ -6,22 +6,15 @@ import {
   ArrowDownCircle,
   Trash2,
   Eye,
-  Plus,
-  AlertTriangle,
   CheckCircle2,
   FileCode,
   Sparkles,
   GitBranch,
-  Terminal,
-  RotateCcw,
   ShieldAlert,
   Code2,
-  ListFilter,
   Check,
   X,
-  Play,
   Keyboard,
-  HelpCircle,
 } from "lucide-react";
 
 export interface CodeHunk {
@@ -214,10 +207,22 @@ export function GitStashManager() {
   const [pendingAction, setPendingAction] = useState<(() => void) | null>(null);
   const [showShortcutsModal, setShowShortcutsModal] = useState(false);
 
+  // One timer for the toast: a newer message must not be hidden by the timer of an older one.
+  const toastTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(
+    () => () => {
+      if (toastTimer.current) clearTimeout(toastTimer.current);
+    },
+    [],
+  );
   const showNotification = (msg: string) => {
+    if (toastTimer.current) clearTimeout(toastTimer.current);
     setToastMsg(msg);
-    setTimeout(() => setToastMsg(null), 3000);
+    toastTimer.current = setTimeout(() => setToastMsg(null), 3000);
   };
+
+  // Applying a stash puts copies of its hunks back in the working tree; every copy needs its own id.
+  const appliedCount = useRef(0);
 
   // Re-index stash stack ids (stash@{0}, stash@{1}, ...)
   const reindexStack = (stack: StashEntry[]) => {
@@ -309,7 +314,7 @@ export function GitStashManager() {
 
     const restoredHunks = target.hunks.map((h) => ({
       ...h,
-      id: `hunk-${Date.now()}`,
+      id: `${h.id}-applied-${++appliedCount.current}`,
       stashed: false,
     }));
     setWorkingHunks((prev) => [...prev, ...restoredHunks]);
@@ -379,6 +384,9 @@ export function GitStashManager() {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
+    // The handlers are recreated on every render and close over the state above, so the listener is
+    // re-registered with the latest ones whenever any of them changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [
     workingHunks,
     stashStack,
@@ -396,6 +404,7 @@ export function GitStashManager() {
             initial={{ opacity: 0, y: -20 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -20 }}
+            role="status"
             className="fixed top-6 right-6 z-50 bg-black dark:bg-[#1f1c18] text-white border-2 border-primary px-4 py-3 rounded-xl shadow-card font-bold text-xs flex items-center gap-2"
           >
             <Sparkles className="w-4 h-4 text-primary" /> {toastMsg}
@@ -491,7 +500,7 @@ export function GitStashManager() {
                     setWorkingHunks([]);
                     showNotification("🧹 Discarded all local changes.");
                   }}
-                  className="text-xs font-bold text-rose-500 hover:underline"
+                  className="text-xs font-bold text-rose-700 dark:text-rose-400 hover:underline"
                 >
                   Discard All
                 </button>
@@ -514,7 +523,7 @@ export function GitStashManager() {
                 title="Stash all changes (Alt+S)"
               >
                 <Archive className="w-4 h-4" /> Stash All
-                <kbd className="hidden sm:inline-block ml-1 text-[10px] font-mono bg-black/20 text-black px-1.5 py-0.5 rounded border border-black/30">
+                <kbd className="hidden sm:inline-block ml-1 text-[10px] font-mono bg-black/20 text-[#0f0f14] px-1.5 py-0.5 rounded border border-black/30">
                   Alt+S
                 </kbd>
               </button>
@@ -574,7 +583,7 @@ export function GitStashManager() {
                                 : "text-gray-400"
                           }`}
                         >
-                          <span className="w-8 shrink-0 text-gray-500 select-none">
+                          <span className="w-8 shrink-0 text-gray-400 select-none">
                             {line.oldLineNo || line.newLineNo || ""}
                           </span>
                           <span className="whitespace-pre-wrap">
@@ -605,7 +614,7 @@ export function GitStashManager() {
               {stashStack.length > 0 && (
                 <button
                   onClick={handleClearStash}
-                  className="text-xs font-bold text-rose-500 hover:underline flex items-center gap-1"
+                  className="text-xs font-bold text-rose-700 dark:text-rose-400 hover:underline flex items-center gap-1"
                 >
                   <Trash2 className="w-3.5 h-3.5" /> Clear Stack
                 </button>
@@ -634,14 +643,23 @@ export function GitStashManager() {
                       }`}
                     >
                       <div className="space-y-1">
-                        <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          aria-pressed={isSelected}
+                          aria-label={`Inspect ${entry.id}: ${entry.message}`}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedStash(entry);
+                          }}
+                          className="flex items-center gap-2 text-left focus-visible:outline focus-visible:outline-4 focus-visible:outline-blue-600"
+                        >
                           <span className="bg-black text-white dark:bg-white dark:text-black font-mono text-[10px] font-black px-2 py-0.5 rounded">
                             {entry.id}
                           </span>
                           <span className="font-mono text-xs font-bold text-text dark:text-[#f0ebe2] truncate max-w-[200px]">
                             {entry.message}
                           </span>
-                        </div>
+                        </button>
                         <div className="text-[11px] font-bold text-muted flex items-center gap-2">
                           <span className="flex items-center gap-1">
                             <GitBranch className="w-3 h-3 text-primary" />{" "}
@@ -664,7 +682,7 @@ export function GitStashManager() {
                         >
                           <ArrowDownCircle className="w-3 h-3" /> Pop
                           {isTopEntry && (
-                            <kbd className="hidden xl:inline-block ml-0.5 text-[9px] font-mono bg-black/20 text-black px-1 py-0.2 rounded">
+                            <kbd className="hidden xl:inline-block ml-0.5 text-[9px] font-mono bg-black/20 text-[#0f0f14] px-1 py-0.2 rounded">
                               Alt+P
                             </kbd>
                           )}
@@ -684,7 +702,7 @@ export function GitStashManager() {
                             e.stopPropagation();
                             handleDropStash(entry.id);
                           }}
-                          className="bg-rose-500 text-white border border-black hover:bg-rose-600 px-2 py-1 rounded transition-all flex items-center gap-1 text-[11px] font-black"
+                          className="bg-rose-600 text-white border border-black hover:bg-rose-700 px-2 py-1 rounded transition-all flex items-center gap-1 text-[11px] font-black"
                           title={`Drop stash${isTopEntry ? " [Alt+D]" : ""}`}
                         >
                           <Trash2 className="w-3 h-3" /> Drop
@@ -783,6 +801,9 @@ export function GitStashManager() {
             onClick={() => setShowShortcutsModal(false)}
           >
             <div
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="stash-shortcuts-title"
               className="bg-white dark:bg-[#1f1c18] border-4 border-black dark:border-[#2e2924] rounded-3xl shadow-card p-6 max-w-lg w-full space-y-5"
               onClick={(e) => e.stopPropagation()}
             >
@@ -792,7 +813,10 @@ export function GitStashManager() {
                     <Keyboard className="w-6 h-6" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-black text-text dark:text-[#f0ebe2]">
+                    <h3
+                      id="stash-shortcuts-title"
+                      className="text-lg font-black text-text dark:text-[#f0ebe2]"
+                    >
                       Keyboard Shortcuts
                     </h3>
                     <p className="text-xs font-bold text-muted">
@@ -801,6 +825,7 @@ export function GitStashManager() {
                   </div>
                 </div>
                 <button
+                  autoFocus
                   onClick={() => setShowShortcutsModal(false)}
                   className="p-1.5 hover:bg-black/10 dark:hover:bg-white/10 rounded-xl transition-colors"
                   aria-label="Close shortcuts modal"
@@ -878,20 +903,33 @@ export function GitStashManager() {
             exit={{ opacity: 0, scale: 0.9 }}
             className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center p-4"
           >
-            <div className="bg-white dark:bg-[#1f1c18] border-4 border-black dark:border-[#2e2924] rounded-2xl shadow-card p-6 max-w-md w-full space-y-4">
-              <div className="flex items-center gap-3 text-rose-500">
-                <ShieldAlert className="w-8 h-8 shrink-0" />
-                <h3 className="text-lg font-black text-text dark:text-[#f0ebe2]">
+            <div
+              role="alertdialog"
+              aria-modal="true"
+              aria-labelledby="stash-dirty-title"
+              aria-describedby="stash-dirty-text"
+              className="bg-white dark:bg-[#1f1c18] border-4 border-black dark:border-[#2e2924] rounded-2xl shadow-card p-6 max-w-md w-full space-y-4"
+            >
+              <div className="flex items-center gap-3 text-rose-700 dark:text-rose-400">
+                <ShieldAlert className="w-8 h-8 shrink-0" aria-hidden="true" />
+                <h3
+                  id="stash-dirty-title"
+                  className="text-lg font-black text-text dark:text-[#f0ebe2]"
+                >
                   Dirty Working Tree Warning!
                 </h3>
               </div>
-              <p className="text-xs font-bold text-muted dark:text-[#c4bbae]">
+              <p
+                id="stash-dirty-text"
+                className="text-xs font-bold text-muted dark:text-[#c4bbae]"
+              >
                 You have uncommitted changes in your working tree. Popping or
                 applying a stash may result in merge conflicts or overwrite
                 uncommitted files.
               </p>
               <div className="flex items-center justify-end gap-2 pt-2">
                 <button
+                  autoFocus
                   onClick={() => setShowDirtyWarning(false)}
                   className="px-4 py-2 rounded-xl border-2 border-black font-black text-xs bg-surface dark:bg-[#12110e]"
                 >
@@ -902,7 +940,7 @@ export function GitStashManager() {
                     setShowDirtyWarning(false);
                     if (pendingAction) pendingAction();
                   }}
-                  className="px-4 py-2 rounded-xl border-2 border-black font-black text-xs bg-rose-500 text-white shadow-card-sm"
+                  className="px-4 py-2 rounded-xl border-2 border-black font-black text-xs bg-rose-600 text-white shadow-card-sm"
                 >
                   Proceed Anyway
                 </button>
@@ -916,4 +954,3 @@ export function GitStashManager() {
 }
 
 export default GitStashManager;
-

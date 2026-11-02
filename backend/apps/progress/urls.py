@@ -3,6 +3,7 @@ from django.urls import path
 from .views import ExportNotesView  # ✅ ADDED
 from .views import QuizNonceView  # NEW: Imported the Nonce View
 from .views import (
+    ActivityTimelineView,
     BadgeListView,
     BufferMetricsView,
     BulkProgressUpdateView,
@@ -31,9 +32,11 @@ from .views import (
     StreakStatusView,
     UserProgressPDFExportView,
     WeeklyGoalView,
+    XPBreakdownView,
 )
 
 urlpatterns = [
+    path("activity/", ActivityTimelineView.as_view(), name="activity-timeline"),
     # Badges
     path("leaderboard/", LeaderboardView.as_view(), name="leaderboard"),
     path(
@@ -45,6 +48,7 @@ urlpatterns = [
     path("buffer-metrics/", BufferMetricsView.as_view(), name="buffer-metrics"),
     path("heatmap/", HeatmapView.as_view(), name="heatmap"),
     path("heatmap/export/", HeatmapCSVExportView.as_view(), name="heatmap-export-csv"),
+    path("xp-breakdown/", XPBreakdownView.as_view(), name="xp-breakdown"),
     path("streak/", StreakStatusView.as_view(), name="streak-status"),
     path("streak/recovery/", StreakRecoveryView.as_view(), name="streak-recovery"),
     path("export/pdf/", UserProgressPDFExportView.as_view(), name="export-pdf"),

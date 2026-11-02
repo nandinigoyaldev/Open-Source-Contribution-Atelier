@@ -10,7 +10,7 @@ VENV_BIN := backend/.venv/$(BIN_DIR)
 
 .DEFAULT_GOAL := help
 
-.PHONY: help install start format test verify setup env scan-vulns install-tools
+.PHONY: help install start smoke format test verify setup env scan-vulns install-tools
 
 help: ## List available commands
 	@awk 'BEGIN { FS = ":.*## " } /^[a-zA-Z0-9_.-]+:.*## / { printf "  %-18s %s\n", $$1, $$2 }' $(MAKEFILE_LIST)
@@ -34,6 +34,9 @@ install: ## Install backend and frontend dependencies
 start: ## Start the development stack with Docker
 	@echo "Starting development stack..."
 	docker compose up --build
+
+smoke: ## Start the Docker stack, check service endpoints, then tear it down
+	bash scripts/compose_smoke.sh
 
 format: ## Format backend and frontend code
 	@echo "Formatting backend code..."

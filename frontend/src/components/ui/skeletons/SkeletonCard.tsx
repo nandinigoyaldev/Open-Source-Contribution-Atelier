@@ -2,7 +2,7 @@ export default function SkeletonCard() {
   return (
     <div
       aria-hidden="true"
-      className="border-2 border-black rounded-lg p-2.5 flex items-center gap-2 bg-white animate-pulse"
+      className="border-2 border-black rounded-lg p-2.5 flex items-center gap-2 bg-white skeleton-shimmer"
     >
       {/* Logo placeholder */}
       <div className="w-8 h-8 rounded-lg bg-surface-high flex-shrink-0" />

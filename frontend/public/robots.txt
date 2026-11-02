@@ -12,3 +12,5 @@ Allow: /skills
 Disallow: /admin/
 Disallow: /settings/
 Disallow: /docs/api
+
+Sitemap: https://open-source-contribution-atelier.vercel.app/sitemap.xml

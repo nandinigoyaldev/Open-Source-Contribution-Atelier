@@ -15,7 +15,12 @@ from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from django.utils import timezone
 from django.utils.http import content_disposition_header
-from drf_spectacular.utils import OpenApiResponse, extend_schema, extend_schema_view
+from drf_spectacular.utils import (
+    OpenApiParameter,
+    OpenApiResponse,
+    extend_schema,
+    extend_schema_view,
+)
 from rest_framework import permissions, status
 from rest_framework.exceptions import ValidationError
 from rest_framework.generics import ListAPIView
@@ -59,6 +64,12 @@ from .serializers import (
     LessonProgressSerializer,
     QuizAttemptSerializer,
     WeeklyGoalSerializer,
+)
+from .services.activity_timeline import (
+    TimelineError,
+    get_activity_timeline,
+    parse_limit,
+    parse_types,
 )
 from .throttles import HelpRequestRateThrottle
 
@@ -939,6 +950,48 @@ class ContributorTimelineView(APIView):
                 "contribution_streak": completed_lessons,
             }
         )
+
+
+@extend_schema(
+    parameters=[
+        OpenApiParameter(
+            "type",
+            str,
+            many=True,
+            description=(
+                "Only these activity types: lesson_completed, quiz_attempt, "
+                "certificate_issued, badge_earned. Repeat the parameter or separate "
+                "values with commas. Omit for every type."
+            ),
+        ),
+        OpenApiParameter("limit", int, description="Page size, 1 to 100 (default 20)."),
+        OpenApiParameter(
+            "cursor", str, description="`next_cursor` from the previous page."
+        ),
+    ],
+    responses={200: OpenApiResponse(description="One page of the user's activity.")},
+)
+class ActivityTimelineView(APIView):
+    """The signed-in learner's own activity, newest first, with keyset pagination.
+
+    See ``apps/progress/services/activity_timeline.py`` for the response shape.
+    """
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        try:
+            types = parse_types(request.query_params.getlist("type"))
+            limit = parse_limit(request.query_params.get("limit"))
+            data = get_activity_timeline(
+                request.user,
+                types=types,
+                limit=limit,
+                cursor=request.query_params.get("cursor") or None,
+            )
+        except TimelineError as exc:
+            return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+        return Response(data, status=status.HTTP_200_OK)
 
 
 # NEW: View to generate the one-time Nonce for Quizzes
@@ -1848,6 +1901,50 @@ class HeatmapView(APIView):
                 )
 
         return Response(data, status=status.HTTP_200_OK)
+
+
+XP_BREAKDOWN_CATEGORIES = {
+    "lessons": ("Lessons", ["lesson"]),
+    "quizzes": ("Quizzes", []),
+    "challenges": ("Challenges", ["exercise", "bounty"]),
+    "streaks": ("Streaks", []),
+    "community": ("Community", ["pr", "issue", "review"]),
+}
+
+
+class XPBreakdownView(APIView):
+    """XP earned by the current user, grouped by category.
+
+    Only positive XPEvent rows count as earned XP. Quizzes and streaks have no
+    XPEvent source type yet, so they report 0; any other earning source (badges,
+    milestones) is returned as "other" so the total still adds up.
+    """
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        totals = dict(
+            XPEvent.objects.filter(user=request.user, xp_delta__gt=0)
+            .values_list("source_type")
+            .annotate(total=Sum("xp_delta"))
+        )
+        known = set()
+        categories = []
+        for key, (label, sources) in XP_BREAKDOWN_CATEGORIES.items():
+            known.update(sources)
+            categories.append(
+                {
+                    "key": key,
+                    "label": label,
+                    "xp": sum(totals.get(s, 0) for s in sources),
+                }
+            )
+        other = sum(xp for source, xp in totals.items() if source not in known)
+        if other:
+            categories.append({"key": "other", "label": "Other", "xp": other})
+        return Response(
+            {"total_xp": sum(c["xp"] for c in categories), "categories": categories}
+        )
 
 
 class StreakStatusView(APIView):

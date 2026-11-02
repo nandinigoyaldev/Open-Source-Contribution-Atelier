@@ -36,7 +36,7 @@ describe("LeaderboardPage layout spacing", () => {
     expect(mainContainer?.className).not.toContain("pt-28");
   });
 
-  it("interpolates the shared focus ring into the load more button", async () => {
+  it("interpolates the shared focus ring into the pagination buttons", async () => {
     const queryClient = new QueryClient();
     render(
       <QueryClientProvider client={queryClient}>
@@ -50,10 +50,8 @@ describe("LeaderboardPage layout spacing", () => {
       await vi.advanceTimersByTimeAsync(0);
     });
 
-    const loadMoreButton = screen.getByRole("button", {
-      name: /load more contributors/i,
-    });
-    expect(loadMoreButton.className).toContain(CARD_FOCUS_RING);
-    expect(loadMoreButton.className).not.toContain("${CARD_FOCUS_RING}");
+    const nextButton = screen.getByRole("button", { name: /next/i });
+    expect(nextButton.className).toContain(CARD_FOCUS_RING);
+    expect(nextButton.className).not.toContain("${CARD_FOCUS_RING}");
   });
 });

@@ -2,7 +2,7 @@
 Shared JWT token generation helper.
 """
 
-from rest_framework_simplejwt.tokens import RefreshToken
+from .jwt import DynamicSaltRefreshToken
 
 
 def generate_tokens_for_user(user):
@@ -12,7 +12,7 @@ def generate_tokens_for_user(user):
     Returns:
         dict: {'access': <access_token_str>, 'refresh': <refresh_token_str>}
     """
-    refresh = RefreshToken.for_user(user)
+    refresh = DynamicSaltRefreshToken.for_user(user)
     return {
         "access": str(refresh.access_token),
         "refresh": str(refresh),

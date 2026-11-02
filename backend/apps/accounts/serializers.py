@@ -7,26 +7,52 @@ User = get_user_model()
 from django.utils import timezone
 from rest_framework import serializers
 from rest_framework.exceptions import AuthenticationFailed
-from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+from rest_framework_simplejwt.serializers import (
+    TokenObtainPairSerializer,
+    TokenRefreshSerializer,
+)
+
+from .jwt import DynamicSaltRefreshToken
 
 
 def validate_strong_password(value):
+    """Check every password rule and report all the ones that fail, each with its own code."""
+    problems = []
     if len(value) > 128:
-        raise serializers.ValidationError("Password cannot exceed 128 characters.")
+        problems.append(
+            serializers.ErrorDetail(
+                "Password cannot exceed 128 characters.", code="password_too_long"
+            )
+        )
     if not re.search(r"\d", value):
-        raise serializers.ValidationError("Password must contain at least one number.")
+        problems.append(
+            serializers.ErrorDetail(
+                "Password must contain at least one number.", code="password_no_number"
+            )
+        )
     if not re.search(r"[!@#$%^&*(),.?\":{}|<>]", value):
-        raise serializers.ValidationError(
-            "Password must contain at least one special character (!@#$%^&* etc)."
+        problems.append(
+            serializers.ErrorDetail(
+                "Password must contain at least one special character (!@#$%^&* etc).",
+                code="password_no_special",
+            )
         )
     if not re.search(r"[A-Z]", value):
-        raise serializers.ValidationError(
-            "Password must contain at least one uppercase letter."
+        problems.append(
+            serializers.ErrorDetail(
+                "Password must contain at least one uppercase letter.",
+                code="password_no_uppercase",
+            )
         )
     if not re.search(r"[a-z]", value):
-        raise serializers.ValidationError(
-            "Password must contain at least one lowercase letter."
+        problems.append(
+            serializers.ErrorDetail(
+                "Password must contain at least one lowercase letter.",
+                code="password_no_lowercase",
+            )
         )
+    if problems:
+        raise serializers.ValidationError(problems)
     return value
 
 
@@ -41,7 +67,9 @@ class SignupSerializer(serializers.ModelSerializer):
         """Reject duplicate usernames using a case-insensitive comparison."""
         normalized = value.strip()
         if User.objects.filter(username__iexact=normalized).exists():
-            raise serializers.ValidationError("Username is already taken.")
+            raise serializers.ValidationError(
+                "Username is already taken.", code="username_taken"
+            )
         return normalized
 
     def validate_email(self, value):
@@ -49,7 +77,8 @@ class SignupSerializer(serializers.ModelSerializer):
         normalized = value.strip().lower()
         if User.objects.filter(email__iexact=normalized).exists():
             raise serializers.ValidationError(
-                "An account with this email address already exists."
+                "An account with this email address already exists.",
+                code="email_taken",
             )
         return normalized
 
@@ -72,12 +101,16 @@ class UserUpdateSerializer(serializers.ModelSerializer):
     linkedin_url = serializers.URLField(required=False, allow_blank=True)
     github_url = serializers.URLField(required=False, allow_blank=True)
     bio = serializers.CharField(required=False, allow_blank=True)
+    first_name = serializers.CharField(
+        required=False, allow_blank=True, max_length=150, trim_whitespace=True
+    )
     receive_weekly_digest = serializers.BooleanField(required=False)
 
     class Meta:
         model = User
         fields = (
             "email",
+            "first_name",
             "password",
             "avatar",
             "cover_image",
@@ -200,6 +233,7 @@ class UserListSerializer(serializers.ModelSerializer):
         fields = (
             "id",
             "username",
+            "first_name",
             "email",
             "is_staff",
             "avatar_url",
@@ -299,6 +333,10 @@ class UserListSerializer(serializers.ModelSerializer):
 
 class EmailOrUsernameTokenObtainPairSerializer(TokenObtainPairSerializer):
     """Allow login with either username or email in the username field, plus optional remember me lifetime and 2FA TOTP code validation."""
+
+    # Tokens carry the password-hash and token-version claims, so a password change or a
+    # revocation invalidates them (see apps.accounts.jwt).
+    token_class = DynamicSaltRefreshToken
 
     remember = serializers.BooleanField(required=False, default=False)
     totp_code = serializers.CharField(required=False, allow_blank=True, write_only=True)
@@ -526,3 +564,11 @@ class UserSessionSerializer(serializers.ModelSerializer):
             "last_activity",
         )
         read_only_fields = fields
+
+
+class DynamicSaltTokenRefreshSerializer(TokenRefreshSerializer):
+    """Refresh with the dynamic-salt class so a refresh token issued before a password change
+    or revocation is rejected, instead of being accepted because it is merely not blacklisted.
+    """
+
+    token_class = DynamicSaltRefreshToken

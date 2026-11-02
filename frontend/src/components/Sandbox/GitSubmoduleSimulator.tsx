@@ -1,23 +1,17 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   Terminal,
-  GitBranch,
-  GitCommit,
   FolderTree,
   CheckCircle2,
-  AlertCircle,
   Play,
   RotateCcw,
   Sparkles,
-  HelpCircle,
   FileCode,
-  ExternalLink,
   Layers,
-  ArrowRight,
   ShieldCheck,
-  Zap,
 } from "lucide-react";
+import { deriveSubmodulePath } from "../../lib/submodulePaths";
 
 export interface SubmoduleNode {
   id: string;
@@ -155,6 +149,7 @@ const INITIAL_EXERCISES: Exercise[] = [
 
 export function GitSubmoduleSimulator() {
   const [tree, setTree] = useState<SubmoduleNode>(INITIAL_TREE);
+  const submodules = tree.children ?? [];
   const [terminalInput, setTerminalInput] = useState("");
   const [terminalLogs, setTerminalLogs] = useState<string[]>([
     "🖥️  Git Submodule Interactive Terminal & Visualizer v1.0",
@@ -295,11 +290,7 @@ export function GitSubmoduleSimulator() {
           printStatus(tree);
         } else if (action === "add") {
           const url = parts[3];
-          const path =
-            parts[4] ||
-            (url
-              ? url.split("/").pop()?.replace(".git", "")
-              : "libs/new-module");
+          const path = parts[4] || deriveSubmodulePath(url);
 
           if (!url) {
             addLog(
@@ -329,7 +320,7 @@ export function GitSubmoduleSimulator() {
           addLog(`Cloning into '${path}'...`);
           addLog(`done.`);
           addLog(`✅ Added submodule '${path}' (${url}) to .gitmodules`);
-          checkExerciseCompletion("git submodule add", path);
+          checkExerciseCompletion("git submodule add");
         } else if (action === "init") {
           setTree((prev) =>
             updateNodeRecursively(prev, (node) => {
@@ -355,7 +346,6 @@ export function GitSubmoduleSimulator() {
           checkExerciseCompletion("git submodule init");
         } else if (action === "update") {
           const isRemote = parts.includes("--remote");
-          const isRecursive = parts.includes("--recursive");
 
           setTree((prev) =>
             updateNodeRecursively(prev, (node) => {
@@ -427,7 +417,7 @@ export function GitSubmoduleSimulator() {
   };
 
   // Check exercise completion
-  const checkExerciseCompletion = (cmdPrefix: string, arg?: string) => {
+  const checkExerciseCompletion = (cmdPrefix: string) => {
     const currentEx = exercises[currentExerciseIdx];
     if (!currentEx || currentEx.completed) return;
 
@@ -563,8 +553,19 @@ export function GitSubmoduleSimulator() {
             {activeTab === "tree" && (
               <div className="relative flex-1 bg-surface-low dark:bg-[#12110e] border-2 border-black/20 dark:border-[#2e2924] rounded-xl overflow-hidden p-4 flex flex-col justify-center items-center">
                 {/* SVG Visual Canvas */}
-                <div className="w-full h-[380px] relative overflow-auto flex items-center justify-center">
+                <div
+                  role="region"
+                  aria-label="Submodule tree diagram"
+                  tabIndex={0}
+                  className="w-full h-[380px] relative overflow-auto flex items-center justify-center focus-visible:outline focus-visible:outline-4 focus-visible:outline-blue-600"
+                >
                   <svg
+                    role="img"
+                    aria-label={`Repository tree: ${submodules.length} ${submodules.length === 1 ? "submodule" : "submodules"}${
+                      submodules.length
+                        ? `: ${submodules.map((n) => `${n.path} (${n.initialized ? n.status.replace("_", " ") : "uninitialized"})`).join(", ")}`
+                        : ""
+                    }`}
                     className="w-full h-full min-w-[500px] min-h-[350px]"
                     viewBox="0 0 700 350"
                   >
@@ -923,10 +924,10 @@ export function GitSubmoduleSimulator() {
                   <span
                     className={`px-2 py-1 rounded font-black text-white ${
                       !selectedNode.initialized
-                        ? "bg-rose-500"
+                        ? "bg-rose-600"
                         : selectedNode.status === "detached_head"
-                          ? "bg-amber-500"
-                          : "bg-emerald-500"
+                          ? "bg-amber-700"
+                          : "bg-emerald-700"
                     }`}
                   >
                     {selectedNode.initialized
@@ -960,7 +961,7 @@ export function GitSubmoduleSimulator() {
                   <span className="font-black text-sm text-text dark:text-[#f0ebe2]">
                     {exercises[currentExerciseIdx].title}
                   </span>
-                  <span className="bg-amber-400/20 text-amber-600 dark:text-amber-400 border border-amber-500/40 text-[10px] font-black px-2 py-0.5 rounded">
+                  <span className="bg-amber-400/20 text-amber-800 dark:text-amber-300 border border-amber-500/40 text-[10px] font-black px-2 py-0.5 rounded">
                     +{exercises[currentExerciseIdx].xp} XP
                   </span>
                 </div>
@@ -978,13 +979,23 @@ export function GitSubmoduleSimulator() {
               {exercises.map((ex, idx) => (
                 <div
                   key={ex.id}
+                  role="button"
+                  tabIndex={0}
+                  aria-current={idx === currentExerciseIdx ? "step" : undefined}
+                  aria-label={`Exercise ${idx + 1}: ${ex.title}${ex.completed ? ", completed" : ""}`}
                   onClick={() => setCurrentExerciseIdx(idx)}
-                  className={`flex items-center justify-between p-2 rounded-lg border-2 text-xs font-bold cursor-pointer transition-all ${
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" || event.key === " ") {
+                      event.preventDefault();
+                      setCurrentExerciseIdx(idx);
+                    }
+                  }}
+                  className={`flex items-center justify-between p-2 rounded-lg border-2 text-xs font-bold cursor-pointer transition-all focus-visible:outline focus-visible:outline-4 focus-visible:outline-blue-600 ${
                     idx === currentExerciseIdx
                       ? "border-black bg-primary/20 text-text dark:text-[#f0ebe2]"
                       : ex.completed
-                        ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-                        : "border-black/10 dark:border-[#2e2924] text-muted opacity-70"
+                        ? "border-emerald-500/30 bg-emerald-500/10 text-emerald-800 dark:text-emerald-300"
+                        : "border-black/10 dark:border-[#2e2924] text-muted"
                   }`}
                 >
                   <div className="flex items-center gap-2">
@@ -1021,7 +1032,12 @@ export function GitSubmoduleSimulator() {
             </div>
 
             {/* Logs Area */}
-            <div className="flex-1 p-4 font-mono text-xs text-gray-200 overflow-y-auto space-y-1.5 max-h-[260px]">
+            <div
+              role="log"
+              aria-label="Submodule terminal output"
+              tabIndex={0}
+              className="flex-1 p-4 font-mono text-xs text-gray-200 overflow-y-auto space-y-1.5 max-h-[260px] focus-visible:outline focus-visible:outline-4 focus-visible:outline-blue-400"
+            >
               {terminalLogs.map((log, idx) => (
                 <div
                   key={idx}
@@ -1057,7 +1073,7 @@ export function GitSubmoduleSimulator() {
               />
               <button
                 type="submit"
-                className="bg-emerald-500 hover:bg-emerald-600 text-black font-black text-xs px-3 py-1.5 rounded-lg border border-black transition-all flex items-center gap-1"
+                className="bg-emerald-700 hover:bg-emerald-800 text-white font-black text-xs px-3 py-1.5 rounded-lg border border-black transition-all flex items-center gap-1"
               >
                 Run <Play className="w-3 h-3 fill-current" />
               </button>

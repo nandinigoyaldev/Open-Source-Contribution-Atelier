@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
+  History,
   BookOpen,
   LayoutGrid,
   Trophy,
@@ -10,6 +11,8 @@ import {
   Box,
   GitMerge,
   GitBranch,
+  Archive,
+  FolderTree,
   FileCode,
   Puzzle,
   Globe,
@@ -58,12 +61,15 @@ const NAV_ITEMS: NavEntry[] = [
       { to: "/sandbox", label: "Sandbox", icon: Box },
       { to: "/git-rebase-simulator", label: "Git Rebase Visualizer", icon: GitMerge },
       { to: "/git-bisect-game", label: "Git Bisect Game", icon: GitBranch },
+      { to: "/git-tools/stash", label: "Git Stash Manager", icon: Archive },
+      { to: "/sandbox/submodules", label: "Git Submodule Simulator", icon: FolderTree },
       { to: "/monorepo-visualizer", label: "Monorepo Visualizer", icon: GitBranch },
       { to: "/dockerfile-linter", label: "Dockerfile Linter", icon: FileCode },
     ],
   },
   { to: "/community", label: "Community", icon: Users },
   { to: "/leaderboard", label: "Leaderboard", icon: Award },
+  { to: "/activity", label: "My activity", icon: History },
 ];
 
 const ADMIN_ITEMS: NavItem[] = [

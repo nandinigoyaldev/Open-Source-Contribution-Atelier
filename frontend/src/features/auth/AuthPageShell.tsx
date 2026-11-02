@@ -140,7 +140,8 @@ export function AuthPageShell({
 
       {/* Footer */}
       <footer className="w-full max-w-7xl mx-auto px-6 py-2 text-center text-[10px] font-bold text-slate-400 dark:text-slate-500 relative z-20 shrink-0">
-        © {new Date().getFullYear()} Open Source Contribution Atelier • Crafted for developers worldwide
+        © {new Date().getFullYear()} Open Source Contribution Atelier • Crafted
+        for developers worldwide
       </footer>
     </div>
   );

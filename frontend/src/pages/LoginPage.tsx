@@ -236,12 +236,16 @@ export function LoginPage() {
         <button
           type="button"
           onClick={toggleTheme}
-          className="grid h-9 w-9 place-items-center rounded-lg border border-slate-300/80 bg-white/70 text-slate-600 transition hover:border-slate-400 hover:text-slate-950 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-slate-600 dark:hover:text-white"
+          className="theme-toggle inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-300/80 bg-white/70 text-slate-600 transition hover:border-slate-400 hover:text-slate-950 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300 dark:hover:border-slate-600 dark:hover:text-white"
           aria-label={
             theme === "dark" ? "Switch to light mode" : "Switch to dark mode"
           }
         >
-          {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
+          {theme === "dark" ? (
+            <Sun size={16} className="shrink-0" aria-hidden="true" />
+          ) : (
+            <Moon size={16} className="shrink-0" aria-hidden="true" />
+          )}
         </button>
       </header>
       <main className="mx-auto w-full max-w-6xl px-5 py-4 sm:px-8">

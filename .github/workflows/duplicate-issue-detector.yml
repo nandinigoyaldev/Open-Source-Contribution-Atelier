@@ -1,7 +1,9 @@
 name: Duplicate Issue Detector
 
-# When a new issue is opened, search open issues with a similar title and
-# comment a possible-duplicate hint so maintainers can merge/close.
+# When a new issue is opened, compare its normalized title (case, punctuation,
+# [Tag] / "bug:" prefixes ignored) with open issues and comment possible
+# duplicates. It only suggests candidates; maintainers decide whether to close.
+# Matching logic and threshold live in scripts/duplicate_issue_candidates.py.
 
 on:
   issues:
@@ -15,27 +17,40 @@ jobs:
   detect:
     runs-on: ubuntu-latest
     steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: scripts/duplicate_issue_candidates.py
+          sparse-checkout-mode: no-cone
+
       - name: Check for similar open issues
         uses: actions/github-script@v9
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
+            const { execFileSync } = require('child_process');
             const issue = context.payload.issue;
-            const owner = context.repo.owner;
-            const repo = context.repo.repo;
+            const { owner, repo } = context.repo;
 
-            // Simple title keyword search among open issues
-            const { data: results } = await github.rest.search.issues({
-              q: `repo:${owner}/${repo} type:issue state:open "${issue.title}"`,
-              per_page: 10
+            // Open issues only (the API also returns PRs, which are skipped)
+            const open = await github.paginate(github.rest.issues.listForRepo, {
+              owner, repo, state: 'open', per_page: 100,
             });
+            const issues = open
+              .filter(i => !i.pull_request && i.number !== issue.number)
+              .map(i => ({ number: i.number, title: i.title }));
 
-            const similar = results.items.filter(i => i.number !== issue.number);
-            if (similar.length > 0) {
+            const out = execFileSync(
+              'python3', ['scripts/duplicate_issue_candidates.py'],
+              { input: JSON.stringify({ title: issue.title, number: issue.number, issues }) }
+            );
+            const candidates = JSON.parse(out.toString());
+
+            if (candidates.length > 0) {
               await github.rest.issues.createComment({
                 owner, repo, issue_number: issue.number,
                 body: `🔍 This might be a duplicate of:\n` +
-                  similar.map(i => `- #${i.number}: ${i.title}`).join('\n') +
-                  `\n\nIf so, please comment on the existing issue instead of opening a new one.`
+                  candidates.map(c => `- #${c.number}: ${c.title}`).join('\n') +
+                  `\n\nIf so, please comment on the existing issue instead of opening a new one. ` +
+                  `This is only a suggestion; a maintainer will confirm.`
               });
             }

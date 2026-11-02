@@ -1,0 +1,24 @@
+{
+  "name": "Open Source Contribution Atelier",
+  "short_name": "Atelier",
+  "description": "Learn Git and open source contribution through guided lessons and interactive developer tools.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#f2f1ec",
+  "theme_color": "#171923",
+  "icons": [
+    {
+      "src": "/icons/icon-192x192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "/icons/icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ]
+}

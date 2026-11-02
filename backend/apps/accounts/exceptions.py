@@ -124,28 +124,21 @@ def throttle_exception_handler(exc, context):
 
     # Validation errors
     if isinstance(exc, ValidationError):
-        message = "Validation error"
-        field_errors = {}
-
-        if isinstance(exc.detail, dict):
-            first_field = next(iter(exc.detail))
-            first_error = exc.detail[first_field][0]
-            message = str(first_error)
-            # Add all field errors for frontend highlighting
-            for field, errors in exc.detail.items():
-                field_errors[field] = [str(e) for e in errors]
-        elif isinstance(exc.detail, list):
-            message = str(exc.detail[0])
-        else:
-            message = str(exc.detail)
+        messages, codes = _flatten_validation_detail(exc.detail)
+        field_errors = {field: texts for field, texts in messages.items() if field}
+        field_codes = {field: names for field, names in codes.items() if field}
+        first = next(iter(messages.values()), None)
 
         response_data = {
             "error": True,
             "code": "validation_error",
-            "message": message,
+            "message": first[0] if first else "Validation error",
         }
         if field_errors:
+            # Field -> messages, for highlighting fields; error_codes has the same shape with
+            # stable machine-readable codes (e.g. "email_taken") so clients never parse prose.
             response_data["errors"] = field_errors
+            response_data["error_codes"] = field_codes
 
         return Response(response_data, status=status.HTTP_400_BAD_REQUEST)
     if isinstance(exc, PermissionDenied):
@@ -194,3 +187,42 @@ def throttle_exception_handler(exc, context):
         return response
 
     return response
+
+
+def _flatten_validation_detail(detail):
+    """
+    Turn any DRF ValidationError detail into ({field: [messages]}, {field: [codes]}).
+
+    Handles a dict of lists, a plain list, a string, and nested serializers or list fields
+    (nested keys are joined with a dot: "profile.timezone", "items.0.name"). Errors that
+    belong to no field are filed under "" and are used for `message` only.
+    """
+    messages = {}
+    codes = {}
+
+    def walk(node, path):
+        if isinstance(node, dict):
+            for key, value in node.items():
+                walk(value, f"{path}.{key}" if path else str(key))
+        elif isinstance(node, (list, tuple)):
+            if all(not isinstance(item, (dict, list, tuple)) for item in node):
+                for item in node:
+                    messages.setdefault(path, []).append(str(item))
+                    codes.setdefault(path, []).append(
+                        getattr(item, "code", None) or "invalid"
+                    )
+            else:
+                for index, item in enumerate(node):
+                    if isinstance(item, (dict, list, tuple)):
+                        walk(item, f"{path}.{index}" if path else str(index))
+                    else:
+                        messages.setdefault(path, []).append(str(item))
+                        codes.setdefault(path, []).append(
+                            getattr(item, "code", None) or "invalid"
+                        )
+        else:
+            messages.setdefault(path, []).append(str(node))
+            codes.setdefault(path, []).append(getattr(node, "code", None) or "invalid")
+
+    walk(detail, "")
+    return messages, codes

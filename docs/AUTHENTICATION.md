@@ -84,6 +84,43 @@ The default backend is `django.core.mail.backends.console.EmailBackend` for deve
    - Rate limits are applied to prevent email bombing (`3/minute` for request, `5/minute` for verify).
    - Generic responses are used for the request endpoint to prevent email enumeration attacks.
 
+## Sessions After a Password Change or Reset
+
+Changing or resetting a password must end every other way the account is signed in. Otherwise a stolen
+token keeps working for as long as it lives (30 days for access tokens and a year for refresh tokens by
+default).
+
+### What is revoked
+
+| Credential | How it is revoked |
+| --- | --- |
+| Access tokens | They carry the profile's `token_version` and the first 16 characters of the password hash. The version is incremented and the hash changes, so every earlier token fails verification (`apps/accounts/jwt.py`). |
+| Refresh tokens | Every outstanding token for the user is added to the SimpleJWT blacklist on the server, and the refresh endpoint verifies the same claims. A refresh token that was never rotated is rejected as well. |
+| Device sessions | The `UserSession` rows (the device list) are deleted. |
+| WebSocket connections | A `token_revoked` event is published so open connections close. A Redis outage never blocks the change. |
+| Tokens issued before the claims existed | They are accepted only if they were issued after the last password change, so they cannot survive one. |
+
+The change and the revocation run in one database transaction: if revoking fails the password is not changed.
+
+### What is kept
+
+* **`POST /api/auth/change-password/`** (signed in): the device making the request stays signed in. Its
+  `UserSession` is kept and the response contains a **fresh pair**, `access` and `refresh`, bound to that
+  same session. Store them and replace the old pair. The previous tokens of that device stop working too.
+  The existing `status` field is unchanged.
+* **`POST /api/auth/password-reset/confirm/`** (signed out): everything is revoked and nothing is issued. The
+  user signs in again with the new password.
+* A failed change (wrong current password, weak new password) revokes nothing.
+* Other users are never affected.
+
+### Where tokens are issued
+
+Login, the refresh endpoint, magic-link and OAuth sign-in, and `TokenService` all use
+`DynamicSaltRefreshToken`, which carries the claims above and records the token so it can be blacklisted. Use it
+for any new place that issues tokens, not SimpleJWT's plain `RefreshToken`.
+
+Tests: `apps/accounts/tests/test_password_change_sessions.py`.
+
 ## Guidelines for Extending Passwordless Authentication
 
 - When introducing new passwordless mechanisms (e.g., OTP via SMS), use the existing token generation and verification architecture as a baseline.
@@ -163,6 +200,27 @@ to let users "Sign in with Atelier."
 consumer currently exists — this is intended for future third-party
 integrations (e.g. partner learning platforms), not used by the Atelier
 frontend itself.
+
+## Validation Errors (Sign-up and Other Endpoints)
+
+A request that fails validation, whichever rule fails and whichever endpoint, answers `400` with one envelope (`apps/accounts/exceptions.py`):
+
+```json
+{
+  "error": true,
+  "code": "validation_error",
+  "message": "An account with this email address already exists.",
+  "errors":      { "email": ["An account with this email address already exists."] },
+  "error_codes": { "email": ["email_taken"] }
+}
+```
+
+- `message` is the first message, ready to show. `errors` maps each field to its messages so a form can show them next to the fields; nested serializers and list items use dotted keys (`profile.timezone`, `items.1.name`), and errors that belong to no field use `non_field_errors`.
+- `error_codes` has the same shape with **stable codes** to branch on instead of parsing text. Sign-up codes: `required`, `blank`, `invalid` (bad email or type), `min_length`, `max_length`, `username_taken`, `email_taken`, `password_too_long`, `password_no_number`, `password_no_special`, `password_no_uppercase`, `password_no_lowercase`. Every failed password rule is reported at once.
+- `errors` and `error_codes` are left out when no field is involved (for example a request body that is a list gets `non_field_errors`).
+- The response never contains stored account data (hashes, ids, names or e-mail of the existing account) and the submitted password is never echoed. Like most sign-up forms it does say that a username or e-mail is taken.
+
+On the frontend, `ApiError` exposes these as `fieldErrors` and `fieldCodes`, and the sign-up form shows them under each field.
 
 ## Sign in with Google (social login)
 

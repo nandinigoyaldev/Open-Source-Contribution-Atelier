@@ -13,6 +13,7 @@ on:
 
 permissions:
   contents: read
+  pull-requests: write
 
 jobs:
   performance-budget:
@@ -35,8 +36,71 @@ jobs:
       - name: Build frontend
         run: npm run build
 
-      - name: Check bundle size budget
-        run: npm run perf:budget
+      # Analyze without failing yet so the size comment is posted even when the
+      # budget is exceeded; the budget is enforced in a later step.
+      - name: Analyze bundle size
+        id: budget
+        continue-on-error: true
+        run: |
+          npm run perf:budget
+          cp public/performance.json "$RUNNER_TEMP/head-bundle.json"
+
+      # Build the base branch the same way to get something to diff against.
+      - name: Checkout base branch
+        if: github.event_name == 'pull_request'
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: base
+
+      - name: Build base branch
+        if: github.event_name == 'pull_request'
+        continue-on-error: true
+        working-directory: base/frontend
+        run: |
+          npm install --no-audit --no-fund
+          npm run build
+          npm run perf:budget || true
+          cp public/performance.json "$RUNNER_TEMP/base-bundle.json"
+
+      - name: Build bundle size report
+        if: github.event_name == 'pull_request' && always()
+        run: |
+          if [ -f "$RUNNER_TEMP/head-bundle.json" ]; then
+            base_arg=""
+            [ -f "$RUNNER_TEMP/base-bundle.json" ] && base_arg="$RUNNER_TEMP/base-bundle.json"
+            npx tsx scripts/bundle-size-report.ts "$RUNNER_TEMP/head-bundle.json" $base_arg > "$RUNNER_TEMP/bundle-comment.md"
+            cat "$RUNNER_TEMP/bundle-comment.md" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      # Fork PRs get a read-only token, so commenting is best effort; the same
+      # report is always available in the job summary.
+      - name: Comment bundle size on PR
+        if: github.event_name == 'pull_request' && always()
+        continue-on-error: true
+        uses: actions/github-script@v9
+        with:
+          script: |
+            const fs = require('fs');
+            const file = `${process.env.RUNNER_TEMP}/bundle-comment.md`;
+            if (!fs.existsSync(file)) return;
+            const body = fs.readFileSync(file, 'utf8');
+            const marker = '<!-- bundle-size-report -->';
+            const { owner, repo } = context.repo;
+            const issue_number = context.issue.number;
+            const comments = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number });
+            const existing = comments.find((c) => c.body && c.body.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
+            } else {
+              await github.rest.issues.createComment({ owner, repo, issue_number, body });
+            }
+
+      - name: Enforce bundle size budget
+        if: steps.budget.outcome == 'failure'
+        run: |
+          echo "Bundle size budget exceeded, see the report above."
+          exit 1
 
       - name: Run Lighthouse CI
         run: npm run perf:lighthouse

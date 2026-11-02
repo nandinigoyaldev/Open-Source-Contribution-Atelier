@@ -9,6 +9,7 @@ from pathlib import Path
 
 import dj_database_url
 import stripe
+from corsheaders.defaults import default_headers as default_cors_headers
 
 # pyrefly: ignore [missing-import]
 from django.core.exceptions import ImproperlyConfigured
@@ -209,6 +210,11 @@ for _co in [
 
 
 CORS_ALLOW_ALL_ORIGINS = DEBUG and not TESTING
+
+# The frontend is on another origin, so the browser only lets it read X-Request-ID (to show or
+# report it next to an error) when the header is exposed, and only lets it send one when it is allowed.
+CORS_EXPOSE_HEADERS = ["X-Request-ID"]
+CORS_ALLOW_HEADERS = [*default_cors_headers, "x-request-id"]
 
 
 def _validate_cors_allowed_origins(origins: list[str]) -> list[str]:
@@ -864,11 +870,34 @@ _q_broker: dict = (
     if is_redis_available(CHECK_REDIS_URL) and ENV_REDIS_URL
     else {"orm": "default"}
 )
+
+
+# Shutdown behaviour (see docs/WORKER_SHUTDOWN.md): on SIGTERM the cluster stops
+# pulling new tasks, lets running tasks finish for up to ``timeout`` seconds, and
+# anything still unacknowledged is re-delivered after ``retry`` seconds.
+# ``retry`` must stay larger than ``timeout`` and the worker container's
+# ``stop_grace_period`` must be larger than ``timeout``.
+def _parse_task_timeout(raw: str) -> int:
+    """Return a positive integer timeout, or raise a clear error."""
+    try:
+        value = int(raw)
+    except (TypeError, ValueError):
+        raise ImproperlyConfigured(
+            f"Q_TASK_TIMEOUT must be a positive integer number of seconds, got {raw!r}"
+        ) from None
+    if value <= 0:
+        raise ImproperlyConfigured(
+            f"Q_TASK_TIMEOUT must be greater than 0 seconds, got {value}"
+        )
+    return value
+
+
+Q_TASK_TIMEOUT = _parse_task_timeout(os.getenv("Q_TASK_TIMEOUT", "90"))
 Q_CLUSTER = {
     "name": "atelier",
     "workers": 4,
-    "timeout": 90,
-    "retry": 120,
+    "timeout": Q_TASK_TIMEOUT,
+    "retry": Q_TASK_TIMEOUT + 30,
     "queue_limit": 50,
     "bulk": 10,
     **_q_broker,

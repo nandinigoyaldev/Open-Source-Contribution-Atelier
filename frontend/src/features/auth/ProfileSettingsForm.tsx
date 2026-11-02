@@ -92,6 +92,10 @@ function ActiveSessions() {
 }
 
 const profileSchema = z.object({
+  first_name: z
+    .string()
+    .max(150, { message: "Display name cannot exceed 150 characters" })
+    .optional(),
   email: z.string().email({ message: "Please enter a valid email address" }),
   password: z
     .string()
@@ -172,6 +176,7 @@ export function ProfileSettingsForm({ onChange }: ProfileSettingsFormProps) {
   } = useForm<ProfileFormValues>({
     resolver: zodResolver(profileSchema),
     defaultValues: {
+      first_name: user?.first_name || "",
       email: user?.email || "",
       password: "",
       bio: user?.bio || "",
@@ -209,6 +214,7 @@ export function ProfileSettingsForm({ onChange }: ProfileSettingsFormProps) {
   useEffect(() => {
     if (user?.email) {
       reset({
+        first_name: user.first_name || "",
         email: user.email,
         password: "",
         bio: user.bio || "",
@@ -233,6 +239,7 @@ export function ProfileSettingsForm({ onChange }: ProfileSettingsFormProps) {
       if (selectedAvatar || selectedCover) {
         const formData = new FormData();
         formData.append("email", data.email);
+        formData.append("first_name", (data.first_name || "").trim());
         if (data.password) formData.append("password", data.password);
         if (data.bio !== undefined) formData.append("bio", data.bio);
         formData.append("timezone", data.timezone);
@@ -244,6 +251,7 @@ export function ProfileSettingsForm({ onChange }: ProfileSettingsFormProps) {
         body = formData;
       } else {
         const payload: Record<string, string> = {
+          first_name: (data.first_name || "").trim(),
           email: data.email,
           timezone: data.timezone,
           twitter_url: data.twitter_url || "",
@@ -264,6 +272,7 @@ export function ProfileSettingsForm({ onChange }: ProfileSettingsFormProps) {
       await checkUser();
       addToast("Profile settings updated successfully!", "success");
       reset({
+        first_name: (data.first_name || "").trim(),
         email: data.email,
         password: "",
         bio: data.bio || "",
@@ -332,6 +341,31 @@ export function ProfileSettingsForm({ onChange }: ProfileSettingsFormProps) {
           currentAvatarUrl={user?.avatar_url}
           onFileSelect={(file) => setSelectedAvatar(file)}
         />
+
+        <div className="space-y-2">
+          <label
+            htmlFor="first_name"
+            className="font-bold text-black ml-2 uppercase tracking-wide text-sm"
+          >
+            Display Name
+          </label>
+          <input
+            id="first_name"
+            {...register("first_name")}
+            className={`w-full rounded-2xl border-4 border-black bg-white px-5 py-4 text-black font-bold outline-none placeholder:text-muted/60 focus:bg-accent shadow-card-sm transition-all focus:-translate-y-1 focus:shadow-card ${
+              errors.first_name ? "border-red-500" : ""
+            }`}
+            type="text"
+            maxLength={150}
+            placeholder="How should we call you?"
+            disabled={loading}
+          />
+          {errors.first_name && (
+            <p role="alert" className="text-red-600 font-bold ml-2 text-sm">
+              {errors.first_name.message}
+            </p>
+          )}
+        </div>
 
         <div className="space-y-2">
           <label

@@ -103,6 +103,28 @@ The row-level events written by `signals.py` (`before` / `after` model snapshots
 
 CSV and JSON exports and the archive files below contain the same data as the API, so treat them with the same care.
 
+### Filtering and paging the list
+
+`GET /api/admin/audit/` filters on the server and pages the result. Filters combine with AND.
+
+| Parameter | Meaning |
+|---|---|
+| `start_date`, `end_date` | Date range. `YYYY-MM-DD` or an ISO 8601 date-time. A date without a time covers the whole day, so `end_date=2026-01-31` includes everything on the 31st. A date-time is used exactly as given. Plain dates are read in the server's time zone. |
+| `actor` | A user id, or part of a username. |
+| `action` | One of `created`, `updated`, `deleted`. |
+| `operation` | The named admin event in `extra`, e.g. `issue.updated` (exact match). |
+| `resource_type` (or `model_type`) | Part of the `app_label.model_name` of the target. |
+| `resource_id`, `correlation_id` | Exact match. |
+| `search` (or `q`) | Text search over resource, id, actor, correlation id and user agent. |
+| `page`, `page_size` | Page number (from 1) and size. Default 20, at most 100; a bad `page_size` falls back to the default. A page past the last one is a `404`. |
+
+The response carries `count`, the number of events matching the filters (not the page size), plus `next` and `previous`, which keep the filters.
+
+A value the server cannot use is a `400` that names the field, instead of being ignored: an impossible date such as `2026-02-30`,
+a start date after the end date, an `action` that is not one of the three verbs, or a text filter over 100 characters. CSV and JSON
+export (`export=csv|json`) use the same filters and return every matching event, not just one page. In the admin screen the filter
+inputs are checked in the browser first, and typing waits for a short pause before a request is sent.
+
 ## 5. Retention
 
 - Events are kept in the database for `AUDIT_RETENTION_DAYS` (default `90`, set by environment variable).

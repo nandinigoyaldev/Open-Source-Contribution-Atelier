@@ -8,15 +8,17 @@ Welcome to the permanent **Hall of Fame & Contributor Legacy** for **Open-Source
 
 | 1 | @ArshiBansal | 🥉 Bronze Contributor  | 1 | 25 | 2026-10-24 |
 
-| 1 | @chanchall26 | 🥈 Silver Contributor ⚡ | 3 | 75 | 2026-10-24 |
+| 1 | @chanchall26 | 💎 Diamond Contributor ⚡ | 40 | 1000 | 2026-10-29 |
 
 | 1 | @S-Gijbile-19 | 🥇 Gold Contributor ⚡ | 5 | 125 | 2026-10-28 |
 
-| 1 | @SnehalKrushnaBandal | 🥉 Bronze Contributor ⚡ | 2 | 50 | 2026-10-28 |
+| 1 | @SnehalKrushnaBandal | 🥈 Silver Contributor ⚡ | 3 | 75 | 2026-10-29 |
 
 | 1 | @Blazehue | 🥉 Bronze Contributor  | 1 | 25 | 2026-10-28 |
 
 | 1 | @dependabot[bot] | 💎 Diamond Contributor ⚡ | 40 | 1000 | 2026-10-28 |
+
+| 1 | @srushtib03 | 🥉 Bronze Contributor ⚡ | 2 | 50 | 2026-11-02 |
 
 ---
 

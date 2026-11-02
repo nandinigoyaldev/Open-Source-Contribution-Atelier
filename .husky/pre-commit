@@ -1,0 +1,11 @@
+#!/usr/bin/env sh
+. "$(dirname "$0")/_/husky.sh"
+
+# Lint and format-check only the staged frontend files.
+if git diff --cached --name-only -- frontend | grep -qE '\.(ts|tsx)$'; then
+  if [ -d frontend/node_modules ]; then
+    cd frontend && npx --yes lint-staged@15.5.2
+  else
+    echo "pre-commit: frontend/node_modules not found, skipping frontend lint (run 'npm ci' in frontend/)."
+  fi
+fi

@@ -52,18 +52,42 @@ class AuditLogger:
         # Log as JSON
         logger.info(json.dumps(audit_entry, default=str))
 
+    SENSITIVE_KEY_PARTS = (
+        "password",
+        "passwd",
+        "secret",
+        "token",
+        "authorization",
+        "api_key",
+        "apikey",
+    )
+
     @staticmethod
-    def _sanitize_data(data: Dict) -> Dict:
-        """Remove sensitive fields from logs."""
-        sensitive_fields = ["password", "token", "secret", "key", "authorization"]
-        sanitized = {}
+    def _is_sensitive(key) -> bool:
+        name = str(key).lower()
+        return name == "key" or any(
+            part in name for part in AuditLogger.SENSITIVE_KEY_PARTS
+        )
 
-        for key, value in data.items():
-            if key.lower() in sensitive_fields:
-                sanitized[key] = "***REDACTED***"
-            elif isinstance(value, dict):
-                sanitized[key] = AuditLogger._sanitize_data(value)
-            else:
-                sanitized[key] = value
+    @staticmethod
+    def _sanitize_data(data):
+        """
+        Remove sensitive fields from logs.
 
-        return sanitized
+        Works on any JSON value: objects are sanitized key by key (``new_password``,
+        ``access_token`` and similar count as sensitive, not just the exact names), lists
+        are sanitized item by item, and other values are returned unchanged. A request
+        body that is a list used to crash the logger and turn the request into a 500.
+        """
+        if isinstance(data, dict):
+            return {
+                key: (
+                    "***REDACTED***"
+                    if AuditLogger._is_sensitive(key)
+                    else AuditLogger._sanitize_data(value)
+                )
+                for key, value in data.items()
+            }
+        if isinstance(data, (list, tuple)):
+            return [AuditLogger._sanitize_data(item) for item in data]
+        return data

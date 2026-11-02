@@ -1,18 +1,13 @@
-import React, { useState, useMemo } from "react";
+import React, { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   GitCommit,
-  Search,
   CheckCircle2,
   XCircle,
   Play,
   RotateCcw,
-  Sparkles,
   Trophy,
-  HelpCircle,
   Terminal,
-  ArrowRight,
-  ShieldCheck,
   Zap,
   Target,
   FileCode,
@@ -30,7 +25,9 @@ export interface CommitItem {
   testPasses: boolean;
 }
 
-const GENERATED_COMMITS: CommitItem[] = [
+// Exported so the tests can check the game against the real commit data.
+// eslint-disable-next-line react-refresh/only-export-components
+export const GENERATED_COMMITS: CommitItem[] = [
   {
     id: 1,
     hash: "a1b2c01",
@@ -239,11 +236,6 @@ export function GitBisectGame() {
     setLogs((prev) => [...prev, text]);
   };
 
-  // Calculate binary search mid commit pointer
-  const midIndex = useMemo(() => {
-    return Math.floor((lowBound + highBound) / 2) - 1;
-  }, [lowBound, highBound]);
-
   // Start Bisect
   const handleStartBisect = () => {
     setBisectActive(true);
@@ -424,6 +416,35 @@ export function GitBisectGame() {
 
   const activeCommit = commits[currentCheckedOutIdx];
 
+  // Keyboard for the commit list (a listbox): the arrow keys, Home and End move the checkout to the
+  // next commit that is inside the search range. Nothing happens before a session is started.
+  const handleListKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
+    if (!bisectActive) return;
+    const inRangeIndexes = commits
+      .map((commit, idx) => ({
+        idx,
+        ok: commit.id >= lowBound && commit.id <= highBound,
+      }))
+      .filter((entry) => entry.ok)
+      .map((entry) => entry.idx);
+    if (inRangeIndexes.length === 0) return;
+    const position = inRangeIndexes.indexOf(currentCheckedOutIdx);
+    let next: number | undefined;
+    if (event.key === "ArrowDown")
+      next = inRangeIndexes[Math.min(position + 1, inRangeIndexes.length - 1)];
+    else if (event.key === "ArrowUp")
+      next = inRangeIndexes[Math.max(position - 1, 0)];
+    else if (event.key === "Home") next = inRangeIndexes[0];
+    else if (event.key === "End")
+      next = inRangeIndexes[inRangeIndexes.length - 1];
+    if (next === undefined) return;
+    event.preventDefault();
+    setCurrentCheckedOutIdx(next);
+    document
+      .getElementById(`bisect-commit-${commits[next].id}`)
+      ?.scrollIntoView?.({ block: "nearest" });
+  };
+
   return (
     <div className="space-y-6 max-w-7xl mx-auto pb-12">
       {/* Header Banner */}
@@ -500,20 +521,40 @@ export function GitBisectGame() {
             </div>
 
             {/* Commit History List (20 items) */}
-            <div className="space-y-2 flex-1 overflow-y-auto max-h-[500px] pr-1">
+            <div
+              role="listbox"
+              aria-label="Commit history, 20 commits. Use the arrow keys to check out a commit in the search range."
+              aria-activedescendant={`bisect-commit-${activeCommit.id}`}
+              tabIndex={0}
+              onKeyDown={handleListKeyDown}
+              className="space-y-2 flex-1 overflow-y-auto max-h-[500px] pr-1 focus-visible:outline focus-visible:outline-4 focus-visible:outline-blue-600"
+            >
               {commits.map((commit, idx) => {
                 const isCheckedOut = idx === currentCheckedOutIdx;
                 const inRange = idx + 1 >= lowBound && idx + 1 <= highBound;
                 const isFoundBad = foundBadCommit?.id === commit.id;
+                const selectable = bisectActive && inRange;
+                const rowLabel = `Commit #${commit.id}, ${commit.hash}, ${commit.message}, by ${commit.author}, ${commit.timestamp}${
+                  isCheckedOut ? ", checked out (HEAD)" : ""
+                }${isFoundBad ? ", first bad commit" : ""}${
+                  bisectActive && !inRange ? ", outside the search range" : ""
+                }`;
 
                 return (
                   <motion.div
                     key={commit.id}
                     layout
+                    id={`bisect-commit-${commit.id}`}
+                    role="option"
+                    aria-selected={isCheckedOut}
+                    aria-disabled={!selectable}
+                    aria-label={rowLabel}
                     onClick={() => {
-                      if (bisectActive && inRange) setCurrentCheckedOutIdx(idx);
+                      if (selectable) setCurrentCheckedOutIdx(idx);
                     }}
-                    className={`p-3 rounded-xl border-2 transition-all cursor-pointer flex items-center justify-between gap-3 ${
+                    className={`p-3 rounded-xl border-2 transition-all flex items-center justify-between gap-3 ${
+                      selectable ? "cursor-pointer" : "cursor-default"
+                    } ${
                       isFoundBad
                         ? "border-rose-500 bg-rose-500/20 shadow-card-sm animate-pulse"
                         : isCheckedOut
@@ -528,7 +569,7 @@ export function GitBisectGame() {
                       <span
                         className={`w-7 h-7 rounded-full border-2 border-black flex items-center justify-center font-mono text-xs font-black ${
                           isFoundBad
-                            ? "bg-rose-500 text-white"
+                            ? "bg-rose-600 text-white"
                             : isCheckedOut
                               ? "bg-primary text-black"
                               : inRange
@@ -561,7 +602,7 @@ export function GitBisectGame() {
                         </span>
                       )}
                       {isFoundBad && (
-                        <span className="bg-rose-500 text-white font-mono text-[10px] font-black px-2 py-0.5 rounded flex items-center gap-1">
+                        <span className="bg-rose-600 text-white font-mono text-[10px] font-black px-2 py-0.5 rounded flex items-center gap-1">
                           <Flame className="w-3 h-3" /> FIRST BAD
                         </span>
                       )}
@@ -589,7 +630,7 @@ export function GitBisectGame() {
 
             {/* Code Snippet Box */}
             <div className="bg-[#1e1e1e] p-3 rounded-xl border-2 border-black font-mono text-xs text-emerald-400 space-y-1 overflow-x-auto">
-              <div className="text-gray-500 pb-1 border-b border-gray-800 text-[10px] font-bold">
+              <div className="text-gray-400 pb-1 border-b border-gray-800 text-[10px] font-bold">
                 // Checked out diff preview
               </div>
               <pre className="whitespace-pre-wrap">
@@ -618,7 +659,7 @@ export function GitBisectGame() {
               <button
                 onClick={handleMarkBad}
                 disabled={!bisectActive}
-                className="bg-rose-500 hover:bg-rose-600 text-white border-2 border-black font-black text-xs px-3 py-2 rounded-xl shadow-card-sm disabled:opacity-50 transition-all flex items-center gap-1"
+                className="bg-rose-600 hover:bg-rose-700 text-white border-2 border-black font-black text-xs px-3 py-2 rounded-xl shadow-card-sm disabled:opacity-50 transition-all flex items-center gap-1"
                 title="Mark commit as BAD (git bisect bad)"
               >
                 <XCircle className="w-4 h-4" /> Bad
@@ -628,10 +669,11 @@ export function GitBisectGame() {
             {/* Test Result Indicator */}
             {testResult && (
               <div
+                role="status"
                 className={`p-2.5 rounded-xl border-2 font-mono text-xs font-bold flex items-center gap-2 ${
                   testResult === "pass"
-                    ? "bg-emerald-500/20 text-emerald-600 dark:text-emerald-400 border-emerald-500"
-                    : "bg-rose-500/20 text-rose-600 dark:text-rose-400 border-rose-500"
+                    ? "bg-emerald-500/20 text-emerald-800 dark:text-emerald-300 border-emerald-500"
+                    : "bg-rose-500/20 text-rose-800 dark:text-rose-300 border-rose-500"
                 }`}
               >
                 {testResult === "pass" ? (
@@ -667,7 +709,12 @@ export function GitBisectGame() {
             </div>
 
             {/* Logs Area */}
-            <div className="flex-1 p-4 font-mono text-xs text-gray-200 overflow-y-auto space-y-1 max-h-[180px]">
+            <div
+              role="log"
+              aria-label="Bisect terminal output"
+              tabIndex={0}
+              className="flex-1 p-4 font-mono text-xs text-gray-200 overflow-y-auto space-y-1 max-h-[180px] focus-visible:outline focus-visible:outline-4 focus-visible:outline-blue-400"
+            >
               {logs.map((log, idx) => (
                 <div
                   key={idx}
@@ -749,7 +796,11 @@ export function GitBisectGame() {
                     Performance: O(log N) vs O(N)
                   </h4>
                   <span className="text-[10px] font-mono font-black px-2 py-0.5 rounded bg-emerald-400 text-black border border-black">
-                    {Math.round(((commits.length - (stepsCount + 1)) / commits.length) * 100)}% Faster
+                    {Math.round(
+                      ((commits.length - (stepsCount + 1)) / commits.length) *
+                        100,
+                    )}
+                    % Faster
                   </span>
                 </div>
 
@@ -798,7 +849,13 @@ export function GitBisectGame() {
                 </div>
 
                 <p className="text-[11px] font-bold text-muted dark:text-[#c4bbae] border-t border-black/10 dark:border-white/10 pt-2">
-                  ⚡ <strong>{(commits.length / Math.max(stepsCount + 1, 1)).toFixed(1)}x Efficiency Boost!</strong> Binary search eliminated {commits.length - (stepsCount + 1)} unnecessary commit test cycles.
+                  ⚡{" "}
+                  <strong>
+                    {(commits.length / Math.max(stepsCount + 1, 1)).toFixed(1)}x
+                    Efficiency Boost!
+                  </strong>{" "}
+                  Binary search eliminated {commits.length - (stepsCount + 1)}{" "}
+                  unnecessary commit test cycles.
                 </p>
               </div>
               <button

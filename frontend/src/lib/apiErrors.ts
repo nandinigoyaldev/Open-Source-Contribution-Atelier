@@ -7,6 +7,26 @@ export interface ApiErrorOptions {
   details?: string | null;
   /** Machine-readable error code returned by the API (e.g. `2fa_required`). */
   code?: string | null;
+  /** Validation messages by field, from the API's `errors` object. */
+  fieldErrors?: Record<string, string[]>;
+  /** Stable machine-readable codes by field (e.g. `email_taken`), from `error_codes`. */
+  fieldCodes?: Record<string, string[]>;
+}
+
+/** Keeps only `{ field: string[] }` entries; anything else in the body is ignored. */
+function readFieldMap(value: unknown): Record<string, string[]> | undefined {
+  if (!value || typeof value !== "object" || Array.isArray(value)) {
+    return undefined;
+  }
+  const result: Record<string, string[]> = {};
+  for (const [field, entries] of Object.entries(value)) {
+    if (!Array.isArray(entries)) continue;
+    const texts = entries.filter(
+      (entry): entry is string => typeof entry === "string" && entry !== "",
+    );
+    if (texts.length > 0) result[field] = texts;
+  }
+  return Object.keys(result).length > 0 ? result : undefined;
 }
 
 const DEFAULT_API_ERROR_MESSAGE =
@@ -20,6 +40,8 @@ export class ApiError extends Error {
   authExpired: boolean;
   details?: string | null;
   code?: string | null;
+  fieldErrors?: Record<string, string[]>;
+  fieldCodes?: Record<string, string[]>;
 
   constructor(message: string, options: ApiErrorOptions = {}) {
     super(message);
@@ -31,6 +53,8 @@ export class ApiError extends Error {
     this.authExpired = options.authExpired ?? false;
     this.details = options.details ?? null;
     this.code = options.code ?? null;
+    this.fieldErrors = options.fieldErrors;
+    this.fieldCodes = options.fieldCodes;
   }
 }
 
@@ -84,9 +108,13 @@ export function createApiError(params: {
   let bodyMessage: string | null = null;
   let detailsStr: string | null = null;
   let code: string | null = null;
+  let fieldErrors: Record<string, string[]> | undefined;
+  let fieldCodes: Record<string, string[]> | undefined;
 
   if (params.body && typeof params.body === "object") {
     const b = params.body as Record<string, unknown>;
+    fieldErrors = readFieldMap(b.errors);
+    fieldCodes = readFieldMap(b.error_codes);
     if (typeof b.code === "string" && b.code.trim()) {
       code = b.code.trim();
     }
@@ -135,6 +163,8 @@ export function createApiError(params: {
     authExpired: params.authExpired,
     details: detailsStr,
     code,
+    fieldErrors,
+    fieldCodes,
   });
 }
 

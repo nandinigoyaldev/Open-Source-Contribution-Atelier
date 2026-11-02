@@ -1,3 +1,4 @@
+import { usePageMeta } from "../hooks/usePageMeta";
 import { useEffect, useState, useMemo, useRef, useCallback } from "react";
 import { SectionCard } from "../components/ui/SectionCard";
 import {
@@ -14,6 +15,9 @@ import { ChatContainer } from "../components/chat/ChatContainer";
 import { CommunityFeed } from "../components/community/CommunityFeed";
 
 export function CommunityPage() {
+  usePageMeta(
+    "Join the Atelier community: meet contributors, share progress, and collaborate on open source learning.",
+  );
   const { user } = useAuth();
 
   const timezoneAbbreviation =

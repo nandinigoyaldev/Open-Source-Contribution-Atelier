@@ -76,3 +76,35 @@ describe("useQuizDraft", () => {
     expect(parsed.quizFeedback).toBe("correct");
   });
 });
+
+describe("useQuizDraft malformed data", () => {
+  beforeEach(() => sessionStorage.clear());
+
+  it.each([
+    ["not json", "{oops"],
+    ["wrong shape", JSON.stringify({ quizId: "q", selectedOption: "x" })],
+    [
+      "other quiz id",
+      JSON.stringify({
+        quizId: "other",
+        currentQuizIndex: 0,
+        selectedOption: 1,
+        quizFeedback: null,
+        timeLeft: null,
+        savedAt: 1,
+      }),
+    ],
+  ])("ignores %s", (_n, raw) => {
+    sessionStorage.setItem("quiz_draft_q", raw);
+    const { result } = renderHook(() => useQuizDraft("q"));
+    expect(result.current.getDraft()).toBeNull();
+  });
+
+  it("keeps the saved answer after a failed submit and remount", () => {
+    const first = renderHook(() => useQuizDraft("q2"));
+    act(() => first.result.current.saveDraft(1, 2, null, null));
+    first.unmount();
+    const second = renderHook(() => useQuizDraft("q2"));
+    expect(second.result.current.getDraft()?.selectedOption).toBe(2);
+  });
+});

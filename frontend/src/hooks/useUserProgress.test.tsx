@@ -158,4 +158,115 @@ describe("useUserProgress", () => {
     expect(result.current.isLessonCompleted("offline-lesson")).toBe(true);
     expect(result.current.totalXP).toBe(10);
   });
+
+  describe("completion announcements", () => {
+    const run = async (bulk: () => Promise<unknown>, clicks: number) => {
+      vi.mocked(fetchApi).mockImplementation(((url: string) =>
+        url === "/progress/bulk-update/"
+          ? bulk()
+          : Promise.resolve([])) as never);
+      const { result } = renderHook(() => useUserProgress(), {
+        wrapper: createWrapper(),
+      });
+      // Fake timers are installed globally in test/setup.ts
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(50);
+      });
+      expect(result.current.isLoading).toBe(false);
+      for (let i = 0; i < clicks; i++) {
+        await act(async () => {
+          await result.current.syncProgress({
+            lesson_slug: "l1",
+            score: 10,
+            completed: true,
+          });
+        });
+      }
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(3000);
+      });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(50);
+      });
+      return result;
+    };
+
+    it("announces success once for a debounced batch of clicks", async () => {
+      const bulk = vi.fn(() => Promise.resolve({}));
+      const result = await run(bulk, 3);
+      expect(bulk).toHaveBeenCalledTimes(1);
+      expect(result.current.announcement).toEqual({
+        type: "success",
+        message: "Lesson completion saved.",
+      });
+    });
+
+    it("announces an error when the sync fails", async () => {
+      const result = await run(() => Promise.reject(new Error("boom")), 1);
+      expect(result.current.announcement?.type).toBe("error");
+    });
+  });
+
+  it("keeps optimistic totals when an earlier batch settles while a later one is queued", async () => {
+    let releaseFirst: (v: unknown) => void = () => {};
+    let bulkCalls = 0;
+    let meCalls = 0;
+    vi.mocked(fetchApi).mockImplementation((url: string) => {
+      if (url === "/progress/bulk-update/") {
+        bulkCalls += 1;
+        return bulkCalls === 1
+          ? new Promise((r) => {
+              releaseFirst = r;
+            })
+          : Promise.resolve({});
+      }
+      meCalls += 1;
+      return Promise.resolve([]);
+    });
+
+    const { result } = renderHook(() => useUserProgress(), {
+      wrapper: createWrapper(),
+    });
+    await waitFor(() => expect(result.current.isLoading).toBe(false));
+    expect(meCalls).toBe(1);
+
+    vi.useFakeTimers();
+    act(() => {
+      result.current.syncProgress({
+        lesson_slug: "a",
+        score: 10,
+        completed: true,
+      });
+    });
+    await act(async () => {
+      vi.advanceTimersByTime(3000);
+    });
+    expect(bulkCalls).toBe(1);
+
+    // second completion lands while the first request is still in flight
+    act(() => {
+      result.current.syncProgress({
+        lesson_slug: "b",
+        score: 20,
+        completed: true,
+      });
+    });
+
+    await act(async () => {
+      releaseFirst({});
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    // no refetch yet, so the stale server list cannot overwrite the cache
+    expect(meCalls).toBe(1);
+    expect(result.current.totalXP).toBe(30);
+
+    await act(async () => {
+      vi.advanceTimersByTime(3000);
+    });
+    vi.useRealTimers();
+    await waitFor(() => expect(bulkCalls).toBe(2));
+    await waitFor(() => expect(meCalls).toBe(2));
+  });
 });

@@ -5,32 +5,26 @@ import {
   AlertTriangle,
   Search,
   Download,
-  RefreshCw,
-  Zap,
-  Sparkles,
   FileCode,
   CheckCircle2,
-  Maximize2,
   ZoomIn,
   ZoomOut,
-  Layers,
   ArrowRight,
   ShieldAlert,
   Sliders,
-  Check,
   X,
   RotateCcw,
 } from "lucide-react";
+import {
+  describePackage,
+  findCycles,
+  highlightedIds,
+  isEdgeInCycle,
+  parseManifest,
+  type PackageNode,
+} from "../../lib/monorepoGraph";
 
-export interface PackageNode {
-  id: string;
-  name: string;
-  version: string;
-  dependencies: string[];
-  type: "app" | "package" | "utility" | "service";
-  x: number;
-  y: number;
-}
+export type { PackageNode };
 
 export interface ManifestPreset {
   id: string;
@@ -154,6 +148,9 @@ const PRESET_CONFIGS: ManifestPreset[] = [
   },
 ];
 
+const MIN_ZOOM = 0.6;
+const MAX_ZOOM = 1.6;
+
 export function MonorepoDependencyGraph() {
   const [activePreset, setActivePreset] = useState<ManifestPreset>(
     PRESET_CONFIGS[0],
@@ -165,114 +162,24 @@ export function MonorepoDependencyGraph() {
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [zoomLevel, setZoomLevel] = useState(1);
   const [activeTab, setActiveTab] = useState<"graph" | "editor">("graph");
-  const [parseError, setParseError] = useState<string | null>(null);
   const svgRef = useRef<SVGSVGElement>(null);
 
-  // Parse JSON manifest to extract package nodes
-  const parsedPackages = useMemo<PackageNode[]>(() => {
-    try {
-      setParseError(null);
-      const parsed = JSON.parse(jsonInput);
-      const rawList = parsed.packages || [];
+  // Parse the manifest. Pure: the error and warnings come back with the packages instead of being
+  // set as state from inside the memo.
+  const parsed = useMemo(() => parseManifest(jsonInput), [jsonInput]);
+  const parsedPackages = parsed.packages;
+  const parseError = parsed.error;
 
-      // Calculate 2D Layout Positions
-      const count = rawList.length;
-      return rawList.map((pkg: any, idx: number) => {
-        const angle = (idx / Math.max(count, 1)) * 2 * Math.PI;
-        const radius = count > 5 ? 180 : 140;
-        const centerX = 350;
-        const centerY = 240;
+  const circularCycles = useMemo(
+    () => findCycles(parsedPackages),
+    [parsedPackages],
+  );
 
-        return {
-          id: pkg.name,
-          name: pkg.name,
-          version: pkg.version || "1.0.0",
-          type: pkg.type || "package",
-          dependencies: pkg.dependencies || [],
-          x: Math.round(centerX + radius * Math.cos(angle)),
-          y: Math.round(centerY + radius * Math.sin(angle)),
-        };
-      });
-    } catch (err: any) {
-      setParseError("Invalid JSON manifest syntax. Please verify formatting.");
-      return [];
-    }
-  }, [jsonInput]);
-
-  // Cycle Detection Algorithm (DFS for Circular Dependencies)
-  const circularCycles = useMemo<string[][]>(() => {
-    if (!parsedPackages.length) return [];
-
-    const adjMap = new Map<string, string[]>();
-    parsedPackages.forEach((pkg) => {
-      adjMap.set(pkg.id, pkg.dependencies);
-    });
-
-    const cycles: string[][] = [];
-    const visited = new Set<string>();
-    const recStack = new Set<string>();
-
-    const dfs = (curr: string, path: string[]) => {
-      visited.add(curr);
-      recStack.add(curr);
-      path.push(curr);
-
-      const neighbors = adjMap.get(curr) || [];
-      for (const neighbor of neighbors) {
-        if (!visited.has(neighbor)) {
-          dfs(neighbor, [...path]);
-        } else if (recStack.has(neighbor)) {
-          // Found cycle!
-          const cycleStartIdx = path.indexOf(neighbor);
-          if (cycleStartIdx !== -1) {
-            const cycleLoop = [...path.slice(cycleStartIdx), neighbor];
-            // Check uniqueness
-            const cycleKey = cycleLoop.join("->");
-            if (!cycles.some((c) => c.join("->") === cycleKey)) {
-              cycles.push(cycleLoop);
-            }
-          }
-        }
-      }
-
-      recStack.delete(curr);
-    };
-
-    parsedPackages.forEach((pkg) => {
-      if (!visited.has(pkg.id)) {
-        dfs(pkg.id, []);
-      }
-    });
-
-    return cycles;
-  }, [parsedPackages]);
-
-  // Compute set of highlighted package IDs (target + direct upstream/downstream)
-  const highlightedNodeIds = useMemo(() => {
-    if (!searchQuery.trim()) return null;
-
-    const queryLower = searchQuery.trim().toLowerCase();
-    const matching = parsedPackages.filter((p) =>
-      p.name.toLowerCase().includes(queryLower),
-    );
-
-    if (matching.length === 0) return new Set<string>();
-
-    const highlighted = new Set<string>();
-    matching.forEach((target) => {
-      highlighted.add(target.id);
-      // Direct Upstream Dependencies
-      target.dependencies.forEach((depId) => highlighted.add(depId));
-      // Direct Downstream Dependents
-      parsedPackages.forEach((p) => {
-        if (p.dependencies.includes(target.id)) {
-          highlighted.add(p.id);
-        }
-      });
-    });
-
-    return highlighted;
-  }, [searchQuery, parsedPackages]);
+  // Packages to keep in colour for the search (the match plus direct upstream and downstream)
+  const highlightedNodeIds = useMemo(
+    () => highlightedIds(parsedPackages, searchQuery),
+    [searchQuery, parsedPackages],
+  );
 
   // Handle Preset Change
   const handlePresetSelect = (preset: ManifestPreset) => {
@@ -281,15 +188,8 @@ export function MonorepoDependencyGraph() {
     setSelectedNodeId(null);
   };
 
-  // Helper to check if edge is part of a circular cycle
-  const isCircularEdge = (sourceId: string, targetId: string): boolean => {
-    return circularCycles.some((cycle) => {
-      for (let i = 0; i < cycle.length - 1; i++) {
-        if (cycle[i] === sourceId && cycle[i + 1] === targetId) return true;
-      }
-      return false;
-    });
-  };
+  const isCircularEdge = (sourceId: string, targetId: string): boolean =>
+    isEdgeInCycle(circularCycles, sourceId, targetId);
 
   // Export SVG as File
   const handleExportSvg = () => {
@@ -412,6 +312,8 @@ export function MonorepoDependencyGraph() {
               {/* Presets & Tabs */}
               <div className="flex items-center gap-2">
                 <button
+                  type="button"
+                  aria-pressed={activeTab === "graph"}
                   onClick={() => setActiveTab("graph")}
                   className={`px-3 py-1.5 rounded-lg font-black text-xs transition-all flex items-center gap-1.5 border-2 ${
                     activeTab === "graph"
@@ -422,6 +324,8 @@ export function MonorepoDependencyGraph() {
                   <Boxes className="w-4 h-4" /> 2D Graph View
                 </button>
                 <button
+                  type="button"
+                  aria-pressed={activeTab === "editor"}
                   onClick={() => setActiveTab("editor")}
                   className={`px-3 py-1.5 rounded-lg font-black text-xs transition-all flex items-center gap-1.5 border-2 ${
                     activeTab === "editor"
@@ -435,10 +339,15 @@ export function MonorepoDependencyGraph() {
 
               {/* Presets Dropdown */}
               <div className="flex items-center gap-2">
-                <span className="text-xs font-black text-muted hidden sm:inline">
+                <label
+                  htmlFor="monorepo-preset"
+                  className="text-xs font-black text-muted hidden sm:inline"
+                >
                   Presets:
-                </span>
+                </label>
                 <select
+                  id="monorepo-preset"
+                  aria-label="Example workspace preset"
                   value={activePreset.id}
                   onChange={(e) => {
                     const found = PRESET_CONFIGS.find(
@@ -456,11 +365,13 @@ export function MonorepoDependencyGraph() {
                 </select>
 
                 <button
+                  type="button"
                   onClick={handleExportSvg}
                   className="p-1.5 rounded-lg border-2 border-black dark:border-[#2e2924] bg-surface dark:bg-[#151411] hover:bg-black/5 dark:hover:bg-white/5 transition-all text-text dark:text-[#f0ebe2]"
                   title="Export SVG Graph"
+                  aria-label="Export graph as SVG"
                 >
-                  <Download className="w-4 h-4" />
+                  <Download className="w-4 h-4" aria-hidden="true" />
                 </button>
               </div>
             </div>
@@ -526,26 +437,47 @@ export function MonorepoDependencyGraph() {
 
                   <div className="flex items-center gap-1 bg-white dark:bg-[#1f1c18] border-2 border-black dark:border-[#2e2924] rounded-xl p-1 shadow-card-sm pointer-events-auto">
                     <button
+                      type="button"
+                      aria-label="Zoom in"
+                      disabled={zoomLevel >= MAX_ZOOM}
                       onClick={() =>
-                        setZoomLevel((z) => Math.min(z + 0.15, 1.6))
+                        setZoomLevel((z) => Math.min(z + 0.15, MAX_ZOOM))
                       }
-                      className="p-1 hover:bg-black/10 dark:hover:bg-white/10 rounded text-text dark:text-[#f0ebe2]"
+                      className="p-1 hover:bg-black/10 dark:hover:bg-white/10 rounded text-text dark:text-[#f0ebe2] disabled:opacity-40"
                     >
-                      <ZoomIn className="w-4 h-4" />
+                      <ZoomIn className="w-4 h-4" aria-hidden="true" />
                     </button>
-                    <span className="text-[10px] font-mono font-bold px-1">
+                    <span
+                      className="text-[10px] font-mono font-bold px-1"
+                      role="status"
+                      aria-label="Zoom level"
+                    >
                       {Math.round(zoomLevel * 100)}%
                     </span>
                     <button
+                      type="button"
+                      aria-label="Zoom out"
+                      disabled={zoomLevel <= MIN_ZOOM}
                       onClick={() =>
-                        setZoomLevel((z) => Math.max(z - 0.15, 0.6))
+                        setZoomLevel((z) => Math.max(z - 0.15, MIN_ZOOM))
                       }
-                      className="p-1 hover:bg-black/10 dark:hover:bg-white/10 rounded text-text dark:text-[#f0ebe2]"
+                      className="p-1 hover:bg-black/10 dark:hover:bg-white/10 rounded text-text dark:text-[#f0ebe2] disabled:opacity-40"
                     >
-                      <ZoomOut className="w-4 h-4" />
+                      <ZoomOut className="w-4 h-4" aria-hidden="true" />
                     </button>
                   </div>
                 </div>
+
+                {parsed.warnings.length > 0 && !parseError && (
+                  <ul
+                    className="mb-2 w-full text-[11px] font-bold text-amber-700 dark:text-amber-300 list-disc pl-5"
+                    aria-label="Skipped manifest entries"
+                  >
+                    {parsed.warnings.map((warning) => (
+                      <li key={warning}>{warning}</li>
+                    ))}
+                  </ul>
+                )}
 
                 {/* SVG Graph Viewport */}
                 {parseError ? (
@@ -557,6 +489,8 @@ export function MonorepoDependencyGraph() {
                   <div className="w-full h-[450px] relative overflow-hidden flex items-center justify-center">
                     <svg
                       ref={svgRef}
+                      role="group"
+                      aria-label={`Package dependency graph with ${parsedPackages.length} packages and ${circularCycles.length} circular ${circularCycles.length === 1 ? "loop" : "loops"}`}
                       className="w-full h-full min-w-[650px] min-h-[420px] transition-transform duration-300"
                       viewBox="0 0 700 480"
                       style={{ transform: `scale(${zoomLevel})` }}
@@ -612,7 +546,9 @@ export function MonorepoDependencyGraph() {
                               x2={targetNode.x}
                               y2={targetNode.y}
                               stroke={isLoop ? "#ef4444" : "#9ca3af"}
-                              strokeWidth={isLoop ? 3.5 : isEdgeHighlighted ? 2.2 : 1.2}
+                              strokeWidth={
+                                isLoop ? 3.5 : isEdgeHighlighted ? 2.2 : 1.2
+                              }
                               strokeDasharray={isLoop ? "6,4" : "none"}
                               opacity={isEdgeHighlighted ? 1 : 0.15}
                               markerEnd={
@@ -630,7 +566,8 @@ export function MonorepoDependencyGraph() {
                           c.includes(node.id),
                         );
                         const isNodeHighlighted =
-                          !highlightedNodeIds || highlightedNodeIds.has(node.id);
+                          !highlightedNodeIds ||
+                          highlightedNodeIds.has(node.id);
                         const isTargetMatch =
                           searchQuery.trim() &&
                           node.name
@@ -641,9 +578,19 @@ export function MonorepoDependencyGraph() {
                           <g
                             key={node.id}
                             transform={`translate(${node.x}, ${node.y})`}
-                            className="cursor-pointer transition-transform hover:scale-110"
+                            className="cursor-pointer transition-transform hover:scale-110 focus:outline-none [&:focus-visible>rect]:stroke-[#2563eb] [&:focus-visible>rect]:stroke-[5px]"
                             opacity={isNodeHighlighted ? 1 : 0.2}
+                            role="button"
+                            tabIndex={0}
+                            aria-pressed={isSelected}
+                            aria-label={describePackage(node, parsedPackages)}
                             onClick={() => setSelectedNodeId(node.id)}
+                            onKeyDown={(event) => {
+                              if (event.key === "Enter" || event.key === " ") {
+                                event.preventDefault();
+                                setSelectedNodeId(node.id);
+                              }
+                            }}
                           >
                             <rect
                               x="-65"
@@ -745,8 +692,23 @@ export function MonorepoDependencyGraph() {
                 <textarea
                   value={jsonInput}
                   onChange={(e) => setJsonInput(e.target.value)}
+                  aria-label="Workspace manifest (JSON)"
+                  aria-invalid={parseError ? true : undefined}
+                  aria-describedby={
+                    parseError ? "monorepo-manifest-error" : undefined
+                  }
+                  spellCheck={false}
                   className="w-full flex-1 bg-transparent text-emerald-400 font-mono text-xs focus:outline-none resize-none leading-relaxed"
                 />
+                {parseError && (
+                  <p
+                    id="monorepo-manifest-error"
+                    role="alert"
+                    className="mt-2 text-xs font-bold text-rose-400"
+                  >
+                    {parseError}
+                  </p>
+                )}
               </div>
             )}
           </div>

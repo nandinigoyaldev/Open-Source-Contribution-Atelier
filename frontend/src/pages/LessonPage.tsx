@@ -10,15 +10,12 @@ import { useNavigate, useParams, Link } from "react-router-dom";
 import {
   ChevronLeft,
   ChevronRight,
-  Menu,
-  X,
   BookOpen,
   CheckCircle2,
   Lock,
   Bookmark,
   AlertTriangle,
   History,
-  ArrowLeft,
   ArrowRight,
   WifiOff,
   HardDrive,
@@ -26,6 +23,7 @@ import {
   Keyboard,
 } from "lucide-react";
 import { toast } from "react-hot-toast";
+import { ProgressAnnouncer } from "../components/ui/ProgressAnnouncer";
 
 import SkeletonLesson from "../components/ui/skeletons/SkeletonLesson";
 import { useUserProgress } from "../hooks/useUserProgress";
@@ -41,6 +39,7 @@ import { fetchApi } from "../lib/api";
 import { eventBus } from "../core/events";
 import { queueQuizSubmission } from "../services/offlineSync";
 import { Lesson, fetchLessonsApiResult } from "../lib/lessons";
+import { findCurriculumLesson, loadCurriculumCached } from "../lib/curriculum";
 import {
   buildDriftReport,
   type CurriculumDriftReport,
@@ -116,6 +115,7 @@ const InteractiveDebugger = React.lazy(() =>
   })),
 );
 import { TextToSpeechControls } from "../components/ui/TextToSpeechControls";
+import { LessonTopBar } from "../components/LessonTopBar";
 import { ReadingProgressTracker } from "../components/ui/ReadingProgressTracker";
 import { NotesWidget } from "../components/ui/NotesWidget";
 import { lessonPluginRegistry } from "../plugins/LessonPluginRegistry";
@@ -134,7 +134,7 @@ function normalizeCommand(value: string) {
 export function LessonPage() {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
-  const { isLessonCompleted, syncProgress } = useUserProgress();
+  const { isLessonCompleted, syncProgress, announcement } = useUserProgress();
   const { isBookmarked, toggleBookmark } = useBookmarks();
   const { triggerConfetti } = useNotifications();
   const queryClient = useQueryClient();
@@ -395,15 +395,10 @@ export function LessonPage() {
     setIsLoading(true);
     setError(null);
 
-    const curriculumPromise = fetch("/content/curriculum.json")
-      .then((res) => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return res.json();
-      })
-      .catch((err) => {
-        console.warn("[LessonPage] Failed to load curriculum.json:", err);
-        return null;
-      });
+    const curriculumPromise = loadCurriculumCached().catch((err) => {
+      console.warn("[LessonPage] Failed to load curriculum.json:", err);
+      return null;
+    });
 
     const lessonsPromise = fetchLessonsApiResult();
 
@@ -425,36 +420,30 @@ export function LessonPage() {
 
         let found = lessonsData.find((l) => l.slug === slug);
 
-        if (!found && curriculumJson?.modules) {
-          for (const mod of curriculumJson.modules) {
-            const curriculumLesson = mod.lessons.find(
-              (l: { slug: string; title: string; difficulty?: string }) =>
-                l.slug === slug,
-            );
-            if (curriculumLesson) {
-              found = {
-                id: 0,
-                slug: curriculumLesson.slug,
-                title: curriculumLesson.title,
-                description: curriculumLesson.description || "",
-                explanation: "",
-                expected: curriculumLesson.expected || "",
-                hint:
-                  curriculumLesson.hint || "Read the lesson content carefully.",
-                difficulty: curriculumLesson.difficulty || "beginner",
-                points: curriculumLesson.points || 15,
-                estimatedMinutes: curriculumLesson.estimatedMinutes || 10,
-                learningObjectives: [],
-                tips: [],
-                exercises: [],
-                quizzes: curriculumLesson.quizzes || [],
-                filePath: curriculumLesson.filePath,
-                category: mod.id || "general",
-                order: mod.lessons.indexOf(curriculumLesson),
-              } as Lesson;
-              break;
-            }
-          }
+        const entry = !found
+          ? findCurriculumLesson(curriculumJson, slug)
+          : undefined;
+        if (entry) {
+          const { lesson: curriculumLesson, module: mod, index } = entry;
+          found = {
+            id: 0,
+            slug: curriculumLesson.slug,
+            title: curriculumLesson.title,
+            description: curriculumLesson.description || "",
+            explanation: "",
+            expected: curriculumLesson.expected || "",
+            hint: curriculumLesson.hint || "Read the lesson content carefully.",
+            difficulty: curriculumLesson.difficulty || "beginner",
+            points: curriculumLesson.points || 15,
+            estimatedMinutes: curriculumLesson.estimatedMinutes || 10,
+            learningObjectives: [],
+            tips: [],
+            exercises: [],
+            quizzes: curriculumLesson.quizzes || [],
+            filePath: curriculumLesson.filePath,
+            category: mod.id || "general",
+            order: index,
+          } as Lesson;
         }
 
         if (!found) {
@@ -564,7 +553,7 @@ export function LessonPage() {
 
   // Save quiz draft whenever quiz state changes
   useEffect(() => {
-    if (!hasRestoredDraft || quizFeedback !== null) return;
+    if (selectedOption === null || quizFeedback !== null) return;
     quizDraft.saveDraft(
       currentQuizIndex,
       selectedOption,
@@ -576,7 +565,6 @@ export function LessonPage() {
     selectedOption,
     quizFeedback,
     timeLeft,
-    hasRestoredDraft,
     quizDraft,
   ]);
 
@@ -957,41 +945,14 @@ export function LessonPage() {
   return (
     <div className="w-full h-screen flex flex-col overflow-hidden bg-white dark:bg-[#0a0a0f]">
       <OfflineBanner />
+      <ProgressAnnouncer announcement={announcement} />
       {/* Immersive Lesson Top Header Bar */}
-      <header
-        className={`h-[72px] border-b-4 border-black dark:border-[#2e2924] bg-white dark:bg-[#0f0e0c] flex items-center justify-between px-4 sm:px-6 flex-shrink-0 z-40 transition-all duration-300 transform ${
-          isZenMode
-            ? "-translate-y-full h-0 p-0 overflow-hidden opacity-0"
-            : "translate-y-0"
-        }`}
-      >
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => setIsSidebarOpen((prev) => !prev)}
-            className="lg:hidden flex items-center gap-2 font-black text-xs uppercase px-3 py-2 bg-surface-low border-2 border-black rounded-lg text-black"
-          >
-            {isSidebarOpen ? <X size={14} /> : <Menu size={14} />}
-            Outline
-          </button>
-          <Link
-            to="/dashboard"
-            className="flex items-center gap-2 font-black text-xs uppercase px-3 py-2 bg-surface-low border-2 border-black rounded-lg text-black dark:bg-[#151411] dark:border-[#2e2924] dark:text-[#f0ebe2] hover:-translate-y-0.5 shadow-card-sm transition-all"
-          >
-            <ArrowLeft size={14} />
-            <span className="hidden sm:inline">Back to Dashboard</span>
-            <span className="sm:hidden">Exit</span>
-          </Link>
-        </div>
-
-        <div className="flex items-center gap-4">
-          <span className="hidden md:inline-block font-mono text-[10px] uppercase font-bold text-muted dark:text-[#9b8f80]">
-            Lesson Workspace
-          </span>
-          <span className="font-mono text-xs font-black bg-black text-white px-3 py-1.5 rounded-full dark:bg-[#2e2924]">
-            💰 XP Bounties: {lesson.points || 15}
-          </span>
-        </div>
-      </header>
+      <LessonTopBar
+        points={lesson.points || 15}
+        isSidebarOpen={isSidebarOpen}
+        isZenMode={isZenMode}
+        onToggleSidebar={() => setIsSidebarOpen((prev) => !prev)}
+      />
 
       {/* Main split-screen panel (Sidebar + Content Workspace) */}
       <div className="flex-1 flex flex-row overflow-hidden relative">
@@ -1119,7 +1080,7 @@ export function LessonPage() {
             >
               <Breadcrumb items={breadcrumbItems} className="mb-2" />
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                <div>
+                <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="text-[10px] font-mono font-black bg-accent text-black px-3 py-1 rounded-full border-2 border-black rotate-[-1deg] inline-block shadow-card-sm uppercase">
                       {lesson.difficulty || "beginner"}
@@ -1145,7 +1106,7 @@ export function LessonPage() {
                       isRefreshing={contentLoading}
                     />
                   </div>
-                  <h1 className="text-4xl sm:text-5xl font-black text-text dark:text-[#f0ebe2] drop-shadow-[2.5px_2.5px_0_#FF3B30] mt-3">
+                  <h1 className="text-3xl sm:text-5xl break-words font-black text-text dark:text-[#f0ebe2] drop-shadow-[2.5px_2.5px_0_#FF3B30] mt-3">
                     {lesson.title}
                   </h1>
                 </div>
@@ -1154,7 +1115,7 @@ export function LessonPage() {
                     COMPLETED ✅
                   </div>
                 )}
-                <div className="self-start sm:self-center ml-auto flex items-center gap-2">
+                <div className="self-start sm:self-center sm:ml-auto flex flex-wrap items-center gap-2">
                   <button
                     onClick={() => setIsZenMode(!isZenMode)}
                     className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-all ${

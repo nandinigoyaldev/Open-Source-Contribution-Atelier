@@ -1,6 +1,11 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { fetchApi } from "../../lib/api";
+import { ApiError } from "../../lib/apiErrors";
+
+type FieldName = "username" | "email" | "password";
+
+const FIELD_ERROR_CLASS = "mt-1 ml-2 text-sm font-bold text-red-700";
 
 export function SignupForm() {
   const navigate = useNavigate();
@@ -8,7 +13,19 @@ export function SignupForm() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<
+    Partial<Record<FieldName, string[]>>
+  >({});
   const [loading, setLoading] = useState(false);
+
+  // Forget a field's server message as soon as the person edits that field.
+  const clearFieldError = (field: FieldName) =>
+    setFieldErrors((current) => {
+      if (!current[field]) return current;
+      const next = { ...current };
+      delete next[field];
+      return next;
+    });
 
   const getPasswordStrength = (password: string) => {
     let score = 0;
@@ -49,6 +66,7 @@ export function SignupForm() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
+    setFieldErrors({});
     setLoading(true);
 
     try {
@@ -59,9 +77,20 @@ export function SignupForm() {
       });
       navigate("/verify-notice");
     } catch (err: unknown) {
-      setError(
-        err instanceof Error ? err.message : "Failed to create account.",
-      );
+      const fields: Partial<Record<FieldName, string[]>> = {};
+      if (err instanceof ApiError && err.fieldErrors) {
+        for (const name of ["username", "email", "password"] as const) {
+          if (err.fieldErrors[name]) fields[name] = err.fieldErrors[name];
+        }
+      }
+      if (Object.keys(fields).length > 0) {
+        // Show each message next to its field instead of one line at the top.
+        setFieldErrors(fields);
+      } else {
+        setError(
+          err instanceof Error ? err.message : "Failed to create account.",
+        );
+      }
     } finally {
       setLoading(false);
     }
@@ -88,10 +117,24 @@ export function SignupForm() {
           className="w-full rounded-2xl border-4 border-black bg-white px-5 py-4 text-black font-bold outline-none placeholder:text-muted/60 focus:bg-[#ffb5e8] shadow-card-sm transition-all focus:-translate-y-1 focus:shadow-card"
           placeholder="study_master_99"
           value={username}
-          onChange={(e) => setUsername(e.target.value)}
+          onChange={(e) => {
+            setUsername(e.target.value);
+            clearFieldError("username");
+          }}
           required
           disabled={loading}
+          aria-invalid={fieldErrors.username ? true : undefined}
+          aria-describedby={
+            fieldErrors.username ? "signup-username-error" : undefined
+          }
         />
+        {fieldErrors.username && (
+          <ul id="signup-username-error" className={FIELD_ERROR_CLASS}>
+            {fieldErrors.username.map((message) => (
+              <li key={message}>{message}</li>
+            ))}
+          </ul>
+        )}
       </div>
 
       <div className="space-y-2">
@@ -103,10 +146,24 @@ export function SignupForm() {
           type="email"
           placeholder="nerd@homework.com"
           value={email}
-          onChange={(e) => setEmail(e.target.value)}
+          onChange={(e) => {
+            setEmail(e.target.value);
+            clearFieldError("email");
+          }}
           required
           disabled={loading}
+          aria-invalid={fieldErrors.email ? true : undefined}
+          aria-describedby={
+            fieldErrors.email ? "signup-email-error" : undefined
+          }
         />
+        {fieldErrors.email && (
+          <ul id="signup-email-error" className={FIELD_ERROR_CLASS}>
+            {fieldErrors.email.map((message) => (
+              <li key={message}>{message}</li>
+            ))}
+          </ul>
+        )}
       </div>
 
       <div className="space-y-2">
@@ -118,10 +175,24 @@ export function SignupForm() {
           type="password"
           placeholder="••••••••"
           value={password}
-          onChange={(e) => setPassword(e.target.value)}
+          onChange={(e) => {
+            setPassword(e.target.value);
+            clearFieldError("password");
+          }}
           required
           disabled={loading}
+          aria-invalid={fieldErrors.password ? true : undefined}
+          aria-describedby={
+            fieldErrors.password ? "signup-password-error" : undefined
+          }
         />
+        {fieldErrors.password && (
+          <ul id="signup-password-error" className={FIELD_ERROR_CLASS}>
+            {fieldErrors.password.map((message) => (
+              <li key={message}>{message}</li>
+            ))}
+          </ul>
+        )}
         {password && (
           <div className="mt-2">
             <div className="w-full h-2 bg-gray-200 rounded-full">

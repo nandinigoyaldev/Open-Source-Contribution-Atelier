@@ -1,3 +1,4 @@
+import { usePageMeta } from "../hooks/usePageMeta";
 import { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate, Link } from "react-router-dom";
 import ReactMarkdown from "react-markdown";
@@ -33,6 +34,9 @@ interface TutorMessage {
 }
 
 export function LearnPage() {
+  usePageMeta(
+    "Follow step-by-step Git and open source lessons with an AI mentor, then practise what you learn in a hands-on sandbox.",
+  );
   const { slug } = useParams<{ slug?: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();

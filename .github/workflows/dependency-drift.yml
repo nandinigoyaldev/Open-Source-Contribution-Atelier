@@ -1,0 +1,52 @@
+name: Dependency Drift
+
+# Fails when a dependency manifest changed without its lockfile (or the two backend requirement files
+# disagree). It only reads JSON and text files, installs nothing heavy, and runs only when a manifest,
+# lockfile or this check changes, so documentation-only pull requests skip it.
+# Rules and fixes: scripts/ci/check_dependency_drift.py
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "package.json"
+      - "package-lock.json"
+      - "frontend/package.json"
+      - "frontend/package-lock.json"
+      - "backend/requirements.txt"
+      - "backend/requirements-prod.txt"
+      - "backend/uv.lock"
+      - "scripts/ci/check_dependency_drift.py"
+      - "scripts/tests/test_check_dependency_drift.py"
+      - ".github/workflows/dependency-drift.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: dependency-drift-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  drift:
+    name: Manifests match lockfiles
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - name: Install check dependencies
+        run: python -m pip install packaging pytest
+      - name: Self-test the check
+        run: python -m pytest scripts/tests/test_check_dependency_drift.py -q -p no:cacheprovider --rootdir=. -c /dev/null
+      - name: Check for drift
+        run: |
+          python scripts/ci/check_dependency_drift.py --root . | tee "$RUNNER_TEMP/drift.txt" >> "$GITHUB_STEP_SUMMARY"
+          status="${PIPESTATUS[0]}"
+          if [ "$status" -ne 0 ]; then
+            echo "::error title=Dependency drift::A manifest and its lockfile disagree. Run 'npm install' in the folder named in the log (or fix backend/requirements*.txt) and commit the result. Details are in the job summary."
+          fi
+          exit "$status"

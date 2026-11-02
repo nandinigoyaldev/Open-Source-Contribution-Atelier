@@ -6,6 +6,8 @@ from django.core.cache import cache
 from rest_framework_simplejwt.exceptions import InvalidToken, TokenError
 from rest_framework_simplejwt.tokens import RefreshToken
 
+from apps.accounts.jwt import DynamicSaltRefreshToken
+
 User = get_user_model()
 
 
@@ -13,7 +15,7 @@ class TokenService:
     @staticmethod
     def generate_tokens(user):
         """Generate access and refresh tokens"""
-        refresh = RefreshToken.for_user(user)
+        refresh = DynamicSaltRefreshToken.for_user(user)
         return {
             "access": str(refresh.access_token),
             "refresh": str(refresh),

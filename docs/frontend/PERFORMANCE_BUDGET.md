@@ -25,6 +25,23 @@ precompressed `.gz` / `.br` copies are skipped).
 The script also writes a report to `frontend/public/performance.json`, which the
 admin performance dashboard reads.
 
+#### Bundle report and review threshold
+
+`npm run perf:budget` also prints a Markdown report (totals plus the 10 largest
+files, with budget usage) and, in CI, adds it to the workflow run's job summary
+so reviewers can open it from the PR checks. The report has no timestamp and
+sorts equal sizes by file name, so the same build always gives the same report.
+
+`reviewThresholdPct` in the `bundle` section (default 90) is the review
+threshold. At or above that share of a limit the report marks the row `REVIEW`
+and the workflow adds a warning annotation. Above the limit the row is
+`OVER BUDGET` and the job fails, as before. When a PR gets a `REVIEW` row,
+reviewers should ask whether the growth is intended.
+
+On pull requests the workflow also builds the base branch and posts a comment with the
+JS and CSS size change (`frontend/scripts/bundle-size-report.ts`). The comment is best
+effort on fork PRs, where the token is read only; the same report is in the job summary.
+
 ### Lighthouse
 
 `lighthouserc.cjs` reads its thresholds straight from the `lighthouse` section of

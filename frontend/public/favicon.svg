@@ -1,6 +1,8 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
-  <rect width="100" height="100" rx="20" fill="#6c63ff"/>
-  <path d="M30 30 L70 30 L70 70 L30 70 Z" stroke="white" stroke-width="4" fill="none"/>
-  <path d="M30 30 L50 15 L70 30" stroke="white" stroke-width="4" fill="none"/>
-  <circle cx="50" cy="50" r="10" fill="white"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title">
+  <title>Open Source Contribution Atelier</title>
+  <rect width="64" height="64" rx="16" fill="#171923"/>
+  <path d="M18 18h28v28H18z" fill="#6366f1"/>
+  <path d="m25 25 7-6 7 6v14l-7 6-7-6z" fill="#fff"/>
+  <path d="M25 25h14M25 39h14" fill="none" stroke="#171923" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="32" cy="32" r="3" fill="#f59e0b"/>
 </svg>

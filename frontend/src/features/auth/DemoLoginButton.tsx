@@ -6,6 +6,7 @@ import { useNavigate } from "react-router-dom";
 type DemoLoginButtonProps = {
   label?: string;
   className?: string;
+  disabled?: boolean;
 };
 
 /**
@@ -15,6 +16,7 @@ type DemoLoginButtonProps = {
 export function DemoLoginButton({
   label = "🚀 Demo Mode (explicit local demo)",
   className = "w-full rounded-xl border-2 border-black bg-green-200 px-4 py-3.5 font-black text-black text-sm shadow-card-sm hover:-translate-y-0.5 transition-all cursor-pointer uppercase",
+  disabled = false,
 }: DemoLoginButtonProps) {
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
@@ -25,7 +27,9 @@ export function DemoLoginButton({
     <button
       type="button"
       data-testid="demo-login-button"
+      disabled={disabled}
       onClick={() => {
+        if (disabled) return;
         dispatch(setDemoUser());
         navigate("/dashboard");
       }}

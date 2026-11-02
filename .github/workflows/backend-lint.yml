@@ -1,0 +1,91 @@
+name: Backend Lint and Types
+
+# Focused backend checks that run before the slower test suite:
+#   - Black and isort (config in backend/pyproject.toml, same commands as CONTRIBUTING)
+#   - Pyright, as "no new errors": the backend still has many old Pyright errors, so the job compares
+#     each file's error count with the base branch and fails only for files that got worse
+#     (scripts/ci/pyright_regressions.py). Fix the old errors over time and the check tightens itself.
+# No secrets or production credentials are used; the type check only needs the Python dependencies.
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - "services/**"
+      - "pyproject.toml"
+      - "pyrightconfig.json"
+      - "scripts/ci/pyright_regressions.py"
+      - ".github/workflows/backend-lint.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: backend-lint-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  PYRIGHT_VERSION: "1.1.390"
+
+jobs:
+  format:
+    name: Black and isort
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - name: Install formatters
+        run: python -m pip install black isort
+      - name: Black
+        run: |
+          black --check --diff backend || {
+            echo "::error::Black found unformatted files. Run 'cd backend && black . && isort .' and commit the result."
+            exit 1
+          }
+      - name: isort
+        run: |
+          isort --check-only --diff backend || {
+            echo "::error::isort found unsorted imports. Run 'cd backend && black . && isort .' and commit the result."
+            exit 1
+          }
+
+  types:
+    name: Pyright (no new errors)
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - name: Install dependencies
+        run: |
+          python -m pip install -r backend/requirements.txt
+          npm install --global "pyright@${PYRIGHT_VERSION}"
+      - name: Pyright on the pull request
+        run: pyright --pythonpath "$(which python)" --outputjson backend > "$RUNNER_TEMP/head.json" || true
+      - name: Pyright on the base branch
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: |
+          git worktree add "$RUNNER_TEMP/base" "$BASE_SHA"
+          cd "$RUNNER_TEMP/base"
+          pyright --pythonpath "$(which python)" --outputjson backend > "$RUNNER_TEMP/base.json" || true
+      - name: Self-test the comparison script
+        run: python -m pytest scripts/tests/test_pyright_regressions.py -q -p no:cacheprovider --rootdir=. -c /dev/null
+      - name: Compare
+        run: |
+          python scripts/ci/pyright_regressions.py "$RUNNER_TEMP/base.json" "$RUNNER_TEMP/head.json" \
+            | tee -a "$GITHUB_STEP_SUMMARY"
+          exit "${PIPESTATUS[0]}"

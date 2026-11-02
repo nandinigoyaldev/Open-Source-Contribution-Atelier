@@ -21,6 +21,41 @@ class DynamicSaltValidationError(TokenError, ValueError):
     pass
 
 
+def _assert_claims_current(token, user, label: str) -> None:
+    """Reject a token that predates the user's last password change or revocation.
+
+    Tokens carry the first 16 characters of the password hash and the profile's token
+    version. A mismatch means the password changed or every session was revoked since the
+    token was issued.
+
+    Tokens issued before those claims existed carry neither. They are not trusted blindly:
+    they are only accepted if they were issued after the last password change, so they
+    cannot outlive a password change either.
+    """
+    stored_hash = DynamicSaltAccessToken._get_user_password_hash(user)
+    token_hash = token.get("password_hash", None)
+    if token_hash is not None and not constant_time_compare(stored_hash, token_hash):
+        raise DynamicSaltValidationError(
+            f"{label} has been invalidated (password changed)"
+        )
+
+    stored_version = DynamicSaltAccessToken._get_token_version(user)
+    token_version = token.get("token_version", None)
+    if token_version is not None and stored_version != token_version:
+        raise DynamicSaltValidationError(f"{label} has been revoked")
+
+    if token_hash is None and token_version is None:
+        profile = getattr(user, "user_profile", None)
+        changed_at = getattr(profile, "last_password_change", None)
+        issued_at = token.get("iat", None)
+        if changed_at is not None and (
+            issued_at is None or float(issued_at) < changed_at.timestamp() - 1
+        ):
+            raise DynamicSaltValidationError(
+                f"{label} was issued before the last password change"
+            )
+
+
 class DynamicSaltAccessToken(AccessToken):
     """
     Access token that uses user's password hash as part of signing.
@@ -77,23 +112,7 @@ class DynamicSaltAccessToken(AccessToken):
         except User.DoesNotExist:
             raise DynamicSaltValidationError("User not found")
 
-        # Check password hash matches
-        stored_hash = self._get_user_password_hash(user)
-        token_hash = self.get("password_hash", None)
-
-        if token_hash is not None and not constant_time_compare(
-            stored_hash, token_hash
-        ):
-            raise DynamicSaltValidationError(
-                "Token has been invalidated (password changed)"
-            )
-
-        # Check token version matches
-        stored_version = self._get_token_version(user)
-        token_version = self.get("token_version", None)
-
-        if token_version is not None and stored_version != token_version:
-            raise DynamicSaltValidationError("Token has been revoked")
+        _assert_claims_current(self, user, "Token")
 
         # Check session_id if present
         session_id = self.get("session_id")
@@ -120,11 +139,14 @@ class DynamicSaltRefreshToken(RefreshToken):
     Refresh token that uses user-specific salt.
     """
 
+    # Access tokens minted from this refresh token inherit its claims.
+    access_token_class = DynamicSaltAccessToken
+
     @classmethod
     def for_user(cls, user: User):
-
-        token = cls()
-        token["user_id"] = user.pk
+        # Go through SimpleJWT so the token is recorded as outstanding and can be blacklisted
+        # on the server (see apps.accounts.services.revoke_user_sessions).
+        token = super().for_user(user)
         token["password_hash"] = DynamicSaltAccessToken._get_user_password_hash(user)
         token["token_version"] = DynamicSaltAccessToken._get_token_version(user)
         # Mirror the tenant claim on the refresh token so rotated
@@ -157,23 +179,7 @@ class DynamicSaltRefreshToken(RefreshToken):
         except User.DoesNotExist:
             raise DynamicSaltValidationError("User not found")
 
-        # Check password hash matches
-        stored_hash = DynamicSaltAccessToken._get_user_password_hash(user)
-        token_hash = self.get("password_hash", None)
-
-        if token_hash is not None and not constant_time_compare(
-            stored_hash, token_hash
-        ):
-            raise DynamicSaltValidationError(
-                "Refresh token has been invalidated (password changed)"
-            )
-
-        # Check token version matches
-        stored_version = DynamicSaltAccessToken._get_token_version(user)
-        token_version = self.get("token_version", None)
-
-        if token_version is not None and stored_version != token_version:
-            raise DynamicSaltValidationError("Refresh token has been revoked")
+        _assert_claims_current(self, user, "Refresh token")
 
         # Check session_id if present
         session_id = self.get("session_id")

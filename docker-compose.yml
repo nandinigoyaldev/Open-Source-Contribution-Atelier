@@ -94,6 +94,9 @@ services:
       context: ./backend
       target: dev
     command: python manage.py qcluster
+    # Must exceed Q_CLUSTER["timeout"] (90s) so in-flight tasks can finish
+    # on SIGTERM before Docker sends SIGKILL. See docs/WORKER_SHUTDOWN.md.
+    stop_grace_period: 120s
     volumes:
       - ./backend:/app
     environment:

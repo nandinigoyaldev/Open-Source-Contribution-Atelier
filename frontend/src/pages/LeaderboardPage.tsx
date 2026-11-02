@@ -1,3 +1,4 @@
+import { usePageMeta } from "../hooks/usePageMeta";
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import {
   keepPreviousData,
@@ -14,9 +15,8 @@ import {
   Flame,
   X,
   ArrowLeft,
+  ArrowRight,
   ExternalLink,
-  Zap,
-  LoaderCircle,
   Users,
   AlertTriangle,
   ArrowUp,
@@ -195,6 +195,9 @@ function normalizeRows(
 // ─── Main Component ──────────────────────────────────────────────────────────
 
 export function LeaderboardPage() {
+  usePageMeta(
+    "See the top Atelier contributors ranked by XP, streaks and badges, and track your own rank on the leaderboard.",
+  );
   const { user } = useAuth();
   const queryClient = useQueryClient();
 
@@ -214,18 +217,20 @@ export function LeaderboardPage() {
   const prevRankMapRef = useRef<Map<string, number>>(new Map());
   const prevXpMapRef   = useRef<Map<string, number>>(new Map());
   const changedXpSet   = useRef<Set<string>>(new Set());
+  const loadedPageRef  = useRef(1);
 
   // Reset pagination whenever scope/period changes
   useEffect(() => {
     setPage(1);
     setRawRows([]);
+    loadedPageRef.current = 1;
     prevRankMapRef.current.clear();
     prevXpMapRef.current.clear();
     setCountdown(REFRESH_INTERVAL_MS / 1000);
   }, [timePeriod, leaderboardScope]);
 
   // ── Fetch leaderboard data (with auto-refresh) ──
-  const { data: apiData, isLoading, isFetching, isError, dataUpdatedAt } = useQuery({
+  const { data: apiData, isLoading, isFetching, isError, isPlaceholderData, dataUpdatedAt } = useQuery({
     queryKey: ["leaderboardData", leaderboardScope, timePeriod, page],
     queryFn: async () => {
       const res = (await fetchApi(
@@ -289,12 +294,15 @@ export function LeaderboardPage() {
       prevRankMapRef.current = newPrevRank;
       prevXpMapRef.current   = newPrevXp;
 
-      if (apiData.page === 1 || prev.length === 0) return apiData.rows;
-      const seen = new Set(prev.map((r: any) => r.username || r.user?.username));
-      return [
-        ...prev,
-        ...apiData.rows.filter((r: any) => !seen.has(r.username || r.user?.username)),
-      ];
+      // Each page replaces the previous one; rank deltas only make sense
+      // when the same page is refreshed, not when moving between pages.
+      if (loadedPageRef.current !== apiData.page) {
+        prevRankMapRef.current = new Map();
+        prevXpMapRef.current = new Map();
+        changedXpSet.current.clear();
+        loadedPageRef.current = apiData.page;
+      }
+      return apiData.rows;
     });
   }, [apiData]);
 
@@ -327,8 +335,9 @@ export function LeaderboardPage() {
   );
 
   const totalUsers = apiData?.totalUsers ?? 0;
-  const hasMore = apiData ? page < apiData.totalPages : false;
-  const showInitialLoader = isLoading && rawRows.length === 0;
+  const totalPages = Math.max(apiData?.totalPages ?? 1, 1);
+  const showPagination = leaderboardScope === "platform" && totalPages > 1;
+  const showInitialLoader = (isLoading && rawRows.length === 0) || isPlaceholderData;
 
   // Contributor names for the activity ticker (real usernames!)
   const contributorNames = useMemo(
@@ -689,7 +698,7 @@ export function LeaderboardPage() {
 
                 {showInitialLoader ? (
                   <LeaderboardSkeleton />
-                ) : isError && rawRows.length === 0 ? (
+                ) : isError && !apiData ? (
                   <tbody>
                     <tr>
                       <td colSpan={8} className="py-12 text-center">
@@ -813,22 +822,34 @@ export function LeaderboardPage() {
             </div>
           </div>
 
-          {/* Load More */}
-          {hasMore && (
-            <div className="flex justify-center pt-2">
+          {/* Pagination */}
+          {showPagination && (
+            <nav
+              aria-label="Leaderboard pagination"
+              className="flex items-center justify-center gap-3 pt-2"
+            >
               <button
-                onClick={() => setPage((p) => p + 1)}
-                disabled={isFetching}
-                className={`inline-flex items-center gap-2 px-6 py-3 rounded-full bg-black text-white dark:bg-white dark:text-black text-xs font-black uppercase tracking-wider border-2 border-black shadow-card-sm hover:opacity-90 transition-opacity disabled:opacity-50 ${CARD_FOCUS_RING}`}
+                type="button"
+                onClick={() => setPage((p) => Math.max(p - 1, 1))}
+                disabled={page <= 1 || isFetching}
+                className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-black text-white dark:bg-white dark:text-black text-xs font-black uppercase tracking-wider border-2 border-black shadow-card-sm hover:opacity-90 transition-opacity disabled:opacity-50 ${CARD_FOCUS_RING}`}
               >
-                {isFetching ? (
-                  <LoaderCircle className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Zap className="w-4 h-4" />
-                )}
-                {isFetching ? "Loading more..." : "Load More Contributors"}
+                <ArrowLeft className="w-4 h-4" />
+                Previous
               </button>
-            </div>
+              <span className="text-xs font-black dark:text-[#f0ebe2]" aria-live="polite">
+                Page {page} of {totalPages}
+              </span>
+              <button
+                type="button"
+                onClick={() => setPage((p) => Math.min(p + 1, totalPages))}
+                disabled={page >= totalPages || isFetching}
+                className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-black text-white dark:bg-white dark:text-black text-xs font-black uppercase tracking-wider border-2 border-black shadow-card-sm hover:opacity-90 transition-opacity disabled:opacity-50 ${CARD_FOCUS_RING}`}
+              >
+                Next
+                <ArrowRight className="w-4 h-4" />
+              </button>
+            </nav>
           )}
         </section>
 

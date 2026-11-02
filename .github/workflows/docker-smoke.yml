@@ -8,6 +8,7 @@ on:
       - "docker-compose.yml"
       - "docker-compose.*.yml"
       - "backend/Dockerfile"
+      - "scripts/compose_smoke.sh"
       - ".github/workflows/docker-smoke.yml"
   workflow_dispatch:
 
@@ -25,3 +26,12 @@ jobs:
         run: |
           docker build --check -f Dockerfile .
           docker build --check -f backend/Dockerfile backend
+
+  compose-startup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    needs: compose-config
+    steps:
+      - uses: actions/checkout@v4
+      - name: Start stack and check service endpoints
+        run: bash scripts/compose_smoke.sh

@@ -3,7 +3,8 @@
   "bundle": {
     "totalJsGzipKB": 3500,
     "singleChunkMaxKB": 1000,
-    "totalCssGzipKB": 100
+    "totalCssGzipKB": 100,
+    "reviewThresholdPct": 90
   },
   "lighthouse": {
     "performance": 50,

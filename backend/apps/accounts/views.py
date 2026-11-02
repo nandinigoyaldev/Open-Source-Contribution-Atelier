@@ -17,6 +17,7 @@ from django.core.cache import cache
 
 User = get_user_model()
 from django.core.mail import send_mail
+from django.db import transaction
 from django.db.models import Sum
 from django.shortcuts import redirect
 from django.utils import timezone
@@ -48,6 +49,10 @@ from schemas.user import (
     UserProfileSchema,
     UserResponseSchema,
 )
+
+from .jwt import DynamicSaltRefreshToken
+from .serializers import DynamicSaltTokenRefreshSerializer
+from .services import notify_sessions_revoked, revoke_user_sessions
 
 
 class LoginResponseSchema(UserResponseSchema):
@@ -366,6 +371,7 @@ class LoginView(TokenObtainPairView):
 
 
 class RefreshView(TokenRefreshView):
+    serializer_class = DynamicSaltTokenRefreshSerializer
     permission_classes = [permissions.AllowAny]
     throttle_classes = [TokenRefreshThrottle]
 
@@ -735,7 +741,7 @@ class GoogleLoginView(APIView):
                         status=status.HTTP_400_BAD_REQUEST,
                     )
 
-        refresh = RefreshToken.for_user(user)
+        refresh = DynamicSaltRefreshToken.for_user(user)
         return Response(
             {
                 "refresh": str(refresh),
@@ -946,7 +952,7 @@ class GitHubOAuthCallbackView(APIView):
                     password=secrets.token_urlsafe(24),
                 )
 
-            refresh = RefreshToken.for_user(user)
+            refresh = DynamicSaltRefreshToken.for_user(user)
             login_code = secrets.token_urlsafe(32)
             cache.set(
                 f"github-oauth-login:{login_code}",
@@ -1127,12 +1133,15 @@ class PasswordResetConfirmView(APIView):
             )
 
         user = reset_token.user
-        user.set_password(new_password)
-        if hasattr(user, "user_profile"):
-            user.user_profile.increment_jwt_version()
-        user.save()
-
-        PasswordResetToken.objects.filter(user=user, is_used=False).update(is_used=True)
+        with transaction.atomic():
+            user.set_password(new_password)
+            user.save()
+            PasswordResetToken.objects.filter(user=user, is_used=False).update(
+                is_used=True
+            )
+            # A reset happens signed out, so every session on every device is revoked.
+            revoke_user_sessions(user, notify=False)
+        notify_sessions_revoked(user)
 
         return Response(
             {
@@ -1343,7 +1352,7 @@ class MagicLinkVerifyView(APIView):
         if hasattr(user, "user_profile"):
             user.user_profile.increment_jwt_version()
 
-        refresh = RefreshToken.for_user(user)
+        refresh = DynamicSaltRefreshToken.for_user(user)
 
         return Response(
             {
@@ -1701,14 +1710,52 @@ class ChangePasswordView(APIView):
                 {"error": "Incorrect old password."}, status=status.HTTP_400_BAD_REQUEST
             )
 
-        user.set_password(serializer.validated_data["new_password"])
-        user.save()
-        PasswordResetToken.objects.filter(user=user, is_used=False).update(is_used=True)
-        if hasattr(user, "user_profile"):
-            user.user_profile.increment_jwt_version()
+        # The password change and the revocation succeed or fail together.
+        with transaction.atomic():
+            user.set_password(serializer.validated_data["new_password"])
+            user.save()
+            PasswordResetToken.objects.filter(user=user, is_used=False).update(
+                is_used=True
+            )
+
+            # The device the user is changing the password on stays signed in: keep its
+            # session, revoke everything else, then issue it a fresh token pair.
+            current_session = self._current_session(request, user)
+            revoke_user_sessions(
+                user, keep_session_id=current_session.session_id, notify=False
+            )
+            refresh = DynamicSaltRefreshToken.for_user(user)
+            refresh["session_id"] = str(current_session.session_id)
+            access = refresh.access_token
+            access["session_id"] = str(current_session.session_id)
+        notify_sessions_revoked(user)
 
         return Response(
-            {"status": "password changed successfully"}, status=status.HTTP_200_OK
+            {
+                "status": "password changed successfully",
+                "access": str(access),
+                "refresh": str(refresh),
+            },
+            status=status.HTTP_200_OK,
+        )
+
+    @staticmethod
+    def _current_session(request, user):
+        """The device session this request belongs to, or a new one if it has none."""
+        session_id = None
+        auth = getattr(request, "auth", None)
+        if auth is not None and hasattr(auth, "get"):
+            session_id = auth.get("session_id")
+        if session_id:
+            session = UserSession.objects.filter(
+                user=user, session_id=session_id
+            ).first()
+            if session is not None:
+                return session
+        return UserSession.objects.create(
+            user=user,
+            ip_address=request.META.get("REMOTE_ADDR"),
+            user_agent=request.META.get("HTTP_USER_AGENT", "")[:512],
         )
 
 

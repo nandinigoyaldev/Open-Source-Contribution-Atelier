@@ -18,6 +18,7 @@ pip install -r requirements.txt
 python manage.py migrate
 python manage.py seed_lessons && python manage.py seed_dashboard
 python manage.py check_curriculum_slugs  # curriculum.json ↔ DB lesson slug drift
+python scripts/validate_curriculum.py  # curriculum content: slugs, front matter, links, quizzes (from repo root)
 python manage.py runserver        # http://localhost:8000/api/
 python manage.py test             # or: pytest
 ```
@@ -29,6 +30,8 @@ black . && isort .
 
 Pyright config is at repo root (`pyrightconfig.json` with `extraPaths: ["backend"]`).
 
+Pull requests run `.github/workflows/backend-lint.yml`: Black, isort, and Pyright as "no new errors" (the backend still has many old Pyright errors, so a file fails only when it has more errors than on `main`). Check locally with `npx pyright backend`; the comparison is `scripts/ci/pyright_regressions.py`.
+
 ### Frontend (Node 20+)
 
 ```bash
@@ -37,7 +40,8 @@ npm install
 npm run dev          # http://localhost:5173/
 npm run lint         # ESLint
 npm run format       # Prettier
-npm run test         # Vitest
+npm run test         # Vitest (all projects, including Storybook browser tests)
+npm run test:unit    # Vitest unit project only: what the "Frontend Unit Tests" PR job runs
 npm run build        # tsc -b && vite build
 ```
 
@@ -77,3 +81,7 @@ Boots Postgres, Redis, Django backend (:8000), and Vite frontend (:5173).
 - Frontend content (lessons, modules, quizzes) is purely Markdown + `curriculum.json` in `public/content/`. Adding content requires **zero code changes** — see `docs/CONTENT_GUIDE.md`.
 - Branch naming: `feat/...`, `fix/...`, `docs/...`, `refactor/...`.
 - PR template lives at `.github/pull_request_template.md`.
+
+## Releasing
+
+Maintainers: follow [docs/RELEASE_CHECKLIST.md](docs/RELEASE_CHECKLIST.md) (migrations, environment variables, build output, smoke tests, rollback; separate rows for frontend-only, backend-only and full-stack changes).

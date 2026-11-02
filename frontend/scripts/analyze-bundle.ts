@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import zlib from "node:zlib";
 import { fileURLToPath } from "node:url";
+import { buildMarkdownReport, sortBundles } from "./bundle-report";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -68,8 +69,8 @@ function analyzeBundle() {
     }
   }
 
-  chunks.sort((a, b) => b.sizeKB - a.sizeKB);
-  const top10Chunks = chunks.slice(0, 10);
+  const sortedChunks = sortBundles(chunks);
+  const top10Chunks = sortedChunks.slice(0, 10);
 
   const report = {
     timestamp: new Date().toISOString(),
@@ -90,6 +91,24 @@ function analyzeBundle() {
 
   fs.writeFileSync(OUTPUT_FILE, JSON.stringify(report, null, 2));
   console.log(`✅ Performance report saved to ${OUTPUT_FILE}`);
+
+  // Show the largest bundles to reviewers: job summary plus warning annotations.
+  const { markdown, warnings } = buildMarkdownReport(
+    chunks,
+    { totalJsGzipKB: totalJsGzip, totalCssGzipKB: totalCssGzip },
+    budget.bundle,
+  );
+  console.log(markdown);
+  if (process.env.GITHUB_STEP_SUMMARY) {
+    fs.appendFileSync(
+      process.env.GITHUB_STEP_SUMMARY,
+      `${markdown}
+`,
+    );
+  }
+  warnings.forEach((w) =>
+    console.log(`::warning title=Bundle near budget::${w}`),
+  );
 
   if (totalJsGzip > budget.bundle.totalJsGzipKB) {
     console.error(

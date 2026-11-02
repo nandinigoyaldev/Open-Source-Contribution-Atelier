@@ -57,3 +57,66 @@ export function flattenCurriculumLessons(
   if (!curriculum?.modules?.length) return [];
   return curriculum.modules.flatMap((mod) => mod.lessons ?? []);
 }
+
+let curriculumRequest: Promise<CurriculumCatalog> | null = null;
+let curriculumLoadedAt = 0;
+
+/**
+ * Module-level cache of the parsed curriculum.json so lesson-to-lesson
+ * navigation does not refetch and reparse the whole manifest. Failed loads
+ * are never cached, so the next navigation retries.
+ */
+export function loadCurriculumCached(): Promise<CurriculumCatalog> {
+  const fresh = Date.now() - curriculumLoadedAt < CURRICULUM_STALE_TIME_MS;
+  if (curriculumRequest && fresh) return curriculumRequest;
+  const request = fetchCurriculum().then(
+    (catalog) => {
+      curriculumLoadedAt = Date.now();
+      return catalog;
+    },
+    (err) => {
+      if (curriculumRequest === request) curriculumRequest = null;
+      throw err;
+    },
+  );
+  curriculumRequest = request;
+  curriculumLoadedAt = Date.now(); // dedupe concurrent calls while in flight
+  return request;
+}
+
+export function resetCurriculumCache(): void {
+  curriculumRequest = null;
+  curriculumLoadedAt = 0;
+}
+
+export type CurriculumLessonEntry = {
+  lesson: CurriculumLesson;
+  module: CurriculumModule;
+  index: number;
+};
+
+const lessonIndexes = new WeakMap<
+  CurriculumCatalog,
+  Map<string, CurriculumLessonEntry>
+>();
+
+/** O(1) slug lookup; the index is built once per parsed catalog. */
+export function findCurriculumLesson(
+  catalog: CurriculumCatalog | null | undefined,
+  slug: string | undefined,
+): CurriculumLessonEntry | undefined {
+  if (!catalog || !slug) return undefined;
+  let index = lessonIndexes.get(catalog);
+  if (!index) {
+    index = new Map();
+    for (const mod of catalog.modules ?? []) {
+      (mod.lessons ?? []).forEach((lesson, i) => {
+        if (!index!.has(lesson.slug)) {
+          index!.set(lesson.slug, { lesson, module: mod, index: i });
+        }
+      });
+    }
+    lessonIndexes.set(catalog, index);
+  }
+  return index.get(slug);
+}
