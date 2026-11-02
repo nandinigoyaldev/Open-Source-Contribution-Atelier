@@ -31,14 +31,34 @@ jobs:
             });
 
             const issues = response.data.filter(i => !i.pull_request && i.assignees && i.assignees.length > 0);
+            const { data: openPrs } = await github.rest.pulls.list({
+              owner,
+              repo,
+              state: 'open',
+              per_page: 100
+            });
+            const pullRequestsByIssue = new Map();
+
+            for (const pr of openPrs) {
+              const references = `${pr.title || ''}\n${pr.body || ''}`.match(/(?:^|[^\w])#(\d+)/g) || [];
+              for (const reference of references) {
+                const issueNumber = Number(reference.replace(/\D/g, ''));
+                if (!pullRequestsByIssue.has(issueNumber)) pullRequestsByIssue.set(issueNumber, []);
+                pullRequestsByIssue.get(issueNumber).push(pr);
+              }
+            }
 
             for (const issue of issues) {
               const assignees = issue.assignees.map(a => a.login);
               const updatedAt = new Date(issue.updated_at);
               const hoursSinceUpdate = (now - updatedAt) / (1000 * 60 * 60);
+              const linkedPrs = pullRequestsByIssue.get(issue.number) || [];
+              const linkedPrSummary = linkedPrs
+                .map(pr => `#${pr.number} (${pr.draft ? 'draft' : 'ready for review'})`)
+                .join(', ');
 
               // 1. Unassign if inactive for > 72 hours
-              if (hoursSinceUpdate >= 72) {
+              if (hoursSinceUpdate >= 72 && linkedPrs.length === 0) {
                 for (const user of assignees) {
                   await github.rest.issues.removeAssignees({
                     owner,
@@ -58,11 +78,14 @@ jobs:
               // 2. Post reminder if inactive for > 48 hours
               else if (hoursSinceUpdate >= 48) {
                 const mentions = assignees.map(u => `@${u}`).join(', ');
+                const pullRequestAction = linkedPrs.length > 0
+                  ? `Your linked PR${linkedPrs.length === 1 ? '' : 's'} ${linkedPrSummary} still needs visible progress. Please push the next update, request a review, respond to feedback, or explain what is blocking the merge.`
+                  : "Please submit a draft Pull Request or post an update within 24 hours to retain your assignment under our NSoC '26 active rotation guidelines!";
                 await github.rest.issues.createComment({
                   owner,
                   repo,
                   issue_number: issue.number,
-                  body: `⏰ Friendly reminder ${mentions}! You have been assigned to this issue for over **48 hours**.\n\nPlease submit a draft Pull Request or post an update within 24 hours to retain your assignment under our NSoC '26 active rotation guidelines!`
+                  body: `⏰ Friendly reminder ${mentions}! You have been assigned to this issue for over **48 hours**.\n\n${pullRequestAction}`
                 });
                 console.log(`Sent 48h reminder to ${mentions} on issue #${issue.number}`);
               }
