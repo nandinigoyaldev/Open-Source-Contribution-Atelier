@@ -9,9 +9,7 @@ import { TerminalReplay } from "../components/ui/TerminalReplay";
 import { useAuth } from "../features/auth/AuthContext";
 import { RouteSuspenseWrapper } from "../components/ui/SkeletonRegistry";
 
-const FullStackDocsPage = lazy(
-  () => import("../pages/docs/FullStackDocsPage"),
-);
+const FullStackDocsPage = lazy(() => import("../pages/docs/FullStackDocsPage"));
 
 const ChallengePage = lazy(() =>
   import("../pages/ChallengePage").then((module) => ({
@@ -388,7 +386,6 @@ const OAuthClientsPage = lazy(() =>
 const UsageAnalyticsPage = lazy(
   () => import("../pages/admin/UsageAnalyticsPage"),
 );
-
 
 const ConnectedAppsPage = lazy(() =>
   import("../pages/settings/ConnectedApps").then((module) => ({

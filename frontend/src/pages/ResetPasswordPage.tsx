@@ -77,12 +77,18 @@ export function ResetPasswordPage() {
               : "Enter your account email and we will send a reset link if it matches an account."}
           </p>
           {error && (
-            <p role="alert" className="mt-5 rounded-xl bg-red-50 p-3 text-sm text-red-700 dark:bg-red-500/10 dark:text-red-300">
+            <p
+              role="alert"
+              className="mt-5 rounded-xl bg-red-50 p-3 text-sm text-red-700 dark:bg-red-500/10 dark:text-red-300"
+            >
               {error}
             </p>
           )}
           {message && (
-            <p role="status" className="mt-5 rounded-xl bg-emerald-50 p-3 text-sm text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300">
+            <p
+              role="status"
+              className="mt-5 rounded-xl bg-emerald-50 p-3 text-sm text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-300"
+            >
               {message}
             </p>
           )}
@@ -105,6 +111,7 @@ export function ResetPasswordPage() {
                   <label className="block text-sm font-medium">
                     New password
                     <PasswordInput
+                      id="reset-new-password"
                       value={newPassword}
                       onChange={(event) => setNewPassword(event.target.value)}
                       autoComplete="new-password"
@@ -115,8 +122,11 @@ export function ResetPasswordPage() {
                   <label className="block text-sm font-medium">
                     Confirm password
                     <PasswordInput
+                      id="reset-confirm-password"
                       value={confirmPassword}
-                      onChange={(event) => setConfirmPassword(event.target.value)}
+                      onChange={(event) =>
+                        setConfirmPassword(event.target.value)
+                      }
                       autoComplete="new-password"
                       className="mt-2 rounded-xl border-slate-300 bg-white text-slate-950 dark:border-slate-700 dark:bg-slate-950 dark:text-white"
                       required
