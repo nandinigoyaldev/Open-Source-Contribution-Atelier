@@ -1,6 +1,4 @@
 import hashlib
-import hmac
-import json
 import logging
 
 import requests
@@ -13,6 +11,7 @@ from .models import (
     WebhookDeliveryLog,
     WebhookEndpoint,
 )
+from .security import build_signature_headers, compute_signature, serialize_payload
 
 logger = logging.getLogger(__name__)
 
@@ -30,9 +29,8 @@ def _exponential_backoff(attempt: int) -> int:
 
 
 def generate_signature(payload, secret):
-    payload_bytes = json.dumps(payload, separators=(",", ":")).encode("utf-8")
-    secret_bytes = secret.encode("utf-8")
-    return hmac.new(secret_bytes, payload_bytes, hashlib.sha256).hexdigest()
+    """Legacy payload-only signature (hex) of the serialized payload."""
+    return compute_signature(secret, serialize_payload(payload))
 
 
 def dispatch_event(event_type, payload, dedupe_key=None):
@@ -127,17 +125,19 @@ def deliver_webhook(delivery_id, attempt=1):
         return
 
     endpoint = delivery.endpoint
-    signature = generate_signature(delivery.payload, endpoint.secret)
+    # Sign the exact bytes that go on the wire. The timestamp is taken now, so
+    # every retry carries a fresh one and stays inside the receiver's window.
+    body = serialize_payload(delivery.payload)
 
     headers = {
         "Content-Type": "application/json",
-        "X-Webhook-Signature": signature,
         "X-Webhook-Event": delivery.event_type,
         "X-Webhook-Attempt": str(attempt),
         # Same value on every retry and replay of this delivery, so receivers
         # can use it to drop duplicates.
         "X-Webhook-Delivery-Id": str(delivery.id),
     }
+    headers.update(build_signature_headers(endpoint.secret, body))
 
     delivery.attempt_count = attempt
     delivery.status = "retrying" if attempt > 1 else "pending"
@@ -164,7 +164,7 @@ def deliver_webhook(delivery_id, attempt=1):
     try:
         with cb:
             response = requests.post(
-                endpoint.target_url, json=delivery.payload, headers=headers, timeout=5
+                endpoint.target_url, data=body, headers=headers, timeout=5
             )
             delivery.status_code = response.status_code
             delivery.response_body = response.text[:2000]
