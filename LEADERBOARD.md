@@ -18,6 +18,8 @@ Welcome to the permanent **Hall of Fame & Contributor Legacy** for **Open-Source
 
 | 1 | @dependabot[bot] | 💎 Diamond Contributor ⚡ | 40 | 1000 | 2026-10-28 |
 
+| 1 | @srushtib03 | 🥉 Bronze Contributor ⚡ | 2 | 50 | 2026-11-02 |
+
 ---
 
 ## 🌟 Historic Milestones & Seasonal Legacy
