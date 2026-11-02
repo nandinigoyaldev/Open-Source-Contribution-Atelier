@@ -1,5 +1,6 @@
 import logging
 import re
+from typing import Union
 from urllib.parse import quote
 
 from django.conf import settings
@@ -8,7 +9,7 @@ from django.core.signing import TimestampSigner
 from django.template.loader import render_to_string
 from django.utils.html import strip_tags
 
-from apps.notifications.channels.base import NotificationChannel
+from apps.notifications.channels.base import DeliveryResult, NotificationChannel
 
 logger = logging.getLogger(__name__)
 
@@ -16,11 +17,15 @@ logger = logging.getLogger(__name__)
 class EmailChannel(NotificationChannel):
     channel_id = "email"
 
-    def deliver(self, delivery, recipient, payload: dict) -> bool:
+    def deliver(
+        self, delivery, recipient, payload: dict
+    ) -> Union[bool, DeliveryResult]:
         recipient_email = getattr(recipient, "email", None)
         if not recipient_email:
             logger.warning("Recipient %s has no email address", recipient)
-            return False
+            return DeliveryResult.permanent_failure(
+                "Recipient has no email address", provider="email"
+            )
 
         notif_type = payload.get("notif_type", "default")
         title = payload.get("title", "New Notification")
@@ -86,5 +91,9 @@ class EmailChannel(NotificationChannel):
             to=[recipient_email],
         )
         msg.attach_alternative(html_content, "text/html")
-        msg.send(fail_silently=False)
-        return True
+        sent = msg.send(fail_silently=False)
+        if not sent:
+            return DeliveryResult.transient_failure(
+                "The mail backend accepted no message", provider="email"
+            )
+        return DeliveryResult.sent(provider="email", response={"messages_sent": sent})

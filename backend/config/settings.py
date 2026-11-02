@@ -1122,6 +1122,35 @@ NOTIFICATION_CHANNELS = {
     "slack": "apps.notifications.channels.slack_channel.SlackChannel",
 }
 
+# ── Notification delivery ledger (see docs/NOTIFICATION_DELIVERY_LEDGER.md) ──
+# Tries a delivery gets before it is dead-lettered (permanent failures skip the remaining tries).
+NOTIFICATION_MAX_ATTEMPTS = int(os.getenv("NOTIFICATION_MAX_ATTEMPTS", "3"))
+# A worker that holds a delivery for longer than this is assumed to have died.
+NOTIFICATION_CLAIM_LEASE_SECONDS = int(
+    os.getenv("NOTIFICATION_CLAIM_LEASE_SECONDS", "120")
+)
+# A pending delivery nobody picked up for this long is queued again by the recovery sweep.
+NOTIFICATION_STALE_AFTER_SECONDS = int(
+    os.getenv("NOTIFICATION_STALE_AFTER_SECONDS", "300")
+)
+# Being rate limited defers a delivery instead of failing it, at most this many times.
+NOTIFICATION_RATE_LIMIT_MAX_DEFERRALS = int(
+    os.getenv("NOTIFICATION_RATE_LIMIT_MAX_DEFERRALS", "5")
+)
+NOTIFICATION_RATE_LIMIT_DELAY_SECONDS = int(
+    os.getenv("NOTIFICATION_RATE_LIMIT_DELAY_SECONDS", "60")
+)
+# Retention in days (0 keeps that kind of row forever); pending deliveries are never purged.
+NOTIFICATION_ATTEMPT_RETENTION_DAYS = int(
+    os.getenv("NOTIFICATION_ATTEMPT_RETENTION_DAYS", "30")
+)
+NOTIFICATION_DELIVERY_RETENTION_DAYS = int(
+    os.getenv("NOTIFICATION_DELIVERY_RETENTION_DAYS", "90")
+)
+NOTIFICATION_FAILED_RETENTION_DAYS = int(
+    os.getenv("NOTIFICATION_FAILED_RETENTION_DAYS", "180")
+)
+
 # ──────────────────────────────────────────
 # Certificate Signing (Ed25519)
 # ──────────────────────────────────────────
@@ -1144,5 +1173,13 @@ CELERY_BEAT_SCHEDULE = {
     "archive-monthly-leaderboard": {
         "task": "apps.progress.tasks.archive_monthly_leaderboard",
         "schedule": crontab(minute=0, hour=0, day_of_month="1"),
+    },
+    "recover-stale-notification-deliveries": {
+        "task": "apps.notifications.tasks.recover_stale_deliveries",
+        "schedule": 300.0,
+    },
+    "purge-notification-ledger": {
+        "task": "apps.notifications.tasks.purge_notification_ledger_task",
+        "schedule": crontab(minute=30, hour=3),
     },
 }
