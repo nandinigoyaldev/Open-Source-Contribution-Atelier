@@ -27,3 +27,46 @@ jobs:
       - run: npm ci --no-audit --fund=false
       - run: npx playwright install --with-deps chromium
       - run: npm run test:a11y:ci
+
+  # Keyboard, focus and live-region checks for sign in and the lesson flow,
+  # one job per browser so each one only installs the browser it runs.
+  # Flows and how to add one: docs/testing/a11y-smoke-matrix.md
+  smoke-matrix:
+    name: Smoke matrix (${{ matrix.project }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - project: matrix-chromium
+            browser: chromium
+          - project: matrix-firefox
+            browser: firefox
+          - project: matrix-webkit
+            browser: webkit
+          - project: matrix-mobile-chrome
+            browser: chromium
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci --no-audit --fund=false
+      - run: npx playwright install --with-deps ${{ matrix.browser }}
+      - name: Run the smoke matrix
+        run: npm run test:a11y:matrix -- --project=${{ matrix.project }}
+      - name: Upload report, traces and screenshots
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: a11y-smoke-matrix-${{ matrix.project }}
+          path: |
+            frontend/playwright-report/a11y-matrix
+            frontend/e2e/test-results/a11y-matrix
+          retention-days: 7

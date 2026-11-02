@@ -28,6 +28,7 @@
     "audit": "npm audit --audit-level=high",
     "test:a11y": "playwright test accessibility",
     "test:a11y:ci": "playwright test accessibility --reporter=html,json,junit",
+    "test:a11y:matrix": "playwright test -c playwright.a11y-matrix.config.ts",
     "test:a11y:report": "node tests/accessibility/generate-report.js",
     "test:visual": "playwright test e2e/visual/",
     "test:visual:update": "playwright test e2e/visual/ --update-snapshots",

@@ -90,4 +90,7 @@ export default defineConfig({
 
   /* ✅ Added: Test directory for accessibility tests */
   testMatch: ["**/*.spec.ts", "**/accessibility/**/*.spec.ts"],
+
+  /* The cross-browser smoke matrix has its own config (playwright.a11y-matrix.config.ts). */
+  testIgnore: ["**/a11y-matrix/**"],
 });
