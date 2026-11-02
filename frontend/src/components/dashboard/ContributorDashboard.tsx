@@ -23,6 +23,7 @@ import { fetchLessonsApi, type Lesson } from "../../lib/lessons";
 import { BADGES } from "../../constants/badges";
 import { DailyQuoteWidget } from "../ui/DailyQuoteWidget";
 import { DailyChallengeQuizCard } from "../ui/DailyChallengeQuizCard";
+import { BookmarkAnnouncer } from "../ui/BookmarkAnnouncer";
 import { NotesWidget } from "../ui/NotesWidget";
 import { OnboardingTour } from "../ui/OnboardingTour";
 import { QuestsPanel } from "./QuestsPanel";
@@ -64,7 +65,12 @@ export function ContributorDashboard() {
   const { user } = useAuth();
   const { theme } = useTheme();
   const { isLessonCompleted } = useUserProgress();
-  const { bookmarks, toggleBookmark } = useBookmarks();
+  const {
+    bookmarks,
+    toggleBookmark,
+    announcement: bookmarkAnnouncement,
+    isPendingSlug,
+  } = useBookmarks();
 
   const [showOnboarding, setShowOnboarding] = useState(false);
   const [onboardingStep, setOnboardingStep] = useState(0);
@@ -294,6 +300,7 @@ export function ContributorDashboard() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 pb-12 space-y-8">
+      <BookmarkAnnouncer announcement={bookmarkAnnouncement} />
       <OnboardingTour run={showOnboarding} onFinish={handleFinishOnboarding} />
       <NotesWidget />
 
@@ -477,35 +484,80 @@ export function ContributorDashboard() {
             <div className="space-y-3">
               {activeLessonsQueue.length > 0 ? (
                 activeLessonsQueue.map((lesson: Lesson) => (
-                  <Link
+                  <div
                     key={lesson.slug}
-                    to={`/lessons/${lesson.slug}`}
-                    aria-label={`Start lesson: ${lesson.title}`}
-                    className={`flex flex-col gap-1.5 p-4 rounded-xl border border-slate-100 bg-slate-50/20 hover:bg-slate-50 hover:-translate-y-0.5 transition-all cursor-pointer dark:bg-[#151411]/50 dark:border-[#2e2924] dark:hover:bg-[#1f1c18] ${FOCUS_RING}`}
+                    className="flex flex-col gap-1.5 p-4 rounded-xl border border-slate-100 bg-slate-50/20 hover:bg-slate-50 hover:-translate-y-0.5 transition-all dark:bg-[#151411]/50 dark:border-[#2e2924] dark:hover:bg-[#1f1c18]"
                   >
                     <div className="flex justify-between items-center">
-                      <h3 className="font-black text-base text-slate-850 dark:text-[#f0ebe2] truncate pr-4">
+                      <Link
+                        to={`/lessons/${lesson.slug}`}
+                        aria-label={`Start lesson: ${lesson.title}`}
+                        className={`font-black text-base text-slate-850 dark:text-[#f0ebe2] truncate pr-4 hover:underline ${FOCUS_RING}`}
+                      >
                         {lesson.title}
-                      </h3>
-                      <span className="font-mono text-[9px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded uppercase dark:bg-slate-800 dark:text-slate-300">
-                        {lesson.difficulty || "beginner"}
-                      </span>
+                      </Link>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button
+                          type="button"
+                          aria-label={
+                            bookmarks.some((b) => b.lesson_slug === lesson.slug)
+                              ? `Remove bookmark for ${lesson.title}`
+                              : `Bookmark ${lesson.title}`
+                          }
+                          title={
+                            bookmarks.some((b) => b.lesson_slug === lesson.slug)
+                              ? "Remove bookmark"
+                              : "Save bookmark"
+                          }
+                          disabled={isPendingSlug(lesson.slug)}
+                          onClick={(e) => {
+                            e.preventDefault();
+                            e.stopPropagation();
+                            toggleBookmark.mutate({
+                              slug: lesson.slug,
+                              isBookmarked: bookmarks.some(
+                                (b) => b.lesson_slug === lesson.slug,
+                              ),
+                              lesson,
+                            });
+                          }}
+                          className={`p-1 rounded-md text-slate-400 hover:text-primary transition-colors ${FOCUS_RING}`}
+                        >
+                          <Bookmark
+                            className={
+                              bookmarks.some(
+                                (b) => b.lesson_slug === lesson.slug,
+                              )
+                                ? "fill-primary text-primary h-4 w-4"
+                                : "text-slate-400 h-4 w-4"
+                            }
+                          />
+                        </button>
+                        <span className="font-mono text-[9px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded uppercase dark:bg-slate-800 dark:text-slate-300">
+                          {lesson.difficulty || "beginner"}
+                        </span>
+                      </div>
                     </div>
                     <p className="font-bold text-xs text-slate-500 dark:text-[#c4bbae] line-clamp-2 leading-relaxed">
                       {lesson.description}
                     </p>
                     <div className="flex justify-between text-[11px] font-bold text-slate-400 mt-1">
                       <span>⏱️ {lesson.estimatedMinutes || 10} min</span>
-                      <span className="flex items-center gap-1 text-[#8884d8] font-black">
+                      <Link
+                        to={`/lessons/${lesson.slug}`}
+                        className="flex items-center gap-1 text-[#8884d8] font-black hover:underline"
+                      >
                         Start Mission <ArrowRight size={11} />
-                      </span>
+                      </Link>
                     </div>
-                  </Link>
+                  </div>
                 ))
               ) : (
                 <div className="p-8 text-center bg-slate-50/50 rounded-xl border-2 border-dashed border-slate-200 dark:bg-[#0f0e0c] dark:border-[#2e2924]">
                   <p className="font-bold text-xs text-muted dark:text-[#c4bbae]">
-                    All modules completed! Go download your certificate! 🎓🌟
+                    {showOnlyBookmarked
+                      ? "No bookmarked lessons left in your queue."
+                      : "All modules completed! Go download your certificate! 🎓🌟"}
                   </p>
                 </div>
               )}
