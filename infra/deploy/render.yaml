@@ -11,6 +11,10 @@ services:
       - key: DJANGO_SETTINGS_MODULE
         value: config.settings
       - key: ALLOWED_HOSTS
-        value: "*"
+        value: localhost,127.0.0.1,your-project.vercel.app
       - key: CORS_ALLOW_ALL_ORIGINS
-        value: "True"
+        value: "False"
+      - key: SECRET_KEY
+        value: lJ5d3ke8O2HyKD35WtQJ6hvuDWwUl9TCw-GdyO1F_sM_wnwBky7Wfl0q-w4r0Diz1cg
+      - key: FIELD_ENCRYPTION_KEY
+        value: 6lsX7camrNKsPueBKfs6zuZiwKKp9rVTo3mkJM3jHQI=
