@@ -117,9 +117,12 @@ export function SignupPage() {
         )}
 
         {/* ── OAUTH BUTTONS ── */}
+
         <button
           type="button"
           onClick={() => googleLoginHandler()}
+          aria-label="Sign up with Google"
+          title="Sign up with Google"
           className="w-full bg-white border-4 border-black rounded-2xl py-3 px-4 flex items-center justify-center gap-3 font-bold hover:bg-surface-low transition-colors shadow-card-sm active:translate-y-1 active:shadow-none"
         >
           <svg className="w-6 h-6" viewBox="0 0 24 24" aria-hidden="true">
@@ -148,6 +151,7 @@ export function SignupPage() {
           onClick={handleGithubSignIn}
           className="group relative w-full overflow-hidden bg-black text-white border-4 border-black rounded-lg py-3 px-4 flex items-center justify-center gap-3 font-black shadow-card-sm transition-all duration-300 hover:-translate-y-1 hover:bg-text hover:shadow-card-lg active:translate-y-1 active:shadow-none uppercase before:absolute before:inset-0 before:-translate-x-full before:bg-gradient-to-r before:from-transparent before:via-white/25 before:to-transparent before:transition-transform before:duration-500 hover:before:translate-x-full"
           aria-label="Sign up with GitHub"
+          title="Sign up with GitHub"
         >
           <GitBranch
             className="mr-2 inline-block relative transition-transform duration-300 group-hover:rotate-[-8deg] group-hover:scale-110"
