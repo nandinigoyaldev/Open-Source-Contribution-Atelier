@@ -6,6 +6,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, Server, Monitor } from "lucide-react";
 
 interface ConflictData {
+  id?: string;
   lesson_slug: string;
   serverData: any;
   localData: any;
@@ -32,7 +33,7 @@ export function ConflictResolutionModal() {
   const handleKeepServer = async () => {
     setIsResolving(true);
     try {
-      const id = `progress-sync-${conflict.lesson_slug}`;
+      const id = conflict.id ?? `progress-sync-${conflict.lesson_slug}`;
       await removeQueuedAction(id, conflict.lesson_slug);
       queryClient.invalidateQueries({ queryKey: ["userProgress"] });
       setConflict(null);
@@ -53,7 +54,7 @@ export function ConflictResolutionModal() {
           completed: conflict.localData.completed ?? true,
         }),
       });
-      const id = `progress-sync-${conflict.lesson_slug}`;
+      const id = conflict.id ?? `progress-sync-${conflict.lesson_slug}`;
       await removeQueuedAction(id, conflict.lesson_slug);
       queryClient.invalidateQueries({ queryKey: ["userProgress"] });
       setConflict(null);
