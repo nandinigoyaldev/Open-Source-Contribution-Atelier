@@ -12,12 +12,15 @@ import random
 import sys
 import threading
 import time
+from contextlib import ContextDecorator
 from typing import Optional
 
 from django.conf import settings
 from django.core.cache import cache
 from django.db import connections, transaction
 from django.db.utils import OperationalError
+
+from config import db_router_metrics as metrics
 
 logger = logging.getLogger(__name__)
 
@@ -26,6 +29,15 @@ _local = threading.local()
 
 READ_AFTER_WRITE_SECONDS = getattr(settings, "READ_AFTER_WRITE_SECONDS", 5)
 REPLICA_DEAD_TIMEOUT = getattr(settings, "REPLICA_DEAD_TIMEOUT", 60)
+
+# Replication lag in seconds on a PostgreSQL standby. pg_last_xact_replay_timestamp() is the time
+# of the last transaction replayed, so on an idle primary it keeps growing even though the standby
+# has caught up; when everything received has been replayed the lag is therefore reported as zero.
+# On a primary both LSN functions and the timestamp are NULL, so the result is NULL.
+REPLICA_LAG_SQL = (
+    "SELECT CASE WHEN pg_last_wal_receive_lsn() = pg_last_wal_replay_lsn() THEN 0 "
+    "ELSE EXTRACT(EPOCH FROM (now() - pg_last_xact_replay_timestamp())) END::FLOAT"
+)
 
 # Models used by the expensive analytics/reporting endpoints.  Django's
 # database-router API receives the model (and query hints), not the request,
@@ -73,6 +85,37 @@ def is_user_dirty(user_id: Optional[int]) -> bool:
     return bool(cache.get(f"raw_dirty:{user_id}"))
 
 
+class use_primary(ContextDecorator):
+    """
+    Keep every read on the primary inside the block (or the decorated function).
+
+    The router cannot see a request, a Celery task or a webhook handler, only the query, so code
+    that writes and then has to read its own write outside a transaction, or that must never see
+    replica data, says so explicitly::
+
+        with use_primary():
+            order = Order.objects.get(pk=order_id)
+
+        @use_primary()
+        def handle_payment_webhook(event): ...
+
+    Blocks can be nested. Writes always go to the primary anyway.
+    """
+
+    def __enter__(self):
+        _local.primary_pins = getattr(_local, "primary_pins", 0) + 1
+        return self
+
+    def __exit__(self, *exc_info):
+        _local.primary_pins = max(0, getattr(_local, "primary_pins", 1) - 1)
+        return False
+
+
+def is_primary_pinned() -> bool:
+    """True while inside :class:`use_primary`."""
+    return getattr(_local, "primary_pins", 0) > 0
+
+
 class PrimaryReplicaRouter:
     """
     A database router to route read operations to read replicas using
@@ -106,6 +149,10 @@ class PrimaryReplicaRouter:
         self._dead_replicas: dict[str, float] = {}
         self._dead_timeout = REPLICA_DEAD_TIMEOUT
         self._lock = threading.Lock()
+        # alias -> (lag seconds, time measured); keeps lag checks off the hot path
+        self._lag_cache: dict[str, tuple[float, float]] = {}
+        # Why the last _probe_and_select / _select_specific_replica call fell back (per thread)
+        self._tls = threading.local()
 
     # ── Internal helpers ──────────────────────────────────────────────────────
 
@@ -146,28 +193,90 @@ class PrimaryReplicaRouter:
                 return r
         return available[-1]
 
-    def _select_specific_replica(self, alias: str) -> str:
-        """Return a dedicated replica alias when its connection is healthy."""
+    def _lag_limit(self) -> float:
+        """Most seconds a replica may be behind and still serve reads. 0 turns the check off.
+
+        Defaults to READ_AFTER_WRITE_SECONDS: past that window a user's own write is no longer
+        pinned to the primary, so a replica further behind than that could show them stale data.
+        """
+        limit = getattr(settings, "REPLICA_MAX_LAG_SECONDS", None)
+        if limit is None:
+            limit = getattr(
+                settings, "READ_AFTER_WRITE_SECONDS", READ_AFTER_WRITE_SECONDS
+            )
+        return float(limit)
+
+    def _replica_lag(self, alias: str) -> Optional[float]:
+        """
+        Seconds the replica is behind, ``inf`` when it could not be measured, or ``None`` when lag
+        is not checked (disabled, or a backend that has no replication to measure).
+        """
+        if self._lag_limit() <= 0:
+            return None
+        conn = connections[alias]
+        if getattr(conn, "vendor", None) != "postgresql":
+            return None
+
+        ttl = float(getattr(settings, "REPLICA_LAG_CACHE_SECONDS", 2))
+        now = time.monotonic()
+        cached = self._lag_cache.get(alias)
+        if cached and now - cached[1] < ttl:
+            return cached[0]
+
+        try:
+            with conn.cursor() as cursor:
+                cursor.execute(REPLICA_LAG_SQL)
+                row = cursor.fetchone()
+            lag = float(row[0]) if row and row[0] is not None else 0.0
+        except Exception as exc:
+            # A replica whose lag cannot be read is not trusted with reads.
+            logger.warning("Could not measure replication lag of %s: %s", alias, exc)
+            lag = float("inf")
+
+        self._lag_cache[alias] = (lag, now)
+        metrics.record_lag(alias, lag)
+        return lag
+
+    def _is_too_far_behind(self, alias: str) -> bool:
+        lag = self._replica_lag(alias)
+        if lag is None:
+            return False
+        too_far = lag > self._lag_limit()
+        if too_far:
+            logger.warning(
+                "Replica %s is %.1fs behind (limit %.1fs); reads stay on the primary.",
+                alias,
+                lag,
+                self._lag_limit(),
+            )
+        return too_far
+
+    def _pick_specific(self, alias: str) -> tuple[str, str]:
+        """A dedicated replica if it is reachable and close enough, else the primary and why."""
+        if not self._revive_if_timeout(alias, time.time()):
+            return "default", metrics.REASON_UNAVAILABLE
         conn = connections[alias]
         try:
             if conn.connection is None:
                 conn.ensure_connection()
-            return alias
         except OperationalError as exc:
             logger.warning("Replica %s health check failed: %s", alias, exc)
             self._mark_dead(alias)
-            return "default"
+            return "default", metrics.REASON_UNAVAILABLE
+        if self._is_too_far_behind(alias):
+            return "default", metrics.REASON_LAGGING
+        return alias, metrics.REASON_REPLICA
 
-    def _probe_and_select(self) -> str:
+    def _pick_from_pool(self) -> tuple[str, str]:
         """
-        From healthy replicas, try to establish a connection.
-        Returns the db alias to use (falls back to 'default').
+        From the healthy replicas, try to establish a connection and check lag.
+        Returns the alias to use and the reason (falls back to 'default').
         """
         available = self._get_healthy_replicas()
         random.shuffle(available)  # distribute probes randomly
 
-        # Try replicas in weighted order
-        tried = set()
+        tried: set[str] = set()
+        lagging = 0
         for _ in range(len(available)):
             replica = self._weighted_choice([r for r in available if r not in tried])
             if replica is None:
@@ -177,55 +286,91 @@ class PrimaryReplicaRouter:
             try:
                 if conn.connection is None:
                     conn.ensure_connection()
-                return replica
             except OperationalError as exc:
                 logger.warning("Replica %s health check failed: %s", replica, exc)
                 self._mark_dead(replica)
+                continue
+            if self._is_too_far_behind(replica):
+                lagging += 1
+                continue
+            return replica, metrics.REASON_REPLICA
 
-        if len(tried) == len(available) and available:
+        if tried:
             logger.warning(
-                "All read replicas are unavailable. Falling back to primary."
+                "All read replicas are unavailable or lagging. Falling back to primary."
             )
-        return "default"
+        return "default", (
+            metrics.REASON_LAGGING if lagging else metrics.REASON_UNAVAILABLE
+        )
+
+    # These two return just an alias and are the points to override when changing the strategy
+    # (see docs/DATABASE_ROUTING.md); the reason for a fallback is kept on the side for the metrics.
+    def _select_specific_replica(self, alias: str) -> str:
+        chosen, self._tls.reason = self._pick_specific(alias)
+        return chosen
+
+    def _probe_and_select(self) -> str:
+        chosen, self._tls.reason = self._pick_from_pool()
+        return chosen
+
+    def _route_choice(self, chosen: str) -> str:
+        """Count a choice made by one of the two methods above."""
+        if chosen == "default":
+            reason = getattr(self._tls, "reason", metrics.REASON_UNAVAILABLE)
+        else:
+            reason = metrics.REASON_REPLICA
+        return self._route(chosen, reason)
+
+    @staticmethod
+    def _route(alias: str, reason: str) -> str:
+        metrics.record_route(alias, reason)
+        return alias
 
     # ── Router API ────────────────────────────────────────────────────────────
 
     def db_for_read(self, model, **hints):
         """
         Route reads to a healthy replica unless:
+        - We are running tests (always use default for determinism).
+        - The code asked for the primary with use_primary().
         - We are inside an atomic write block on the primary (transactional consistency).
         - The current user recently performed a write (read-after-write consistency).
-        - We are running tests (always use default for determinism).
+        - No replica is reachable, or every reachable one is further behind than the lag limit.
+        Every decision is counted in db_read_routing_total by target and reason.
         """
         if "test" in sys.argv or any("pytest" in arg for arg in sys.argv):
             return "default"
 
+        if is_primary_pinned():
+            return self._route("default", metrics.REASON_PINNED)
+
         # Respect Django's atomic blocks on primary
         if transaction.get_connection("default").in_atomic_block:
-            return "default"
+            return self._route("default", metrics.REASON_ATOMIC)
 
         # Read-after-write: check thread-local first (set by middleware), then cache
         user_id = getattr(_local, "user_id", None)
         if is_user_dirty(user_id):
             logger.debug("Read-after-write: routing user %s read to primary.", user_id)
-            return "default"
+            return self._route("default", metrics.REASON_READ_AFTER_WRITE)
 
         # Analytics/reporting reads get their own replica when it is explicitly
         # configured. If the dedicated replica is not configured, preserve the
         # existing generic replica behaviour (or fall back to primary).
+        meta = getattr(model, "_meta", None)
         model_key = (
-            getattr(model._meta, "app_label", None),
-            getattr(model._meta, "model_name", None),
+            getattr(meta, "app_label", None),
+            getattr(meta, "model_name", None),
         )
         if model_key in ANALYTICS_READ_REPLICA_MODELS:
             if "read_replica" not in settings.DATABASES:
-                return "default"
-            return self._select_specific_replica("read_replica")
+                return self._route("default", metrics.REASON_NO_REPLICA)
+            return self._route_choice(self._select_specific_replica("read_replica"))
 
         if not self.replicas:
-            return "default"
+            return self._route("default", metrics.REASON_NO_REPLICA)
 
-        return self._probe_and_select()
+        return self._route_choice(self._probe_and_select())
 
     def db_for_write(self, model, **hints):
         """All writes go to primary."""
@@ -256,10 +401,7 @@ class PrimaryReplicaRouter:
             try:
                 conn = connections[alias]
                 with conn.cursor() as cursor:
-                    # PostgreSQL: pg_stat_replication or pg_last_xact_replay_timestamp
-                    cursor.execute(
-                        "SELECT EXTRACT(EPOCH FROM (now() - pg_last_xact_replay_timestamp()))::FLOAT"
-                    )
+                    cursor.execute(REPLICA_LAG_SQL)
                     row = cursor.fetchone()
                     lag = round(row[0], 3) if row and row[0] is not None else 0.0
                     info["lag_seconds"] = lag
