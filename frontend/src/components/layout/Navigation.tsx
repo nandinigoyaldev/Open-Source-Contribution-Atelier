@@ -8,6 +8,12 @@ import {
   ChevronDown,
   Settings,
   Puzzle,
+  LayoutGrid,
+  BookOpen,
+  TerminalSquare,
+  Users,
+  Award,
+  History,
 } from "lucide-react";
 import { Link, NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../../features/auth/AuthContext";
@@ -30,6 +36,15 @@ const SETTINGS_ITEMS: NavItem[] = [
   { to: "/settings/connected-apps", label: "Connected Apps", icon: Puzzle },
 ];
 
+const MOBILE_WORKSPACE_ITEMS: NavItem[] = [
+  { to: "/dashboard", label: "Dashboard", icon: LayoutGrid },
+  { to: "/learning-path", label: "Learning Path", icon: BookOpen },
+  { to: "/contributor-sandbox", label: "Sandbox", icon: TerminalSquare },
+  { to: "/community", label: "Community", icon: Users },
+  { to: "/leaderboard", label: "Leaderboard", icon: Award },
+  { to: "/activity", label: "My activity", icon: History },
+];
+
 function SearchButton({ onClick }: { onClick: () => void }) {
   return (
     <button
@@ -50,7 +65,13 @@ function UserDropdown({
   user,
   isItemActive,
 }: {
-  user: { username: string; avatar?: string };
+  user: {
+    username: string;
+    email?: string;
+    avatar_url?: string | null;
+    is_staff: boolean;
+    badge_count?: number;
+  };
   isItemActive: (path: string) => boolean;
 }) {
   const [open, setOpen] = useState(false);
@@ -117,18 +138,26 @@ function UserDropdown({
             transition={{ duration: 0.15, ease: "easeOut" }}
             role="menu"
             aria-label="Account menu"
-            className="absolute right-0 top-full z-50 mt-2 w-64 overflow-hidden rounded-2xl border-2 border-slate-200 bg-white py-1 shadow-xl dark:border-[#2E2924] dark:bg-[#1a1915]"
+            className="absolute right-0 top-full z-50 mt-3 w-72 overflow-hidden rounded-2xl border border-slate-200 bg-white p-2 shadow-2xl shadow-slate-900/10 dark:border-[#2E2924] dark:bg-[#1a1915] dark:shadow-black/30"
           >
-            <div className="px-4 py-3 border-b border-slate-100 dark:border-[#2E2924]">
-              <p className="text-sm font-bold text-slate-900 dark:text-white truncate">
-                {user.username}
-              </p>
-              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-                {user.email || "Account"}
-              </p>
+            <div className="flex items-center gap-3 rounded-xl bg-slate-50 p-3 dark:bg-white/5">
+              <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl bg-amber-400 text-sm font-black text-slate-950">
+                {user.username.slice(0, 1).toUpperCase()}
+              </div>
+              <div className="min-w-0">
+                <p className="truncate text-sm font-bold text-slate-900 dark:text-white">
+                  {user.username}
+                </p>
+                <p className="truncate text-xs text-slate-500 dark:text-slate-400">
+                  {user.email || "Your contributor account"}
+                </p>
+              </div>
             </div>
 
-            <div className="py-1">
+            <div className="py-2">
+              <p className="px-3 pb-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                Account
+              </p>
               {SETTINGS_ITEMS.map((item) => {
                 const ItemIcon = item.icon;
                 return (
@@ -136,7 +165,8 @@ function UserDropdown({
                     key={item.to}
                     to={item.to}
                     onClick={() => setOpen(false)}
-                    className={`flex items-center gap-3 px-4 py-2.5 text-sm transition-colors ${
+                    role="menuitem"
+                    className={`flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm transition-colors ${
                       isItemActive(item.to)
                         ? "bg-amber-400/20 text-amber-700 dark:text-amber-300"
                         : "text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5"
@@ -149,7 +179,7 @@ function UserDropdown({
               })}
             </div>
 
-            <div className="py-1 border-t border-slate-100 dark:border-[#2E2924]">
+            <div className="border-t border-slate-100 pt-2 dark:border-[#2E2924]">
               <LogoutButtonWithConfirm />
             </div>
           </motion.div>
@@ -245,6 +275,31 @@ export function Navigation() {
           <div className="px-4 py-3 space-y-1">
             {user && (
               <>
+                <div className="mb-4">
+                  <p className="px-3 pb-2 text-[10px] font-bold uppercase tracking-wider text-slate-400 dark:text-slate-500">
+                    Workspace
+                  </p>
+                  {MOBILE_WORKSPACE_ITEMS.map((item) => {
+                    const Icon = item.icon;
+                    return (
+                      <NavLink
+                        key={item.to}
+                        to={item.to}
+                        onClick={() => setMobileMenuOpen(false)}
+                        className={({ isActive }) =>
+                          `flex items-center gap-3 rounded-xl px-3 py-3 text-sm font-medium transition-colors ${
+                            isActive
+                              ? "bg-amber-400/20 text-amber-700 dark:text-amber-300"
+                              : "text-slate-600 hover:bg-slate-50 dark:text-slate-300 dark:hover:bg-white/5"
+                          }`
+                        }
+                      >
+                        <Icon size={18} />
+                        <span>{item.label}</span>
+                      </NavLink>
+                    );
+                  })}
+                </div>
                 <div className="mb-3 flex items-center justify-between rounded-2xl bg-slate-50 px-3 py-3 dark:bg-white/5">
                   <div className="min-w-0">
                     <p className="truncate text-sm font-bold text-slate-900 dark:text-white">

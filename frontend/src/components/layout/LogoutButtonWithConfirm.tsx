@@ -11,7 +11,7 @@ export default function LogoutButtonWithConfirm() {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="rounded-lg bg-[#ffb5e8] px-3 py-2 text-xs font-black text-black border-2 border-black shadow-card-sm hover:-translate-y-0.5 hover:shadow-card active:translate-y-0.5 active:shadow-card-sm transition-all cursor-pointer uppercase menu-logout"
+        className="w-full rounded-xl px-3 py-2.5 text-left text-sm font-semibold text-rose-600 transition-colors hover:bg-rose-50 dark:text-rose-300 dark:hover:bg-rose-400/10 menu-logout"
       >
         Logout
       </button>
