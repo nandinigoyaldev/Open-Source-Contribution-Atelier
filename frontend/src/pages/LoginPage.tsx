@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useGoogleLogin } from "@react-oauth/google";
-import { ArrowRight, GitBranch, Moon, Sparkles, Sun, X } from "lucide-react";
+import { ArrowRight, GitBranch, Moon, Sun, X } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { PasswordInput } from "../components/PasswordInput";
 import { useAuth } from "../features/auth/AuthContext";
@@ -40,21 +40,6 @@ const workspaceSteps = [
     detail: "Send it out and open the conversation with a pull request.",
     position: { left: "42%", top: "54%" },
     tone: "emerald",
-  },
-] as const;
-
-const contributionSparks = [
-  {
-    label: "Fix a tiny bug",
-    reply: "Tiny fix, deliciously satisfying.",
-  },
-  {
-    label: "Polish some docs",
-    reply: "Making the next person’s path softer.",
-  },
-  {
-    label: "Ship a first PR",
-    reply: "Okayyy, future open-source icon.",
   },
 ] as const;
 
@@ -97,7 +82,6 @@ export function LoginPage() {
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const googleInFlight = useRef(false);
   const [activeWorkspaceStep, setActiveWorkspaceStep] = useState(0);
-  const [activeSpark, setActiveSpark] = useState(0);
   const navigate = useNavigate();
   const { login } = useAuth();
   const { theme, toggleTheme } = useTheme();
@@ -260,8 +244,8 @@ export function LoginPage() {
           {theme === "dark" ? <Sun size={16} /> : <Moon size={16} />}
         </button>
       </header>
-      <main className="mx-auto min-h-[calc(100dvh-60px)] w-full max-w-6xl px-5 py-2 sm:px-8">
-        <div className="relative min-h-full w-full overflow-hidden rounded-[28px] border border-slate-900/10 bg-[#171923] shadow-[0_28px_80px_rgba(15,23,42,0.18)] dark:border-white/10">
+      <main className="mx-auto w-full max-w-6xl px-5 py-4 sm:px-8">
+        <div className="relative w-full overflow-hidden rounded-[28px] border border-slate-900/10 bg-[#171923] shadow-[0_20px_60px_rgba(15,23,42,0.16)] dark:border-white/10">
           <div className="absolute inset-0 opacity-[0.13] [background-image:linear-gradient(rgba(255,255,255,.38)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,.38)_1px,transparent_1px)] [background-size:32px_32px]" />
           <div className="relative flex items-center justify-between border-b border-white/10 px-5 py-3 font-mono text-[11px] text-slate-400 sm:px-6">
             <span className="flex items-center gap-2">
@@ -349,7 +333,7 @@ export function LoginPage() {
               </button>
             </div>
           </aside>
-          <section className="relative ml-auto min-h-[calc(100dvh-105px)] w-full max-w-[29rem] border-white/10 bg-white p-5 sm:p-6 lg:border-l dark:bg-[#20232f]">
+          <section className="relative ml-auto w-full max-w-[27rem] border-white/10 bg-white p-4 sm:p-5 lg:border-l dark:bg-[#20232f]">
             <span className="absolute left-0 top-9 hidden -translate-x-1/2 rounded-full border border-white/20 bg-[#171923] px-2 py-1 font-mono text-[9px] text-emerald-300 lg:block">
               HEAD
             </span>
@@ -520,38 +504,6 @@ export function LoginPage() {
                     </>
                   )}
                 </button>
-                <div className="mt-4 hidden rounded-xl border border-indigo-100 bg-indigo-50/70 p-3 dark:border-indigo-400/15 dark:bg-indigo-500/[0.07] lg:block">
-                  <div className="flex items-center gap-2 text-xs font-medium text-indigo-900 dark:text-indigo-200">
-                    <Sparkles
-                      size={14}
-                      className="text-indigo-500"
-                      aria-hidden="true"
-                    />
-                    Pick today&apos;s contribution spark
-                  </div>
-                  <div className="mt-2 flex flex-wrap gap-1.5">
-                    {contributionSparks.map((spark, index) => {
-                      const isActive = activeSpark === index;
-                      return (
-                        <button
-                          key={spark.label}
-                          type="button"
-                          onClick={() => setActiveSpark(index)}
-                          aria-pressed={isActive}
-                          className={`rounded-full px-2.5 py-1 text-[11px] font-medium transition ${isActive ? "bg-indigo-600 text-white shadow-sm" : "bg-white text-indigo-700 hover:-translate-y-0.5 hover:bg-indigo-100 dark:bg-slate-900 dark:text-indigo-200 dark:hover:bg-indigo-500/20"}`}
-                        >
-                          {spark.label}
-                        </button>
-                      );
-                    })}
-                  </div>
-                  <p
-                    aria-live="polite"
-                    className="mt-2 text-xs text-indigo-700/80 dark:text-indigo-200/70"
-                  >
-                    {contributionSparks[activeSpark].reply}
-                  </p>
-                </div>
                 <DemoLoginButton
                   label="Explore a demo workspace"
                   className="mt-3 w-full rounded-lg border border-dashed border-slate-300 px-4 py-2.5 text-sm font-medium text-slate-600 transition hover:border-indigo-300 hover:bg-indigo-50 hover:text-indigo-700 dark:border-slate-700 dark:text-slate-300 dark:hover:border-indigo-500/60 dark:hover:bg-indigo-500/10 dark:hover:text-indigo-300"

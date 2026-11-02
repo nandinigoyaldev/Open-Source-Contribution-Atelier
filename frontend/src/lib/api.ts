@@ -238,10 +238,19 @@ async function fetchApiRaw(
       }
       const htmlFallback =
         !isJson && /^\s*<!doctype html|^\s*<html[\s>]/i.test(rawBody);
+      // A 400/403 HTML body means Django answered the request itself (usually
+      // ALLOWED_HOSTS or CSRF configuration), not that the API is unreachable.
+      // Point developers at the real cause instead of the proxy.
+      const hostRejection = response.status === 400 || response.status === 403;
       const htmlErrorDetail = htmlFallback
-        ? `The server returned a web page instead of JSON for "${endpoint}". ` +
-          `The API is not reachable at ${API_BASE} — make sure the backend is ` +
-          `running and check the dev proxy (vite.config.ts) or VITE_API_BASE_URL.`
+        ? `The server returned a web page instead of JSON for "${endpoint}" ` +
+          `(HTTP ${response.status}). ` +
+          (hostRejection
+            ? `The API at ${API_BASE} is reachable but rejected the request — ` +
+              `usually a Django ALLOWED_HOSTS / CSRF issue on the backend ` +
+              `(see docs/TROUBLESHOOTING.md).`
+            : `The API is not reachable at ${API_BASE} — make sure the backend is ` +
+              `running and check the dev proxy (vite.config.ts) or VITE_API_BASE_URL.`)
         : null;
 
       const isRetryableStatus =

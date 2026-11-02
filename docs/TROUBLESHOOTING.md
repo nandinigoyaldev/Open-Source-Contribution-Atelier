@@ -300,6 +300,7 @@ Also include:
 The backend reads `ALLOWED_HOSTS` from the environment (comma-separated). If it is unset it defaults to `localhost,127.0.0.1`.
 
 - A `400 Bad Request` / "Invalid HTTP_HOST header" on a deployed backend (Vercel, Hugging Face Spaces, etc.) means the hostname is not in the list. Set `ALLOWED_HOSTS` to include it, e.g. `ALLOWED_HOSTS=localhost,127.0.0.1,your-space.hf.space,your-project.vercel.app`.
+- Platform hostnames are added automatically, so you normally only need custom domains: `RENDER_EXTERNAL_HOSTNAME` (Render), `VERCEL_URL` (Vercel), `SPACE_HOST` (Hugging Face Spaces), and the hostname in `FRONTEND_URL`. Before those existed, a Render deployment that kept the placeholder `ALLOWED_HOSTS=localhost,127.0.0.1,your-project.vercel.app` answered **every** route with Django's HTML 400 page — the frontend then failed with "the server returned a web page instead of JSON".
 - A bare `*` is rejected at startup when `DEBUG=False`. List the real hostnames instead.
 
 ---

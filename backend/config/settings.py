@@ -3,6 +3,7 @@ import logging
 import os
 import secrets
 import sys
+import urllib.parse
 from datetime import timedelta
 from pathlib import Path
 
@@ -143,7 +144,43 @@ def _validate_allowed_hosts(hosts: list[str]) -> list[str]:
     return hosts
 
 
-ALLOWED_HOSTS = _parse_allowed_hosts(os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1"))
+def _hostnames_from_values(*values: str) -> list[str]:
+    """Extract bare hostnames from platform-provided hosts or URLs.
+
+    Hosting platforms (Render, Vercel, Hugging Face Spaces) route traffic
+    through a generated hostname. If it is missing from ALLOWED_HOSTS, Django
+    rejects *every* request with an HTML 400 page, which API clients report as
+    "expected JSON, got HTML" instead of a useful error.
+    """
+    hosts: list[str] = []
+    for value in values:
+        candidate = (value or "").strip()
+        if not candidate:
+            continue
+        if "://" not in candidate:
+            candidate = f"//{candidate}"
+        hostname = urllib.parse.urlparse(candidate).hostname
+        if hostname and hostname not in hosts:
+            hosts.append(hostname)
+    return hosts
+
+
+def _add_platform_hosts(hosts: list[str], *values: str) -> list[str]:
+    """Return ``hosts`` plus any hostnames found in the platform values."""
+    merged = list(hosts)
+    for hostname in _hostnames_from_values(*values):
+        if hostname not in merged:
+            merged.append(hostname)
+    return merged
+
+
+ALLOWED_HOSTS = _add_platform_hosts(
+    _parse_allowed_hosts(os.getenv("ALLOWED_HOSTS", "localhost,127.0.0.1")),
+    os.getenv("RENDER_EXTERNAL_HOSTNAME", ""),
+    os.getenv("VERCEL_URL", ""),
+    os.getenv("SPACE_HOST", ""),
+    os.getenv("FRONTEND_URL", ""),
+)
 if TESTING and "testserver" not in ALLOWED_HOSTS:
     ALLOWED_HOSTS.append("testserver")
 ALLOWED_HOSTS = _validate_allowed_hosts(ALLOWED_HOSTS)
@@ -181,8 +218,6 @@ def _validate_cors_allowed_origins(origins: list[str]) -> list[str]:
 CORS_ALLOWED_ORIGINS = _validate_cors_allowed_origins(CORS_ALLOWED_ORIGINS)
 
 if not DEBUG and not TESTING:
-    import urllib.parse
-
     from django.core.exceptions import ImproperlyConfigured
 
     if not CORS_ALLOWED_ORIGINS:

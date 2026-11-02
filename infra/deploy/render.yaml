@@ -10,8 +10,14 @@ services:
         value: 3.11.0
       - key: DJANGO_SETTINGS_MODULE
         value: config.settings
+      # Must list every hostname the backend is served from. Django answers all
+      # requests with an HTML 400 when the incoming Host is missing here, which
+      # the frontend reports as "server returned a web page instead of JSON".
+      # Render/Vercel/Hugging Face hostnames (RENDER_EXTERNAL_HOSTNAME,
+      # VERCEL_URL, SPACE_HOST) and FRONTEND_URL are added automatically by
+      # config/settings.py, so this only needs custom domains.
       - key: ALLOWED_HOSTS
-        value: localhost,127.0.0.1,your-project.vercel.app
+        value: localhost,127.0.0.1,open-source-contribution-atelier.vercel.app
       - key: CORS_ALLOW_ALL_ORIGINS
         value: "False"
       - key: SECRET_KEY

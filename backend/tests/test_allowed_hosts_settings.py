@@ -40,3 +40,41 @@ class AllowedHostsSettingsTests(SimpleTestCase):
             self.assertNotIn("*", django_settings.ALLOWED_HOSTS)
         hosts = django_settings.ALLOWED_HOSTS
         self.assertTrue("testserver" in hosts or "*" in hosts)
+
+    def test_hostnames_are_extracted_from_hosts_and_urls(self):
+        self.assertEqual(
+            settings._hostnames_from_values(
+                "atelier-backend.onrender.com",
+                "https://atelier.vercel.app/",
+                "",
+                "https://atelier.example.com:8443/some/path",
+                None,
+            ),
+            [
+                "atelier-backend.onrender.com",
+                "atelier.vercel.app",
+                "atelier.example.com",
+            ],
+        )
+
+    def test_platform_hosts_are_added_without_duplicates(self):
+        hosts = settings._add_platform_hosts(
+            ["localhost", "atelier.vercel.app"],
+            "atelier-backend.onrender.com",
+            "atelier.vercel.app",
+            "https://user-atelier.hf.space",
+        )
+        self.assertEqual(
+            hosts,
+            [
+                "localhost",
+                "atelier.vercel.app",
+                "atelier-backend.onrender.com",
+                "user-atelier.hf.space",
+            ],
+        )
+
+    def test_platform_values_are_optional(self):
+        self.assertEqual(
+            settings._add_platform_hosts(["localhost"], "", ""), ["localhost"]
+        )
