@@ -3,7 +3,6 @@ import {
   BookOpen,
   LayoutGrid,
   MessageSquare,
-  Settings,
   TerminalSquare,
 } from "lucide-react";
 
@@ -13,7 +12,6 @@ export function MobileBottomNav() {
     { to: "/learning-path", label: "Learn", icon: BookOpen },
     { to: "/contributor-sandbox", label: "Sandbox", icon: TerminalSquare },
     { to: "/chat", label: "Chat", icon: MessageSquare },
-    { to: "/profile", label: "Profile", icon: Settings },
   ];
 
   return (

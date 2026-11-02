@@ -26,6 +26,7 @@ type User = {
   linkedin_url?: string;
   github_url?: string;
   receive_weekly_digest?: boolean;
+  badge_count?: number;
 };
 
 type AuthContextType = {

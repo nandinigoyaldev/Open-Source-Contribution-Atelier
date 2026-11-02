@@ -57,13 +57,29 @@ const NAV_ITEMS: NavEntry[] = [
     label: "Sandbox",
     icon: TerminalSquare,
     items: [
-      { to: "/contributor-sandbox", label: "Contributor Sandbox", icon: TerminalSquare },
+      {
+        to: "/contributor-sandbox",
+        label: "Contributor Sandbox",
+        icon: TerminalSquare,
+      },
       { to: "/sandbox", label: "Sandbox", icon: Box },
-      { to: "/git-rebase-simulator", label: "Git Rebase Visualizer", icon: GitMerge },
+      {
+        to: "/git-rebase-simulator",
+        label: "Git Rebase Visualizer",
+        icon: GitMerge,
+      },
       { to: "/git-bisect-game", label: "Git Bisect Game", icon: GitBranch },
       { to: "/git-tools/stash", label: "Git Stash Manager", icon: Archive },
-      { to: "/sandbox/submodules", label: "Git Submodule Simulator", icon: FolderTree },
-      { to: "/monorepo-visualizer", label: "Monorepo Visualizer", icon: GitBranch },
+      {
+        to: "/sandbox/submodules",
+        label: "Git Submodule Simulator",
+        icon: FolderTree,
+      },
+      {
+        to: "/monorepo-visualizer",
+        label: "Monorepo Visualizer",
+        icon: GitBranch,
+      },
       { to: "/dockerfile-linter", label: "Dockerfile Linter", icon: FileCode },
     ],
   },
@@ -78,7 +94,11 @@ const ADMIN_ITEMS: NavItem[] = [
   { to: "/admin/security", label: "Security", icon: Shield },
   { to: "/admin/vulnerabilities", label: "Vulnerabilities", icon: Shield },
   { to: "/admin/performance", label: "API Performance", icon: BarChart3 },
-  { to: "/admin/bundle-performance", label: "Bundle Performance", icon: BarChart3 },
+  {
+    to: "/admin/bundle-performance",
+    label: "Bundle Performance",
+    icon: BarChart3,
+  },
   { to: "/admin/backups", label: "Backups", icon: Box },
   { to: "/admin/celery", label: "Celery Tasks", icon: Settings },
   { to: "/admin/oauth-clients", label: "OAuth Clients", icon: Puzzle },
@@ -105,7 +125,7 @@ export function SideNav() {
               Open-Source
             </span>
             <span className="text-[9px] font-mono text-amber-600 dark:text-amber-400 uppercase tracking-wider block font-bold">
-              AI Mentor
+              Contributor Workspace
             </span>
           </div>
         </NavLink>

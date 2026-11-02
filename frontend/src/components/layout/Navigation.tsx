@@ -4,6 +4,7 @@ import {
   Search,
   User,
   X,
+  Menu,
   ChevronDown,
   Settings,
   Puzzle,
@@ -12,6 +13,7 @@ import { Link, NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../../features/auth/AuthContext";
 import LogoutButtonWithConfirm from "./LogoutButtonWithConfirm";
 import { ThemeToggle } from "../ui/ThemeToggle";
+import { NotificationMenu } from "../ui/NotificationMenu";
 
 interface NavItem {
   to: string;
@@ -69,13 +71,17 @@ function UserDropdown({
 
   return (
     <div
-      className="relative"
+      className="relative hidden lg:block"
       onMouseEnter={handleEnter}
       onMouseLeave={handleLeave}
     >
       <button
+        type="button"
         onClick={() => setOpen(!open)}
-        className="flex items-center gap-2 px-2 py-1.5 rounded-lg border border-slate-200 dark:border-[#2E2924] hover:bg-slate-50 dark:hover:bg-white/5 transition-colors"
+        aria-expanded={open}
+        aria-haspopup="menu"
+        aria-label={`Open account menu for ${user.username}`}
+        className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white/70 px-2 py-1.5 transition-colors hover:border-amber-300 hover:bg-amber-50 dark:border-[#2E2924] dark:bg-white/5 dark:hover:border-amber-400/50 dark:hover:bg-amber-400/10"
       >
         <div className="w-7 h-7 rounded-full bg-amber-400 border-2 border-black flex items-center justify-center">
           <User size={14} className="text-black" />
@@ -83,6 +89,19 @@ function UserDropdown({
         <span className="hidden lg:inline text-sm font-medium text-slate-700 dark:text-slate-300 max-w-[100px] truncate">
           {user.username}
         </span>
+        {typeof user.badge_count === "number" && user.badge_count > 0 && (
+          <span
+            data-testid="navbar-user-badge-count"
+            className="inline-flex min-w-5 items-center justify-center rounded-full bg-amber-400 px-1.5 py-0.5 text-[10px] font-black leading-none text-black"
+          >
+            {user.badge_count > 99 ? "99+" : user.badge_count}
+          </span>
+        )}
+        {user.is_staff && (
+          <span className="hidden items-center rounded-full bg-slate-900 px-1.5 py-0.5 text-[9px] font-black leading-none text-white lg:inline-flex dark:bg-white dark:text-slate-900">
+            ADMIN
+          </span>
+        )}
         <ChevronDown
           size={14}
           className={`hidden lg:block text-slate-400 transition-transform ${open ? "rotate-180" : ""}`}
@@ -96,7 +115,9 @@ function UserDropdown({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -8, scale: 0.95 }}
             transition={{ duration: 0.15, ease: "easeOut" }}
-            className="absolute top-full right-0 mt-1 w-56 bg-white dark:bg-[#1a1915] border-2 border-slate-200 dark:border-[#2E2924] rounded-xl shadow-lg py-1 z-50"
+            role="menu"
+            aria-label="Account menu"
+            className="absolute right-0 top-full z-50 mt-2 w-64 overflow-hidden rounded-2xl border-2 border-slate-200 bg-white py-1 shadow-xl dark:border-[#2E2924] dark:bg-[#1a1915]"
           >
             <div className="px-4 py-3 border-b border-slate-100 dark:border-[#2E2924]">
               <p className="text-sm font-bold text-slate-900 dark:text-white truncate">
@@ -143,13 +164,10 @@ export function Navigation() {
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const isItemActive = useCallback(
-    (path: string) => {
-      if (typeof window === "undefined") return false;
-      return window.location.pathname === path;
-    },
-    [],
-  );
+  const isItemActive = useCallback((path: string) => {
+    if (typeof window === "undefined") return false;
+    return window.location.pathname === path;
+  }, []);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -175,11 +193,14 @@ export function Navigation() {
       <div className="flex items-center justify-between h-14 px-4 sm:px-6 gap-4">
         {/* Left: Mobile menu button */}
         <button
+          type="button"
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-          className="lg:hidden p-2 rounded-lg border border-slate-200 dark:border-[#2E2924] text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5"
-          aria-label="Toggle menu"
+          className="grid h-10 w-10 place-items-center rounded-xl border border-slate-200 bg-white/70 text-slate-700 transition hover:border-amber-300 hover:bg-amber-50 dark:border-[#2E2924] dark:bg-white/5 dark:text-slate-200 dark:hover:border-amber-400/50 dark:hover:bg-amber-400/10 lg:hidden"
+          aria-label={mobileMenuOpen ? "Close mobile menu" : "Open mobile menu"}
+          aria-expanded={mobileMenuOpen}
+          aria-controls="mobile-navigation"
         >
-          {mobileMenuOpen ? <X size={20} /> : <User size={20} />}
+          {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
         </button>
 
         {/* Center: Search */}
@@ -190,6 +211,7 @@ export function Navigation() {
         {/* Right: Theme + User */}
         <div className="flex items-center gap-2 shrink-0">
           <ThemeToggle iconSize={16} buttonClassName="p-2" />
+          {user && <NotificationMenu />}
           {user ? (
             <UserDropdown user={user} isItemActive={isItemActive} />
           ) : (
@@ -213,17 +235,32 @@ export function Navigation() {
 
       {/* Mobile User Menu Drawer */}
       {mobileMenuOpen && (
-        <div className="lg:hidden border-t-2 border-slate-200 dark:border-[#2E2924] bg-white dark:bg-[#151411] max-h-[calc(100vh-3.5rem)] overflow-y-auto">
+        <div
+          id="mobile-navigation"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Mobile Navigation"
+          className="lg:hidden border-t border-slate-200 bg-white dark:border-[#2E2924] dark:bg-[#151411] max-h-[calc(100vh-3.5rem)] overflow-y-auto"
+        >
           <div className="px-4 py-3 space-y-1">
             {user && (
               <>
-                <div className="px-3 py-2 mb-2">
-                  <p className="text-sm font-bold text-slate-900 dark:text-white">
-                    {user.username}
-                  </p>
-                  <p className="text-xs text-slate-500 dark:text-slate-400">
-                    {user.email || "Account"}
-                  </p>
+                <div className="mb-3 flex items-center justify-between rounded-2xl bg-slate-50 px-3 py-3 dark:bg-white/5">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-bold text-slate-900 dark:text-white">
+                      {user.username}
+                    </p>
+                    <p className="truncate text-xs text-slate-500 dark:text-slate-400">
+                      {user.email || "Account"}
+                    </p>
+                  </div>
+                  <Link
+                    to="/profile"
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="rounded-lg px-2.5 py-1.5 text-xs font-bold text-amber-700 hover:bg-amber-100 dark:text-amber-300 dark:hover:bg-amber-400/10"
+                  >
+                    Account
+                  </Link>
                 </div>
 
                 {SETTINGS_ITEMS.map((item) => {
@@ -247,7 +284,7 @@ export function Navigation() {
                   );
                 })}
 
-                <div className="border-t border-slate-100 dark:border-[#2E2924] my-2" />
+                <div className="my-2 border-t border-slate-100 dark:border-[#2E2924]" />
                 <div className="px-1">
                   <LogoutButtonWithConfirm />
                 </div>
