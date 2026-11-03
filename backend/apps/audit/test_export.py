@@ -2,6 +2,7 @@ import csv
 import io
 import json
 from datetime import datetime, timezone
+from typing import Any
 from unittest import mock
 
 from django.contrib.auth import get_user_model
@@ -18,6 +19,13 @@ User = get_user_model()
 URL = "/api/admin/audit/"
 
 
+def api_client(user=None) -> Any:
+    client = APIClient()
+    if user is not None:
+        client.force_authenticate(user=user)
+    return client
+
+
 def body(response):
     return b"".join(response.streaming_content).decode("utf-8")
 
@@ -30,14 +38,18 @@ def parse_csv(response):
 # send a lot of requests and are about the export, not about throttling.
 @override_settings(DISABLE_RATE_LIMITING=True)
 class AuditExportTests(APITestCase):
+    # Without django-stubs Pyright types the test client's responses as
+    # WSGIRequest, which has no status_code/data/json.
+    client: Any
+
     def setUp(self):
         self.admin = User.objects.create_user(
             username="exportadmin", password="pw12345!", is_staff=True
         )
         self.member = User.objects.create_user(username="member", password="pw12345!")
         # creating the users above already wrote audit rows; start from a known set
-        AuditEvent.objects.all().delete()
-        self.event1 = AuditEvent.objects.create(
+        AuditEvent._default_manager.all().delete()
+        self.event1 = AuditEvent._default_manager.create(
             actor=self.admin,
             action="created",
             resource_type="content.lesson",
@@ -46,7 +58,7 @@ class AuditExportTests(APITestCase):
             correlation_id="corr-111",
             ip_address="127.0.0.1",
         )
-        self.event2 = AuditEvent.objects.create(
+        self.event2 = AuditEvent._default_manager.create(
             actor=self.member,
             action="updated",
             resource_type="content.module",
@@ -56,7 +68,7 @@ class AuditExportTests(APITestCase):
             correlation_id="corr-222",
             ip_address="10.0.0.2",
         )
-        self.event3 = AuditEvent.objects.create(
+        self.event3 = AuditEvent._default_manager.create(
             actor=self.admin,
             action="deleted",
             resource_type="content.lesson",
@@ -71,12 +83,11 @@ class AuditExportTests(APITestCase):
     def test_export_requires_admin(self):
         for fmt in ("csv", "json"):
             with self.subTest(fmt=fmt):
-                member_client = APIClient()
-                member_client.force_authenticate(user=self.member)
+                member_client = api_client(self.member)
                 res = member_client.get(f"{URL}?export={fmt}")
                 self.assertEqual(res.status_code, status.HTTP_403_FORBIDDEN)
 
-                res = APIClient().get(f"{URL}?export={fmt}")
+                res = api_client().get(f"{URL}?export={fmt}")
                 self.assertEqual(res.status_code, status.HTTP_401_UNAUTHORIZED)
 
     # content type and download headers
@@ -149,7 +160,7 @@ class AuditExportTests(APITestCase):
         self.assertEqual(len(json.loads(body(res))), 3)
 
     def test_more_rows_than_one_chunk(self):
-        AuditEvent.objects.bulk_create(
+        AuditEvent._default_manager.bulk_create(
             AuditEvent(
                 action="created",
                 resource_type="bulk.thing",
@@ -157,14 +168,14 @@ class AuditExportTests(APITestCase):
             )
             for i in range(export.EXPORT_CHUNK_SIZE + 120)
         )
-        total = AuditEvent.objects.count()
+        total = AuditEvent._default_manager.count()
         rows = parse_csv(self.client.get(f"{URL}?export=csv"))
         self.assertEqual(len(rows) - 1, total)
         data = json.loads(body(self.client.get(f"{URL}?export=json")))
         self.assertEqual(len(data), total)
 
     def test_csv_cells_cannot_start_a_formula(self):
-        AuditEvent.objects.create(
+        AuditEvent._default_manager.create(
             action="created",
             resource_type="=HYPERLINK(1)",
             resource_id="1",
@@ -206,7 +217,7 @@ class AuditExportTests(APITestCase):
                 self.assertEqual(list_ids, expected)
 
     def test_date_range_filter(self):
-        old = AuditEvent.objects.create(
+        old = AuditEvent._default_manager.create(
             action="created",
             resource_type="old.thing",
             resource_id="9",
