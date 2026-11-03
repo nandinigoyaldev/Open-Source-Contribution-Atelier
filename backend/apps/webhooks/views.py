@@ -151,7 +151,7 @@ class WebhookDeliveryViewSet(viewsets.ReadOnlyModelViewSet):
                 {
                     "error": (
                         f"Delivery {delivery.id} is {delivery.status}. "
-                        "Only failed deliveries can be retried."
+                        "Only failed or dead deliveries can be retried."
                     ),
                     "status": delivery.status,
                 },

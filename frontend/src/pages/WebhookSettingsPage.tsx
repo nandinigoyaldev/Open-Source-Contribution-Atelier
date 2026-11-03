@@ -72,16 +72,27 @@ export const WebhookSettingsPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [isTestingId, setIsTestingId] = useState<number | null>(null);
-  const [isReplayingId, setIsReplayingId] = useState<number | null>(null);
+  // every retry that is in flight, so two rows can retry at the same time
+  const [replayingIds, setReplayingIds] = useState<ReadonlySet<number>>(
+    () => new Set(),
+  );
   const [retryErrors, setRetryErrors] = useState<Record<number, string>>({});
   // state updates are async, so a fast double click needs a synchronous guard
   const retryingIds = useRef<Set<number>>(new Set());
+  // A delivery-list response can arrive after a retry already finished. Each
+  // list request and each finished retry gets a number from this counter; a
+  // retried row is only overwritten by a list that was requested after it.
+  const requestClock = useRef(0);
+  const retriedRows = useRef<Map<number, { at: number; row: WebhookDelivery }>>(
+    new Map(),
+  );
   const [notification, setNotification] = useState<{
     type: "success" | "error";
     message: string;
   } | null>(null);
 
   const fetchEndpointsAndDeliveries = async () => {
+    const requestedAt = ++requestClock.current;
     setIsLoading(true);
     try {
       const [resEndpoints, resDeliveries] = await Promise.all([
@@ -99,10 +110,14 @@ export const WebhookSettingsPage: React.FC = () => {
       }
       if (resDeliveries.ok) {
         const dataDeliveries = await resDeliveries.json();
+        const list: WebhookDelivery[] = Array.isArray(dataDeliveries)
+          ? dataDeliveries
+          : dataDeliveries.results || [];
         setDeliveries(
-          Array.isArray(dataDeliveries)
-            ? dataDeliveries
-            : dataDeliveries.results || [],
+          list.map((row) => {
+            const retried = retriedRows.current.get(row.id);
+            return retried && retried.at > requestedAt ? retried.row : row;
+          }),
         );
       }
     } catch {
@@ -278,7 +293,7 @@ export const WebhookSettingsPage: React.FC = () => {
   const handleReplayDelivery = async (deliveryId: number) => {
     if (retryingIds.current.has(deliveryId)) return;
     retryingIds.current.add(deliveryId);
-    setIsReplayingId(deliveryId);
+    setReplayingIds((prev) => new Set(prev).add(deliveryId));
     setRetryErrors((prev) => {
       const next = { ...prev };
       delete next[deliveryId];
@@ -289,6 +304,10 @@ export const WebhookSettingsPage: React.FC = () => {
         `/webhooks/deliveries/${deliveryId}/replay/`,
         { method: "POST", suppressErrorToast: true },
       );
+      retriedRows.current.set(deliveryId, {
+        at: ++requestClock.current,
+        row: data.delivery,
+      });
       setDeliveries((prev) =>
         prev.map((d) => (d.id === deliveryId ? data.delivery : d)),
       );
@@ -310,7 +329,11 @@ export const WebhookSettingsPage: React.FC = () => {
       }
     } finally {
       retryingIds.current.delete(deliveryId);
-      setIsReplayingId(null);
+      setReplayingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(deliveryId);
+        return next;
+      });
     }
   };
 
@@ -586,7 +609,7 @@ export const WebhookSettingsPage: React.FC = () => {
           <DeliveryLogTable
             deliveries={deliveries}
             onReplay={handleReplayDelivery}
-            isReplayingId={isReplayingId}
+            replayingIds={replayingIds}
             retryErrors={retryErrors}
             isLoading={isLoading}
           />

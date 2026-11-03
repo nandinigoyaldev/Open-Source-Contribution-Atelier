@@ -1,3 +1,4 @@
+from typing import Any
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -21,20 +22,26 @@ def stranger():
 
 @pytest.fixture
 def endpoint(owner):
-    return WebhookEndpoint.objects.create(
+    return WebhookEndpoint._default_manager.create(
         user=owner, target_url="https://example.com/hook", events=["test.event"]
     )
 
 
-@pytest.fixture
-def owner_client(owner):
+def api_client(user=None) -> Any:
+    """APIClient typed as Any: without django-stubs Pyright types its responses as WSGIRequest."""
     client = APIClient()
-    client.force_authenticate(user=owner)
+    if user is not None:
+        client.force_authenticate(user=user)
     return client
 
 
+@pytest.fixture
+def owner_client(owner):
+    return api_client(owner)
+
+
 def make_delivery(endpoint, status="failed", **extra):
-    return WebhookDelivery.objects.create(
+    return WebhookDelivery._default_manager.create(
         endpoint=endpoint,
         event_type="test.event",
         payload={"hello": "world"},
@@ -84,7 +91,9 @@ class TestRetryFailedDelivery:
     ):
         mock_post.return_value = ok_response()
         delivery = make_delivery(endpoint, "dead")
-        dlq = DeadLetterWebhook.objects.create(delivery=delivery, reason="HTTP 500")
+        dlq = DeadLetterWebhook._default_manager.create(
+            delivery=delivery, reason="HTTP 500"
+        )
 
         res = owner_client.post(url(delivery))
 
@@ -122,7 +131,7 @@ class TestRetryFailedDelivery:
 
         assert res.status_code == 409
         assert res.data["status"] == state
-        assert "Only failed deliveries" in res.data["error"]
+        assert "Only failed or dead deliveries" in res.data["error"]
         mock_post.assert_not_called()
         delivery.refresh_from_db()
         assert delivery.status == state
@@ -162,8 +171,7 @@ class TestRetryAccess:
     @patch("apps.webhooks.tasks.requests.post")
     def test_another_user_cannot_retry(self, mock_post, stranger, endpoint):
         delivery = make_delivery(endpoint, "failed")
-        client = APIClient()
-        client.force_authenticate(user=stranger)
+        client = api_client(stranger)
 
         res = client.post(url(delivery))
 
@@ -177,7 +185,7 @@ class TestRetryAccess:
     def test_anonymous_user_is_rejected(self, mock_post, endpoint):
         delivery = make_delivery(endpoint, "failed")
 
-        res = APIClient().post(url(delivery))
+        res = api_client().post(url(delivery))
 
         assert res.status_code == 401
         mock_post.assert_not_called()

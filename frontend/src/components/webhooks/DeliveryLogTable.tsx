@@ -34,10 +34,13 @@ export interface WebhookDelivery {
 const isRetryable = (delivery: WebhookDelivery) =>
   delivery.status === "failed" || delivery.status === "dead";
 
+const EMPTY_IDS: ReadonlySet<number> = new Set();
+
 interface DeliveryLogTableProps {
   deliveries: WebhookDelivery[];
   onReplay: (deliveryId: number) => void;
-  isReplayingId?: number | null;
+  /** Ids of the deliveries with a retry in flight. */
+  replayingIds?: ReadonlySet<number>;
   /** Last retry error per delivery id, shown next to the row's button. */
   retryErrors?: Record<number, string>;
   isLoading?: boolean;
@@ -46,7 +49,7 @@ interface DeliveryLogTableProps {
 export const DeliveryLogTable: React.FC<DeliveryLogTableProps> = ({
   deliveries,
   onReplay,
-  isReplayingId = null,
+  replayingIds = EMPTY_IDS,
   retryErrors = {},
   isLoading = false,
 }) => {
@@ -211,24 +214,24 @@ export const DeliveryLogTable: React.FC<DeliveryLogTableProps> = ({
                         ) : (
                           <button
                             onClick={() => setConfirmingId(delivery.id)}
-                            disabled={isReplayingId === delivery.id}
+                            disabled={replayingIds.has(delivery.id)}
                             aria-label={`Retry delivery ${delivery.id}`}
                             className="px-2.5 py-1.5 text-xs font-bold text-indigo-300 hover:text-white bg-indigo-950/50 hover:bg-indigo-900/70 border border-indigo-800/60 rounded-lg transition-all inline-flex items-center gap-1 active:scale-95 disabled:opacity-50"
                             title="Retry this failed delivery"
                           >
                             <RotateCw
                               className={`w-3.5 h-3.5 ${
-                                isReplayingId === delivery.id
+                                replayingIds.has(delivery.id)
                                   ? "animate-spin text-indigo-400"
                                   : ""
                               }`}
                             />
-                            {isReplayingId === delivery.id
+                            {replayingIds.has(delivery.id)
                               ? "Retrying..."
                               : "Retry"}
                           </button>
                         ))}
-                      {retryErrors[delivery.id] && (
+                      {isRetryable(delivery) && retryErrors[delivery.id] && (
                         <p
                           role="alert"
                           className="mt-1.5 text-[11px] font-semibold text-rose-300"
