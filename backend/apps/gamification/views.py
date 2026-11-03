@@ -104,10 +104,10 @@ class MyQuestsView(views.APIView):
         from apps.progress.models import XPEvent
 
         quest_id = request.data.get("quest_id")
-        with transaction.atomic():
+        with transaction.atomic():  # type: ignore
             # Flip the flag first with a conditional UPDATE: the DB only lets one
             # concurrent request match reward_claimed=False, the rest get 0 rows.
-            claimed = UserQuest.objects.filter(
+            claimed = UserQuest._default_manager.filter(
                 id=quest_id,
                 user=request.user,
                 completed=True,
@@ -120,9 +120,11 @@ class MyQuestsView(views.APIView):
                     status=status.HTTP_404_NOT_FOUND,
                 )
 
-            user_quest = UserQuest.objects.select_related("quest").get(id=quest_id)
+            user_quest = UserQuest._default_manager.select_related("quest").get(
+                id=quest_id
+            )
             reward = user_quest.quest.xp_reward
-            XPEvent.objects.create(
+            XPEvent._default_manager.create(
                 user=request.user,
                 source_type="milestone",
                 source_id=user_quest.quest_id,
