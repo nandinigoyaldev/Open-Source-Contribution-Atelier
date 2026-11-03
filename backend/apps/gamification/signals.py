@@ -17,7 +17,8 @@ def track_lesson_quest(sender, instance, created, **kwargs):
 
 @receiver(post_save, sender="progress.XPEvent")
 def track_xp_quest(sender, instance, created, **kwargs):
-    if created:
+    # Only XP earned counts; spending (shop purchases) emits negative deltas.
+    if created and instance.xp_delta > 0:
         from .models import UserQuest
 
         qs = UserQuest.objects.filter(
