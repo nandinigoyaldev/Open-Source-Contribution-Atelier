@@ -1,6 +1,6 @@
 from django.conf import settings
 from django.core.validators import MaxValueValidator, MinValueValidator
-from django.db import models
+from django.db import models, transaction
 from django.db.models import F
 from django.utils import timezone
 
@@ -106,12 +106,16 @@ class UserQuest(models.Model):
         return timezone.now() > self.expires_at
 
     def add_progress(self, amount=1):
-        # Increment in SQL so concurrent XP events don't overwrite each other.
-        type(self).objects.filter(pk=self.pk).update(progress=F("progress") + amount)
-        self.refresh_from_db(fields=["progress"])
-        if self.progress >= self.quest.requirement_count and not self.completed:
-            self.completed = True
-            type(self).objects.filter(pk=self.pk).update(completed=True)
+        manager = type(self)._default_manager
+        # One transaction so the progress bump and the completed flag commit or
+        # roll back together (a quest can't sit at its target with completed=False).
+        with transaction.atomic():  # type: ignore
+            # Increment in SQL so concurrent XP events don't overwrite each other.
+            manager.filter(pk=self.pk).update(progress=F("progress") + amount)
+            self.refresh_from_db(fields=["progress", "completed"])
+            if self.progress >= self.quest.requirement_count and not self.completed:
+                manager.filter(pk=self.pk, completed=False).update(completed=True)
+                self.completed = True
 
 
 class ShopItem(models.Model):

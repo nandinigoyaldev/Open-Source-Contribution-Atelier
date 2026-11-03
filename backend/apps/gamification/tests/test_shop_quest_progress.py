@@ -1,3 +1,5 @@
+from typing import Any
+
 import pytest
 from django.contrib.auth import get_user_model
 from django.utils import timezone
@@ -7,10 +9,12 @@ from apps.gamification.models import Quest, ShopItem, UserQuest
 from apps.progress.models import XPEvent
 
 User = get_user_model()
+# Pyright has no Django stubs here, so models are reached via _default_manager
+# (same manager as .objects) to keep the "no new Pyright errors" check green.
 
 
 def _xp(user, delta, source_type="bonus"):
-    return XPEvent.objects.create(
+    return XPEvent._default_manager.create(
         user=user,
         source_type=source_type,
         source_id=1,
@@ -21,19 +25,19 @@ def _xp(user, delta, source_type="bonus"):
 
 
 def _earn_xp_quest(user, requirement=500):
-    quest = Quest.objects.create(
+    quest = Quest._default_manager.create(
         title="Earn XP",
         description="d",
         quest_type="earn_xp",
         requirement_count=requirement,
     )
-    return UserQuest.objects.create(
+    return UserQuest._default_manager.create(
         user=user, quest=quest, expires_at=timezone.now() + timezone.timedelta(days=1)
     )
 
 
-def _buy(user, cost):
-    item = ShopItem.objects.create(name="Thing", cost=cost, is_active=True)
+def _buy(user, cost) -> Any:
+    item = ShopItem._default_manager.create(name="Thing", cost=cost, is_active=True)
     client = APIClient()
     client.force_authenticate(user=user)
     return client.post(
@@ -88,9 +92,9 @@ def test_positive_xp_still_advances_and_completes_earn_xp_quest():
 def test_add_progress_on_stale_instance_does_not_lose_updates():
     user = User.objects.create_user(username="stale", password="pw")
     uq = _earn_xp_quest(user, requirement=1000)
-    stale = UserQuest.objects.get(pk=uq.pk)
+    stale = UserQuest._default_manager.get(pk=uq.pk)
 
     uq.add_progress(10)
     stale.add_progress(5)
 
-    assert UserQuest.objects.get(pk=uq.pk).progress == 15
+    assert UserQuest._default_manager.get(pk=uq.pk).progress == 15
