@@ -67,3 +67,6 @@ lint_output.txt
 .vscode/
 *.swp
 *.swo
+
+# Files written by the data export pipeline
+backend/export_files/

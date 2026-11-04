@@ -262,6 +262,7 @@ INSTALLED_APPS = [
     "apps.sandbox",
     "apps.organizations",
     "apps.webhooks",
+    "apps.data_exports",
     "apps.notes",
     "apps.recommendations",
     "apps.rbac",
@@ -1137,6 +1138,23 @@ NOTIFICATION_CHANNELS = {
     "slack": "apps.notifications.channels.slack_channel.SlackChannel",
 }
 
+# ── Resumable data exports (see docs/DATA_EXPORTS.md) ──
+# Where export files are written. Must be a private directory that is not served publicly, and
+# shared between the web and worker hosts when they are different machines.
+EXPORT_ROOT = os.getenv("EXPORT_ROOT", str(BASE_DIR / "export_files"))
+# Rows read and written per step; this is what bounds memory use.
+EXPORT_CHUNK_ROWS = int(os.getenv("EXPORT_CHUNK_ROWS", "1000"))
+# Tries a job gets (a worker that dies counts as a try) before it is marked failed.
+EXPORT_MAX_ATTEMPTS = int(os.getenv("EXPORT_MAX_ATTEMPTS", "3"))
+# A running job with no heartbeat for this long is assumed to have lost its worker.
+EXPORT_LEASE_SECONDS = int(os.getenv("EXPORT_LEASE_SECONDS", "300"))
+# Largest export file, in bytes; a bigger export fails instead of filling the disk.
+EXPORT_MAX_BYTES = int(os.getenv("EXPORT_MAX_BYTES", str(512 * 1024 * 1024)))
+# How long a finished export can be downloaded before it is deleted.
+EXPORT_TTL_HOURS = int(os.getenv("EXPORT_TTL_HOURS", "24"))
+# Exports a user can have queued or running at once.
+EXPORT_MAX_ACTIVE_PER_USER = int(os.getenv("EXPORT_MAX_ACTIVE_PER_USER", "2"))
+
 # ──────────────────────────────────────────
 # Certificate Signing (Ed25519)
 # ──────────────────────────────────────────
@@ -1159,5 +1177,9 @@ CELERY_BEAT_SCHEDULE = {
     "archive-monthly-leaderboard": {
         "task": "apps.progress.tasks.archive_monthly_leaderboard",
         "schedule": crontab(minute=0, hour=0, day_of_month="1"),
+    },
+    "sweep-data-exports": {
+        "task": "data_exports.sweep_exports",
+        "schedule": 120.0,
     },
 }
