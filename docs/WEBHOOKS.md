@@ -35,26 +35,60 @@ Example Event Payload:
 ```
 
 ## 3. Signature Verification Process
-To ensure that webhooks are legitimately sent from our platform and have not been tampered with, every webhook request includes an `X-Webhook-Signature` header. 
+To ensure that webhooks are legitimately sent from our platform, have not been tampered with and are not an old request sent again, every delivery carries these headers:
 
-The signature is an HMAC SHA-256 hash generated using your endpoint's unique `secret` and the raw request body.
+| Header | Value |
+| --- | --- |
+| `X-Webhook-Timestamp` | Unix time (whole seconds) when this attempt was signed. Every retry gets a fresh one. |
+| `X-Webhook-Signature-V2` | `sha256=<hex>`, an HMAC SHA-256 of `"<timestamp>." + raw body`, keyed with your endpoint `secret`. |
+| `X-Webhook-Signature` | The older signature: hex HMAC SHA-256 of the raw body only. Still sent for one more release (see below). |
+
+The body is compact JSON (`separators=(",", ":")`) and is sent exactly as it was signed, so verify against the raw bytes you received, not a re-serialized copy.
 
 ### Verification Example (Python):
 ```python
-import hmac
 import hashlib
-import json
+import hmac
+import re
+import time
 
-def verify_signature(payload_body, secret_token, header_signature):
-    # Ensure payload_body is the exact raw bytes received
-    expected_sig = hmac.new(
-        secret_token.encode('utf-8'),
-        payload_body,
-        hashlib.sha256
+TOLERANCE_SECONDS = 300
+
+
+def verify_webhook(payload_body: bytes, secret_token: str, headers) -> bool:
+    # payload_body must be the exact raw bytes received
+    timestamp = headers.get("X-Webhook-Timestamp", "")
+    signature = headers.get("X-Webhook-Signature-V2", "")
+
+    if not re.fullmatch(r"[0-9]{1,12}", timestamp):
+        return False
+    if abs(time.time() - int(timestamp)) > TOLERANCE_SECONDS:
+        return False  # too old (replay) or too far in the future
+    if not re.fullmatch(r"(sha256=)?[0-9a-f]{64}", signature):
+        return False
+
+    expected = hmac.new(
+        secret_token.encode("utf-8"),
+        timestamp.encode("ascii") + b"." + payload_body,
+        hashlib.sha256,
     ).hexdigest()
-    
-    return hmac.compare_digest(expected_sig, header_signature)
+    return hmac.compare_digest(expected.encode(), signature.removeprefix("sha256=").encode())
 ```
+
+### Moving off the old header
+`X-Webhook-Signature` (payload-only) cannot detect a replay: anyone who captured one request can send it again later. It is still sent so existing receivers keep working. Switch to `X-Webhook-Signature-V2`, then set `WEBHOOK_SEND_LEGACY_SIGNATURE = False` on the sender.
+
+### Settings
+| Setting | Default | Meaning |
+| --- | --- | --- |
+| `WEBHOOK_TIMESTAMP_TOLERANCE_SECONDS` | `300` | Largest accepted difference between the request timestamp and the server clock, in both directions. (`WEBHOOK_TIMESTAMP_WINDOW_SECONDS` is the old name and is used if the new one is not set.) |
+| `WEBHOOK_ALLOW_LEGACY_SIGNATURES` | `True` | Incoming endpoints also accept payload-only signatures. A request that arrives this way is written to the `audit` log as `webhook.legacy_signature_accepted` so you can see when nobody uses it any more. **Set it to `False` as soon as your senders use timestamped signatures.** While it is `True`, a captured payload-only request can still be replayed. The default is meant to go to `False` in the release after this one. |
+| `WEBHOOK_SEND_LEGACY_SIGNATURE` | `True` | Outgoing deliveries still carry `X-Webhook-Signature`. |
+| `WEBHOOK_SIGNING_KEYS` | none | List of `(key_id, secret)` pairs for incoming endpoints, active key first. With no key configured incoming verification fails closed (HTTP 500); only `DEBUG=True` falls back to a throwaway development key. |
+
+Incoming endpoints also accept an optional `X-Webhook-Key-Id`. A sender that names a key the server does not know is rejected, and a known id limits verification to that one key.
+
+Rejected requests are written to the `audit` logger as one JSON line (`event`, `reason`, `source`, `path`, `remote_addr`, `key_id`, `timestamp`, `skew_seconds`). The secret, the signature and the body are never logged. See [WEBHOOK_THREAT_MODEL.md](WEBHOOK_THREAT_MODEL.md) for what is and is not covered.
 
 ## 4. Webhook API Specifications
 - **List Endpoints**: `GET /api/webhooks/endpoints/`
@@ -73,4 +107,4 @@ Our event dispatch service utilizes Celery for asynchronous processing, ensuring
 ## 6. Guidelines for Integrating Third-Party Services
 1. **Idempotency**: Webhooks may occasionally be delivered more than once. Ensure your event handlers are idempotent. Every request carries an `X-Webhook-Delivery-Id` header. It is the same value on every retry and on a replay from the dead letter queue, so store it and ignore a request whose id you have already processed.
 2. **Response Time**: Respond to webhook requests quickly (with a `2xx` status code). Offload heavy processing to your own asynchronous queues to prevent timeouts.
-3. **Security**: Always validate the `X-Webhook-Signature` header to prevent spoofing attacks. Use HTTPS for your `target_url` to ensure payloads are encrypted in transit.
+3. **Security**: Always validate the `X-Webhook-Signature-V2` header and the timestamp window to prevent spoofing and replay attacks. Use HTTPS for your `target_url` to ensure payloads are encrypted in transit.
