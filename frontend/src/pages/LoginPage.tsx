@@ -87,6 +87,7 @@ function GoogleMark() {
 
 export function LoginPage() {
   const [username, setUsername] = useState("");
+  const [emailError, setEmailError] = useState("");
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(false);
   const [totpCode, setTotpCode] = useState("");
@@ -201,6 +202,11 @@ export function LoginPage() {
   const handleSubmit = async (event: React.FormEvent) => {
     event.preventDefault();
     setError("");
+    if (!requires2FA && !username.trim()) {
+      setEmailError("Email is required");
+      return;
+    }
+    setEmailError("");
     setIsLoading(true);
     try {
       const payload: Record<string, string | boolean> = {
@@ -450,10 +456,30 @@ export function LoginPage() {
                       spellCheck={false}
                       placeholder="the_smartest@kid.com"
                       value={username}
-                      onChange={(event) => setUsername(event.target.value)}
-                      className="mt-2 w-full rounded-lg border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 focus:border-indigo-500 focus:ring-2 focus:ring-indigo-500/20 dark:border-slate-700 dark:bg-slate-950 dark:text-white dark:placeholder:text-slate-500"
-                      required
+                      onChange={(event) => {
+                        setUsername(event.target.value);
+                        if (emailError) setEmailError("");
+                      }}
+                      aria-required="true"
+                      aria-invalid={emailError ? true : undefined}
+                      aria-describedby={
+                        emailError ? "login-email-error" : undefined
+                      }
+                      className={`mt-2 w-full rounded-lg border bg-white px-3 py-2.5 text-sm text-slate-950 outline-none transition placeholder:text-slate-400 focus:ring-2 dark:bg-slate-950 dark:text-white dark:placeholder:text-slate-500 ${
+                        emailError
+                          ? "border-red-500 focus:border-red-500 focus:ring-red-500/20 dark:border-red-500"
+                          : "border-slate-300 focus:border-indigo-500 focus:ring-indigo-500/20 dark:border-slate-700"
+                      }`}
                     />
+                    {emailError && (
+                      <p
+                        id="login-email-error"
+                        role="alert"
+                        className="mt-1.5 text-sm text-red-600 dark:text-red-400"
+                      >
+                        {emailError}
+                      </p>
+                    )}
                   </div>
                   <div>
                     <label
@@ -487,6 +513,11 @@ export function LoginPage() {
               <button
                 type="submit"
                 disabled={isLoading}
+                onClick={() => {
+                  if (!requires2FA && !username.trim()) {
+                    setEmailError("Email is required");
+                  }
+                }}
                 className="flex w-full items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-60 dark:focus:ring-offset-slate-900"
               >
                 {isLoading
