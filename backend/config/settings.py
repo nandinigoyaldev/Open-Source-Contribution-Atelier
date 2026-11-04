@@ -63,6 +63,12 @@ else:
             "FIELD_ENCRYPTION_KEY environment variable is not set"
         )
 
+# Master keys for tenant-scoped encryption (see docs/TENANT_ENCRYPTION.md): "id:key,id:key" where
+# each key is a urlsafe-base64 32-byte key (the same format as FIELD_ENCRYPTION_KEY), and the id of
+# the one that encrypts. Left unset, the feature raises when used and nothing else is affected.
+TENANT_ENCRYPTION_KEYS = os.getenv("TENANT_ENCRYPTION_KEYS", "")
+TENANT_ENCRYPTION_PRIMARY_KEY = os.getenv("TENANT_ENCRYPTION_PRIMARY_KEY", "")
+
 DEBUG = os.getenv("DEBUG", "False") == "True"
 
 
