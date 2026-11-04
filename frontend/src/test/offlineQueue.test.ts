@@ -1,6 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
-import { enqueueOfflineAction, syncOfflineQueue } from "../lib/offlineQueue";
+import {
+  classifyReplayStatus,
+  enqueueOfflineAction,
+  getSyncResults,
+  syncOfflineQueue,
+} from "../lib/offlineQueue";
 import { queryClient } from "../lib/queryClient";
+import { eventBus } from "../core/events";
 
 interface MockIDBRequest {
   onsuccess: ((event: Event) => void) | null;
@@ -77,6 +83,10 @@ vi.spyOn(queryClient, "invalidateQueries").mockImplementation(async () => {});
 
 describe("Offline Progress Queue", () => {
   beforeEach(() => {
+    // The fake IndexedDB answers through setTimeout, which setup.ts's fake
+    // timers would never fire
+    // eslint-disable-next-line no-restricted-syntax -- the IDB mock needs real timers
+    vi.useRealTimers();
     mockStore.clear();
     localStorage.clear();
     vi.clearAllMocks();
@@ -213,4 +223,188 @@ describe("Offline Progress Queue", () => {
       JSON.parse(localStorage.getItem("atelier_pending_sync") || "[]"),
     ).toHaveLength(1);
   }, 15000);
+
+  describe("per-item replay results", () => {
+    const queueLesson = async (slug: string) => {
+      await enqueueOfflineAction(
+        "/progress/me/",
+        "POST",
+        { Authorization: "Bearer test-token" },
+        { lesson_slug: slug, score: 20, completed: true },
+        "lesson",
+        slug,
+      );
+      await new Promise((resolve) => setTimeout(resolve, 10));
+    };
+    const reply = (status: number, body: unknown = {}) => ({
+      ok: status >= 200 && status < 300,
+      status,
+      json: () => Promise.resolve(body),
+    });
+    const mockFetch = () => globalThis.fetch as ReturnType<typeof vi.fn>;
+    const pending = () =>
+      JSON.parse(localStorage.getItem("atelier_pending_sync") || "[]");
+
+    it("reports a fresh save as synced after reconnecting", async () => {
+      await queueLesson("git-basics");
+      mockFetch().mockResolvedValue(reply(201));
+
+      const results = await syncOfflineQueue();
+
+      expect(results).toEqual([
+        expect.objectContaining({
+          lesson_slug: "git-basics",
+          status: "synced",
+          httpStatus: 201,
+        }),
+      ]);
+      expect(mockStore.size).toBe(0);
+      expect(pending()).toHaveLength(0);
+      expect(getSyncResults().map((r) => r.status)).toEqual(["synced"]);
+    });
+
+    it("reports a lesson the server already has as duplicate, not as a fresh save", async () => {
+      await queueLesson("git-basics");
+      mockFetch().mockResolvedValue(reply(200));
+      const onSuccess = vi.fn();
+      eventBus.on("sync:success", onSuccess);
+
+      const results = await syncOfflineQueue();
+      eventBus.off("sync:success", onSuccess);
+
+      expect(results.map((r) => r.status)).toEqual(["duplicate"]);
+      expect(mockStore.size).toBe(0);
+      expect(pending()).toHaveLength(0);
+      expect(onSuccess).toHaveBeenCalledWith({
+        lesson_slug: "git-basics",
+        status: "duplicate",
+      });
+    });
+
+    it("keeps a 409 as a conflict, tells the UI, and does not replay it again", async () => {
+      await queueLesson("git-merge");
+      const serverData = { score: 5, completed: false };
+      mockFetch().mockResolvedValue(reply(409, serverData));
+      const onConflict = vi.fn();
+      eventBus.on("sync:conflict", onConflict);
+
+      const first = await syncOfflineQueue();
+      eventBus.off("sync:conflict", onConflict);
+
+      expect(first).toEqual([
+        expect.objectContaining({ status: "conflict", serverData }),
+      ]);
+      expect(onConflict).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: "lesson-git-merge",
+          lesson_slug: "git-merge",
+          serverData,
+          localData: expect.objectContaining({ lesson_slug: "git-merge" }),
+        }),
+      );
+      expect(mockStore.get("lesson-git-merge").state).toBe("conflict");
+      expect(pending()[0].state).toBe("conflict");
+
+      mockFetch().mockClear();
+      const second = await syncOfflineQueue();
+      expect(second).toEqual([]);
+      expect(mockFetch()).not.toHaveBeenCalled();
+      expect(mockStore.size).toBe(1);
+    });
+
+    it("marks a temporary 503 as retryable and succeeds on the retry", async () => {
+      await queueLesson("git-rebase");
+      mockFetch().mockResolvedValue(reply(503));
+
+      const first = await syncOfflineQueue();
+
+      expect(first).toEqual([
+        expect.objectContaining({ status: "failed", retryable: true }),
+      ]);
+      expect(mockStore.size).toBe(1);
+      expect(pending()[0].state).toBe("failed");
+      expect(getSyncResults()).toHaveLength(0);
+
+      mockFetch().mockResolvedValue(reply(201));
+      const retry = await syncOfflineQueue();
+
+      expect(retry.map((r) => r.status)).toEqual(["synced"]);
+      expect(mockStore.size).toBe(0);
+      expect(pending()).toHaveLength(0);
+    });
+
+    it("retries only the failed item, not a conflicting one", async () => {
+      await queueLesson("conflicting");
+      await queueLesson("flaky");
+      mockFetch().mockImplementation(async (_url: string, init: RequestInit) =>
+        JSON.parse(init.body as string).lesson_slug === "conflicting"
+          ? reply(409, { score: 1 })
+          : reply(500),
+      );
+      await syncOfflineQueue();
+      expect(mockStore.size).toBe(2);
+
+      mockFetch().mockClear();
+      mockFetch().mockResolvedValue(reply(201));
+      const retry = await syncOfflineQueue();
+
+      expect(mockFetch()).toHaveBeenCalledTimes(1);
+      expect(retry.map((r) => [r.lesson_slug, r.status])).toEqual([
+        ["flaky", "synced"],
+      ]);
+      expect(mockStore.has("lesson-conflicting")).toBe(true);
+    });
+
+    it("drops an item the server rejected for good and reports it as not retryable", async () => {
+      await queueLesson("bad-slug");
+      mockFetch().mockResolvedValue(reply(404));
+
+      const results = await syncOfflineQueue();
+
+      expect(results).toEqual([
+        expect.objectContaining({ status: "failed", retryable: false }),
+      ]);
+      expect(mockStore.size).toBe(0);
+      expect(pending()).toHaveLength(0);
+      expect(getSyncResults().map((r) => r.status)).toEqual(["failed"]);
+    });
+
+    it("does not start a second replay while one is running", async () => {
+      await queueLesson("git-basics");
+      mockFetch().mockResolvedValue(reply(201));
+
+      const [a, b] = await Promise.all([
+        syncOfflineQueue(),
+        syncOfflineQueue(),
+      ]);
+
+      expect(mockFetch()).toHaveBeenCalledTimes(1);
+      expect(a).toBe(b);
+    });
+  });
+
+  describe("classifyReplayStatus", () => {
+    it("separates fresh saves, duplicates, conflicts and failures", () => {
+      expect(classifyReplayStatus(201).status).toBe("synced");
+      expect(classifyReplayStatus(202).status).toBe("synced");
+      expect(classifyReplayStatus(200).status).toBe("duplicate");
+      expect(classifyReplayStatus(200, false).status).toBe("synced");
+      expect(classifyReplayStatus(409).status).toBe("conflict");
+    });
+
+    it("only treats temporary errors as retryable", () => {
+      for (const code of [401, 408, 429, 500, 502, 503]) {
+        expect(classifyReplayStatus(code)).toEqual({
+          status: "failed",
+          retryable: true,
+        });
+      }
+      for (const code of [400, 404, 422]) {
+        expect(classifyReplayStatus(code)).toEqual({
+          status: "failed",
+          retryable: false,
+        });
+      }
+    });
+  });
 });
