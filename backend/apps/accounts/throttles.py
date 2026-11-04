@@ -106,14 +106,18 @@ from apps.core.throttling import SlidingWindowAnonThrottle
 
 def _get_real_ip(request) -> str:
     """
-    Extract the real client IP, accounting for trusted proxy hops.
+    Extract the real client IP, accounting for trusted proxy hops using append-only semantics.
+
+    Each trusted reverse proxy appends the remote IP it received the request from.
+    With N trusted proxies, the real client IP is at index len(ips) - N.
+    If TRUSTED_PROXY_COUNT is 0 or unconfigured, REMOTE_ADDR is returned directly.
     """
     trusted_hops = getattr(django_settings, "TRUSTED_PROXY_COUNT", 0)
     xff = request.META.get("HTTP_X_FORWARDED_FOR", "")
 
     if xff and trusted_hops > 0:
         ips = [ip.strip() for ip in xff.split(",") if ip.strip()]
-        real_index = len(ips) - trusted_hops - 1
+        real_index = len(ips) - trusted_hops
         if 0 <= real_index < len(ips):
             return ips[real_index]
 
@@ -125,6 +129,14 @@ class BaseDistributedThrottle(SimpleRateThrottle):
     Base throttle that uses Redis Lua scripting when settings.RATE_LIMIT_BACKEND == "redis".
     Falls back to local cache implementation if "local" or when Redis is down.
     """
+
+    def get_rate(self):
+        rates = getattr(django_settings, "REST_FRAMEWORK", {}).get(
+            "DEFAULT_THROTTLE_RATES", {}
+        )
+        if hasattr(self, "scope") and self.scope in rates:
+            return rates[self.scope]
+        return super().get_rate()
 
 
 class _ProxyAwareThrottle(SlidingWindowAnonThrottle):  # type: ignore

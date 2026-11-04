@@ -30,21 +30,32 @@ export interface WebhookDelivery {
   logs?: WebhookDeliveryLog[];
 }
 
+/** Only these can be retried by hand; the API answers 409 for anything else. */
+const isRetryable = (delivery: WebhookDelivery) =>
+  delivery.status === "failed" || delivery.status === "dead";
+
+const EMPTY_IDS: ReadonlySet<number> = new Set();
+
 interface DeliveryLogTableProps {
   deliveries: WebhookDelivery[];
   onReplay: (deliveryId: number) => void;
-  isReplayingId?: number | null;
+  /** Ids of the deliveries with a retry in flight. */
+  replayingIds?: ReadonlySet<number>;
+  /** Last retry error per delivery id, shown next to the row's button. */
+  retryErrors?: Record<number, string>;
   isLoading?: boolean;
 }
 
 export const DeliveryLogTable: React.FC<DeliveryLogTableProps> = ({
   deliveries,
   onReplay,
-  isReplayingId = null,
+  replayingIds = EMPTY_IDS,
+  retryErrors = {},
   isLoading = false,
 }) => {
   const [inspectDelivery, setInspectDelivery] =
     useState<WebhookDelivery | null>(null);
+  const [confirmingId, setConfirmingId] = useState<number | null>(null);
 
   const getStatusBadge = (
     status: WebhookDelivery["status"],
@@ -174,23 +185,60 @@ export const DeliveryLogTable: React.FC<DeliveryLogTableProps> = ({
                         <Eye className="w-3.5 h-3.5" /> Payload
                       </button>
 
-                      <button
-                        onClick={() => onReplay(delivery.id)}
-                        disabled={isReplayingId === delivery.id}
-                        className="px-2.5 py-1.5 text-xs font-bold text-indigo-300 hover:text-white bg-indigo-950/50 hover:bg-indigo-900/70 border border-indigo-800/60 rounded-lg transition-all inline-flex items-center gap-1 active:scale-95 disabled:opacity-50"
-                        title="Manual Replay Webhook"
-                      >
-                        <RotateCw
-                          className={`w-3.5 h-3.5 ${
-                            isReplayingId === delivery.id
-                              ? "animate-spin text-indigo-400"
-                              : ""
-                          }`}
-                        />
-                        {isReplayingId === delivery.id
-                          ? "Replaying..."
-                          : "Replay"}
-                      </button>
+                      {isRetryable(delivery) &&
+                        (confirmingId === delivery.id ? (
+                          <span
+                            role="group"
+                            aria-label={`Confirm retry of delivery ${delivery.id}`}
+                            className="inline-flex items-center gap-1.5"
+                          >
+                            <span className="text-slate-300">
+                              Send it again?
+                            </span>
+                            <button
+                              onClick={() => {
+                                setConfirmingId(null);
+                                onReplay(delivery.id);
+                              }}
+                              className="px-2.5 py-1.5 text-xs font-bold text-white bg-indigo-600 hover:bg-indigo-500 border border-indigo-400 rounded-lg transition-all"
+                            >
+                              Confirm retry
+                            </button>
+                            <button
+                              onClick={() => setConfirmingId(null)}
+                              className="px-2.5 py-1.5 text-xs font-semibold text-slate-300 hover:text-white bg-slate-800 hover:bg-slate-700 border border-slate-700 rounded-lg"
+                            >
+                              Cancel
+                            </button>
+                          </span>
+                        ) : (
+                          <button
+                            onClick={() => setConfirmingId(delivery.id)}
+                            disabled={replayingIds.has(delivery.id)}
+                            aria-label={`Retry delivery ${delivery.id}`}
+                            className="px-2.5 py-1.5 text-xs font-bold text-indigo-300 hover:text-white bg-indigo-950/50 hover:bg-indigo-900/70 border border-indigo-800/60 rounded-lg transition-all inline-flex items-center gap-1 active:scale-95 disabled:opacity-50"
+                            title="Retry this failed delivery"
+                          >
+                            <RotateCw
+                              className={`w-3.5 h-3.5 ${
+                                replayingIds.has(delivery.id)
+                                  ? "animate-spin text-indigo-400"
+                                  : ""
+                              }`}
+                            />
+                            {replayingIds.has(delivery.id)
+                              ? "Retrying..."
+                              : "Retry"}
+                          </button>
+                        ))}
+                      {isRetryable(delivery) && retryErrors[delivery.id] && (
+                        <p
+                          role="alert"
+                          className="mt-1.5 text-[11px] font-semibold text-rose-300"
+                        >
+                          {retryErrors[delivery.id]}
+                        </p>
+                      )}
                     </td>
                   </tr>
                 ))

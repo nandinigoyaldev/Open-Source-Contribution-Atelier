@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import { toast } from "react-hot-toast";
 import { ProgressAnnouncer } from "../components/ui/ProgressAnnouncer";
+import { BookmarkAnnouncer } from "../components/ui/BookmarkAnnouncer";
 
 import SkeletonLesson from "../components/ui/skeletons/SkeletonLesson";
 import { useUserProgress } from "../hooks/useUserProgress";
@@ -31,6 +32,8 @@ import { useTerminalAutocomplete } from "../hooks/useTerminalAutocomplete";
 import { ShellState } from "../hooks/useGitShell";
 import { useBookmarks } from "../hooks/useBookmarks";
 import { useQuizDraft } from "../hooks/useQuizDraft";
+import { useUnsavedChanges } from "../hooks/useUnsavedChanges";
+import { UnsavedChangesDialog } from "../components/ui/UnsavedChangesDialog";
 import { useNotifications } from "../features/notifications/NotificationContext";
 import { useOfflineLesson } from "../hooks/useOfflineLesson";
 import { useOfflineReadyLessons } from "../hooks/useOfflineReadyLessons";
@@ -135,7 +138,12 @@ export function LessonPage() {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
   const { isLessonCompleted, syncProgress, announcement } = useUserProgress();
-  const { isBookmarked, toggleBookmark } = useBookmarks();
+  const {
+    isBookmarked,
+    toggleBookmark,
+    announcement: bookmarkAnnouncement,
+    isPendingSlug,
+  } = useBookmarks();
   const { triggerConfetti } = useNotifications();
   const queryClient = useQueryClient();
 
@@ -170,13 +178,13 @@ export function LessonPage() {
   // 1. Intercept Escape key to cleanly exit Zen reading mode
   useEffect(() => {
     const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape' || event.key === 'Esc') {
+      if (event.key === "Escape" || event.key === "Esc") {
         setIsZenMode(false);
       }
     };
 
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
   }, []);
 
   const curriculumLessonRefs = useMemo(
@@ -283,6 +291,19 @@ export function LessonPage() {
   // Quiz draft persistence
   const quizDraft = useQuizDraft(lesson?.slug);
   const [hasRestoredDraft, setHasRestoredDraft] = useState(false);
+
+  // Warn before leaving with an unsubmitted command or an unsaved conflict edit
+  const hasUnsavedWork =
+    input.trim() !== "" ||
+    (repoState.conflicts.length > 0 &&
+      conflictContent !== (lesson?.conflictScenario?.fileContent || ""));
+  const unsavedGuard = useUnsavedChanges({
+    isDirty: hasUnsavedWork,
+    message:
+      "You have unsaved work in this lesson. Discard it and leave the page?",
+    interceptLinks: true,
+  });
+  const { guardedNavigate } = unsavedGuard;
 
   // Help Request panel
   const [isHelpPanelOpen, setIsHelpPanelOpen] = useState(false);
@@ -560,13 +581,7 @@ export function LessonPage() {
       quizFeedback,
       timeLeft,
     );
-  }, [
-    currentQuizIndex,
-    selectedOption,
-    quizFeedback,
-    timeLeft,
-    quizDraft,
-  ]);
+  }, [currentQuizIndex, selectedOption, quizFeedback, timeLeft, quizDraft]);
 
   useEffect(() => {
     if (timeLeft === null || timeLeft <= 0 || quizFeedback !== null) return;
@@ -686,6 +701,16 @@ export function LessonPage() {
     };
   }, [lesson?.slug, lessonsList, markdownContent]);
 
+  // These are read by the shortcut effect below, so they must be declared
+  // before it (they used to sit after the early returns, which crashed the
+  // page with "Cannot access 'nextLesson' before initialization").
+  const currentLessonIndex = lessonsList.findIndex(
+    (l) => l.slug === lesson?.slug,
+  );
+  const previousLesson = lessonsList[currentLessonIndex - 1];
+  const nextLesson = lessonsList[currentLessonIndex + 1];
+  const isCompleted = lesson ? isLessonCompleted(lesson.slug) : false;
+
   // 4. Keyboard Shortcuts for Lesson Navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -705,7 +730,7 @@ export function LessonPage() {
         e.preventDefault();
         if (nextLesson) {
           if (isCompleted) {
-            navigate(`/lessons/${nextLesson.slug}`);
+            guardedNavigate(`/lessons/${nextLesson.slug}`);
           } else {
             toast.error(
               "Complete the current lesson first to unlock the next module!",
@@ -718,7 +743,7 @@ export function LessonPage() {
       ) {
         e.preventDefault();
         if (previousLesson) {
-          navigate(`/lessons/${previousLesson.slug}`);
+          guardedNavigate(`/lessons/${previousLesson.slug}`);
         }
       } else if (
         e.altKey &&
@@ -728,7 +753,13 @@ export function LessonPage() {
         setIsSidebarOpen((prev) => !prev);
       } else if (e.altKey && (e.key === "b" || e.key === "B")) {
         e.preventDefault();
-        if (lesson) toggleBookmark(lesson.slug);
+        if (lesson && !isPendingSlug(lesson.slug)) {
+          toggleBookmark.mutate({
+            slug: lesson.slug,
+            isBookmarked: isBookmarked(lesson.slug),
+            lesson,
+          });
+        }
       } else if (e.altKey && (e.key === "c" || e.key === "C")) {
         e.preventDefault();
         setIsNotePanelOpen((prev) => !prev);
@@ -741,12 +772,14 @@ export function LessonPage() {
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [
-    navigate,
+    guardedNavigate,
     nextLesson,
     previousLesson,
     isCompleted,
     lesson,
     toggleBookmark,
+    isBookmarked,
+    isPendingSlug,
   ]);
 
   const handleCommandSubmit = async (
@@ -929,15 +962,8 @@ export function LessonPage() {
 
   if (!lesson) return null;
 
-  const currentLessonIndex = lessonsList.findIndex(
-    (l) => l.slug === lesson.slug,
-  );
-  const previousLesson = lessonsList[currentLessonIndex - 1];
-  const nextLesson = lessonsList[currentLessonIndex + 1];
-
   const hasQuiz = lesson.quizzes && lesson.quizzes.length > 0;
   const hasConflict = !!lesson.conflictScenario;
-  const isCompleted = isLessonCompleted(lesson.slug);
   const activeModuleId = modules.find((mod) =>
     mod.lessons.some((les) => les.slug === lesson.slug),
   )?.id;
@@ -946,6 +972,7 @@ export function LessonPage() {
     <div className="w-full h-screen flex flex-col overflow-hidden bg-white dark:bg-[#0a0a0f]">
       <OfflineBanner />
       <ProgressAnnouncer announcement={announcement} />
+      <BookmarkAnnouncer announcement={bookmarkAnnouncement} />
       {/* Immersive Lesson Top Header Bar */}
       <LessonTopBar
         points={lesson.points || 15}
@@ -1143,9 +1170,12 @@ export function LessonPage() {
                       toggleBookmark.mutate({
                         slug: lesson.slug,
                         isBookmarked: isBookmarked(lesson.slug),
+                        lesson,
                       })
                     }
-                    disabled={toggleBookmark.isPending}
+                    disabled={
+                      toggleBookmark.isPending || isPendingSlug(lesson.slug)
+                    }
                     className="flex items-center justify-center p-2 rounded-xl border-4 border-black bg-surface-low hover:-translate-y-1 hover:shadow-card-sm transition-all"
                     title={
                       isBookmarked(lesson.slug)
@@ -1749,6 +1779,7 @@ export function LessonPage() {
                         ? "bg-accent text-black"
                         : "bg-[#e2e8f0] text-black/50 border-black/35 cursor-not-allowed opacity-75"
                     }`}
+                    aria-disabled={!isCompleted}
                     onClick={(e) => {
                       if (!isCompleted) {
                         e.preventDefault();
@@ -1957,6 +1988,13 @@ export function LessonPage() {
       <AITutorFloatingPanel
         lessonSlug={lesson.slug}
         lessonTitle={lesson.title}
+      />
+
+      <UnsavedChangesDialog
+        open={unsavedGuard.isBlocked}
+        message={unsavedGuard.message}
+        onStay={unsavedGuard.stay}
+        onDiscard={unsavedGuard.discard}
       />
     </div>
   );

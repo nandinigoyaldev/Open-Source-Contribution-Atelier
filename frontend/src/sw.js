@@ -214,6 +214,8 @@ async function syncProgressQueue() {
   );
 
   for (const action of actions) {
+    // The page already got the 409 for this one and is waiting on the user
+    if (action.state === "conflict") continue;
     try {
       console.log(
         `[ServiceWorker] Replaying action: ${action.id} to ${action.url}`,
@@ -242,6 +244,7 @@ async function syncProgressQueue() {
         await notifyClients({
           type: "SYNC_SUCCESS",
           id: action.id,
+          status: response.status,
           lesson_slug: lesson_slug,
           entity_type: action.entity_type,
           entity_id: action.entity_id,
@@ -271,6 +274,13 @@ async function syncProgressQueue() {
         console.warn(
           `[ServiceWorker] Action ${action.id} sync failed (Status: ${response.status}). Retrying later.`,
         );
+        // Stays queued, but tell the page so the status UI can offer Retry
+        await notifyClients({
+          type: "SYNC_FAILED",
+          id: action.id,
+          status: response.status,
+          lesson_slug: lesson_slug,
+        });
       }
     } catch (err) {
       console.error(

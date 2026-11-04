@@ -331,7 +331,9 @@ class AuditListFilterApiTests(APITestCase):
     def test_export_uses_the_same_filters_and_not_the_page(self):
         response = self.client.get(f"{URL}?export=csv&action=updated&page_size=1")
         self.assertEqual(response.status_code, status.HTTP_200_OK)
-        rows = list(csv.reader(io.StringIO(response.content.decode())))
+        # the export is streamed, so there is no .content to read
+        body = b"".join(response.streaming_content).decode()
+        rows = list(csv.reader(io.StringIO(body)))
         self.assertEqual(len(rows) - 1, 2)
 
     def test_export_rejects_invalid_filters(self):

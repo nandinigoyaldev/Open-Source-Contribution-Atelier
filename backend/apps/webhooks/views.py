@@ -6,9 +6,12 @@ from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 
-from .models import WebhookDelivery, WebhookEndpoint
+from .models import DeadLetterWebhook, WebhookDelivery, WebhookEndpoint
 from .serializers import WebhookDeliverySerializer, WebhookEndpointSerializer
 from .tasks import deliver_webhook
+
+# A delivery can be retried by hand only from one of these states.
+REPLAYABLE_STATUSES = ("failed", "dead")
 
 
 class WebhookEndpointViewSet(viewsets.ModelViewSet):
@@ -127,14 +130,38 @@ class WebhookDeliveryViewSet(viewsets.ReadOnlyModelViewSet):
     @action(detail=True, methods=["post"], url_path="replay")
     def replay(self, request, pk=None):
         """
-        Manually replays a failed or completed webhook delivery payload.
+        Retry a failed delivery.
+
+        Only the owner of the endpoint can do this (other users get a 404, same
+        as for the rest of this viewset). Only a delivery that is ``failed`` or
+        ``dead`` can be retried; anything else, including one that is already
+        being retried, is a 409.
         """
         delivery = self.get_object()
 
-        # Reset status and attempt count for replay
-        delivery.status = "pending"
-        delivery.attempt_count = 0
-        delivery.save()
+        # Claim the delivery with one conditional UPDATE. Two clicks (or two
+        # tabs) at the same time cannot both pass this, so only one request
+        # sends the webhook and the other gets a 409.
+        claimed = WebhookDelivery.objects.filter(
+            pk=delivery.pk, status__in=REPLAYABLE_STATUSES
+        ).update(status="pending", attempt_count=0, next_retry_at=None)
+        if not claimed:
+            delivery.refresh_from_db()
+            return Response(
+                {
+                    "error": (
+                        f"Delivery {delivery.id} is {delivery.status}. "
+                        "Only failed or dead deliveries can be retried."
+                    ),
+                    "status": delivery.status,
+                },
+                status=status.HTTP_409_CONFLICT,
+            )
+
+        DeadLetterWebhook.objects.filter(delivery=delivery).update(
+            replayed=True, replayed_at=timezone.now()
+        )
+        delivery.refresh_from_db()
 
         try:
             deliver_webhook(delivery.id, attempt=1)
@@ -196,7 +223,7 @@ class WebhookDeliveryViewSet(viewsets.ReadOnlyModelViewSet):
 import requests
 from rest_framework.views import APIView
 
-from .tasks import generate_signature
+from .security import build_signature_headers, serialize_payload
 
 
 class TestWebhookView(APIView):
@@ -226,15 +253,15 @@ class TestWebhookView(APIView):
             },
         )
 
-        signature = generate_signature(payload, secret)
+        body = serialize_payload(payload)
         headers = {
             "Content-Type": "application/json",
-            "X-Webhook-Signature": signature,
             "X-Webhook-Event": event_type,
         }
+        headers.update(build_signature_headers(secret, body))
 
         try:
-            resp = requests.post(url, json=payload, headers=headers, timeout=5)
+            resp = requests.post(url, data=body, headers=headers, timeout=5)
             return Response(
                 {
                     "success": 200 <= resp.status_code < 300,
@@ -253,18 +280,23 @@ class TestWebhookView(APIView):
             )
 
 
-import time
-
 from django.conf import settings
 
-from .security import verify_signature
+from .security import (
+    audit_verification,
+    check_signature,
+    get_signing_keys,
+    rejection_response,
+)
 
 
 class GitHubWebhookView(APIView):
     """
     POST /api/webhooks/github/ or /api/webhooks/github
     GitHub Webhook Ingestion Endpoint.
-    Validates X-Hub-Signature-256 HMAC header and optional timestamp replay protection.
+    Validates the X-Hub-Signature-256 HMAC header. GitHub itself sends no timestamp,
+    so payload-only signatures are accepted here. If the sender does add an
+    X-Webhook-Timestamp it must be inside the tolerance window.
     """
 
     permission_classes = [permissions.AllowAny]
@@ -272,7 +304,8 @@ class GitHubWebhookView(APIView):
 
     def post(self, request, *args, **kwargs):
         signature = (
-            request.META.get("HTTP_X_HUB_SIGNATURE_256")
+            request.META.get("HTTP_X_WEBHOOK_SIGNATURE_V2")
+            or request.META.get("HTTP_X_HUB_SIGNATURE_256")
             or request.META.get("HTTP_X_WEBHOOK_SIGNATURE")
             or request.META.get("HTTP_X_SIGNATURE")
         )
@@ -282,53 +315,37 @@ class GitHubWebhookView(APIView):
                 status=status.HTTP_401_UNAUTHORIZED,
             )
 
-        timestamp_str = (
-            request.META.get("HTTP_X_WEBHOOK_TIMESTAMP")
-            or request.META.get("HTTP_X_TIMESTAMP")
-            or request.META.get("HTTP_X_GITHUB_TIMESTAMP")
-        )
-        if timestamp_str:
-            try:
-                timestamp_val = float(timestamp_str)
-                window = getattr(settings, "WEBHOOK_TIMESTAMP_WINDOW_SECONDS", 300)
-                current_time = time.time()
-                if abs(current_time - timestamp_val) > window:
-                    return Response(
-                        {"error": "Webhook timestamp expired / out of window"},
-                        status=status.HTTP_400_BAD_REQUEST,
-                    )
-            except (ValueError, TypeError):
-                return Response(
-                    {"error": "Invalid X-Webhook-Timestamp header format"},
-                    status=status.HTTP_400_BAD_REQUEST,
-                )
-
-        payload = request.body
-
+        keys = get_signing_keys(dev_fallback=False)
         gh_secret = getattr(settings, "GITHUB_WEBHOOK_SECRET", None) or getattr(
             settings, "WEBHOOK_SECRET", None
         )
-        signing_keys = getattr(settings, "WEBHOOK_SIGNING_KEYS", None)
-        secrets = []
-        if signing_keys:
-            for item in signing_keys:
-                sec = (
-                    item[1]
-                    if isinstance(item, (tuple, list)) and len(item) == 2
-                    else item
-                )
-                if sec:
-                    secrets.append(sec)
         if gh_secret:
-            secrets.append(gh_secret)
-        if not secrets:
-            secrets.append("default-webhook-secret-key-change-in-production")
-
-        if not verify_signature(secrets, payload, signature):
+            keys.append((None, gh_secret))
+        if not keys:
+            keys = get_signing_keys()
+        if not keys:
             return Response(
-                {"error": "Invalid webhook signature"},
-                status=status.HTTP_403_FORBIDDEN,
+                {"error": "Configuration error: no webhook signing key"},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
             )
+
+        result = check_signature(
+            keys,
+            request.body,
+            signature,
+            timestamp=(
+                request.META.get("HTTP_X_WEBHOOK_TIMESTAMP")
+                or request.META.get("HTTP_X_TIMESTAMP")
+                or request.META.get("HTTP_X_GITHUB_TIMESTAMP")
+            ),
+            key_id=request.META.get("HTTP_X_WEBHOOK_KEY_ID"),
+            # GitHub's own deliveries are payload-only by design.
+            allow_legacy=True,
+        )
+        audit_verification(result, request, source="github_webhook")
+        if not result.ok:
+            code, message = rejection_response(result, "Invalid webhook signature")
+            return Response({"error": message}, status=code)
 
         event_type = request.META.get("HTTP_X_GITHUB_EVENT", "ping")
         delivery_id = request.META.get("HTTP_X_GITHUB_DELIVERY", "")

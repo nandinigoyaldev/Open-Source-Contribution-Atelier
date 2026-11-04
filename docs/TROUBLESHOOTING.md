@@ -308,4 +308,4 @@ The backend reads `ALLOWED_HOSTS` from the environment (comma-separated). If it 
 - `docker-compose.yml` (dev): root-level Compose configuration
 - `docker-compose.prod.yml` (prod): Compose configuration for production-style runs
 - [`TROUBLESHOOTING_SETUP.md`](TROUBLESHOOTING_SETUP.md): Local development troubleshooting FAQ (Windows & macOS)
-
+- [Notification worker recovery](WORKER_RECOVERY.md): diagnose, restart, verify, and roll back the Django-Q worker.

@@ -1,13 +1,23 @@
-import hashlib
-import hmac
 import logging
-import time
 from typing import Optional
 
 from django.conf import settings
 from django.http import HttpRequest, JsonResponse
 
+from .security import (
+    audit_verification,
+    check_signature,
+    get_signing_keys,
+    rejection_response,
+)
+
 logger = logging.getLogger(__name__)
+
+_SIGNATURE_META_KEYS = (
+    "HTTP_X_WEBHOOK_SIGNATURE_V2",
+    "HTTP_X_WEBHOOK_SIGNATURE",
+    "HTTP_X_SIGNATURE",
+)
 
 
 class WebhookSignatureMiddleware:
@@ -16,8 +26,10 @@ class WebhookSignatureMiddleware:
     for incoming webhook routes.
 
     Key rotation is supported via settings.WEBHOOK_SIGNING_KEYS, a list of (key_id, secret) pairs.
-    Verification attempts each key in order. Replay protection rejects requests older than
-    settings.WEBHOOK_TIMESTAMP_WINDOW_SECONDS (default: 300s).
+    Verification attempts each key. The timestamp is part of the signed material and must be within
+    settings.WEBHOOK_TIMESTAMP_TOLERANCE_SECONDS (default: 300s) of the server clock, in either
+    direction. Payload-only signatures are accepted only while
+    settings.WEBHOOK_ALLOW_LEGACY_SIGNATURES is true. See docs/WEBHOOKS.md.
     """
 
     def __init__(self, get_response):
@@ -35,10 +47,7 @@ class WebhookSignatureMiddleware:
         # Exclude management CRUD routes unless explicitly carrying signature headers
         management_routes = ["/api/webhooks/endpoints/", "/api/webhooks/deliveries/"]
         if any(path.startswith(route) for route in management_routes):
-            if (
-                "HTTP_X_WEBHOOK_SIGNATURE" not in request.META
-                and "HTTP_X_SIGNATURE" not in request.META
-            ):
+            if not any(h in request.META for h in _SIGNATURE_META_KEYS):
                 return False
 
         prefixes = getattr(
@@ -53,82 +62,45 @@ class WebhookSignatureMiddleware:
         )
         if any(path.startswith(prefix) for prefix in prefixes):
             return True
-        if (
-            "HTTP_X_WEBHOOK_SIGNATURE" in request.META
-            or "HTTP_X_SIGNATURE" in request.META
-        ):
+        if any(h in request.META for h in _SIGNATURE_META_KEYS):
             return True
         return False
 
     def _verify_webhook(self, request: HttpRequest) -> Optional[JsonResponse]:
-        signature = request.META.get("HTTP_X_WEBHOOK_SIGNATURE") or request.META.get(
-            "HTTP_X_SIGNATURE"
+        signature = (
+            request.META.get("HTTP_X_WEBHOOK_SIGNATURE_V2")
+            or request.META.get("HTTP_X_WEBHOOK_SIGNATURE")
+            or request.META.get("HTTP_X_SIGNATURE")
         )
         if not signature:
             return JsonResponse(
                 {"error": "Missing X-Webhook-Signature header"}, status=401
             )
 
-        timestamp_str = request.META.get(
-            "HTTP_X_WEBHOOK_TIMESTAMP"
-        ) or request.META.get("HTTP_X_TIMESTAMP")
-        if not timestamp_str:
-            return JsonResponse(
-                {"error": "Missing X-Webhook-Timestamp header"}, status=400
-            )
-
-        try:
-            timestamp_val = float(timestamp_str)
-        except (ValueError, TypeError):
-            return JsonResponse(
-                {"error": "Invalid X-Webhook-Timestamp header format"}, status=400
-            )
-
-        window = getattr(settings, "WEBHOOK_TIMESTAMP_WINDOW_SECONDS", 300)
-        current_time = time.time()
-        if abs(current_time - timestamp_val) > window:
-            logger.warning(
-                "Webhook replay attack detected or timestamp expired. Delta: %f s",
-                abs(current_time - timestamp_val),
+        keys = get_signing_keys()
+        if not keys:
+            logger.error(
+                "No webhook signing key configured (settings.WEBHOOK_SIGNING_KEYS), "
+                "rejecting %s",
+                request.path,
             )
             return JsonResponse(
-                {"error": "Webhook timestamp expired / out of window"}, status=400
+                {"error": "Configuration error: no webhook signing key"}, status=500
             )
 
-        payload = request.body
-        clean_sig = (
-            signature.removeprefix("sha256=")
-            if signature.startswith("sha256=")
-            else signature
+        result = check_signature(
+            keys,
+            request.body,
+            signature,
+            timestamp=request.META.get("HTTP_X_WEBHOOK_TIMESTAMP")
+            or request.META.get("HTTP_X_TIMESTAMP"),
+            key_id=request.META.get("HTTP_X_WEBHOOK_KEY_ID"),
+            require_timestamp=True,
         )
-
-        keys = getattr(
-            settings,
-            "WEBHOOK_SIGNING_KEYS",
-            [("default_v1", "default-webhook-secret-key-change-in-production")],
-        )
-
-        verified_key_id = None
-        for key_id, secret in keys:
-            if not secret:
-                continue
-            secret_bytes = secret.encode("utf-8")
-            expected_sig = hmac.new(secret_bytes, payload, hashlib.sha256).hexdigest()
-            expected_sig_ts = hmac.new(
-                secret_bytes,
-                f"{timestamp_str}.".encode("utf-8") + payload,
-                hashlib.sha256,
-            ).hexdigest()
-
-            if hmac.compare_digest(expected_sig, clean_sig) or hmac.compare_digest(
-                expected_sig_ts, clean_sig
-            ):
-                verified_key_id = key_id
-                break
-
-        if verified_key_id is not None:
-            request.webhook_key_id = verified_key_id
+        audit_verification(result, request, source="middleware")
+        if result.ok:
+            request.webhook_key_id = result.key_id
             return None
 
-        logger.warning("Invalid webhook signature for request path %s", request.path)
-        return JsonResponse({"error": "Invalid webhook signature"}, status=403)
+        status, message = rejection_response(result, "Invalid webhook signature")
+        return JsonResponse({"error": message}, status=status)
