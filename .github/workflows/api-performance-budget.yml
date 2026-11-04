@@ -1,0 +1,84 @@
+name: API Performance Budget
+
+# Measures API latency percentiles and query counts on a fixed dataset and checks
+# them against backend/perf_budget.json (python manage.py perf_budget_report).
+# The report goes to the job summary and is uploaded as an artifact. How to read
+# it and how to raise a budget on purpose: docs/backend/API_PERFORMANCE_BUDGET.md
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "backend/**"
+      - "docs/backend/API_PERFORMANCE_BUDGET.md"
+      - ".github/workflows/api-performance-budget.yml"
+  workflow_dispatch:
+
+concurrency:
+  group: api-perf-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  api-performance-budget:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt
+
+      - name: Test the report logic
+        run: python -m pytest apps/core/tests/test_perf_budget.py -q -p no:cacheprovider
+
+      # Do not fail here so the report is uploaded and shown even when a route is
+      # over budget; the budget is enforced in the last step.
+      - name: Measure API latency
+        id: budget
+        continue-on-error: true
+        # Throwaway values. The command builds its own temporary sqlite database
+        # and never talks to a real service.
+        env:
+          SECRET_KEY: api-perf-budget-ci-placeholder-secret-key-not-used-for-anything-real
+          FIELD_ENCRYPTION_KEY: MDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDAwMDA=
+          DEBUG: "True"
+          DJANGO_ENV: development
+        run: |
+          python manage.py perf_budget_report \
+            --output "$RUNNER_TEMP/api-perf-report.md" \
+            --json-output "$RUNNER_TEMP/api-perf-report.json"
+
+      - name: Add report to the job summary
+        if: always()
+        run: |
+          if [ -f "$RUNNER_TEMP/api-perf-report.md" ]; then
+            cat "$RUNNER_TEMP/api-perf-report.md" >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: api-performance-report
+          path: |
+            ${{ runner.temp }}/api-perf-report.md
+            ${{ runner.temp }}/api-perf-report.json
+          if-no-files-found: ignore
+
+      - name: Enforce API performance budget
+        if: steps.budget.outcome == 'failure'
+        run: |
+          echo "::error::API performance budget exceeded, see the report in the job summary. To raise a budget on purpose: docs/backend/API_PERFORMANCE_BUDGET.md"
+          exit 1
