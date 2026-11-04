@@ -130,6 +130,20 @@ class NotificationDelivery(models.Model):
     error_message = models.TextField(blank=True)
     meta = models.JSONField(default=dict, blank=True)
 
+    # Idempotency key for the event: the same (recipient, channel, dedupe_key) is delivered once.
+    dedupe_key = models.CharField(max_length=128, null=True, blank=True)
+    # Snapshot of what is delivered, so a retry or crash recovery does not depend on task arguments.
+    payload = models.JSONField(default=dict, blank=True)
+    # Set while a worker is delivering; another worker may take over once the lease has expired.
+    claimed_at = models.DateTimeField(null=True, blank=True)
+    last_attempt_at = models.DateTimeField(null=True, blank=True)
+    # "transient", "permanent" or "rate_limited" for the last failure; empty while healthy.
+    error_class = models.CharField(max_length=20, blank=True)
+    # What the provider said about the last attempt.
+    provider = models.CharField(max_length=50, blank=True)
+    provider_message_id = models.CharField(max_length=255, blank=True)
+    provider_response = models.JSONField(default=dict, blank=True)
+
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
     sent_at = models.DateTimeField(null=True, blank=True)
@@ -148,11 +162,21 @@ class NotificationDelivery(models.Model):
             models.Index(
                 fields=["notification", "channel"], name="idx_delivery_notif_chan"
             ),
+            models.Index(
+                fields=["status", "next_retry_at"], name="idx_delivery_status_retry"
+            ),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["recipient", "channel", "dedupe_key"],
+                condition=models.Q(dedupe_key__isnull=False),
+                name="uniq_delivery_dedupe_key",
+            )
         ]
 
     def __str__(self):
         return (
-            f"Delivery #{self.id} [{self.channel}] -> {self.recipient} ({self.status})"
+            f"Delivery #{self.pk} [{self.channel}] -> {self.recipient} ({self.status})"
         )
 
 
@@ -180,3 +204,58 @@ class NotificationDeadLetter(models.Model):
 
     def __str__(self):
         return f"DeadLetter [{self.channel}] -> {self.recipient} (Retries: {self.retry_count})"
+
+
+class NotificationAttempt(models.Model):
+    """
+    One row per try at delivering a notification: the append-only ledger.
+
+    ``NotificationDelivery`` says where a delivery stands now; this table says how it got there,
+    with how long each try took and what the provider answered. Old rows are removed by
+    ``purge_notification_ledger`` (see ``apps.notifications.retention``).
+    """
+
+    OUTCOME_CHOICES = [
+        ("started", "Started"),
+        ("sent", "Sent"),
+        ("transient_failure", "Transient failure"),
+        ("permanent_failure", "Permanent failure"),
+        ("rate_limited", "Rate limited"),
+        ("skipped", "Skipped (already handled)"),
+        ("abandoned", "Abandoned (worker died)"),
+    ]
+
+    objects = models.Manager()
+
+    delivery = models.ForeignKey(
+        NotificationDelivery, on_delete=models.CASCADE, related_name="attempts"
+    )
+    attempt_number = models.PositiveIntegerField()
+    outcome = models.CharField(
+        max_length=20, choices=OUTCOME_CHOICES, default="started"
+    )
+    error_class = models.CharField(max_length=20, blank=True)
+    error_message = models.TextField(blank=True)
+    provider = models.CharField(max_length=50, blank=True)
+    provider_message_id = models.CharField(max_length=255, blank=True)
+    status_code = models.PositiveSmallIntegerField(null=True, blank=True)
+    provider_response = models.JSONField(default=dict, blank=True)
+    started_at = models.DateTimeField()
+    finished_at = models.DateTimeField(null=True, blank=True)
+    duration_ms = models.PositiveIntegerField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["delivery_id", "attempt_number", "id"]
+        indexes = [
+            models.Index(
+                fields=["delivery", "attempt_number"], name="idx_attempt_delivery_n"
+            ),
+            models.Index(fields=["created_at"], name="idx_attempt_created"),
+            models.Index(
+                fields=["outcome", "started_at"], name="idx_attempt_outcome_started"
+            ),
+        ]
+
+    def __str__(self):
+        return f"Attempt {self.attempt_number} of delivery #{self.delivery_id}: {self.outcome}"

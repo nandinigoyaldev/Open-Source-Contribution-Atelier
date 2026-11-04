@@ -1,9 +1,13 @@
 import logging
 from abc import ABC, abstractmethod
-from typing import Dict, Optional
+from typing import Dict, Optional, Union
 
 from django.conf import settings
 from django.utils.module_loading import import_string
+
+from apps.notifications.delivery import DeliveryError, DeliveryResult
+
+__all__ = ["DeliveryError", "DeliveryResult", "NotificationChannel"]
 
 logger = logging.getLogger(__name__)
 
@@ -12,13 +16,20 @@ class NotificationChannel(ABC):
     channel_id: str = ""
 
     @abstractmethod
-    def deliver(self, delivery, recipient, payload: dict) -> bool:
+    def deliver(
+        self, delivery, recipient, payload: dict
+    ) -> Union[bool, DeliveryResult]:
         """
         Delivers notification for a recipient.
         :param delivery: NotificationDelivery model instance
         :param recipient: User model instance
         :param payload: Dict with title, message, notif_type, meta, etc.
-        :return: True on successful delivery, False or raise Exception on failure.
+        :return: True on success, or a ``DeliveryResult`` that also carries the provider's answer
+            (``DeliveryResult.sent(provider="x", message_id=...)``). To report a failure, return
+            ``DeliveryResult.permanent_failure(...)`` when retrying cannot help (no address, a
+            rejected request), ``DeliveryResult.transient_failure(...)`` when it might, or raise;
+            ``DeliveryError(status_code=...)`` is classified from its status code, other
+            exceptions from their type. A bare ``False`` is treated as a transient failure.
         """
         pass
 

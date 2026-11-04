@@ -1,8 +1,13 @@
 import logging
+from typing import Union
 
 import requests
 
-from apps.notifications.channels.base import NotificationChannel
+from apps.notifications.channels.base import (
+    DeliveryError,
+    DeliveryResult,
+    NotificationChannel,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -10,7 +15,9 @@ logger = logging.getLogger(__name__)
 class SlackChannel(NotificationChannel):
     channel_id = "slack"
 
-    def deliver(self, delivery, recipient, payload: dict) -> bool:
+    def deliver(
+        self, delivery, recipient, payload: dict
+    ) -> Union[bool, DeliveryResult]:
         meta = payload.get("meta", {})
         webhook_url = meta.get("slack_webhook_url")
         if not webhook_url:
@@ -27,4 +34,11 @@ class SlackChannel(NotificationChannel):
 
         text = f"*{payload.get('title')}*\n{payload.get('message')}"
         res = requests.post(webhook_url, json={"text": text}, timeout=5)
-        return res.status_code == 200
+        if res.status_code == 200:
+            return DeliveryResult.sent(provider="slack", status_code=res.status_code)
+        raise DeliveryError(
+            f"Slack responded with HTTP status {res.status_code}",
+            status_code=res.status_code,
+            provider="slack",
+            response={"body": str(res.text or "")[:500]},
+        )

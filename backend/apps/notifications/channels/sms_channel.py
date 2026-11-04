@@ -1,8 +1,9 @@
 import logging
+from typing import Union
 
 from django.conf import settings
 
-from apps.notifications.channels.base import NotificationChannel
+from apps.notifications.channels.base import DeliveryResult, NotificationChannel
 
 logger = logging.getLogger(__name__)
 
@@ -10,7 +11,9 @@ logger = logging.getLogger(__name__)
 class SMSChannel(NotificationChannel):
     channel_id = "sms"
 
-    def deliver(self, delivery, recipient, payload: dict) -> bool:
+    def deliver(
+        self, delivery, recipient, payload: dict
+    ) -> Union[bool, DeliveryResult]:
         # Check if SMS is for critical alert or allowed
         meta = payload.get("meta", {})
         is_critical = meta.get("is_critical", False) or payload.get(
@@ -24,7 +27,9 @@ class SMSChannel(NotificationChannel):
 
         if not phone_number:
             logger.warning("No phone number configured for SMS recipient %s", recipient)
-            return False
+            return DeliveryResult.permanent_failure(
+                "No phone number configured", provider="sms"
+            )
 
         account_sid = getattr(settings, "TWILIO_ACCOUNT_SID", None)
         auth_token = getattr(settings, "TWILIO_AUTH_TOKEN", None)
@@ -44,12 +49,16 @@ class SMSChannel(NotificationChannel):
             from twilio.rest import Client  # type: ignore
 
             client = Client(account_sid, auth_token)
-            client.messages.create(
+            message = client.messages.create(
                 body=body,
                 from_=from_number,
                 to=phone_number,
             )
-            return True
+            return DeliveryResult.sent(
+                provider="twilio",
+                message_id=str(getattr(message, "sid", "") or ""),
+                response={"status": str(getattr(message, "status", "") or "")},
+            )
         except ImportError:
             logger.warning(
                 "Twilio package not installed, mocking SMS send to %s", phone_number

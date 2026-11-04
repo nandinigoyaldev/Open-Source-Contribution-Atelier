@@ -1,5 +1,6 @@
 import json
 import logging
+from typing import Optional
 
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
@@ -318,105 +319,411 @@ def send_notification_digests():
             )
 
 
+import time
 from datetime import timedelta
 
+from django.db import IntegrityError, transaction
+from django.db.models import F, Q
 from django.utils import timezone
 
 from apps.notifications.channels import get_channel_instance, get_registered_channels
+from apps.notifications.delivery import (
+    MAX_ERROR_CHARS,
+    MAX_RESPONSE_CHARS,
+    PERMANENT,
+    RATE_LIMITED,
+    TRANSIENT,
+    DeliveryResult,
+    _status_of,
+    backoff_seconds,
+    classify_failure,
+    normalize_result,
+    truncate,
+)
 from apps.notifications.models import (
     Notification,
+    NotificationAttempt,
     NotificationDeadLetter,
     NotificationDelivery,
     NotificationPreference,
 )
 from apps.notifications.rate_limiter import ChannelRateLimiter
 
+# A delivery that was already handed to the provider must not be sent again.
+FINISHED_STATUSES = ("sent", "opened", "clicked", "bounced")
 
-@shared_task(bind=True, max_retries=3)
-def process_notification_delivery(self, delivery_id: int, payload: dict):
+
+def _setting(name, default):
+    return getattr(settings, name, default)
+
+
+def max_attempts() -> int:
+    """Tries a delivery gets before it is given up on and moved to the dead letters."""
+    return max(1, int(_setting("NOTIFICATION_MAX_ATTEMPTS", 3)))
+
+
+def _claim_lease() -> timedelta:
+    return timedelta(seconds=int(_setting("NOTIFICATION_CLAIM_LEASE_SECONDS", 120)))
+
+
+def _claim_delivery(delivery_id: int):
+    """
+    Take the delivery for this worker, or return None.
+
+    The claim is one conditional UPDATE, so two workers handed the same delivery (a re-delivered
+    task, a retry racing the recovery sweep) cannot both send it. A claim older than the lease is
+    treated as left behind by a worker that died.
+    """
+    now = timezone.now()
+    taken = (
+        NotificationDelivery.objects.filter(id=delivery_id, status="pending")
+        .filter(Q(claimed_at__isnull=True) | Q(claimed_at__lt=now - _claim_lease()))
+        .update(claimed_at=now)
+    )
+    if not taken:
+        return None
+    return NotificationDelivery.objects.select_related("recipient").get(id=delivery_id)
+
+
+def _can_schedule(task) -> bool:
+    """False when called as a plain function or eagerly; then the recovery sweep picks it up."""
+    request = getattr(task, "request", None)
+    if request is None or getattr(request, "called_directly", True):
+        return False
+    return not _setting("CELERY_TASK_ALWAYS_EAGER", False)
+
+
+def _enqueue(delivery_id: int, delay: int = 0) -> None:
     try:
-        delivery = NotificationDelivery.objects.select_related("recipient").get(
-            id=delivery_id
+        process_notification_delivery.apply_async(
+            args=(delivery_id, None), countdown=delay
         )
-    except NotificationDelivery.DoesNotExist:
+    except Exception as exc:
+        # Left pending with next_retry_at set: recover_stale_deliveries will queue it.
+        logger.warning("Could not queue delivery #%s: %s", delivery_id, exc)
+
+
+def _dead_letter(delivery, error: str, payload: dict) -> None:
+    NotificationDeadLetter.objects.create(
+        notification=delivery.notification,
+        recipient=delivery.recipient,
+        channel=delivery.channel,
+        retry_count=delivery.retry_count,
+        error_message=truncate(error, MAX_ERROR_CHARS),
+        payload=payload or {},
+    )
+
+
+def _finish_attempt(
+    attempt, started_mono, outcome, *, kind="", error="", result=None, status=None
+):
+    attempt.outcome = outcome
+    attempt.error_class = kind
+    attempt.error_message = truncate(error, MAX_ERROR_CHARS)
+    attempt.finished_at = timezone.now()
+    attempt.duration_ms = int((time.monotonic() - started_mono) * 1000)
+    if result is not None:
+        attempt.provider = result.provider
+        attempt.provider_message_id = truncate(result.message_id, 255)
+        attempt.status_code = result.status_code
+        attempt.provider_response = _clip_response(result.response)
+    if status is not None and attempt.status_code is None:
+        attempt.status_code = status
+    attempt.save()
+
+
+def _clip_response(response) -> dict:
+    """Keep provider metadata small: long strings are cut, the rest is passed through."""
+    if not isinstance(response, dict):
+        return {}
+    clipped = {}
+    for key, value in list(response.items())[:20]:
+        if isinstance(value, (bool, int, float, type(None))):
+            clipped[str(key)[:60]] = value
+        else:
+            # strings are cut, and anything that is not plain JSON is stored as text
+            clipped[str(key)[:60]] = truncate(value, MAX_RESPONSE_CHARS)
+    return clipped
+
+
+def _skip_finished(delivery_id: int):
+    """A task for a delivery that is not claimable: report what is already true about it."""
+    delivery = NotificationDelivery.objects.filter(id=delivery_id).first()
+    if delivery is None:
         logger.error("NotificationDelivery #%s does not exist", delivery_id)
         return False
+    if delivery.status in FINISHED_STATUSES:
+        NotificationAttempt.objects.create(
+            delivery=delivery,
+            attempt_number=delivery.attempts.count() + 1,
+            outcome="skipped",
+            error_message=f"Already {delivery.status}; not sent again",
+            started_at=timezone.now(),
+            finished_at=timezone.now(),
+            duration_ms=0,
+        )
+        logger.info(
+            "Delivery #%s is already %s, skipping.", delivery_id, delivery.status
+        )
+        return True
+    logger.info(
+        "Delivery #%s is %s or being handled by another worker, skipping.",
+        delivery_id,
+        delivery.status,
+    )
+    return False
 
-    user_id = delivery.recipient_id
+
+def _fail_for_good(delivery, kind: str, error: str, payload: dict) -> None:
+    delivery.status = "failed"
+    delivery.error_class = kind
+    delivery.error_message = truncate(error, MAX_ERROR_CHARS)
+    delivery.next_retry_at = None
+    delivery.claimed_at = None
+    delivery.save()
+    _dead_letter(delivery, error, payload)
+
+
+@shared_task(bind=True, max_retries=3)
+def process_notification_delivery(
+    self, delivery_id: int, payload: Optional[dict] = None
+):
+    """
+    Deliver one notification on one channel and write down what happened.
+
+    * Idempotent: a delivery that is already sent is not sent again, and only one worker at a
+      time can hold a delivery.
+    * Every try is recorded in ``NotificationAttempt`` with timing and the provider's answer.
+    * Failures are classified. A *permanent* one (no address, a 4xx from the provider, bad data)
+      goes straight to the dead letters; a *transient* one (timeout, 5xx, 429, network) is retried
+      with backoff until ``NOTIFICATION_MAX_ATTEMPTS`` tries are used.
+    * Being rate limited is not a failure: the delivery is deferred without using up an attempt.
+    """
+    delivery = _claim_delivery(delivery_id)
+    if delivery is None:
+        return _skip_finished(delivery_id)
+
+    if payload and not delivery.payload:
+        delivery.payload = payload
+    payload = dict(payload or delivery.payload or {})
+
+    now = timezone.now()
+    started_mono = time.monotonic()
+    attempt = NotificationAttempt.objects.create(
+        delivery=delivery,
+        attempt_number=delivery.attempts.count() + 1,
+        started_at=now,
+    )
+    delivery.last_attempt_at = now
+
     channel_id = delivery.channel
-
-    allowed, _ = ChannelRateLimiter.is_allowed(user_id, channel_id)
+    allowed, _ = ChannelRateLimiter.is_allowed(delivery.recipient_id, channel_id)
     if not allowed:
         logger.warning(
-            "Rate limit exceeded for user %s on channel %s", user_id, channel_id
+            "Rate limit exceeded for user %s on channel %s",
+            delivery.recipient_id,
+            channel_id,
         )
-        delivery.status = "failed"
+        _finish_attempt(
+            attempt,
+            started_mono,
+            "rate_limited",
+            kind=RATE_LIMITED,
+            error="Rate limit exceeded",
+        )
+        deferrals = delivery.attempts.filter(outcome="rate_limited").count()
+        if deferrals > int(_setting("NOTIFICATION_RATE_LIMIT_MAX_DEFERRALS", 5)):
+            _fail_for_good(
+                delivery,
+                RATE_LIMITED,
+                "Rate limit exceeded",
+                payload,
+            )
+            return False
+        delay = int(_setting("NOTIFICATION_RATE_LIMIT_DELAY_SECONDS", 60))
+        delivery.error_class = RATE_LIMITED
         delivery.error_message = "Rate limit exceeded"
-        delivery.save(update_fields=["status", "error_message", "updated_at"])
+        delivery.next_retry_at = timezone.now() + timedelta(seconds=delay)
+        delivery.claimed_at = None
+        delivery.save()
+        if _can_schedule(self):
+            _enqueue(delivery.id, delay)
         return False
 
     channel_instance = get_channel_instance(channel_id)
     if not channel_instance:
         err = f"Channel '{channel_id}' is not registered."
-        delivery.status = "failed"
-        delivery.error_message = err
-        delivery.save(update_fields=["status", "error_message", "updated_at"])
-        return False
-
-    try:
-        success = channel_instance.deliver(delivery, delivery.recipient, payload)
-        if success:
-            delivery.status = "sent"
-            delivery.sent_at = timezone.now()
-            delivery.error_message = ""
-            delivery.save(
-                update_fields=["status", "sent_at", "error_message", "updated_at"]
-            )
-            return True
-        else:
-            raise RuntimeError(f"Delivery returned False for channel '{channel_id}'")
-    except Exception as exc:
-        delivery.retry_count += 1
-        current_retry = delivery.retry_count
-        delay = 60 * (2 ** (current_retry - 1))
-        delivery.next_retry_at = timezone.now() + timedelta(seconds=delay)
-        delivery.error_message = str(exc)
-
-        max_retries = getattr(self, "max_retries", 3)
-        if current_retry <= max_retries:
-            delivery.status = "pending"
-            delivery.save(
-                update_fields=[
-                    "retry_count",
-                    "next_retry_at",
-                    "error_message",
-                    "status",
-                    "updated_at",
-                ]
-            )
-            try:
-                if callable(getattr(self, "retry", None)):
-                    return self.retry(exc=exc, countdown=delay)
-            except Exception as retry_exc:
-                # If retry raises MaxRetriesExceededError or is caught
-                pass
-
-        delivery.status = "failed"
-        delivery.save(update_fields=["status", "error_message", "updated_at"])
-        NotificationDeadLetter.objects.create(
-            notification=delivery.notification,
-            recipient=delivery.recipient,
-            channel=delivery.channel,
-            retry_count=delivery.retry_count,
-            error_message=str(exc),
-            payload=payload,
+        _finish_attempt(
+            attempt, started_mono, "permanent_failure", kind=PERMANENT, error=err
         )
+        _fail_for_good(delivery, PERMANENT, err, payload)
         return False
+
+    result: Optional[DeliveryResult] = None
+    failure = None
+    try:
+        result = normalize_result(
+            channel_instance.deliver(
+                delivery,
+                delivery.recipient,
+                payload,
+            )
+        )
+        if not result.success:
+            failure = (
+                PERMANENT if result.retryable is False else TRANSIENT,
+                result.error or f"Delivery failed on channel '{channel_id}'",
+            )
+    except Exception as exc:
+        failure = (classify_failure(exc), str(exc) or exc.__class__.__name__)
+        result = None
+        status = _status_of(exc)
+        provider = getattr(exc, "provider", "")
+        response = getattr(exc, "response", None)
+        if provider or status is not None or isinstance(response, dict):
+            result = DeliveryResult(
+                success=False,
+                provider=provider,
+                status_code=status,
+                response=response if isinstance(response, dict) else {},
+            )
+
+    if failure is None:
+        delivery.status = "sent"
+        delivery.sent_at = timezone.now()
+        delivery.error_message = ""
+        delivery.error_class = ""
+        delivery.next_retry_at = None
+        delivery.claimed_at = None
+        assert result is not None  # a delivery only succeeds with a result
+        delivery.provider = result.provider
+        delivery.provider_message_id = truncate(result.message_id, 255)
+        delivery.provider_response = _clip_response(result.response)
+        delivery.save()
+        _finish_attempt(attempt, started_mono, "sent", result=result)
+        return True
+
+    kind, error = failure
+    if result is not None:
+        delivery.provider = result.provider or delivery.provider
+        delivery.provider_response = _clip_response(result.response)
+    delivery.retry_count += 1
+    outcome = "permanent_failure" if kind == PERMANENT else "transient_failure"
+    _finish_attempt(
+        attempt, started_mono, outcome, kind=kind, error=error, result=result
+    )
+
+    if kind == PERMANENT or delivery.retry_count >= max_attempts():
+        _fail_for_good(delivery, kind, error, payload)
+        return False
+
+    delay = backoff_seconds(delivery.retry_count)
+    delivery.status = "pending"
+    delivery.error_class = kind
+    delivery.error_message = truncate(error, MAX_ERROR_CHARS)
+    delivery.next_retry_at = timezone.now() + timedelta(seconds=delay)
+    delivery.claimed_at = None
+    delivery.save()
+    if _can_schedule(self):
+        _enqueue(delivery.id, delay)
+    return False
+
+
+@shared_task
+def recover_stale_deliveries(limit: int = 500):
+    """
+    Pick up deliveries that no worker is going to finish by itself.
+
+    * An attempt still ``started`` after the claim lease means its worker died: it is closed as
+      ``abandoned`` and counts as a failed try.
+    * A pending delivery whose retry time has passed (or that was never picked up) is queued again.
+    * One that has used all its tries is moved to the dead letters.
+
+    Deliveries are handled one by one and each is queued as its own task, so one stuck or failing
+    channel never holds up the others.
+    """
+    now = timezone.now()
+    lease = _claim_lease()
+    stale_after = timedelta(
+        seconds=int(_setting("NOTIFICATION_STALE_AFTER_SECONDS", 300))
+    )
+    summary = {"abandoned": 0, "requeued": 0, "exhausted": 0}
+
+    orphaned = list(
+        NotificationAttempt.objects.filter(
+            outcome="started", started_at__lt=now - lease
+        )[:limit]
+    )
+    for attempt in orphaned:
+        attempt.outcome = "abandoned"
+        attempt.error_class = TRANSIENT
+        attempt.error_message = "The worker stopped before the attempt finished"
+        attempt.finished_at = now
+        attempt.save(
+            update_fields=["outcome", "error_class", "error_message", "finished_at"]
+        )
+        NotificationDelivery.objects.filter(
+            pk=attempt.delivery_id, status="pending"
+        ).update(retry_count=F("retry_count") + 1)
+        summary["abandoned"] += 1
+
+    due = (
+        NotificationDelivery.objects.filter(status="pending")
+        .filter(Q(claimed_at__isnull=True) | Q(claimed_at__lt=now - lease))
+        .filter(
+            Q(next_retry_at__lte=now)
+            | Q(next_retry_at__isnull=True, created_at__lt=now - stale_after)
+        )
+        .select_related("recipient", "notification")
+        .order_by("id")[:limit]
+    )
+    eager = _setting("CELERY_TASK_ALWAYS_EAGER", False)
+    for delivery in due:
+        if delivery.retry_count >= max_attempts():
+            _fail_for_good(
+                delivery,
+                TRANSIENT,
+                delivery.error_message or "Gave up after repeated worker failures",
+                delivery.payload,
+            )
+            summary["exhausted"] += 1
+            continue
+        if eager:
+            process_notification_delivery(delivery.id, None)
+        else:
+            _enqueue(delivery.id)
+        summary["requeued"] += 1
+
+    if any(summary.values()):
+        logger.info("Notification delivery recovery: %s", summary)
+    return summary
+
+
+@shared_task
+def purge_notification_ledger_task():
+    """Periodic task: apply the retention windows to the delivery ledger."""
+    from apps.notifications.retention import purge_notification_ledger
+
+    return purge_notification_ledger()
 
 
 def dispatch_notification(
-    recipient, notif_type: str, title: str, message: str, meta: dict = None, sender=None
+    recipient,
+    notif_type: str,
+    title: str,
+    message: str,
+    meta: Optional[dict] = None,
+    sender=None,
+    dedupe_key: Optional[str] = None,
 ):
+    """
+    Create the notification and one delivery per enabled channel, then start delivering.
+
+    Pass ``dedupe_key`` (see ``apps.notifications.delivery.make_dedupe_key``) to make the call
+    idempotent: dispatching the same key for the same recipient again, for example because a
+    signal handler or a task was retried, creates nothing new and returns the deliveries of the
+    first call.
+    """
     if meta is None:
         meta = {}
 
@@ -428,6 +735,21 @@ def dispatch_notification(
             recipient = User.objects.get(id=int(recipient))
         except (ValueError, User.DoesNotExist):
             return []
+
+    if dedupe_key:
+        dedupe_key = str(dedupe_key)[:128]
+        existing = list(
+            NotificationDelivery.objects.filter(
+                recipient=recipient, dedupe_key=dedupe_key
+            )
+        )
+        if existing:
+            logger.info(
+                "Notification %s for user %s already dispatched.",
+                dedupe_key,
+                recipient.pk,
+            )
+            return existing
 
     pref, _ = NotificationPreference.objects.get_or_create(user=recipient)
 
@@ -444,58 +766,76 @@ def dispatch_notification(
 
     registered = get_registered_channels()
     deliveries = []
+    payloads = {}
 
-    notification = None
-    if type_prefs.get("in_app", True):
-        notification = Notification.objects.create(
-            recipient=recipient,
-            sender=sender,
-            notif_type=notif_type,
-            title=title,
-            message=message,
-            meta=meta,
-        )
+    try:
+        # The notification and its deliveries are written together: either all exist or none do.
+        with transaction.atomic():
+            notification = None
+            if type_prefs.get("in_app", True):
+                notification = Notification.objects.create(
+                    recipient=recipient,
+                    sender=sender,
+                    notif_type=notif_type,
+                    title=title,
+                    message=message,
+                    meta=meta,
+                )
 
-    payload = {
-        "notif_type": notif_type,
-        "title": title,
-        "message": message,
-        "meta": meta,
-        "notification_id": notification.id if notification else None,
-    }
+            payload = {
+                "notif_type": notif_type,
+                "title": title,
+                "message": message,
+                "meta": meta,
+                "notification_id": notification.id if notification else None,
+            }
 
-    for channel_id in registered.keys():
-        if type_prefs.get(channel_id, False) or (
-            channel_id == "in_app" and type_prefs.get("in_app", True)
-        ):
-            delivery = NotificationDelivery.objects.create(
-                notification=notification,
-                recipient=recipient,
-                channel=channel_id,
-                status="pending",
-                meta=meta,
-            )
-            deliveries.append(delivery)
-
-            if getattr(settings, "CELERY_TASK_ALWAYS_EAGER", True) or getattr(
-                settings, "TESTING", False
-            ):
-                try:
-                    process_notification_delivery(delivery.id, payload)
-                    delivery.refresh_from_db()
-                except Exception as exc:
-                    logger.error(
-                        "Error processing delivery #%s synchronously: %s",
-                        delivery.id,
-                        exc,
+            for channel_id in registered.keys():
+                if type_prefs.get(channel_id, False) or (
+                    channel_id == "in_app" and type_prefs.get("in_app", True)
+                ):
+                    delivery = NotificationDelivery.objects.create(
+                        notification=notification,
+                        recipient=recipient,
+                        channel=channel_id,
+                        status="pending",
+                        meta=meta,
+                        dedupe_key=dedupe_key or None,
+                        payload=payload,
                     )
-            else:
-                try:
-                    process_notification_delivery.delay(delivery.id, payload)
-                except Exception as e:
-                    logger.warning("Caught exception: %s", e)
-                    process_notification_delivery(delivery.id, payload)
-                    delivery.refresh_from_db()
+                    deliveries.append(delivery)
+                    payloads[delivery.id] = payload
+    except IntegrityError:
+        # Another worker dispatched the same event between our check and our insert.
+        if dedupe_key:
+            return list(
+                NotificationDelivery.objects.filter(
+                    recipient=recipient, dedupe_key=dedupe_key
+                )
+            )
+        raise
+
+    for delivery in deliveries:
+        payload = payloads[delivery.id]
+        if getattr(settings, "CELERY_TASK_ALWAYS_EAGER", True) or getattr(
+            settings, "TESTING", False
+        ):
+            try:
+                process_notification_delivery(delivery.id, payload)
+                delivery.refresh_from_db()
+            except Exception as exc:
+                logger.error(
+                    "Error processing delivery #%s synchronously: %s",
+                    delivery.id,
+                    exc,
+                )
+        else:
+            try:
+                process_notification_delivery.delay(delivery.id, payload)
+            except Exception as e:
+                logger.warning("Caught exception: %s", e)
+                process_notification_delivery(delivery.id, payload)
+                delivery.refresh_from_db()
 
     return deliveries
 
