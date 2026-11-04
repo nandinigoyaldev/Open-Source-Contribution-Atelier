@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "margin_pct": 25,
+  "routes": {
+    "content-search": {
+      "p95_ms": 250,
+      "max_queries": 107,
+      "reason": "Initial budget (search over the 60 seeded lessons). Measured on main with the seeded dataset, then about 3.5x the local p95 for slower shared CI runners; max_queries is the exact count measured."
+    },
+    "lessons-list": {
+      "p95_ms": 150,
+      "max_queries": 58,
+      "reason": "Initial budget (paginated published lessons list). Measured on main with the seeded dataset, then about 3.5x the local p95 for slower shared CI runners; max_queries is the exact count measured."
+    },
+    "leaderboard": {
+      "p95_ms": 60,
+      "max_queries": 7,
+      "reason": "Initial budget (cold leaderboard page, cache cleared before each request). Measured on main with the seeded dataset, then about 3.5x the local p95 for slower shared CI runners; max_queries is the exact count measured."
+    },
+    "lesson-detail": {
+      "p95_ms": 40,
+      "max_queries": 8,
+      "reason": "Initial budget (one published lesson). Measured on main with the seeded dataset, then about 3.5x the local p95 for slower shared CI runners; max_queries is the exact count measured."
+    },
+    "learning-paths": {
+      "p95_ms": 30,
+      "max_queries": 6,
+      "reason": "Initial budget (learning path list). Measured on main with the seeded dataset, then about 3.5x the local p95 for slower shared CI runners; max_queries is the exact count measured."
+    },
+    "progress-badges": {
+      "p95_ms": 25,
+      "max_queries": 6,
+      "reason": "Initial budget (badge list for an authenticated user). Measured on main with the seeded dataset, then about 3.5x the local p95 for slower shared CI runners; max_queries is the exact count measured."
+    },
+    "health-legacy": {
+      "p95_ms": 15,
+      "max_queries": 4,
+      "reason": "Initial budget (legacy health endpoint, mostly framework and middleware overhead). Measured on main with the seeded dataset, then about 3.5x the local p95 for slower shared CI runners; max_queries is the exact count measured."
+    }
+  }
+}

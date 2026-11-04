@@ -1,3 +1,4 @@
+from django.db import transaction
 from django.db.models import Sum
 from django.utils import timezone
 from rest_framework import (
@@ -100,32 +101,38 @@ class MyQuestsView(views.APIView):
         return Response(serializer.data)
 
     def post(self, request):
+        from apps.progress.models import XPEvent
+
         quest_id = request.data.get("quest_id")
-        try:
-            user_quest = UserQuest.objects.get(
+        with transaction.atomic():  # type: ignore
+            # Flip the flag first with a conditional UPDATE: the DB only lets one
+            # concurrent request match reward_claimed=False, the rest get 0 rows.
+            claimed = UserQuest._default_manager.filter(
                 id=quest_id,
                 user=request.user,
                 completed=True,
                 reward_claimed=False,
-            )
-        except UserQuest.DoesNotExist:
-            return Response(
-                {"error": "Quest not found or already claimed"},
-                status=status.HTTP_404_NOT_FOUND,
-            )
+                expires_at__gte=timezone.now(),
+            ).update(reward_claimed=True)
+            if not claimed:
+                return Response(
+                    {"error": "Quest not found or already claimed"},
+                    status=status.HTTP_404_NOT_FOUND,
+                )
 
-        from apps.progress.models import XPEvent
-
-        XPEvent.objects.create(
-            user=request.user,
-            source_type="milestone",
-            source_id=user_quest.quest_id,
-            base_points=user_quest.quest.xp_reward,
-            multiplier=1.0,
-            xp_delta=user_quest.quest.xp_reward,
-        )
-        user_quest.reward_claimed = True
-        user_quest.save(update_fields=["reward_claimed"])
+            user_quest = UserQuest._default_manager.select_related("quest").get(
+                id=quest_id
+            )
+            reward = user_quest.quest.xp_reward
+            XPEvent._default_manager.create(
+                user=request.user,
+                source_type="milestone",
+                source_id=user_quest.quest_id,
+                # base_points is capped at 1000 by a DB constraint
+                base_points=min(reward, 1000),
+                multiplier=1.0,
+                xp_delta=reward,
+            )
 
         return Response({"xp_awarded": user_quest.quest.xp_reward})
 

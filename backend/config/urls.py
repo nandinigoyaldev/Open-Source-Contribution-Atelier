@@ -62,6 +62,7 @@ api_v1_patterns = [
     path("api/gamification/", include("apps.gamification.urls")),
     # ── Notifications & Real-time ─────────────────────────────────────────────
     path("api/notifications/", include("apps.notifications.urls")),
+    path("api/exports/", include("apps.data_exports.urls")),
     path("api/chat/", include("apps.chat.urls")),
     path("api/dashboard/", include("apps.dashboard.urls")),
     path("api/errors/", include("apps.errors.urls")),

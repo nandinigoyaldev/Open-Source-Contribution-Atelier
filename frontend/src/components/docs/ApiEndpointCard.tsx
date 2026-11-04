@@ -1,9 +1,11 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Play, Send } from "lucide-react";
 import { API_BASE } from "../../lib/api";
 import { createApiError } from "../../lib/apiErrors";
 import { getAccessToken } from "../../lib/authToken";
+import { resolveOperationRefs } from "../../lib/openApiRefs";
 import type {
+  OpenApiComponents,
   OpenApiOperation,
   OpenApiParameter,
   OpenApiSchema,
@@ -13,6 +15,8 @@ type ApiEndpointCardProps = {
   method: string;
   path: string;
   operation: OpenApiOperation;
+  // The schema's components, so "$ref" shapes in the operation can be shown in full.
+  components?: OpenApiComponents;
 };
 
 const methodClasses: Record<string, string> = {
@@ -28,6 +32,8 @@ function exampleForSchema(schema?: OpenApiSchema): unknown {
   if (schema.example !== undefined) return schema.example;
   if (schema.default !== undefined) return schema.default;
   if (schema.enum?.length) return schema.enum[0];
+  const option = schema.oneOf?.[0] ?? schema.anyOf?.[0];
+  if (option) return exampleForSchema(option);
   if (schema.type === "array") return [exampleForSchema(schema.items)];
   if (schema.type === "object" || schema.properties) {
     return Object.fromEntries(
@@ -74,8 +80,13 @@ function ParameterList({ parameters }: { parameters: OpenApiParameter[] }) {
 export function ApiEndpointCard({
   method,
   path,
-  operation,
+  operation: rawOperation,
+  components,
 }: ApiEndpointCardProps) {
+  const operation = useMemo(
+    () => resolveOperationRefs(rawOperation, components),
+    [rawOperation, components],
+  );
   const [isTrying, setIsTrying] = useState(false);
   const [requestPath, setRequestPath] = useState(path);
   const [requestBody, setRequestBody] = useState(() => {

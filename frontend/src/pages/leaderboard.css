@@ -239,6 +239,22 @@
   animation: lb-spin 0.9s linear infinite;
 }
 
+/* ---- Rows replacing the loading skeleton ---- */
+@keyframes lb-body-enter {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.lb-body-enter {
+  animation: lb-body-enter 0.25s ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .lb-body-enter {
+    animation: none;
+  }
+}
+
 /* ---- "Just joined" new entry row ---- */
 @keyframes new-entry {
   0%   { background-color: rgba(99, 102, 241, 0.2); transform: scale(1.01); }

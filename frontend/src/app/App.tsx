@@ -18,6 +18,7 @@ import { OfflineBanner } from "../components/ui/OfflineBanner";
 import { InstallAppBanner } from "../components/ui/InstallAppBanner";
 import { UpdateAvailableBanner } from "../components/ui/UpdateAvailableBanner";
 import { ConflictResolutionModal } from "../components/ui/ConflictResolutionModal";
+import { SyncStatusIndicator } from "../components/ui/SyncStatusIndicator";
 import { useSlowConnection } from "../hooks/useSlowConnection";
 
 // ✅ Import BackToTop Component
@@ -149,6 +150,9 @@ export function App({ children }: { children?: React.ReactNode }) {
           <InstallAppBanner />
           <UpdateAvailableBanner />
           <ConflictResolutionModal />
+          <div className="fixed top-20 right-3 z-40">
+            <SyncStatusIndicator />
+          </div>
           {/* Reactive High-Latency Unstable Quality Toast Alert Banner */}
           {isConnectionSlow && (
             <div 
