@@ -94,7 +94,6 @@ export function ApiDocsPage() {
             className="inline-flex items-center gap-2 rounded-md bg-accent text-white px-3 py-2 text-sm font-bold shadow-card-sm hover:bg-accent/90 transition-all"
           >
             <Sliders size={16} /> Config Generator Wizard
-            <Sliders size={16} /> Config Generator
           </Link>
           <Link
             to="/docs/websocket-simulator"
@@ -158,6 +157,7 @@ export function ApiDocsPage() {
               <ApiEndpointCard
                 key={`${endpoint.method}-${endpoint.path}`}
                 {...endpoint}
+                components={schema?.components}
               />
             ))}
           </section>

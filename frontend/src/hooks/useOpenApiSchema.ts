@@ -20,6 +20,11 @@ export type OpenApiSchema = {
   properties?: Record<string, OpenApiSchema>;
   items?: OpenApiSchema;
   required?: string[];
+  nullable?: boolean;
+  readOnly?: boolean;
+  allOf?: OpenApiSchema[];
+  oneOf?: OpenApiSchema[];
+  anyOf?: OpenApiSchema[];
   $ref?: string;
 };
 
@@ -42,9 +47,17 @@ export type OpenApiOperation = {
   >;
 };
 
+export type OpenApiComponents = {
+  schemas?: Record<string, OpenApiSchema>;
+  parameters?: Record<string, OpenApiParameter>;
+  requestBodies?: Record<string, unknown>;
+  responses?: Record<string, unknown>;
+};
+
 export type OpenApiDocument = {
   info?: { title?: string; version?: string };
   paths?: Record<string, Record<string, OpenApiOperation>>;
+  components?: OpenApiComponents;
 };
 
 export function useOpenApiSchema() {
