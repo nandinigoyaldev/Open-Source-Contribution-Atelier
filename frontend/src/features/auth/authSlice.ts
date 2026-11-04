@@ -5,6 +5,8 @@ import {
   getAccessToken,
   setAccessToken,
 } from "../../lib/authToken";
+import { queryClient } from "../../lib/queryClient";
+import { BOOKMARKS_STORAGE_KEY } from "../../hooks/useBookmarks";
 
 type User = {
   id: number;
@@ -106,6 +108,8 @@ export const logoutAction = createAsyncThunk(
 
     clearAccessToken();
     safeRemoveItem("refreshToken");
+    safeRemoveItem(BOOKMARKS_STORAGE_KEY);
+    queryClient.removeQueries({ queryKey: ["bookmarks"] });
   },
 );
 
