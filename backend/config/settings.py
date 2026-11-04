@@ -504,6 +504,15 @@ DATABASE_LOCK_TIMEOUT = int(os.getenv("DATABASE_LOCK_TIMEOUT", "5000"))
 # Replication lag (seconds) above which /health/db/replication-lag returns 503.
 REPLICA_LAG_ALERT_SECONDS = int(os.getenv("REPLICA_LAG_ALERT_SECONDS", "30"))
 
+# Replication lag (seconds) above which the router stops sending reads to a replica and uses the
+# primary instead. Defaults to READ_AFTER_WRITE_SECONDS, because past that window a user's own
+# write is no longer pinned to the primary. 0 turns the check off. Lag is only measured on
+# PostgreSQL replicas and is cached for REPLICA_LAG_CACHE_SECONDS.
+REPLICA_MAX_LAG_SECONDS = float(
+    os.getenv("REPLICA_MAX_LAG_SECONDS", str(READ_AFTER_WRITE_SECONDS))
+)
+REPLICA_LAG_CACHE_SECONDS = float(os.getenv("REPLICA_LAG_CACHE_SECONDS", "2"))
+
 # Seconds to wait before retrying a dead replica.
 REPLICA_DEAD_TIMEOUT = int(os.getenv("REPLICA_DEAD_TIMEOUT", "60"))
 
