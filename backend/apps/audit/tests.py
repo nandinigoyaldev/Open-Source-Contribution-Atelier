@@ -328,7 +328,7 @@ class AuditApiTests(APITestCase):
         self.assertEqual(response["Content-Type"], "text/csv")
         self.assertIn("attachment; filename=", response["Content-Disposition"])
 
-        content = response.content.decode("utf-8")
+        content = b"".join(response.streaming_content).decode("utf-8")
         lines = [line for line in content.splitlines() if line]
         self.assertGreaterEqual(len(lines), 2)  # Header + 1 row
         self.assertIn("Created", lines[1])
@@ -341,5 +341,5 @@ class AuditApiTests(APITestCase):
         self.assertEqual(response["Content-Type"], "application/json")
         self.assertIn("attachment; filename=", response["Content-Disposition"])
 
-        data = json.loads(response.content)
+        data = json.loads(b"".join(response.streaming_content))
         self.assertGreaterEqual(len(data), 3)

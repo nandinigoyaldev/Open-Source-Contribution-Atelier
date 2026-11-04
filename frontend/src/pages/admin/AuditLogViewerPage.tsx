@@ -6,15 +6,18 @@ import {
   RotateCcw,
   RefreshCw,
   X,
-  FileSpreadsheet,
-  FileCode,
   Calendar,
   Layers,
   SlidersHorizontal,
 } from "lucide-react";
-import { API_BASE, fetchApi } from "../../lib/api";
+import { fetchApi } from "../../lib/api";
+import {
+  downloadAuditExport,
+  type AuditExportFormat,
+} from "../../lib/auditExport";
 import { useAuth } from "../../features/auth/AuthContext";
 import { AuditLogTable } from "../../components/admin/AuditLogTable";
+import { AuditExportPanel } from "../../components/admin/AuditExportPanel";
 import {
   AuditEventDiff,
   AuditEventData,
@@ -162,42 +165,21 @@ export function AuditLogViewerPage() {
     setPage(1);
   };
 
-  const handleExport = (format: "csv" | "json") => {
+  const handleExport = async (format: AuditExportFormat) => {
     if (hasClientErrors) {
       toast.error("Fix the date range before exporting.");
       return;
     }
-    const params = buildAuditQuery(filters, { exportFormat: format });
-
-    const exportUrl = `${API_BASE}/admin/audit/?${params.toString()}`;
-
-    // Trigger file download
-    const token =
-      localStorage.getItem("token") || sessionStorage.getItem("token");
-    fetch(exportUrl, {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-    })
-      .then((res) => {
-        if (!res.ok) throw new Error("Export failed");
-        return res.blob();
-      })
-      .then((blob) => {
-        const url = window.URL.createObjectURL(blob);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = `audit_logs_${new Date().toISOString().slice(0, 10)}.${format}`;
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        window.URL.revokeObjectURL(url);
-        toast.success(
-          `Successfully exported audit logs as ${format.toUpperCase()}`,
-        );
-      })
-      .catch((err) => {
-        console.error("Export error:", err);
-        toast.error(`Failed to export audit logs as ${format.toUpperCase()}`);
-      });
+    try {
+      const filename = await downloadAuditExport(format, filters);
+      toast.success(`Exported ${format.toUpperCase()}: ${filename}`);
+    } catch (err) {
+      console.error("Export error:", err);
+      const reason = err instanceof Error ? err.message : "Unknown error";
+      toast.error(
+        `Failed to export audit logs as ${format.toUpperCase()}. ${reason}`,
+      );
+    }
   };
 
   if (accessDenied) {
@@ -265,20 +247,6 @@ export function AuditLogViewerPage() {
               className={`w-3.5 h-3.5 ${loading ? "animate-spin" : ""}`}
             />
             Refresh Trail
-          </button>
-
-          <button
-            onClick={() => handleExport("csv")}
-            className="flex items-center gap-1.5 px-3.5 py-2 bg-emerald-700 hover:bg-emerald-800 text-white rounded-xl text-xs font-bold transition-all shadow-md"
-          >
-            <FileSpreadsheet className="w-4 h-4" /> Export CSV
-          </button>
-
-          <button
-            onClick={() => handleExport("json")}
-            className="flex items-center gap-1.5 px-3.5 py-2 bg-purple-700 hover:bg-purple-800 text-white rounded-xl text-xs font-bold transition-all shadow-md"
-          >
-            <FileCode className="w-4 h-4" /> Export JSON
           </button>
         </div>
       </div>
@@ -526,6 +494,12 @@ export function AuditLogViewerPage() {
               <p key={message}>{message}</p>
             ))}
         </div>
+
+        <AuditExportPanel
+          filters={filters}
+          totalCount={totalCount}
+          onExport={handleExport}
+        />
       </form>
 
       {/* Result count: announced to screen readers when the filters or page change */}

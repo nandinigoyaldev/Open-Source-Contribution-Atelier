@@ -96,6 +96,7 @@ The row-level events written by `signals.py` (`before` / `after` model snapshots
 ## 4. Who Can Read Events
 
 - `GET /api/admin/audit/` and `GET /api/audit/` (list, filters, CSV and JSON export): staff users only (`IsAdminUser`).
+  - Export: add `export=csv` or `export=json` to the same filters. The file is streamed row by row (rows are read with `iterator()`, nothing is built up in memory), it is not limited to one page, and an empty result is a CSV with only the header row or `[]`. Any other `export` value is a `400`. Text cells that start with `=`, `+`, `-` or `@` get a leading `'` so a spreadsheet does not run them as formulas.
 - `GET /api/admin/audit/<id>/` and `GET /api/audit/<id>/`: staff users only. This used to accept any logged-in user and now matches the list endpoint.
 - Django admin: the `Audit Trail` app is read only (add, change and delete are switched off in `admin.py`), so only staff with the view permission can look at events there.
 - Nobody can edit or delete an event through the application. `AuditEvent.save()` refuses to update an existing row and `delete()` always raises. The only thing that removes rows is the archive task below.
