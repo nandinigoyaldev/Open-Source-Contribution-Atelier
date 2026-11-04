@@ -20,6 +20,8 @@ Welcome to the permanent **Hall of Fame & Contributor Legacy** for **Open-Source
 
 | 1 | @srushtib03 | 🥈 Silver Contributor ⚡ | 3 | 75 | 2026-11-04 |
 
+| 1 | @ankitkr104 | 🥉 Bronze Contributor  | 1 | 25 | 2026-11-04 |
+
 ---
 
 ## 🌟 Historic Milestones & Seasonal Legacy
