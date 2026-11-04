@@ -1,10 +1,16 @@
 from dataclasses import dataclass, field
 
 from django.db import IntegrityError, transaction
+from django.utils import timezone
 from django_q.tasks import async_task
 
 from apps.content.models import Lesson
-from apps.progress.models import LessonProgress, XPEvent, XPMultiplierEvent
+from apps.progress.models import (
+    DailyActivity,
+    LessonProgress,
+    XPEvent,
+    XPMultiplierEvent,
+)
 from apps.progress.services.progress_versioning import (
     APPLY,
     CONFLICT,
@@ -96,6 +102,7 @@ def _write_batch(user, validated_data, lesson_slugs):
         organization = getattr(user, "organization", None)
 
         xp_events_to_create = []
+        has_new_completion = False
 
         for item in validated_data:
             lesson = existing_lessons[item["lesson_slug"]]
@@ -115,6 +122,8 @@ def _write_batch(user, validated_data, lesson_slugs):
                     continue
 
                 if decision.outcome == APPLY:
+                    if decision.completed and not prog.completed:
+                        has_new_completion = True
                     xp_delta = apply_write(prog, decision)
                     prog.organization = organization
                     progress_to_update.append(prog)
@@ -132,6 +141,8 @@ def _write_batch(user, validated_data, lesson_slugs):
                         )
                 result.versions[lesson.slug] = prog.version
             else:
+                if completed:
+                    has_new_completion = True
                 prog_score = int(base_score * multiplier)
                 progress_to_create.append(
                     LessonProgress(
@@ -179,6 +190,11 @@ def _write_batch(user, validated_data, lesson_slugs):
 
         if xp_events_to_create:
             XPEvent.objects.bulk_create(xp_events_to_create)
+
+        if has_new_completion:
+            DailyActivity.log_and_update_streak(
+                user=user, date=timezone.now(), activity_type="lesson"
+            )
 
         async_task("apps.progress.tasks.evaluate_user_badges_task", user.id)
 
