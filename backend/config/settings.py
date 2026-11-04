@@ -316,6 +316,17 @@ API_RATE_LIMIT_PREMIUM = os.getenv("API_RATE_LIMIT_PREMIUM", "10000/hour")
 API_RATE_LIMIT_HEAVY = os.getenv("API_RATE_LIMIT_HEAVY", "10/minute")
 API_RATE_LIMIT_WINDOW = int(os.getenv("API_RATE_LIMIT_WINDOW", "3600"))
 
+# Rate Limit Categories (Issue #3061: Auth 5/min, Reads 60/min, Writes 20/min)
+RATE_LIMIT_AUTH_CATEGORY = os.getenv("RATE_LIMIT_AUTH_CATEGORY", "5/minute")
+RATE_LIMIT_API_READS = os.getenv("RATE_LIMIT_API_READS", "60/minute")
+RATE_LIMIT_API_WRITES = os.getenv("RATE_LIMIT_API_WRITES", "20/minute")
+RATE_LIMIT_PREMIUM_MULTIPLIER = int(os.getenv("RATE_LIMIT_PREMIUM_MULTIPLIER", "5"))
+DISABLE_RATE_LIMITING = os.getenv("DISABLE_RATE_LIMITING", "False").lower() in (
+    "true",
+    "1",
+    "yes",
+)
+
 # Chat WebSocket Rate Limiting
 CHAT_WS_RATE_LIMIT_MAX_REQUESTS = int(
     os.getenv("CHAT_WS_RATE_LIMIT_MAX_REQUESTS", "30")
@@ -653,6 +664,10 @@ REST_FRAMEWORK = {
         "user": os.getenv("RATE_LIMIT_AUTH", API_RATE_LIMIT_AUTH),
         "premium": os.getenv("RATE_LIMIT_PREMIUM", API_RATE_LIMIT_PREMIUM),
         "heavy_operation": os.getenv("RATE_LIMIT_HEAVY", API_RATE_LIMIT_HEAVY),
+        # ── Endpoint Categories (Issue #3061) ─────────────────────────────────
+        "auth_category": RATE_LIMIT_AUTH_CATEGORY,
+        "api_read": RATE_LIMIT_API_READS,
+        "api_write": RATE_LIMIT_API_WRITES,
         # ── Sandbox ──────────────────────────────────────────────────────────
         "sandbox_anon": "10/minute",
         "sandbox_user": "10/minute",
