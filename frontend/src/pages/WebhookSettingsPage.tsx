@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import {
   Webhook,
   Plus,
@@ -19,6 +19,8 @@ import {
   DeliveryLogTable,
   WebhookDelivery,
 } from "../components/webhooks/DeliveryLogTable";
+import { fetchApi } from "../lib/api";
+import { ApiError, getApiErrorMessage } from "../lib/apiErrors";
 
 export interface WebhookEndpoint {
   id: number;
@@ -70,13 +72,27 @@ export const WebhookSettingsPage: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [isSaving, setIsSaving] = useState<boolean>(false);
   const [isTestingId, setIsTestingId] = useState<number | null>(null);
-  const [isReplayingId, setIsReplayingId] = useState<number | null>(null);
+  // every retry that is in flight, so two rows can retry at the same time
+  const [replayingIds, setReplayingIds] = useState<ReadonlySet<number>>(
+    () => new Set(),
+  );
+  const [retryErrors, setRetryErrors] = useState<Record<number, string>>({});
+  // state updates are async, so a fast double click needs a synchronous guard
+  const retryingIds = useRef<Set<number>>(new Set());
+  // A delivery-list response can arrive after a retry already finished. Each
+  // list request and each finished retry gets a number from this counter; a
+  // retried row is only overwritten by a list that was requested after it.
+  const requestClock = useRef(0);
+  const retriedRows = useRef<Map<number, { at: number; row: WebhookDelivery }>>(
+    new Map(),
+  );
   const [notification, setNotification] = useState<{
     type: "success" | "error";
     message: string;
   } | null>(null);
 
   const fetchEndpointsAndDeliveries = async () => {
+    const requestedAt = ++requestClock.current;
     setIsLoading(true);
     try {
       const [resEndpoints, resDeliveries] = await Promise.all([
@@ -94,10 +110,14 @@ export const WebhookSettingsPage: React.FC = () => {
       }
       if (resDeliveries.ok) {
         const dataDeliveries = await resDeliveries.json();
+        const list: WebhookDelivery[] = Array.isArray(dataDeliveries)
+          ? dataDeliveries
+          : dataDeliveries.results || [];
         setDeliveries(
-          Array.isArray(dataDeliveries)
-            ? dataDeliveries
-            : dataDeliveries.results || [],
+          list.map((row) => {
+            const retried = retriedRows.current.get(row.id);
+            return retried && retried.at > requestedAt ? retried.row : row;
+          }),
         );
       }
     } catch {
@@ -271,29 +291,49 @@ export const WebhookSettingsPage: React.FC = () => {
   };
 
   const handleReplayDelivery = async (deliveryId: number) => {
-    setIsReplayingId(deliveryId);
+    if (retryingIds.current.has(deliveryId)) return;
+    retryingIds.current.add(deliveryId);
+    setReplayingIds((prev) => new Set(prev).add(deliveryId));
+    setRetryErrors((prev) => {
+      const next = { ...prev };
+      delete next[deliveryId];
+      return next;
+    });
     try {
-      const res = await fetch(
-        `/api/webhooks/deliveries/${deliveryId}/replay/`,
-        { method: "POST" },
+      const data = await fetchApi<{ delivery: WebhookDelivery }>(
+        `/webhooks/deliveries/${deliveryId}/replay/`,
+        { method: "POST", suppressErrorToast: true },
       );
-      if (res.ok) {
-        const data = await res.json();
-        setDeliveries((prev) =>
-          prev.map((d) => (d.id === deliveryId ? data.delivery : d)),
-        );
-        setNotification({
-          type: "success",
-          message: `Delivery #${deliveryId} replayed successfully!`,
-        });
-      }
-    } catch {
+      retriedRows.current.set(deliveryId, {
+        at: ++requestClock.current,
+        row: data.delivery,
+      });
+      setDeliveries((prev) =>
+        prev.map((d) => (d.id === deliveryId ? data.delivery : d)),
+      );
       setNotification({
         type: "success",
-        message: `Replayed delivery #${deliveryId}!`,
+        message: `Delivery #${deliveryId} retried. Status is now ${data.delivery.status}.`,
       });
+    } catch (err) {
+      const reason = getApiErrorMessage(err, "The retry request failed.");
+      setRetryErrors((prev) => ({ ...prev, [deliveryId]: reason }));
+      setNotification({
+        type: "error",
+        message: `Could not retry delivery #${deliveryId}: ${reason}`,
+      });
+      // 409 means the status in the table is out of date (someone else, or
+      // another tab, already retried it), so pull the current one.
+      if (err instanceof ApiError && err.status === 409) {
+        void fetchEndpointsAndDeliveries();
+      }
     } finally {
-      setIsReplayingId(null);
+      retryingIds.current.delete(deliveryId);
+      setReplayingIds((prev) => {
+        const next = new Set(prev);
+        next.delete(deliveryId);
+        return next;
+      });
     }
   };
 
@@ -352,6 +392,7 @@ export const WebhookSettingsPage: React.FC = () => {
         {/* Notifications Alert */}
         {notification && (
           <div
+            role={notification.type === "error" ? "alert" : "status"}
             className={`p-4 rounded-xl border flex items-center justify-between transition-all ${
               notification.type === "success"
                 ? "bg-emerald-950/40 border-emerald-800 text-emerald-200"
@@ -359,7 +400,11 @@ export const WebhookSettingsPage: React.FC = () => {
             }`}
           >
             <div className="flex items-center gap-2 text-xs font-semibold">
-              <CheckCircle2 className="w-4 h-4 text-emerald-400" />{" "}
+              {notification.type === "success" ? (
+                <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+              ) : (
+                <AlertCircle className="w-4 h-4 text-rose-400" />
+              )}{" "}
               {notification.message}
             </div>
             <button
@@ -551,7 +596,7 @@ export const WebhookSettingsPage: React.FC = () => {
           <div className="flex items-center justify-between">
             <h2 className="text-lg font-bold text-white flex items-center gap-2">
               <Shield className="w-5 h-5 text-indigo-400" /> Delivery Audit Logs
-              & Manual Replay
+              & Retry
             </h2>
             <button
               onClick={fetchEndpointsAndDeliveries}
@@ -564,7 +609,8 @@ export const WebhookSettingsPage: React.FC = () => {
           <DeliveryLogTable
             deliveries={deliveries}
             onReplay={handleReplayDelivery}
-            isReplayingId={isReplayingId}
+            replayingIds={replayingIds}
+            retryErrors={retryErrors}
             isLoading={isLoading}
           />
         </div>
