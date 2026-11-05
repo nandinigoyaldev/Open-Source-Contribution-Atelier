@@ -8,6 +8,8 @@ Verifies that:
   - Each IP has its own independent throttle counter.
 """
 
+from unittest.mock import patch
+
 import pytest
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
@@ -273,21 +275,36 @@ class PasswordResetFlowTests(TestCase):
             ),
         )
 
+    def _request_reset(self):
+        """Run the queued task and return the raw token, which only the email carries."""
+        from django.core import mail
+        from django.utils.module_loading import import_string
+
+        def run_now(path, **kwargs):
+            import_string(path)(**kwargs)
+
+        with patch("apps.accounts.views.async_task", run_now):
+            self.client.post(
+                "/api/auth/password-reset/",
+                {"email": "reset@example.com"},
+                format="json",
+            )
+        outbox: list = getattr(mail, "outbox")
+        return outbox[-1].body.split("token=")[1].split()[0]
+
     def test_full_reset_flow(self):
         """Request → confirm with valid token → password is changed."""
         from apps.accounts.models import PasswordResetToken
 
         # Trigger reset (creates token in DB)
-        self.client.post(
-            "/api/auth/password-reset/", {"email": "reset@example.com"}, format="json"
-        )
+        raw_token = self._request_reset()
         token = PasswordResetToken.objects.filter(user=self.user, is_used=False).first()
         self.assertIsNotNone(token)
 
         # Confirm reset
         resp = self.client.post(
             "/api/auth/password-reset/confirm/",
-            {"token": str(token.token), "new_password": "NewPass1!"},
+            {"token": raw_token, "new_password": "NewPass1!"},
             format="json",
         )
         self.assertEqual(resp.status_code, status.HTTP_200_OK)
@@ -302,22 +319,17 @@ class PasswordResetFlowTests(TestCase):
 
     def test_token_cannot_be_reused(self):
         """A used token must be rejected on a second attempt."""
-        from apps.accounts.models import PasswordResetToken
-
-        self.client.post(
-            "/api/auth/password-reset/", {"email": "reset@example.com"}, format="json"
-        )
-        token = PasswordResetToken.objects.filter(user=self.user, is_used=False).first()
+        raw_token = self._request_reset()
 
         self.client.post(
             "/api/auth/password-reset/confirm/",
-            {"token": str(token.token), "new_password": "NewPass1!"},
+            {"token": raw_token, "new_password": "NewPass1!"},
             format="json",
         )
         # Attempt reuse
         resp = self.client.post(
             "/api/auth/password-reset/confirm/",
-            {"token": str(token.token), "new_password": "AnotherPass1!"},
+            {"token": raw_token, "new_password": "AnotherPass1!"},
             format="json",
         )
         self.assertEqual(resp.status_code, status.HTTP_400_BAD_REQUEST)

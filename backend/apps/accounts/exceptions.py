@@ -26,6 +26,7 @@ _THROTTLE_MESSAGES = {
     "auth_otp_generate": "Too many OTP requests. Please wait a few minutes before requesting a new code.",
     "auth_otp_verify": "Too many OTP verification attempts. Please wait before trying again.",
     "auth_password_reset": "Too many password reset requests. Please wait an hour before requesting another reset.",
+    "auth_password_reset_validate": "Too many reset link checks. Please wait before trying again.",
     "auth_oauth": "Too many OAuth requests. Please wait a moment and try again.",
     "auth_magic_link_request": "Too many magic link requests. Please wait a few minutes before requesting a new link.",
     "auth_magic_link_verify": "Too many magic link verification attempts. Please wait before trying again.",
