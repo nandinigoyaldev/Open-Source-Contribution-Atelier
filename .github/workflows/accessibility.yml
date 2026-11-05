@@ -70,3 +70,34 @@ jobs:
             frontend/playwright-report/a11y-matrix
             frontend/e2e/test-results/a11y-matrix
           retention-days: 7
+
+  # Keyboard, focus, structure, contrast, reduced motion and label checks for the
+  # critical journeys at desktop, tablet and mobile width. Also fails on an
+  # expired exception. Rules and how to add a waiver: docs/testing/a11y-conformance.md
+  conformance:
+    name: Conformance gate
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - run: npm ci --no-audit --fund=false
+      - run: npx playwright install --with-deps chromium
+      - name: Run the conformance gate
+        run: npm run test:a11y:conformance
+      - name: Upload report, traces and screenshots
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: a11y-conformance
+          path: |
+            frontend/playwright-report/a11y-conformance
+            frontend/e2e/test-results/a11y-conformance
+          retention-days: 7
