@@ -1,6 +1,7 @@
 import { useMemo, useRef, useCallback, useEffect, useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { fetchApi } from "../lib/api";
+import { reportProgressConflict } from "../lib/offlineQueue";
 import { useLocalSync } from "./useLocalSync";
 import { useOfflineSync } from "./useOfflineSync";
 
@@ -10,6 +11,8 @@ export interface ProgressEntry {
   lesson_slug: string;
   completed: boolean;
   score: number;
+  /** Server side counter, sent back as expected_version on the next write. */
+  version?: number;
   updated_at: string;
 }
 
@@ -19,7 +22,27 @@ type SyncPayload = {
   score?: number;
   completed?: boolean;
   client_timestamp?: number;
+  expected_version?: number;
 };
+
+type BulkUpdateResponse = {
+  /** Current version of every lesson in the batch that was not refused. */
+  versions?: Record<string, number>;
+  /** Lessons the server refused because this client was behind, with their current row. */
+  conflicts?: ProgressEntry[];
+};
+
+/**
+ * What this client last saw for a lesson. 0 means it saw no row at all. undefined
+ * means it does not know (list not loaded, or an entry with no version such as an
+ * optimistic one), so the field is left out and the server only lets the write
+ * move progress forward.
+ */
+function lastSeenVersion(entries: ProgressEntry[] | undefined, slug: string) {
+  if (!entries) return undefined;
+  const entry = entries.find((p) => p.lesson_slug === slug);
+  return entry ? entry.version : 0;
+}
 
 export type ProgressAnnouncement = {
   type: "success" | "error";
@@ -49,7 +72,7 @@ export function useUserProgress() {
   // 2. NEW: Bulk Mutation to replace the single sync mutation
   const bulkSyncMutation = useMutation({
     mutationFn: (lessons: SyncPayload[]) =>
-      fetchApi("/progress/bulk-update/", {
+      fetchApi<BulkUpdateResponse>("/progress/bulk-update/", {
         suppressErrorToast: true,
         method: "POST",
         body: JSON.stringify({
@@ -59,6 +82,26 @@ export function useUserProgress() {
       }),
     onMutate: () => {
       inFlightRef.current += 1;
+    },
+    // Here and not on mutate(): those callbacks are skipped if the page unmounts
+    // while the request is in flight, and a conflict must not get lost with them.
+    onSuccess: (data, lessons) => {
+      const versions = data?.versions;
+      if (versions) {
+        queryClient.setQueryData<ProgressEntry[]>(["userProgress"], (old) =>
+          old?.map((p) =>
+            versions[p.lesson_slug] !== undefined
+              ? { ...p, version: versions[p.lesson_slug] }
+              : p,
+          ),
+        );
+      }
+      for (const conflict of data?.conflicts ?? []) {
+        reportProgressConflict(
+          conflict,
+          lessons.find((l) => l.lesson_slug === conflict.lesson_slug),
+        );
+      }
     },
     onSettled: () => {
       inFlightRef.current = Math.max(0, inFlightRef.current - 1);
@@ -88,6 +131,16 @@ export function useUserProgress() {
     }) => {
       // Cancel outgoing refetches so they don't overwrite our optimistic UI
       await queryClient.cancelQueries({ queryKey: ["userProgress"] });
+
+      // Read before the optimistic update below. A lesson already waiting in this
+      // batch keeps the version it started from.
+      const queued = pendingSyncQueue.current.get(vars.lesson_slug);
+      const expected_version = queued
+        ? queued.expected_version
+        : lastSeenVersion(
+            queryClient.getQueryData<ProgressEntry[]>(["userProgress"]),
+            vars.lesson_slug,
+          );
 
       // Take a snapshot of the pristine state ONLY if this is the start of a new bulk batch
       if (pendingSyncQueue.current.size === 0) {
@@ -141,6 +194,7 @@ export function useUserProgress() {
       pendingSyncQueue.current.set(vars.lesson_slug, {
         ...vars,
         client_timestamp: Date.now(),
+        expected_version,
       });
 
       // Reset the 3-second timer on every fast click
@@ -160,6 +214,7 @@ export function useUserProgress() {
                 lesson_slug: item.lesson_slug,
                 score: item.score,
                 completed: item.completed,
+                expected_version: item.expected_version,
               });
             }
             pendingSyncQueue.current.clear();
@@ -173,13 +228,17 @@ export function useUserProgress() {
           if (hasCompletion) setAnnouncement(null);
 
           bulkSyncMutation.mutate(queue, {
-            onSuccess: () => {
-              if (hasCompletion) {
-                setAnnouncement({
-                  type: "success",
-                  message: "Lesson completion saved.",
-                });
-              }
+            onSuccess: (data) => {
+              if (!hasCompletion) return;
+              setAnnouncement(
+                data?.conflicts?.length
+                  ? {
+                      type: "error",
+                      message:
+                        "This lesson changed somewhere else. Review the difference to keep your progress.",
+                    }
+                  : { type: "success", message: "Lesson completion saved." },
+              );
             },
             onError: (err) => {
               if (hasCompletion) {

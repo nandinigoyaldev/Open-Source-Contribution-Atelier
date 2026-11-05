@@ -273,6 +273,12 @@ class LessonProgress(models.Model):
     multiplier_applied = models.FloatField(default=1.0)
     attempt_count = models.PositiveIntegerField(default=0)
     attempt_count = models.IntegerField(default=0)
+    # Goes up by one on every applied write. Clients send back the value they
+    # last saw, see services/progress_versioning.py.
+    version = models.IntegerField(
+        db_default=1,  # pyright: ignore[reportArgumentType]
+        editable=False,
+    )
     updated_at = models.DateTimeField(auto_now=True)
 
     class Meta:

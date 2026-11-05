@@ -337,6 +337,37 @@ function settleResult(result: SyncItemResult, localData?: unknown) {
   }
 }
 
+/**
+ * A conflict from the online bulk update. Nothing is queued for it, but it goes in
+ * the pending list like a replayed one so the status UI keeps offering Review for
+ * it, also when a batch has several and the prompt can only show one at a time.
+ */
+export function reportProgressConflict(
+  serverData: { lesson_slug: string },
+  localData?: { score?: number; completed?: boolean },
+) {
+  const { lesson_slug } = serverData;
+  const id = `progress-sync-${lesson_slug}`;
+  try {
+    const pending = readList<PendingSyncItem>(PENDING_KEY).filter(
+      (p) => p.lesson_slug !== lesson_slug,
+    );
+    pending.push({
+      id,
+      lesson_slug,
+      score: localData?.score,
+      completed: localData?.completed,
+      timestamp: Date.now(),
+      state: "conflict",
+      serverData,
+    });
+    localStorage.setItem(PENDING_KEY, JSON.stringify(pending));
+  } catch (err) {
+    console.error("[OfflineQueue] Failed to store conflict:", err);
+  }
+  eventBus.emit("sync:conflict", { id, lesson_slug, serverData, localData });
+}
+
 async function writeQueuedAction(db: IDBDatabase, action: QueuedAction) {
   const store = db
     .transaction("sync-queue", "readwrite")
@@ -505,7 +536,12 @@ if (typeof window !== "undefined") {
           );
         }
       } else if (event.data && event.data.type === "SYNC_CONFLICT") {
-        const { id, lesson_slug, serverData, localData } = event.data;
+        const { id, serverData, localData } = event.data;
+        // The SW only knows the slug for progress-sync-* ids
+        const lesson_slug: string =
+          event.data.lesson_slug ??
+          localData?.lesson_slug ??
+          serverData?.lesson_slug;
         console.warn(
           `[OfflineQueue] Sync conflict detected for ${lesson_slug}`,
         );

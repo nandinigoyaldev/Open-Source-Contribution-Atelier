@@ -227,6 +227,52 @@ Authorization: Bearer <token>
 
 ---
 
+## Writing Lesson Progress
+
+`POST` or `PATCH /api/progress/me/`, `POST /api/progress/bulk-sync/` and `POST /api/progress/bulk-update/` all follow the same rule. Every progress row has a `version` that goes up by one on each applied write, and the list at `GET /api/progress/me/` returns it.
+
+Send `expected_version` with the version you last read, or `0` if you saw no row for that lesson.
+
+| You send | Row on the server | Result |
+|---|---|---|
+| `expected_version` that matches | any | Applied as sent, `version` goes up |
+| `expected_version` that does not match | exists | Refused, conflict |
+| no `expected_version` | exists, write moves it forward | Applied. `completed` never goes back to `false` and `score` never drops, so only the part that moves forward is kept |
+| no `expected_version` | exists, write has nothing new | Refused, conflict |
+| anything | already holds exactly what you sent | `200`, nothing changes |
+| anything | no row yet | Created with `version` 1 |
+
+`client_timestamp` is stored but does not decide anything, client clocks can't be trusted for ordering.
+
+### Conflict on `/api/progress/me/` (409)
+
+The body is the current row plus why the write was refused:
+
+```json
+{
+  "id": 12,
+  "user": 3,
+  "lesson": 7,
+  "lesson_slug": "git-basics",
+  "completed": true,
+  "score": 80,
+  "attempt_count": 0,
+  "version": 6,
+  "updated_at": "2026-07-10T12:34:56Z",
+  "code": "progress_version_conflict",
+  "detail": "This lesson's progress changed since this client last read it.",
+  "expected_version": 4
+}
+```
+
+Show that state to the user. To overwrite it on purpose, send the same write again with `expected_version` set to the `version` from this body.
+
+### Conflicts in bulk requests
+
+Bulk requests answer `200` and commit the items that were accepted. Each refused item is listed in `conflicts` with the same fields as the 409 body, and it is not counted in `synced_count`, `progress_ids`, `updated_count` or `updated_ids`. `bulk-update` also returns `versions`, the current version by lesson slug for every item that was not refused.
+
+---
+
 ## Authentication Header Summary (Quick Reference)
 ```http
 Authorization: Bearer <JWT_ACCESS_TOKEN>

@@ -1,10 +1,26 @@
-import datetime
+from dataclasses import dataclass, field
 
-from django.db import transaction
+from django.db import IntegrityError, transaction
 from django_q.tasks import async_task
 
 from apps.content.models import Lesson
-from apps.progress.models import LessonProgress, XPMultiplierEvent
+from apps.progress.models import LessonProgress, XPEvent, XPMultiplierEvent
+from apps.progress.services.progress_versioning import (
+    APPLY,
+    CONFLICT,
+    apply_write,
+    conflict_payload,
+    decide_write,
+)
+
+
+@dataclass
+class BulkUpdateResult:
+    updated_ids: list = field(default_factory=list)
+    # One entry per refused item, the batch itself still commits
+    conflicts: list = field(default_factory=list)
+    # Current version by lesson slug for every item that was not refused
+    versions: dict = field(default_factory=dict)
 
 
 class DuplicateEntryException(Exception):
@@ -22,7 +38,8 @@ class InvalidLessonException(Exception):
 def process_bulk_progress_updates(user, validated_data):
     """
     Processes a bulk batch of lesson progress updates.
-    Returns a list of created/updated LessonProgress IDs.
+    Returns a BulkUpdateResult. Items that fail the version check land in its
+    conflicts list and leave their row alone.
     Raises DuplicateEntryException or InvalidLessonException on validation failure.
     """
     # Check for duplicate entries within the same request
@@ -37,10 +54,18 @@ def process_bulk_progress_updates(user, validated_data):
     if duplicates:
         raise DuplicateEntryException(list(duplicates))
 
-    success_ids = []
+    try:
+        return _write_batch(user, validated_data, list(seen_slugs))
+    except IntegrityError:
+        # Another request inserted one of these rows first. Go again, the row
+        # exists now and gets the same version check as any other.
+        return _write_batch(user, validated_data, list(seen_slugs))
+
+
+def _write_batch(user, validated_data, lesson_slugs):
+    result = BulkUpdateResult()
 
     with transaction.atomic():
-        lesson_slugs = list(seen_slugs)
         existing_lessons = {
             lesson.slug: lesson
             for lesson in Lesson.objects.filter(slug__in=lesson_slugs)
@@ -53,11 +78,12 @@ def process_bulk_progress_updates(user, validated_data):
             # rollback transaction if anything fails validation
             raise InvalidLessonException(missing_slugs)
 
+        # Locked in a fixed order so two batches can't deadlock on each other
         existing_progress = {
             progress.lesson_id: progress
-            for progress in LessonProgress.objects.filter(
-                user=user, lesson__slug__in=lesson_slugs
-            )
+            for progress in LessonProgress.objects.select_for_update()
+            .filter(user=user, lesson__in=list(existing_lessons.values()))
+            .order_by("lesson_id")
         }
 
         progress_to_create = []
@@ -67,6 +93,7 @@ def process_bulk_progress_updates(user, validated_data):
 
         season_mult = MilestoneTrackService.get_active_season_multiplier(user, "lesson")
         multiplier = XPMultiplierEvent.get_active_multiplier() * season_mult
+        organization = getattr(user, "organization", None)
 
         xp_events_to_create = []
 
@@ -74,49 +101,43 @@ def process_bulk_progress_updates(user, validated_data):
             lesson = existing_lessons[item["lesson_slug"]]
             completed = item.get("completed", True)
             base_score = item.get("score", 100)
+            expected_version = item.get("expected_version")
 
             if lesson.id in existing_progress:
                 prog = existing_progress[lesson.id]
+                prog.lesson = lesson
 
-                client_timestamp_ms = item.get("client_timestamp")
-                skip_update = False
-                if client_timestamp_ms:
-                    client_dt = datetime.datetime.fromtimestamp(
-                        client_timestamp_ms / 1000.0, tz=datetime.timezone.utc
-                    )
-                    if prog.updated_at > client_dt:
-                        skip_update = True
+                decision = decide_write(
+                    prog, base_score, completed, multiplier, expected_version
+                )
+                if decision.outcome == CONFLICT:
+                    result.conflicts.append(conflict_payload(prog, expected_version))
+                    continue
 
-                if not skip_update and (
-                    prog.base_score != base_score or prog.completed != completed
-                ):
-                    old_score = prog.score
-                    prog.completed = completed
-                    prog.base_score = base_score
-                    prog.multiplier_applied = multiplier
-                    prog.score = int(base_score * multiplier)
+                if decision.outcome == APPLY:
+                    xp_delta = apply_write(prog, decision)
+                    prog.organization = organization
                     progress_to_update.append(prog)
 
-                    xp_delta = prog.score - old_score
                     if xp_delta != 0:
-                        from apps.progress.models import XPEvent
-
                         xp_events_to_create.append(
                             XPEvent(
                                 user=user,
                                 source_type="lesson",
                                 source_id=lesson.id,
-                                base_points=base_score,
-                                multiplier=multiplier,
+                                base_points=decision.base_score,
+                                multiplier=decision.multiplier,
                                 xp_delta=xp_delta,
                             )
                         )
+                result.versions[lesson.slug] = prog.version
             else:
                 prog_score = int(base_score * multiplier)
                 progress_to_create.append(
                     LessonProgress(
                         user=user,
                         lesson=lesson,
+                        organization=organization,
                         completed=completed,
                         base_score=base_score,
                         multiplier_applied=multiplier,
@@ -124,8 +145,6 @@ def process_bulk_progress_updates(user, validated_data):
                     )
                 )
                 if prog_score != 0:
-                    from apps.progress.models import XPEvent
-
                     xp_events_to_create.append(
                         XPEvent(
                             user=user,
@@ -139,20 +158,28 @@ def process_bulk_progress_updates(user, validated_data):
 
         if progress_to_create:
             created_progresses = LessonProgress.objects.bulk_create(progress_to_create)
-            success_ids.extend([p.id for p in created_progresses])
+            result.updated_ids.extend([p.id for p in created_progresses])
+            for created in created_progresses:
+                result.versions[created.lesson.slug] = created.version
 
         if progress_to_update:
             LessonProgress.objects.bulk_update(
                 progress_to_update,
-                ["completed", "score", "base_score", "multiplier_applied"],
+                [
+                    "completed",
+                    "score",
+                    "base_score",
+                    "multiplier_applied",
+                    "organization",
+                    "version",
+                    "updated_at",
+                ],
             )
-            success_ids.extend([p.id for p in progress_to_update])
+            result.updated_ids.extend([p.id for p in progress_to_update])
 
         if xp_events_to_create:
-            from apps.progress.models import XPEvent
-
             XPEvent.objects.bulk_create(xp_events_to_create)
 
         async_task("apps.progress.tasks.evaluate_user_badges_task", user.id)
 
-    return success_ids
+    return result

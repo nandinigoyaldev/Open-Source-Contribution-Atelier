@@ -352,7 +352,19 @@ class BadgeListView(ListAPIView):
 @extend_schema_view(
     get=extend_schema(responses=LessonProgressSerializer(many=True)),
     post=extend_schema(
-        request=LessonProgressCreateSerializer, responses=LessonProgressSerializer
+        request=LessonProgressCreateSerializer,
+        responses={
+            200: LessonProgressSerializer,
+            201: LessonProgressSerializer,
+            409: OpenApiResponse(
+                response=LessonProgressSerializer,
+                description=(
+                    "Write refused because it is behind the stored row. The body is "
+                    "the current row plus code, detail and expected_version. Retry "
+                    "with its version to overwrite on purpose."
+                ),
+            ),
+        },
     ),
 )
 class MyProgressView(APIView):
@@ -371,9 +383,12 @@ class MyProgressView(APIView):
     @idempotent
     def post(self, request):
         from apps.content.models import Lesson
-        from apps.progress.services.progress_buffer import ProgressBufferService
         from apps.progress.services.progress_tracking_service import (
             ProgressTrackingService,
+        )
+        from apps.progress.services.progress_versioning import (
+            ProgressVersionConflict,
+            parse_expected_version,
         )
 
         lesson_slug = request.data.get("lesson_slug")
@@ -381,9 +396,10 @@ class MyProgressView(APIView):
         client_timestamp_ms = request.data.get("client_timestamp")
         base_score = request.data.get("score", 100)
         completed = request.data.get("completed", True)
+        expected_version = parse_expected_version(request.data.get("expected_version"))
 
         try:
-            lesson = Lesson.objects.get(
+            Lesson.objects.get(
                 slug=lesson_slug,
                 organization=request.user.organization,
             )
@@ -393,42 +409,23 @@ class MyProgressView(APIView):
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        payload = {
-            "user_id": request.user.id,
-            "lesson_slug": lesson_slug,
-            "score": base_score,
-            "completed": completed,
-            "idempotency_key": idempotency_key,
-            "client_timestamp": client_timestamp_ms,
-        }
-
-        buffered = ProgressBufferService.buffer_update(
-            request.user.id, lesson_slug, payload
-        )
-
-        if buffered:
-            # Return accepted response with optimistic in-memory model
-            progress = LessonProgress(
-                user=request.user,
-                lesson=lesson,
-                completed=completed,
-                base_score=base_score,
-                score=base_score,
+        # Written here and not parked in ProgressBufferService: a 202 could not
+        # tell the client about a conflict, and the Redis debounce keeps whichever
+        # write came last.
+        try:
+            progress, created, idempotency_hit = (
+                ProgressTrackingService.record_lesson_progress(
+                    user=request.user,
+                    lesson_slug=lesson_slug,
+                    base_score=base_score,
+                    completed=completed,
+                    idempotency_key=idempotency_key,
+                    client_timestamp_ms=client_timestamp_ms,
+                    expected_version=expected_version,
+                )
             )
-            serializer = LessonProgressSerializer(progress)
-            return Response(serializer.data, status=status.HTTP_202_ACCEPTED)
-
-        # Fallback to synchronous update if Redis is not available
-        progress, created, idempotency_hit = (
-            ProgressTrackingService.record_lesson_progress(
-                user=request.user,
-                lesson_slug=lesson_slug,
-                base_score=base_score,
-                completed=completed,
-                idempotency_key=idempotency_key,
-                client_timestamp_ms=client_timestamp_ms,
-            )
-        )
+        except ProgressVersionConflict as conflict:
+            return Response(conflict.payload, status=status.HTTP_409_CONFLICT)
 
         serializer = LessonProgressSerializer(progress)
 
@@ -450,12 +447,16 @@ class BulkSyncProgressView(APIView):
             ProgressTrackingService,
         )
 
-        synced_ids = ProgressTrackingService.bulk_sync_progress(
+        synced_ids, conflicts = ProgressTrackingService.bulk_sync_progress(
             user=request.user, lessons_data=serializer.validated_data["lessons"]
         )
 
         return Response(
-            {"synced_count": len(synced_ids), "progress_ids": synced_ids},
+            {
+                "synced_count": len(synced_ids),
+                "progress_ids": synced_ids,
+                "conflicts": conflicts,
+            },
             status=status.HTTP_200_OK,
         )
 
@@ -466,7 +467,7 @@ class BulkSyncProgressView(APIView):
     request=BulkSyncSerializer,
     responses={
         200: OpenApiResponse(
-            description="Successful bulk update summary: {success, transaction_outcome, updated_count, updated_ids, metadata}"
+            description="Successful bulk update summary: {success, transaction_outcome, updated_count, updated_ids, versions, conflicts, metadata}. Items refused by the version check are listed in conflicts with the current row, the rest are committed."
         ),
         400: OpenApiResponse(
             description="Validation failures (duplicate entries, invalid lessons, etc.)"
@@ -500,7 +501,7 @@ class BulkProgressUpdateView(APIView):
         )
 
         try:
-            success_ids = process_bulk_progress_updates(request.user, validated_data)
+            result = process_bulk_progress_updates(request.user, validated_data)
         except DuplicateEntryException as e:
             return Response(
                 {
@@ -540,8 +541,10 @@ class BulkProgressUpdateView(APIView):
                 "success": True,
                 "transaction_outcome": "committed",
                 "validation_failures": {},
-                "updated_count": len(success_ids),
-                "updated_ids": success_ids,
+                "updated_count": len(result.updated_ids),
+                "updated_ids": result.updated_ids,
+                "versions": result.versions,
+                "conflicts": result.conflicts,
                 "metadata": {
                     "synced_at": request.data.get("metadata", {}).get("timestamp", None)
                 },

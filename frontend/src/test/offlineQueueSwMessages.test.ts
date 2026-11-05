@@ -92,4 +92,28 @@ describe("offlineQueue service worker messages", () => {
     ]);
     expect(onConflict).toHaveBeenCalledTimes(1);
   });
+
+  it("gets the slug from the queued body when the SW could not work it out", () => {
+    // useOfflineSync queues under progress-<slug>, the SW only parses progress-sync-*
+    localStorage.setItem(
+      "atelier_pending_sync",
+      JSON.stringify([
+        { id: "progress-git-basics", lesson_slug: "git-basics", timestamp: 1 },
+      ]),
+    );
+    const onConflict = vi.fn();
+    events.on("sync:conflict", onConflict);
+
+    send({
+      type: "SYNC_CONFLICT",
+      id: "progress-git-basics",
+      lesson_slug: null,
+      serverData: { score: 5, version: 3 },
+      localData: { lesson_slug: "git-basics", score: 20 },
+    });
+
+    expect(onConflict).toHaveBeenCalledWith(
+      expect.objectContaining({ lesson_slug: "git-basics" }),
+    );
+  });
 });
