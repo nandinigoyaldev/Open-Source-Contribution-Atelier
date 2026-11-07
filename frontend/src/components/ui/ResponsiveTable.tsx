@@ -38,28 +38,26 @@ export function ResponsiveTable<T>({
     count: data.length,
     getScrollElement: () => mobileParentRef.current,
     estimateSize: () => 150,
+    getItemKey: (index) => keyExtractor(data[index], index),
+    overscan: 6,
   });
 
   const desktopVirtualizer = useVirtualizer({
     count: data.length,
     getScrollElement: () => desktopParentRef.current,
     estimateSize: () => 50,
+    getItemKey: (index) => keyExtractor(data[index], index),
+    overscan: 6,
   });
 
   const mobileVirtualItems = mobileVirtualizer.getVirtualItems();
   const desktopVirtualItems = desktopVirtualizer.getVirtualItems();
-
-  const renderMobileItem = (
-    item: T,
-    idx: number,
-    measureRef?: (node: Element | null) => void,
-  ) => {
+  const renderMobileItem = (item: T, idx: number) => {
     const isLast = idx === data.length - 1;
     return (
       <div
         key={keyExtractor(item, idx)}
         ref={(node) => {
-          if (measureRef) measureRef(node);
           if (isLast && lastElementRef) lastElementRef(node);
         }}
         data-index={idx}
@@ -139,6 +137,8 @@ export function ResponsiveTable<T>({
             {mobileVirtualItems.map((virtualRow) => (
               <div
                 key={virtualRow.key}
+                ref={mobileVirtualizer.measureElement}
+                data-index={virtualRow.index}
                 style={{
                   position: "absolute",
                   top: 0,
@@ -148,11 +148,7 @@ export function ResponsiveTable<T>({
                 }}
                 className="pb-4"
               >
-                {renderMobileItem(
-                  data[virtualRow.index],
-                  virtualRow.index,
-                  mobileVirtualizer.measureElement,
-                )}
+                {renderMobileItem(data[virtualRow.index], virtualRow.index)}
               </div>
             ))}
           </div>
@@ -200,7 +196,7 @@ export function ResponsiveTable<T>({
               <>
                 {desktopVirtualItems.length > 0 &&
                   desktopVirtualItems[0].start > 0 && (
-                    <tr>
+                    <tr aria-hidden="true">
                       <td
                         style={{ height: `${desktopVirtualItems[0].start}px` }}
                         colSpan={columns.length}
@@ -217,7 +213,7 @@ export function ResponsiveTable<T>({
                 {desktopVirtualItems.length > 0 &&
                   desktopVirtualItems[desktopVirtualItems.length - 1].end <
                     desktopVirtualizer.getTotalSize() && (
-                    <tr>
+                    <tr aria-hidden="true">
                       <td
                         style={{
                           height: `${desktopVirtualizer.getTotalSize() - desktopVirtualItems[desktopVirtualItems.length - 1].end}px`,
