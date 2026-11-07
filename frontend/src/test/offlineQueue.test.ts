@@ -3,6 +3,7 @@ import {
   classifyReplayStatus,
   enqueueOfflineAction,
   getSyncResults,
+  reportProgressConflict,
   syncOfflineQueue,
 } from "../lib/offlineQueue";
 import { queryClient } from "../lib/queryClient";
@@ -380,6 +381,52 @@ describe("Offline Progress Queue", () => {
 
       expect(mockFetch()).toHaveBeenCalledTimes(1);
       expect(a).toBe(b);
+    });
+  });
+
+  describe("reportProgressConflict", () => {
+    const pending = () =>
+      JSON.parse(localStorage.getItem("atelier_pending_sync") || "[]");
+
+    it("replaces a waiting entry for the lesson with a conflict", () => {
+      localStorage.setItem(
+        "atelier_pending_sync",
+        JSON.stringify([
+          { lesson_slug: "l1", score: 1, timestamp: 1 },
+          { lesson_slug: "l2", score: 2, timestamp: 2 },
+        ]),
+      );
+
+      reportProgressConflict(
+        { lesson_slug: "l1" },
+        { score: 10, completed: true },
+      );
+
+      expect(pending()).toEqual([
+        expect.objectContaining({ lesson_slug: "l2" }),
+        expect.objectContaining({
+          id: "progress-sync-l1",
+          lesson_slug: "l1",
+          score: 10,
+          state: "conflict",
+          serverData: { lesson_slug: "l1" },
+        }),
+      ]);
+    });
+
+    it("lists every conflict of a batch so none get lost behind the prompt", () => {
+      const onConflict = vi.fn();
+      eventBus.on("sync:conflict", onConflict);
+
+      reportProgressConflict({ lesson_slug: "l1" });
+      reportProgressConflict({ lesson_slug: "l2" });
+
+      expect(pending().map((p: { state: string }) => p.state)).toEqual([
+        "conflict",
+        "conflict",
+      ]);
+      expect(onConflict).toHaveBeenCalledTimes(2);
+      eventBus.off("sync:conflict", onConflict);
     });
   });
 

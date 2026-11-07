@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { eventBus } from "../../core/events";
 import { removeQueuedAction } from "../../lib/offlineQueue";
 import { fetchApi } from "../../lib/api";
+import { ApiError } from "../../lib/apiErrors";
 import { useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, Server, Monitor } from "lucide-react";
 
@@ -45,13 +46,16 @@ export function ConflictResolutionModal() {
   const handleOverwriteServer = async () => {
     setIsResolving(true);
     try {
-      // Overwrite the server by forcing a POST request with local data
+      // The version shown to the user. Without it the server would refuse to
+      // lower anything, with a stale one it answers 409 instead of overwriting
+      // something the user never saw.
       await fetchApi("/progress/me/", {
         method: "POST",
         body: JSON.stringify({
           lesson_slug: conflict.lesson_slug,
-          score: conflict.localData.score ?? 100,
-          completed: conflict.localData.completed ?? true,
+          score: conflict.localData?.score ?? 100,
+          completed: conflict.localData?.completed ?? true,
+          expected_version: conflict.serverData?.version,
         }),
       });
       const id = conflict.id ?? `progress-sync-${conflict.lesson_slug}`;
@@ -59,6 +63,12 @@ export function ConflictResolutionModal() {
       queryClient.invalidateQueries({ queryKey: ["userProgress"] });
       setConflict(null);
     } catch (e) {
+      if (e instanceof ApiError && e.status === 409 && e.body) {
+        // It moved again while the prompt was open: show the new numbers and let
+        // the user decide again.
+        setConflict({ ...conflict, serverData: e.body });
+        return;
+      }
       console.error("Failed to overwrite server state:", e);
       alert("Failed to update server. Please try again.");
     } finally {
@@ -77,11 +87,12 @@ export function ConflictResolutionModal() {
         </div>
 
         <p className="text-xs font-bold text-muted dark:text-[#c4bbae] mb-6 leading-relaxed">
-          While you were offline, you completed the lesson{" "}
+          Your progress on the lesson{" "}
           <span className="text-black dark:text-white underline">
             "{conflict.lesson_slug}"
-          </span>
-          . However, the server has a different progress record for this lesson.
+          </span>{" "}
+          was not saved because the server has a newer record for it, probably
+          from another tab or device.
         </p>
 
         <div className="grid grid-cols-2 gap-4 mb-6">
@@ -100,7 +111,7 @@ export function ConflictResolutionModal() {
 
           <div className="border-2 border-black p-3 rounded-xl bg-[#ffb5e8]/20 dark:border-[#2e2924] dark:bg-pink-950/20">
             <h4 className="text-xs font-black uppercase flex items-center gap-1.5 mb-2 text-pink-600">
-              <Monitor size={12} /> Local Offline
+              <Monitor size={12} /> This Device
             </h4>
             <p className="text-xs font-bold dark:text-[#f0ebe2]">
               Score: {conflict.localData?.score ?? "N/A"}

@@ -1,6 +1,3 @@
-from datetime import datetime
-from datetime import timezone as dt_timezone
-
 from django.db import transaction
 from django.utils import timezone
 from django_q.tasks import async_task
@@ -13,6 +10,14 @@ from apps.progress.models import (
     XPEvent,
     XPMultiplierEvent,
 )
+from apps.progress.services.progress_versioning import (
+    APPLY,
+    CONFLICT,
+    ProgressVersionConflict,
+    apply_write,
+    conflict_payload,
+    decide_write,
+)
 
 
 class ProgressTrackingService:
@@ -22,6 +27,47 @@ class ProgressTrackingService:
     """
 
     @staticmethod
+    def _write_existing_row(
+        progress,
+        user,
+        lesson,
+        organization,
+        base_score,
+        completed,
+        multiplier,
+        expected_version,
+    ) -> str:
+        """Writes to a row that is already locked, returns the decide_write outcome."""
+        decision = decide_write(
+            progress, base_score, completed, multiplier, expected_version
+        )
+        if decision.outcome == APPLY:
+            xp_delta = apply_write(progress, decision)
+            progress.organization = organization
+            progress.save(
+                update_fields=[
+                    "completed",
+                    "base_score",
+                    "multiplier_applied",
+                    "score",
+                    "organization",
+                    "version",
+                    "updated_at",
+                ]
+            )
+
+            if xp_delta != 0:
+                XPEvent.objects.create(
+                    user=user,
+                    source_type="lesson",
+                    source_id=lesson.id,
+                    base_points=decision.base_score,
+                    multiplier=decision.multiplier,
+                    xp_delta=xp_delta,
+                )
+        return decision.outcome
+
+    @staticmethod
     def record_lesson_progress(
         user,
         lesson_slug: str,
@@ -29,10 +75,12 @@ class ProgressTrackingService:
         completed: bool = True,
         idempotency_key: str = None,
         client_timestamp_ms: int = None,
+        expected_version: int | None = None,
     ) -> tuple[LessonProgress, bool, bool]:
         """
         Records or updates a user's progress for a specific lesson.
         Returns a tuple: (LessonProgress instance, created boolean, idempotency_hit boolean).
+        Raises ProgressVersionConflict if the write is refused, see decide_write().
         """
         from apps.progress.services.milestone_track_service import MilestoneTrackService
 
@@ -84,44 +132,22 @@ class ProgressTrackingService:
                         xp_delta=progress.score,
                     )
             else:
-                skip_update = False
-                if client_timestamp_ms:
-                    client_dt = datetime.fromtimestamp(
-                        client_timestamp_ms / 1000.0, tz=dt_timezone.utc
+                outcome = ProgressTrackingService._write_existing_row(
+                    progress,
+                    user,
+                    lesson,
+                    organization,
+                    base_score,
+                    completed,
+                    multiplier,
+                    expected_version,
+                )
+                if outcome == CONFLICT:
+                    # No sync row on purpose: the key was not spent, so the same
+                    # attempt can come back with a fresh version.
+                    raise ProgressVersionConflict(
+                        conflict_payload(progress, expected_version)
                     )
-                    if progress.updated_at > client_dt:
-                        skip_update = True
-
-                if not skip_update and (
-                    progress.base_score != base_score or progress.completed != completed
-                ):
-                    old_score = progress.score
-                    progress.completed = completed
-                    progress.base_score = base_score
-                    progress.multiplier_applied = multiplier
-                    progress.score = int(base_score * multiplier)
-                    progress.organization = organization
-                    progress.save(
-                        update_fields=[
-                            "completed",
-                            "base_score",
-                            "multiplier_applied",
-                            "score",
-                            "organization",
-                            "updated_at",
-                        ]
-                    )
-
-                    xp_delta = progress.score - old_score
-                    if xp_delta != 0:
-                        XPEvent.objects.create(
-                            user=user,
-                            source_type="lesson",
-                            source_id=lesson.id,
-                            base_points=base_score,
-                            multiplier=multiplier,
-                            xp_delta=xp_delta,
-                        )
 
             if idempotency_key:
                 LessonProgressSync.objects.create(
@@ -156,9 +182,11 @@ class ProgressTrackingService:
         return progress, created, False
 
     @staticmethod
-    def bulk_sync_progress(user, lessons_data: list) -> list[int]:
+    def bulk_sync_progress(user, lessons_data: list) -> tuple[list[int], list[dict]]:
         """
         Synchronizes multiple lessons' progress for a user.
+        Returns (ids of rows that match what was sent, one conflict per refused item).
+        A refused item does not stop the others.
         """
         from apps.progress.services.milestone_track_service import MilestoneTrackService
 
@@ -166,13 +194,14 @@ class ProgressTrackingService:
         multiplier = XPMultiplierEvent.get_active_multiplier() * season_mult
         organization = getattr(user, "organization", None)
         synced_ids = []
+        conflicts = []
 
         with transaction.atomic():
             for item in lessons_data:
                 lesson_slug = item["lesson_slug"]
                 base_score = item.get("score", 100)
                 completed = item.get("completed", True)
-                client_timestamp_ms = item.get("client_timestamp")
+                expected_version = item.get("expected_version")
 
                 lesson = LessonService.get_or_create_dynamic_lesson(lesson_slug)
 
@@ -192,45 +221,19 @@ class ProgressTrackingService:
                 )
 
                 if not created:
-                    skip_update = False
-                    if client_timestamp_ms:
-                        client_dt = datetime.fromtimestamp(
-                            client_timestamp_ms / 1000.0, tz=dt_timezone.utc
-                        )
-                        if progress.updated_at > client_dt:
-                            skip_update = True
-
-                    if not skip_update and (
-                        progress.base_score != base_score
-                        or progress.completed != completed
-                    ):
-                        old_score = progress.score
-                        progress.completed = completed
-                        progress.base_score = base_score
-                        progress.multiplier_applied = multiplier
-                        progress.score = int(base_score * multiplier)
-                        progress.organization = organization
-                        progress.save(
-                            update_fields=[
-                                "completed",
-                                "base_score",
-                                "multiplier_applied",
-                                "score",
-                                "organization",
-                                "updated_at",
-                            ]
-                        )
-
-                        xp_delta = progress.score - old_score
-                        if xp_delta != 0:
-                            XPEvent.objects.create(
-                                user=user,
-                                source_type="lesson",
-                                source_id=lesson.id,
-                                base_points=base_score,
-                                multiplier=multiplier,
-                                xp_delta=xp_delta,
-                            )
+                    outcome = ProgressTrackingService._write_existing_row(
+                        progress,
+                        user,
+                        lesson,
+                        organization,
+                        base_score,
+                        completed,
+                        multiplier,
+                        expected_version,
+                    )
+                    if outcome == CONFLICT:
+                        conflicts.append(conflict_payload(progress, expected_version))
+                        continue
 
                 synced_ids.append(progress.id)
 
@@ -240,4 +243,4 @@ class ProgressTrackingService:
                 )
             )
 
-        return synced_ids
+        return synced_ids, conflicts

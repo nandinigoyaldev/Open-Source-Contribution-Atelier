@@ -12,11 +12,13 @@ export function useOfflineSync() {
       lesson_slug: string;
       score?: number;
       completed?: boolean;
+      expected_version?: number;
     }) => {
       const payload = {
         lesson_slug: vars.lesson_slug,
         score: vars.score ?? 100,
         completed: vars.completed ?? true,
+        expected_version: vars.expected_version,
       };
 
       if (isOnline) {
