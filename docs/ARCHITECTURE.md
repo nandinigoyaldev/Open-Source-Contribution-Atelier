@@ -139,6 +139,7 @@ flowchart LR
   ai_tutor --> content
   audit --> core
   audit --> rbac
+  billing --> audit
   billing --> organizations
   cache --> dashboard
   cache --> progress
@@ -229,9 +230,9 @@ flowchart LR
 | `admin` | Platform and operations | Optional | `dashboard`, `issues` | - | no | - |
 | `advanced_search` | Platform and operations | Optional | - | - | yes | LLM API |
 | `ai_tutor` | Learning content and progress | Optional | `content` | - | yes | LLM API |
-| `audit` | Identity and access | Supporting | `core`, `rbac` | `issues`, `rbac` | yes | Celery |
+| `audit` | Identity and access | Core | `core`, `rbac` | `billing`, `issues`, `rbac` | yes | Celery |
 | `benchmark` | Platform and operations | Optional | - | - | no | WebSockets (Channels) |
-| `billing` | Platform and operations | Supporting | `organizations` | `core` | yes | Stripe |
+| `billing` | Platform and operations | Supporting | `audit`, `organizations` | `core` | yes | Stripe |
 | `burnout_detection` | Open-source issue intelligence | Optional | - | - | yes | Celery, GitHub API |
 | `cache` | Platform and operations | Supporting | `dashboard`, `progress` | `recommendations`, `webhooks` | yes | - |
 | `challenges` | Learning content and progress | Core | `accounts`, `core`, `dashboard`, `events`, `organizations`, `progress`, `sandbox` | `content`, `dashboard`, `progress`, `recommendations` | yes | - |
@@ -239,6 +240,7 @@ flowchart LR
 | `content` | Learning content and progress | Core | `challenges`, `core`, `events`, `issues`, `progress`, `rbac`, `sandbox`, `search` | `accounts`, `ai_tutor`, `core`, `dashboard`, `flashcards`, `progress`, `recommendations`, `search` | yes | Embeddings model, WebSockets (Channels) |
 | `core` | Platform and operations | Core | `billing`, `content`, `dashboard`, `issues`, `notifications`, `organizations`, `progress`, `rbac` | `accounts`, `audit`, `challenges`, `chat`, `content`, `dashboard`, `graphql_gateway`, `health`, `moderation`, `notifications`, `organizations`, `progress`, `rbac`, `sandbox`, `search`, `webhooks` | yes | Celery, Email (SMTP), GitHub API, Redis, WebSockets (Channels) |
 | `dashboard` | Gamification and engagement | Core | `challenges`, `content`, `core`, `events`, `progress` | `accounts`, `admin`, `cache`, `challenges`, `core`, `progress` | yes | WebSockets (Channels) |
+| `data_exports` | Unclassified | Optional | - | - | yes | Celery |
 | `deduplication` | Open-source issue intelligence | Supporting | - | `progress` | yes | - |
 | `dependency_graph` | Open-source issue intelligence | Optional | - | - | yes | - |
 | `dx_analytics` | Platform and operations | Optional | - | - | yes | Celery |

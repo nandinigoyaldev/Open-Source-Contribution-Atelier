@@ -38,6 +38,8 @@ ISSUE_UPDATED = "issue.updated"
 ISSUE_DELETED = "issue.deleted"
 USER_ROLE_ASSIGNED = "user.role_assigned"
 USER_ROLE_REVOKED = "user.role_revoked"
+BILLING_RECONCILE_RUN = "billing.reconcile_run"
+BILLING_RECONCILE_REPAIR = "billing.reconcile_repair"
 
 _VALID_ACTIONS = {
     AuditEvent.ACTION_CREATED,

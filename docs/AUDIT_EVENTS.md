@@ -50,12 +50,15 @@ Example event as returned by `GET /api/admin/audit/<id>/` (trimmed):
 | `issue.deleted` | `deleted` | `issues.issuereport` | `DELETE /api/issues/<id>/` | `title`, `status`, `issue_type` of the deleted report. |
 | `user.role_assigned` | `created` | `auth.user` (the user who got the role) | `POST /api/rbac/assign/` | `role_id`, `role_name`, `organization_id`. |
 | `user.role_revoked` | `deleted` | `auth.user` | `POST /api/rbac/revoke/` | `role_id`, `role_name`, `organization_id`. |
+| `billing.reconcile_run` | `created` | `billing.reconciliation` (the run id) | `reconcile_billing` command, dry run or `--apply` | `dry_run`, counts, and the mismatches found. |
+| `billing.reconcile_repair` | `created` or `updated` | `billing.customersubscription` or `billing.invoice` | `reconcile_billing --apply` | `run_id`, `kind`, Stripe ids, and the local and Stripe value of each changed field. |
 
 Notes:
 
 - An event is written only after the action succeeded. A request that is rejected (403, 404, validation error) writes nothing.
 - Assigning a role the user already has changes nothing, so it writes nothing.
 - The older `rbac.AuditLog` rows are still written as before. The new events are in addition to them, not a replacement.
+- Reconcile events have no actor because a command has no user. `correlation_id` is the run id, so `?correlation_id=<run id>` lists a run and its repairs together. See [STRIPE_WEBHOOK_LEDGER.md](STRIPE_WEBHOOK_LEDGER.md).
 
 Filter admin events in the API with `?operation=issue.updated`, `?resource_type=issuereport`, `?resource_id=7`, `?actor=<username or id>` or `?correlation_id=<request id>`.
 
