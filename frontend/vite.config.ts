@@ -99,6 +99,8 @@ export default defineConfig({
   },
   build: {
     sourcemap: "hidden",
+    minify: "terser",
+    terserOptions: { maxWorkers: 2 },
   },
   define: {
     "process.env.VERCEL_GIT_COMMIT_SHA": JSON.stringify(
@@ -163,6 +165,7 @@ export default defineConfig({
         extends: true,
         test: {
           name: "unit",
+          globals: true,
           environment: "jsdom",
           setupFiles: "./src/test/setup.ts",
           include: ["src/**/*.test.{ts,tsx}"],

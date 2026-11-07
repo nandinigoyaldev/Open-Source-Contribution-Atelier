@@ -32,12 +32,12 @@ function SearchButton({ onClick }: { onClick: () => void }) {
   return (
     <button
       onClick={onClick}
-      className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-slate-400 dark:text-slate-500 bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-[#2E2924] hover:border-slate-300 dark:hover:border-[#3E3934] transition-colors"
+      className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm text-slate-600 dark:text-slate-400 bg-slate-100 dark:bg-white/5 border border-slate-200 dark:border-[#2E2924] hover:border-slate-300 dark:hover:border-[#3E3934] transition-colors"
       aria-label="Search"
     >
       <Search size={16} />
       <span className="hidden lg:inline">Search...</span>
-      <kbd className="hidden lg:inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-mono bg-white dark:bg-[#151411] border border-slate-200 dark:border-[#2E2924] rounded text-slate-400 dark:text-slate-500">
+      <kbd className="hidden lg:inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-mono bg-white dark:bg-[#151411] border border-slate-200 dark:border-[#2E2924] rounded text-slate-600 dark:text-slate-400">
         /
       </kbd>
     </button>
