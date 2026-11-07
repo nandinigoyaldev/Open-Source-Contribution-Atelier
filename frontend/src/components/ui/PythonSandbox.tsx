@@ -58,6 +58,7 @@ export function PythonSandbox({ exercise, onSuccess }: PythonSandboxProps) {
 
   const [isTracing, setIsTracing] = useState(false);
   const timelineEngine = useTimelineEngine();
+  const { clearTrace } = timelineEngine;
 
   // Output panel display preferences, restored from localStorage on mount.
   const [outputFontSize, setOutputFontSize] =
@@ -91,8 +92,8 @@ export function PythonSandbox({ exercise, onSuccess }: PythonSandboxProps) {
     setOutput("");
     setError(null);
     setIsSuccess(false);
-    timelineEngine.clearTrace();
-  }, [exercise, timelineEngine]);
+    clearTrace();
+  }, [exercise, clearTrace]);
 
   const handleRun = async () => {
     if (isExecuting || !isReady) return;
