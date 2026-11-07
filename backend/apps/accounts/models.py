@@ -1,8 +1,10 @@
 import uuid
+from typing import Optional
 
 from django.conf import settings
 from django.db import models, transaction
 from django.utils import timezone
+from django.utils.crypto import salted_hmac
 
 from apps.content.models import Lesson
 from apps.core.fields import EncryptedCharField
@@ -40,22 +42,46 @@ class PasswordResetToken(models.Model):
 
     Tokens expire after settings.PASSWORD_RESET_TIMEOUT_MINUTES (default 15).
     Once used, `is_used` is set to True and the token cannot be reused.
+
+    Only a keyed hash of the token is stored. The raw value is generated in save()
+    and stays on that one instance as `token`, long enough to put it in the email.
+    It cannot be read back from the database.
     """
+
+    # Salting with the purpose ties a hash to this one action: the same value
+    # hashed for anything else will not match.
+    HASH_SALT = "apps.accounts.PasswordResetToken"
 
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name="password_reset_tokens",
     )
-    token = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
+    token_hash = models.CharField(max_length=64, unique=True, editable=False)
     created_at = models.DateTimeField(auto_now_add=True)
     is_used = models.BooleanField(default=False)
+
+    # Raw token. Not a database field, and None on any row loaded from the database.
+    token: Optional[uuid.UUID] = None
 
     class Meta:
         ordering = ["-created_at"]
 
     def __str__(self) -> str:
         return f"PasswordResetToken(user={self.user.username}, used={self.is_used})"
+
+    @classmethod
+    def hash_token(cls, value) -> str:
+        """Hash a raw token. Raises ValueError when `value` is not a UUID."""
+        return salted_hmac(
+            cls.HASH_SALT, str(uuid.UUID(str(value))), algorithm="sha256"
+        ).hexdigest()
+
+    def save(self, *args, **kwargs):
+        if not self.token_hash:
+            self.token = uuid.uuid4()
+            self.token_hash = self.hash_token(self.token)
+        super().save(*args, **kwargs)
 
     def is_expired(self) -> bool:
         """Return True if the token is older than PASSWORD_RESET_TIMEOUT_SECONDS (15 minutes)."""

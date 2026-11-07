@@ -635,6 +635,8 @@ TRUSTED_PROXY_COUNT = int(os.getenv("TRUSTED_PROXY_COUNT", "0"))
 # How many seconds a password reset token remains valid (15 minutes = 900 seconds).
 PASSWORD_RESET_TIMEOUT_SECONDS = int(os.getenv("PASSWORD_RESET_TIMEOUT_SECONDS", "900"))
 PASSWORD_RESET_TIMEOUT_MINUTES = int(os.getenv("PASSWORD_RESET_TIMEOUT_MINUTES", "15"))
+# Most reset emails one account can get per hour, counted from its own tokens.
+PASSWORD_RESET_MAX_PER_HOUR = int(os.getenv("PASSWORD_RESET_MAX_PER_HOUR", "5"))
 
 # ── Email Address Verification ───────────────────────────────────────────────
 # How many hours the link sent after signup stays valid.
@@ -695,6 +697,9 @@ REST_FRAMEWORK = {
         "auth_otp_generate": os.getenv("RATE_AUTH_OTP_GENERATE", "3/minute"),
         "auth_otp_verify": os.getenv("RATE_AUTH_OTP_VERIFY", "5/minute"),
         "auth_password_reset": os.getenv("RATE_AUTH_PASSWORD_RESET", "3/hour"),
+        "auth_password_reset_validate": os.getenv(
+            "RATE_AUTH_PASSWORD_RESET_VALIDATE", "10/hour"
+        ),
         "auth_oauth": os.getenv("RATE_AUTH_OAUTH", "20/minute"),
         "auth_github_callback": "5/minute",
         "auth_magic_link_request": os.getenv(

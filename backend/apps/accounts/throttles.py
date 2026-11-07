@@ -305,6 +305,13 @@ class OtpVerifyThrottle(_ProxyAwareThrottle):
 class StrictIdentityPasswordResetThrottle(SlidingWindowAnonThrottle):
     scope = "auth_password_reset"
 
+    def get_cache_key(self, request, view):
+        # Anyone can name any address here, so being signed in does not skip the limit.
+        return self.cache_format % {
+            "scope": self.scope,
+            "ident": self.get_ident(request),
+        }
+
     def get_ident(self, request):
         email = request.data.get("email")
         if email:
@@ -314,6 +321,17 @@ class StrictIdentityPasswordResetThrottle(SlidingWindowAnonThrottle):
 
 class PasswordResetThrottle(_ProxyAwareThrottle):
     scope = "auth_password_reset"
+
+    def get_cache_key(self, request, view):
+        # Same as above: these endpoints do not depend on who is signed in.
+        return self.cache_format % {
+            "scope": self.scope,
+            "ident": self.get_ident(request),
+        }
+
+
+class PasswordResetValidateThrottle(PasswordResetThrottle):
+    scope = "auth_password_reset_validate"
 
 
 class MagicLinkRequestThrottle(_ProxyAwareThrottle):
