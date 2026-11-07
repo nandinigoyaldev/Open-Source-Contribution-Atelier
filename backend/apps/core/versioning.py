@@ -17,10 +17,13 @@ def parse_version_from_accept_header(accept_header: str) -> Optional[str]:
 
     # Match version=<val> in Accept header parameters
     match = re.search(
-        r";\s*version=['\"]?v?(\d+(?:\.\d+)?)['\"]?", accept_header, re.IGNORECASE
+        r";\s*version\s*=\s*(?:\"([^\"]*)\"|'([^']*)'|([^;,\s]*))",
+        accept_header,
+        re.IGNORECASE,
     )
     if match:
-        return match.group(1)
+        value = next((part for part in match.groups() if part is not None), "")
+        return re.sub(r"^v(?=\d)", "", value, flags=re.IGNORECASE)
     return None
 
 
@@ -60,11 +63,11 @@ class AcceptHeaderOrURLVersioning(versioning.BaseVersioning):
         version = parse_version_from_accept_header(accept_header)
 
         # 2. Check URL path (e.g., /api/v1/...)
-        if not version:
+        if version is None:
             version = parse_version_from_url_path(request.path_info)
 
         # 3. Fallback to default
-        if not version:
+        if version is None:
             version = default_version
 
         # 4. Standardize version string
