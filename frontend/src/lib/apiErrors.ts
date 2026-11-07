@@ -11,6 +11,8 @@ export interface ApiErrorOptions {
   fieldErrors?: Record<string, string[]>;
   /** Stable machine-readable codes by field (e.g. `email_taken`), from `error_codes`. */
   fieldCodes?: Record<string, string[]>;
+  /** Parsed response body, for callers that need more than the message. */
+  body?: unknown;
 }
 
 /** Keeps only `{ field: string[] }` entries; anything else in the body is ignored. */
@@ -42,6 +44,7 @@ export class ApiError extends Error {
   code?: string | null;
   fieldErrors?: Record<string, string[]>;
   fieldCodes?: Record<string, string[]>;
+  body?: unknown;
 
   constructor(message: string, options: ApiErrorOptions = {}) {
     super(message);
@@ -55,6 +58,7 @@ export class ApiError extends Error {
     this.code = options.code ?? null;
     this.fieldErrors = options.fieldErrors;
     this.fieldCodes = options.fieldCodes;
+    this.body = options.body;
   }
 }
 
@@ -165,6 +169,7 @@ export function createApiError(params: {
     code,
     fieldErrors,
     fieldCodes,
+    body: params.body,
   });
 }
 

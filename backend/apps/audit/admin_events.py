@@ -38,6 +38,8 @@ ISSUE_UPDATED = "issue.updated"
 ISSUE_DELETED = "issue.deleted"
 USER_ROLE_ASSIGNED = "user.role_assigned"
 USER_ROLE_REVOKED = "user.role_revoked"
+BILLING_RECONCILE_RUN = "billing.reconcile_run"
+BILLING_RECONCILE_REPAIR = "billing.reconcile_repair"
 
 _VALID_ACTIONS = {
     AuditEvent.ACTION_CREATED,
@@ -68,6 +70,35 @@ def _actor(request: Any, actor: Any) -> Optional[Any]:
     return None
 
 
+def write_event(
+    *,
+    action: str,
+    target_type: str,
+    target_id: Any,
+    request_id: str,
+    extra: dict,
+    actor: Any = None,
+    ip_address: Optional[str] = None,
+    user_agent: str = "",
+) -> AuditEvent:
+    """Insert one event row. Raises on failure, the callers decide what happens then."""
+    if action not in _VALID_ACTIONS:
+        raise ValueError(f"unknown audit action {action!r}")
+    # The savepoint keeps a failed insert from poisoning an outer
+    # transaction the caller may be running in.
+    with transaction.atomic():
+        return AuditEvent.objects.create(
+            actor=actor,
+            action=action,
+            resource_type=str(target_type)[:100],
+            resource_id=str(target_id)[:64],
+            correlation_id=request_id,
+            ip_address=ip_address,
+            user_agent=user_agent,
+            extra=extra,
+        )
+
+
 def record_admin_event(
     *,
     operation: str,
@@ -87,8 +118,6 @@ def record_admin_event(
     stored, so callers do not need to clean it first.
     """
     try:
-        if action not in _VALID_ACTIONS:
-            raise ValueError(f"unknown audit action {action!r}")
         extra = {
             "source": "admin_action",
             "operation": operation,
@@ -96,17 +125,14 @@ def record_admin_event(
         }
         if summary:
             extra["summary"] = redact_string(summary)
-        # The savepoint keeps a failed insert from poisoning an outer
-        # transaction the admin action may be running in.
-        with transaction.atomic():
-            return AuditEvent.objects.create(
-                actor=_actor(request, actor),
-                action=action,
-                resource_type=str(target_type)[:100],
-                resource_id=str(target_id)[:64],
-                correlation_id=_request_id(request),
-                extra=extra,
-            )
+        return write_event(
+            action=action,
+            target_type=target_type,
+            target_id=target_id,
+            request_id=_request_id(request),
+            extra=extra,
+            actor=_actor(request, actor),
+        )
     except Exception:
         logger.exception(
             "Could not record admin audit event operation=%s target=%s#%s",

@@ -1,8 +1,9 @@
 export const DB_NAME = "atelier-offline-db";
-export const DB_VERSION = 3;
+export const DB_VERSION = 4;
 export const SYNC_STORE = "sync-queue";
 export const LESSON_STORE = "lessons";
 export const QUIZ_SYNC_STORE = "pending_quiz_sync";
+export const CURRICULUM_STORE = "curriculum-manifests";
 
 export function openDB(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -28,6 +29,16 @@ export function openDB(): Promise<IDBDatabase> {
           keyPath: "id",
         });
         quizStore.createIndex("queuedAt", "queuedAt", { unique: false });
+      }
+
+      // v4 store — versioned offline-first curriculum manifest cache (Issue #3285)
+      if (!db.objectStoreNames.contains(CURRICULUM_STORE)) {
+        const curriculumStore = db.createObjectStore(CURRICULUM_STORE, {
+          keyPath: "id",
+        });
+        curriculumStore.createIndex("version", "version", { unique: false });
+        curriculumStore.createIndex("status", "status", { unique: false });
+        curriculumStore.createIndex("cachedAt", "cachedAt", { unique: false });
       }
     };
 

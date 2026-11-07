@@ -1,4 +1,5 @@
 import logging
+from typing import Any
 
 from django.conf import settings
 from django.contrib.auth import get_user_model
@@ -22,6 +23,37 @@ def send_password_reset_email_task(user_email, user_username, reset_url, timeout
         from_email=getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@atelier.dev"),
         recipient_list=[user_email],
         fail_silently=False,
+    )
+
+
+def process_password_reset_request(
+    email, ip_address=None, user_agent="", request_id=""
+):
+    """
+    Worker half of POST /api/auth/password-reset/, queued for every valid request
+    whether or not the account exists. The raw token is created here and goes
+    straight into the email, so it is never written to the queue or its results.
+    """
+    from .services import issue_password_reset
+    from .views import frontend_url
+
+    reset_token = issue_password_reset(
+        email,
+        client={
+            "ip_address": ip_address,
+            "user_agent": user_agent,
+            "request_id": request_id,
+        },
+    )
+    if reset_token is None:
+        return
+
+    user: Any = reset_token.user
+    send_password_reset_email_task(
+        user_email=user.email,
+        user_username=user.username,
+        reset_url=frontend_url("/reset-password", {"token": str(reset_token.token)}),
+        timeout=getattr(settings, "PASSWORD_RESET_TIMEOUT_MINUTES", 15),
     )
 
 

@@ -34,6 +34,9 @@ class CustomerSubscription(models.Model):
     status = models.CharField(max_length=50, default="inactive")
     current_period_end = models.DateTimeField(null=True, blank=True)
     payment_failed_at = models.DateTimeField(null=True, blank=True)
+    # Stripe `created` time of the newest event applied to the subscription this
+    # row follows. Older events go in the StripeEvent ledger but change nothing.
+    last_event_at = models.DateTimeField(null=True, blank=True)
 
     def __str__(self):
         return f"Subscription for {self.user}"
@@ -108,3 +111,41 @@ class Payment(models.Model):
 
     def __str__(self):
         return f"Payment {self.stripe_charge_id} - {self.amount} {self.currency}"
+
+
+class StripeEvent(models.Model):
+    """
+    One row per Stripe event handled by the webhook.
+
+    The row is written in the same transaction as whatever the event changes, so
+    a crash leaves neither and Stripe's retry starts clean. The unique event_id
+    is what stops a second delivery from applying anything.
+    """
+
+    OUTCOME_APPLIED = "applied"
+    OUTCOME_STALE = "stale"
+    OUTCOME_UNMATCHED = "unmatched"
+    OUTCOME_IGNORED = "ignored"
+    OUTCOME_CHOICES = [
+        (OUTCOME_APPLIED, "Applied"),
+        (OUTCOME_STALE, "Stale: older than the saved state"),
+        (OUTCOME_UNMATCHED, "Unmatched: no local subscription for it"),
+        (OUTCOME_IGNORED, "Ignored: event type is not handled"),
+    ]
+
+    event_id = models.CharField(max_length=255, unique=True)
+    event_type = models.CharField(max_length=100, db_index=True)
+    object_id = models.CharField(max_length=255, blank=True)
+    customer_id = models.CharField(max_length=255, blank=True)
+    event_created_at = models.DateTimeField()
+    outcome = models.CharField(
+        max_length=20, choices=OUTCOME_CHOICES, default=OUTCOME_IGNORED
+    )
+    processed_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-event_created_at"]
+        indexes = [models.Index(fields=["outcome", "event_created_at"])]
+
+    def __str__(self):
+        return f"{self.event_id} ({self.event_type}): {self.outcome}"

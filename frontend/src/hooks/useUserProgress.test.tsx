@@ -3,6 +3,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { useUserProgress } from "./useUserProgress";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { fetchApi } from "../lib/api";
+import { eventBus } from "../core/events";
 import React from "react";
 
 vi.mock("../lib/api", () => ({
@@ -124,6 +125,7 @@ describe("useUserProgress", () => {
         score: 50,
         completed: true,
         client_timestamp: expect.any(Number),
+        expected_version: 0,
       },
     ]);
     expect(body.metadata.timestamp).toEqual(expect.any(Number));
@@ -204,6 +206,187 @@ describe("useUserProgress", () => {
     it("announces an error when the sync fails", async () => {
       const result = await run(() => Promise.reject(new Error("boom")), 1);
       expect(result.current.announcement?.type).toBe("error");
+    });
+  });
+
+  describe("version checks", () => {
+    const entry = (over: Record<string, unknown> = {}) => ({
+      id: 1,
+      lesson: 1,
+      lesson_slug: "l1",
+      completed: false,
+      score: 5,
+      version: 4,
+      updated_at: "2026-01-01T00:00:00Z",
+      ...over,
+    });
+
+    // Mounts the hook on a server list, returns what each bulk update carried
+    const mount = async (
+      list: unknown[] | undefined,
+      bulk: () => unknown = () => ({}),
+    ) => {
+      const sent: Record<string, unknown>[][] = [];
+      vi.mocked(fetchApi).mockImplementation(((
+        url: string,
+        options?: { body?: string },
+      ) => {
+        if (url === "/progress/bulk-update/") {
+          sent.push(JSON.parse(options!.body as string).lessons);
+          return Promise.resolve(bulk());
+        }
+        // A list that never loads stands in for "not fetched yet"
+        return list ? Promise.resolve(list) : new Promise(() => {});
+      }) as never);
+      const hook = renderHook(() => useUserProgress(), {
+        wrapper: createWrapper(),
+      });
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(50);
+      });
+      return { ...hook, sent };
+    };
+
+    const write = async (
+      hook: Awaited<ReturnType<typeof mount>>,
+      vars: Record<string, unknown> = {},
+    ) => {
+      await act(async () => {
+        await hook.result.current.syncProgress({
+          lesson_slug: "l1",
+          score: 10,
+          completed: true,
+          ...vars,
+        });
+      });
+    };
+
+    const flush = async () => {
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(3050);
+      });
+    };
+
+    it("sends the version it last saw", async () => {
+      const hook = await mount([entry()]);
+      await write(hook);
+      await flush();
+      expect(hook.sent[0][0].expected_version).toBe(4);
+    });
+
+    it("keeps the first version when a lesson is written twice in a batch", async () => {
+      const hook = await mount([]);
+      await write(hook, { score: 15 });
+      // The optimistic entry from the first write has no version
+      await write(hook, { score: 20 });
+      await flush();
+      expect(hook.sent).toHaveLength(1);
+      expect(hook.sent[0][0]).toMatchObject({ score: 20, expected_version: 0 });
+    });
+
+    it("leaves the version out when the list is not loaded yet", async () => {
+      const hook = await mount(undefined);
+      await write(hook);
+      await flush();
+      expect(hook.sent[0][0]).not.toHaveProperty("expected_version");
+    });
+
+    it("leaves the version out for an entry without one", async () => {
+      const hook = await mount([entry({ version: undefined })]);
+      await write(hook);
+      await flush();
+      expect(hook.sent[0][0]).not.toHaveProperty("expected_version");
+    });
+
+    it("uses the version from the response before any refetch", async () => {
+      let answerFirst: (value: unknown) => void = () => {};
+      const answers = [
+        new Promise((resolve) => (answerFirst = resolve)),
+        Promise.resolve({}),
+      ];
+      const hook = await mount([entry()], () => answers.shift());
+      await write(hook);
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(3000);
+      });
+
+      // Queued while the first request is in flight, so that one will not refetch
+      await write(hook, { lesson_slug: "other" });
+      await act(async () => {
+        answerFirst({ versions: { l1: 5 } });
+        await vi.advanceTimersByTimeAsync(50);
+      });
+      await write(hook, { score: 30 });
+      await flush();
+
+      expect(hook.sent).toHaveLength(2);
+      expect(hook.sent[1]).toContainEqual(
+        expect.objectContaining({ lesson_slug: "l1", expected_version: 5 }),
+      );
+    });
+
+    describe("when the server refuses an item", () => {
+      const conflict = entry({ completed: true, score: 80, version: 6 });
+      const pending = () =>
+        JSON.parse(localStorage.getItem("atelier_pending_sync") || "[]");
+      let onConflict: ReturnType<typeof vi.fn>;
+
+      beforeEach(() => {
+        onConflict = vi.fn();
+        eventBus.on("sync:conflict", onConflict);
+      });
+
+      afterEach(() => {
+        eventBus.off("sync:conflict", onConflict);
+      });
+
+      it("opens the prompt and keeps the item up for review", async () => {
+        const hook = await mount([entry()], () => ({ conflicts: [conflict] }));
+        await write(hook);
+        await flush();
+
+        expect(onConflict).toHaveBeenCalledTimes(1);
+        expect(onConflict).toHaveBeenCalledWith({
+          id: "progress-sync-l1",
+          lesson_slug: "l1",
+          serverData: conflict,
+          localData: expect.objectContaining({ score: 10, completed: true }),
+        });
+        expect(pending()).toEqual([
+          expect.objectContaining({
+            lesson_slug: "l1",
+            state: "conflict",
+            serverData: conflict,
+          }),
+        ]);
+      });
+
+      it("does not announce the lesson as saved", async () => {
+        const hook = await mount([entry()], () => ({ conflicts: [conflict] }));
+        await write(hook);
+        await flush();
+        expect(hook.result.current.announcement?.type).toBe("error");
+      });
+
+      it("still reports it after the page unmounted", async () => {
+        let answer: (value: unknown) => void = () => {};
+        const hook = await mount(
+          [entry()],
+          () => new Promise((resolve) => (answer = resolve)),
+        );
+        await write(hook);
+        await act(async () => {
+          await vi.advanceTimersByTimeAsync(3000);
+        });
+        hook.unmount();
+
+        await act(async () => {
+          answer({ conflicts: [conflict] });
+          await vi.advanceTimersByTimeAsync(50);
+        });
+
+        expect(onConflict).toHaveBeenCalledTimes(1);
+      });
     });
   });
 

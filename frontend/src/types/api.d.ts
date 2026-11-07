@@ -19498,6 +19498,8 @@ export interface components {
             /** @default true */
             completed: boolean;
             client_timestamp?: number;
+            /** @description Version of this lesson's progress the client last saw, 0 if it saw none. A mismatch is refused as a conflict. Without it the write can only move progress forward. */
+            expected_version?: number | null;
             /** @description Client-generated idempotency key per completion attempt */
             idempotency_key?: string;
         };
@@ -21209,6 +21211,7 @@ export interface components {
             score?: number;
             /** Format: int64 */
             attempt_count?: number;
+            readonly version: number;
             /** Format: date-time */
             readonly updated_at: string;
         };
@@ -21225,8 +21228,10 @@ export interface components {
              * @default true
              */
             completed: boolean;
-            /** @description Client timestamp for conflict resolution */
+            /** @description Client timestamp, stored with the sync record */
             client_timestamp?: number;
+            /** @description Version of this lesson's progress the client last saw, 0 if it saw none. A mismatch is refused as a conflict. Without it the write can only move progress forward. */
+            expected_version?: number | null;
             /** @description Client-generated idempotency key per completion attempt */
             idempotency_key?: string;
         };
@@ -39166,7 +39171,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Successful bulk update summary: {success, transaction_outcome, updated_count, updated_ids, metadata} */
+            /** @description Successful bulk update summary: {success, transaction_outcome, updated_count, updated_ids, versions, conflicts, metadata}. Items refused by the version check are listed in conflicts with the current row, the rest are committed. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -39543,6 +39548,23 @@ export interface operations {
         };
         responses: {
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LessonProgress"];
+                };
+            };
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LessonProgress"];
+                };
+            };
+            /** @description Write refused because it is behind the stored row. The body is the current row plus code, detail and expected_version. Retry with its version to overwrite on purpose. */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -58950,7 +58972,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Successful bulk update summary: {success, transaction_outcome, updated_count, updated_ids, metadata} */
+            /** @description Successful bulk update summary: {success, transaction_outcome, updated_count, updated_ids, versions, conflicts, metadata}. Items refused by the version check are listed in conflicts with the current row, the rest are committed. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -59327,6 +59349,23 @@ export interface operations {
         };
         responses: {
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LessonProgress"];
+                };
+            };
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LessonProgress"];
+                };
+            };
+            /** @description Write refused because it is behind the stored row. The body is the current row plus code, detail and expected_version. Retry with its version to overwrite on purpose. */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };

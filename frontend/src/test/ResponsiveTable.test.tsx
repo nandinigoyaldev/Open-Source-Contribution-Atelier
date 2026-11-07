@@ -1,6 +1,30 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import { render, screen } from "@testing-library/react";
 import { ResponsiveTable } from "../components/ui/ResponsiveTable";
+
+// Return a deterministic visible row instead of relying on browser layout.
+vi.mock("@tanstack/react-virtual", () => ({
+  useVirtualizer: (options: {
+    count: number;
+    getItemKey: (index: number) => string | number;
+  }) => ({
+    getVirtualItems: () =>
+      options.count > 0
+        ? [
+            {
+              index: 0,
+              key: options.getItemKey(0),
+              start: 0,
+              end: 50,
+              size: 50,
+              lane: 0,
+            },
+          ]
+        : [],
+    getTotalSize: () => options.count * 50,
+    measureElement: () => undefined,
+  }),
+}));
 
 describe("ResponsiveTable Component", () => {
   const columns = [
@@ -28,23 +52,14 @@ describe("ResponsiveTable Component", () => {
       />,
     );
 
-    // Desktop table should be present
     const table = container.querySelector("table");
     expect(table).toBeInTheDocument();
 
-    // Check if headers are rendered in desktop
     expect(screen.getAllByText("ID").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Name").length).toBeGreaterThan(0);
 
-    // Mobile layout should be present (hidden via sm:hidden class)
-    // The mobile view has the label 'Identifier'
-    const mobileLabels = screen.getAllByText("Identifier");
-    expect(mobileLabels.length).toBe(2);
-
-    // Custom accessor rendering
-    const roles = screen.getAllByTestId("role");
-    // 2 in desktop, 2 in mobile = 4 total
-    expect(roles.length).toBe(4);
+    expect(screen.getAllByText("Identifier").length).toBe(2);
+    expect(screen.getAllByTestId("role").length).toBe(4);
   });
 
   it("renders empty message when no data is provided", () => {
@@ -52,15 +67,44 @@ describe("ResponsiveTable Component", () => {
       <ResponsiveTable
         columns={columns}
         data={[]}
-        keyExtractor={(item: { id: number; name: string; role: string }) =>
-          item.id.toString()
-        }
+        keyExtractor={(item) => item.id.toString()}
         emptyMessage="No records found"
       />,
     );
 
-    const emptyMessages = screen.getAllByText("No records found");
-    // One in desktop table, one in mobile view
-    expect(emptyMessages.length).toBe(2);
+    expect(screen.getAllByText("No records found").length).toBe(2);
+  });
+
+  it("preserves accessible table semantics and keyboard-accessible links when virtualized", () => {
+    const testData = [{ id: "alice", name: "Alice", role: "Maintainer" }];
+
+    const { container } = render(
+      <ResponsiveTable
+        columns={[
+          {
+            header: "Contributor",
+            accessor: (item) => (
+              <a href={`/contributors/${item.id}`}>{item.name}</a>
+            ),
+          },
+        ]}
+        data={testData}
+        keyExtractor={(item) => item.id}
+        virtualized={true}
+        containerHeight="300px"
+      />,
+    );
+
+    const table = container.querySelector("table");
+
+    expect(table).toBeInTheDocument();
+    expect(table?.querySelector("thead th")?.textContent).toBe("Contributor");
+
+    const link = table?.querySelector('tbody a[href="/contributors/alice"]');
+
+    expect(link).toBeInTheDocument();
+    expect(link).toHaveProperty("tabIndex", 0);
+    expect(link?.closest("tr")).toBeInTheDocument();
+    expect(link?.closest("tr")).not.toHaveAttribute("aria-hidden");
   });
 });

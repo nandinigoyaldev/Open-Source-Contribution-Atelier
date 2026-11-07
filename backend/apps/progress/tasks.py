@@ -279,8 +279,11 @@ def process_buffered_progress_updates():
                 for item in user_data
             ]
 
-            success_ids = process_bulk_progress_updates(user, clean_data)
-            success_count += len(success_ids)
+            result = process_bulk_progress_updates(user, clean_data)
+            success_count += len(result.updated_ids)
+            # Nobody is waiting on a buffered write, so a refused one can only be
+            # counted. Retrying would never help, the row is already ahead of it.
+            ProgressBufferService.record_conflicts(len(result.conflicts))
 
             # Record successful keys
             successful_keys.extend(

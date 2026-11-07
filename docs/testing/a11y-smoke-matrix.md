@@ -1,6 +1,6 @@
 # Accessibility smoke matrix
 
-A small Playwright suite (tag `@a11y-smoke`) that runs the same sign in and lesson flows in every supported browser and checks keyboard use, focus and screen reader announcements. It is a smoke test, not an axe audit: `e2e/accessibility/a11y-ci.spec.ts` still covers WCAG rules per route.
+A small Playwright suite (tag `@a11y-smoke`) that runs the same sign in and lesson flows in every supported browser and checks keyboard use, focus and screen reader announcements. It is a smoke test, not an axe audit: `e2e/accessibility/a11y-ci.spec.ts` still covers WCAG rules per route, and [a11y-conformance.md](a11y-conformance.md) is the gate for critical journeys.
 
 ## Browsers
 

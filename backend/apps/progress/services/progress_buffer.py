@@ -116,6 +116,17 @@ class ProgressBufferService:
         client.incrby("metrics:total_processed_updates", len(keys))
 
     @classmethod
+    def record_conflicts(cls, count):
+        """
+        Counts buffered updates the flush refused because the row was ahead of them.
+        """
+        client = cls.get_redis_client()
+        if not client or not count:
+            return
+
+        client.incrby("metrics:total_conflicted_updates", count)
+
+    @classmethod
     def handle_failed_updates(cls, failed_updates, max_retries=3):
         """
         Implements automatic retry mechanism and Dead-Letter Queue (DLQ).
@@ -159,4 +170,5 @@ class ProgressBufferService:
             "total_queued": int(client.get("metrics:total_queued_updates") or 0),
             "total_processed": int(client.get("metrics:total_processed_updates") or 0),
             "total_retries": int(client.get("metrics:total_retries") or 0),
+            "total_conflicts": int(client.get("metrics:total_conflicted_updates") or 0),
         }

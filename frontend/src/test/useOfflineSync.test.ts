@@ -135,6 +135,37 @@ describe("useOfflineSync hook queueing behavior", () => {
     });
   });
 
+  it("keeps the version the client last saw in the queued body", async () => {
+    vi.spyOn(networkContext, "useNetworkStatus").mockReturnValue({
+      isOnline: false,
+      hasPendingActions: true,
+      syncStatus: "idle",
+      triggerManualSync: vi.fn(),
+    } as any);
+    vi.spyOn(authToken, "getAccessToken").mockReturnValue("mock-auth-token-xyz");
+    vi.spyOn(offlineQueue, "enqueueOfflineAction").mockResolvedValue("queued-id-123" as any);
+
+    const { result } = renderHook(() => useOfflineSync());
+
+    await act(async () => {
+      await result.current.syncProgress({
+        lesson_slug: "merge-conflicts-guide",
+        score: 80,
+        completed: true,
+        expected_version: 3,
+      });
+    });
+
+    expect(offlineQueue.enqueueOfflineAction).toHaveBeenCalledWith(
+      "/progress/me/",
+      "PATCH",
+      expect.anything(),
+      expect.objectContaining({ expected_version: 3 }),
+      "progress",
+      "merge-conflicts-guide",
+    );
+  });
+
   it("omits authorization header if token is missing when offline", async () => {
     vi.spyOn(networkContext, "useNetworkStatus").mockReturnValue({
       isOnline: false,

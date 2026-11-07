@@ -21,7 +21,7 @@ export interface MatrixLesson {
 export type Ctx = (what: string) => string;
 
 type MatrixFixtures = {
-  /** Page whose backend is fully mocked. No network call leaves the browser. */
+  /** Page whose backend is fully mocked. No request or socket leaves the browser. */
   mocked: Page;
   /** Same as `mocked`, but already holding the access token of a fresh user. */
   signedIn: Page;
@@ -194,8 +194,21 @@ export async function mockLessonApi(
 }
 
 export const test = base.extend<MatrixFixtures>({
-  mocked: async ({ page }, use) => {
-    // Registered first, so the specific routes added later win.
+  mocked: async ({ page, baseURL }, use) => {
+    const devServer = new URL(baseURL ?? "http://localhost:5173");
+    // Nothing but the dev server: no real backend, no Google fonts or sign-in.
+    await page.route(
+      (url) => url.host !== devServer.host,
+      (route) => route.abort(),
+    );
+    // The app opens sockets to localhost:8000 directly, not only through Vite.
+    // Leaving the handler empty keeps them open and connected to nothing. Vite's
+    // own HMR socket is on the dev server, outside /ws/, so it is left alone.
+    await page.routeWebSocket(
+      (url) => url.pathname.startsWith("/ws/") || url.host !== devServer.host,
+      () => {},
+    );
+    // Registered after the block above, so these win for /api on any host.
     await page.route("**/api/**", (route) =>
       route.fulfill({ status: 200, json: [] }),
     );

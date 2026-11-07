@@ -121,6 +121,31 @@ for any new place that issues tokens, not SimpleJWT's plain `RefreshToken`.
 
 Tests: `apps/accounts/tests/test_password_change_sessions.py`.
 
+## Password Reset
+
+`POST /api/auth/password-reset/` always answers the same way. The view validates the address and queues `process_password_reset_request`, for every address. Looking up the account, creating the token and sending the email all happen in the worker, so neither the response nor its timing depends on whether the account exists.
+
+Tokens:
+
+* The link keeps its format, `/reset-password?token=<uuid>`, but only a keyed hash of the token is stored (`PasswordResetToken.token_hash`). The hash is keyed with `SECRET_KEY` and salted with the token's purpose, so a value issued for another flow does not match, and rotating the key ends any link in flight. The raw value goes straight into the email and never passes through the task queue.
+* A token lasts `PASSWORD_RESET_TIMEOUT_SECONDS` (900 by default). It dies when it is used, when a newer one is issued, and when the password changes.
+* `redeem_password_reset_token` is the only place a token gets spent. It takes a lock on the user, and a conditional `UPDATE` on `is_used` decides the winner, so of several concurrent confirms exactly one changes the password. If the reset fails halfway the transaction rolls back and the token still works.
+
+Limits, all of which apply to signed-in callers too:
+
+| What | Limit | Setting |
+| --- | --- | --- |
+| Request and confirm, per client address | 3 per hour, shared | `RATE_AUTH_PASSWORD_RESET` |
+| Request, per email address | 3 per hour | `RATE_AUTH_PASSWORD_RESET` |
+| Validate, per client address | 10 per hour | `RATE_AUTH_PASSWORD_RESET_VALIDATE` |
+| Reset emails for one account | 5 per hour, counted from its own tokens | `PASSWORD_RESET_MAX_PER_HOUR` |
+
+The last one is checked in the worker, so hitting it looks like any other request to the caller. The middleware limit on `/api/auth/` (5 per minute) applies on top of these.
+
+Every step writes an audit event, see [AUDIT_EVENTS.md](AUDIT_EVENTS.md#password-reset-events).
+
+Tests: `apps/accounts/tests/test_password_reset.py`, `apps/accounts/tests/test_password_reset_hardening.py`.
+
 ## Guidelines for Extending Passwordless Authentication
 
 - When introducing new passwordless mechanisms (e.g., OTP via SMS), use the existing token generation and verification architecture as a baseline.

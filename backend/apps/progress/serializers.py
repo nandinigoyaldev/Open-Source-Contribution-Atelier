@@ -10,6 +10,12 @@ from .models import (
     WeeklyGoal,
 )
 
+EXPECTED_VERSION_HELP = (
+    "Version of this lesson's progress the client last saw, 0 if it saw none. "
+    "A mismatch is refused as a conflict. Without it the write can only move "
+    "progress forward."
+)
+
 
 class BadgeSerializer(serializers.ModelSerializer):
     class Meta:
@@ -52,6 +58,7 @@ class LessonProgressSerializer(serializers.ModelSerializer):
             "completed",
             "score",
             "attempt_count",
+            "version",
             "updated_at",
         ]
 
@@ -81,7 +88,13 @@ class LessonProgressCreateSerializer(serializers.Serializer):
         default=True, help_text="Whether the lesson is completed"
     )
     client_timestamp = serializers.IntegerField(
-        required=False, help_text="Client timestamp for conflict resolution"
+        required=False, help_text="Client timestamp, stored with the sync record"
+    )
+    expected_version = serializers.IntegerField(
+        required=False,
+        allow_null=True,
+        min_value=0,
+        help_text=EXPECTED_VERSION_HELP,
     )
     idempotency_key = serializers.CharField(
         max_length=255,
@@ -95,6 +108,12 @@ class BulkLessonProgressSerializer(serializers.Serializer):
     score = serializers.IntegerField(default=100)
     completed = serializers.BooleanField(default=True)
     client_timestamp = serializers.IntegerField(required=False)
+    expected_version = serializers.IntegerField(
+        required=False,
+        allow_null=True,
+        min_value=0,
+        help_text=EXPECTED_VERSION_HELP,
+    )
     idempotency_key = serializers.CharField(
         max_length=255,
         required=False,

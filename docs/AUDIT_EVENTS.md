@@ -50,12 +50,15 @@ Example event as returned by `GET /api/admin/audit/<id>/` (trimmed):
 | `issue.deleted` | `deleted` | `issues.issuereport` | `DELETE /api/issues/<id>/` | `title`, `status`, `issue_type` of the deleted report. |
 | `user.role_assigned` | `created` | `auth.user` (the user who got the role) | `POST /api/rbac/assign/` | `role_id`, `role_name`, `organization_id`. |
 | `user.role_revoked` | `deleted` | `auth.user` | `POST /api/rbac/revoke/` | `role_id`, `role_name`, `organization_id`. |
+| `billing.reconcile_run` | `created` | `billing.reconciliation` (the run id) | `reconcile_billing` command, dry run or `--apply` | `dry_run`, counts, and the mismatches found. |
+| `billing.reconcile_repair` | `created` or `updated` | `billing.customersubscription` or `billing.invoice` | `reconcile_billing --apply` | `run_id`, `kind`, Stripe ids, and the local and Stripe value of each changed field. |
 
 Notes:
 
 - An event is written only after the action succeeded. A request that is rejected (403, 404, validation error) writes nothing.
 - Assigning a role the user already has changes nothing, so it writes nothing.
 - The older `rbac.AuditLog` rows are still written as before. The new events are in addition to them, not a replacement.
+- Reconcile events have no actor because a command has no user. `correlation_id` is the run id, so `?correlation_id=<run id>` lists a run and its repairs together. See [STRIPE_WEBHOOK_LEDGER.md](STRIPE_WEBHOOK_LEDGER.md).
 
 Filter admin events in the API with `?operation=issue.updated`, `?resource_type=issuereport`, `?resource_id=7`, `?actor=<username or id>` or `?correlation_id=<request id>`.
 
@@ -77,6 +80,26 @@ record_admin_event(
 
 Call it after the change has succeeded. It never raises. If the write fails it logs the error on the `apps.audit.admin_events` logger and returns `None`, so an audit problem cannot turn a successful admin action into a 500. Use a value like `thing.archived`, not free text, for `operation`, because it is what people filter on.
 
+### Password reset events
+
+The signed-out reset flow writes to the same table through `record_security_event()` (`backend/apps/audit/security_events.py`). Nobody is signed in, so `actor` is `null`, the account is the target, and `ip_address` and `user_agent` are kept: they are the only way to connect repeated attempts. The address comes from the same proxy-aware lookup the rate limits use. `extra["source"]` is `"security"`.
+
+| Operation | Action | Target | When | Payload |
+| --- | --- | --- | --- | --- |
+| `password_reset.requested` | `created` | `auth.user`, or `unknown` when no account matched | The worker handled a valid request. | `account_found`. For an unknown address also `email_fingerprint`. |
+| `password_reset.suppressed` | `created` | `auth.user` | The account already reached `PASSWORD_RESET_MAX_PER_HOUR`, so no token or email was created. | `recent_requests`. |
+| `password_reset.completed` | `updated` | `auth.user` | The password was changed with a reset token. | Empty. |
+| `password_reset.failed` | `created` | `auth.user`, or `unknown` when no such token exists | A token was rejected at the validate or confirm step. | `stage` (`validate`, `confirm`), `reason` (`unknown_token`, `expired_token`, `used_token`). |
+| `password_reset.rate_limited` | `created` | `unknown` | A rate limit blocked a caller. Written once per address and stage every 15 minutes, so a flood does not become a flood of rows. | `stage`, and `email_fingerprint` on the request step. |
+
+Notes:
+
+- Tokens are never recorded. Neither is an address that may not belong to anyone: `email_fingerprint` is a short keyed hash, so repeats for one address can be grouped without storing it.
+- `reason` is more exact than the response. The caller only sees `invalid_token` or `expired_token`.
+- A `used_token` failure is worth a look, since it means a link was tried again after it was spent.
+
+Find them with `?operation=password_reset.failed`, or `?resource_type=auth.user&resource_id=<id>` for one account.
+
 ## 3. What Is Never Stored
 
 - **Secrets.** `redact()` (`backend/apps/audit/redaction.py`) runs on every payload and summary before they are saved. It replaces with `[REDACTED]`:
@@ -84,7 +107,7 @@ Call it after the change has succeeded. It never raises. If the write fails it l
   - string values that look like a credential even under an ordinary key: JWTs, `Bearer ...` / `Basic ...` values, GitHub, OpenAI-style, AWS and Slack token prefixes, PEM private key blocks, inline `password=...` or `api_key: ...` pairs, and any unbroken 32+ character string of letters and digits.
 - **Free text.** Issue descriptions, URLs and uploaded images are user supplied, so events only record that they changed.
 - **Whole request bodies and headers.** Payloads are built by hand from named fields, never copied from `request.data` or `request.META`.
-- **Client details.** `ip_address` and `user_agent` are left empty for admin events.
+- **Client details.** `ip_address` and `user_agent` are left empty for admin events. Password reset events keep them, see above.
 - Strings in a payload are cut at 500 characters and structures deeper than 8 levels are cut off.
 
 Redaction errs on the side of hiding too much. A field named `tokens_used` or a 40 character commit hash will be replaced. UUIDs, which are used for request ids, are kept.
@@ -138,6 +161,7 @@ inputs are checked in the browser first, and typing waits for a short pause befo
 
 ```
 backend/apps/audit/admin_events.py        # record_admin_event() and operation names
+backend/apps/audit/security_events.py     # record_security_event(), used by password reset
 backend/apps/audit/redaction.py           # redact()
 backend/apps/audit/views.py               # read endpoints (staff only), ?operation filter
 backend/apps/audit/tasks.py               # archive_audit_events (retention)

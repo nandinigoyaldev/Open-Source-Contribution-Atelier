@@ -52,7 +52,15 @@ from schemas.user import (
 
 from .jwt import DynamicSaltRefreshToken
 from .serializers import DynamicSaltTokenRefreshSerializer
-from .services import notify_sessions_revoked, revoke_user_sessions
+from .services import (
+    notify_sessions_revoked,
+    password_reset_client,
+    record_password_reset_failure,
+    record_password_reset_rate_limited,
+    redeem_password_reset_token,
+    revoke_user_sessions,
+    validate_password_reset_token,
+)
 
 
 class LoginResponseSchema(UserResponseSchema):
@@ -89,6 +97,7 @@ from .throttles import (
     OtpGenerateThrottle,
     OtpVerifyThrottle,
     PasswordResetThrottle,
+    PasswordResetValidateThrottle,
     ResendVerificationThrottle,
     SignupThrottle,
     StrictIdentityLoginThrottle,
@@ -1033,6 +1042,11 @@ class UserListView(OrganizationScopedQuerySetMixin, generics.ListAPIView):
 # Password Reset Views
 # ─────────────────────────────────────────────────────────────────────────────
 
+PASSWORD_RESET_ERROR_MESSAGES = {
+    "invalid_token": "This reset link is invalid or has already been used.",
+    "expired_token": "This reset link has expired. Please request a new one.",
+}
+
 
 @extend_schema(
     request=PasswordResetRequestSerializer,
@@ -1050,34 +1064,26 @@ class PasswordResetRequestView(APIView):
     permission_classes = [permissions.AllowAny]
     throttle_classes = [PasswordResetThrottle, StrictIdentityPasswordResetThrottle]
 
+    def throttled(self, request, wait):
+        record_password_reset_rate_limited(
+            "request", password_reset_client(request), request.data.get("email")
+        )
+        super().throttled(request, wait)
+
     def post(self, request):
         serializer = PasswordResetRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
         email = serializer.validated_data["email"].lower()  # type: ignore
-        user = User.objects.filter(email__iexact=email).first()
 
-        if user:
-            # Invalidate any existing unused tokens for this user
-            PasswordResetToken.objects.filter(user=user, is_used=False).update(
-                is_used=True
-            )
-            reset_token = PasswordResetToken.objects.create(user=user)
+        # Nothing here looks at whether the account exists. That all happens in the
+        # queued task, so the response and its timing are the same either way.
+        async_task(
+            "apps.accounts.tasks.process_password_reset_request",
+            email=email,
+            **password_reset_client(request),
+        )
 
-            reset_url = frontend_url(
-                "/reset-password", {"token": str(reset_token.token)}
-            )
-            timeout = getattr(settings, "PASSWORD_RESET_TIMEOUT_MINUTES", 15)
-
-            async_task(
-                "apps.accounts.tasks.send_password_reset_email_task",
-                user_email=user.email,
-                user_username=user.username,
-                reset_url=reset_url,
-                timeout=timeout,
-            )
-
-        # Always return the same response to prevent email enumeration
         return Response(
             {
                 "message": "If an account with that email exists, a password reset link has been sent."
@@ -1102,46 +1108,27 @@ class PasswordResetConfirmView(APIView):
     permission_classes = [permissions.AllowAny]
     throttle_classes = [PasswordResetThrottle]
 
+    def throttled(self, request, wait):
+        record_password_reset_rate_limited("confirm", password_reset_client(request))
+        super().throttled(request, wait)
+
     def post(self, request):
         serializer = PasswordResetConfirmSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        token_value = serializer.validated_data["token"]  # type: ignore
-        new_password = serializer.validated_data["new_password"]  # type: ignore
-
-        try:
-            reset_token = PasswordResetToken.objects.select_related("user").get(
-                token=token_value,
-                is_used=False,
-            )
-        except PasswordResetToken.DoesNotExist:
+        success, error = redeem_password_reset_token(
+            serializer.validated_data["token"],  # type: ignore
+            serializer.validated_data["new_password"],  # type: ignore
+            client=password_reset_client(request),
+        )
+        if not success:
             return Response(
                 {
-                    "error": "invalid_token",
-                    "message": "This reset link is invalid or has already been used.",
+                    "error": error,
+                    "message": PASSWORD_RESET_ERROR_MESSAGES[str(error)],
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
-
-        if reset_token.is_expired():
-            return Response(
-                {
-                    "error": "expired_token",
-                    "message": "This reset link has expired. Please request a new one.",
-                },
-                status=status.HTTP_400_BAD_REQUEST,
-            )
-
-        user = reset_token.user
-        with transaction.atomic():
-            user.set_password(new_password)
-            user.save()
-            PasswordResetToken.objects.filter(user=user, is_used=False).update(
-                is_used=True
-            )
-            # A reset happens signed out, so every session on every device is revoked.
-            revoke_user_sessions(user, notify=False)
-        notify_sessions_revoked(user)
 
         return Response(
             {
@@ -1810,6 +1797,11 @@ class ShopStreakFreezeView(APIView):
 
 class PasswordResetValidateTokenView(APIView):
     permission_classes = [permissions.AllowAny]
+    throttle_classes = [PasswordResetValidateThrottle]
+
+    def throttled(self, request, wait):
+        record_password_reset_rate_limited("validate", password_reset_client(request))
+        super().throttled(request, wait)
 
     @extend_schema(
         request=PasswordResetValidateTokenSerializer,
@@ -1819,20 +1811,14 @@ class PasswordResetValidateTokenView(APIView):
         serializer = PasswordResetValidateTokenSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        token_value = serializer.validated_data["token"]
-        try:
-            reset_token = PasswordResetToken.objects.get(
-                token=token_value, is_used=False
+        is_valid, reset_token, error = validate_password_reset_token(
+            serializer.validated_data["token"]
+        )
+        if not is_valid:
+            record_password_reset_failure(
+                "validate", reset_token, error, password_reset_client(request)
             )
-        except PasswordResetToken.DoesNotExist:
-            return Response(
-                {"error": "invalid_token"}, status=status.HTTP_400_BAD_REQUEST
-            )
-
-        if reset_token.is_expired():
-            return Response(
-                {"error": "expired_token"}, status=status.HTTP_400_BAD_REQUEST
-            )
+            return Response({"error": error}, status=status.HTTP_400_BAD_REQUEST)
 
         return Response(
             {"status": "password reset token is valid"}, status=status.HTTP_200_OK

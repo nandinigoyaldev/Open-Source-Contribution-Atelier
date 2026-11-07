@@ -1,0 +1,250 @@
+[
+  {
+    "rule": "keyboard/main-control-unreachable",
+    "routes": ["/moderation"],
+    "owner": "Anshuu2004",
+    "rationale": "Report cards in ModerationDashboard are div onClick, so a keyboard user cannot open a report at all. Needs a real button.",
+    "expires": "2027-02-05"
+  },
+  {
+    "rule": "keyboard/tab-trap",
+    "routes": ["/lessons/:slug"],
+    "owner": "Anshuu2004",
+    "rationale": "The command input in LessonPage calls preventDefault on every Tab, even with nothing to complete. Same gap as lesson-tab-out in the smoke matrix.",
+    "expires": "2027-02-05"
+  },
+  {
+    "rule": "keyboard/skip-link",
+    "routes": ["/login", "/signup"],
+    "owner": "Anshuu2004",
+    "rationale": "The skip link points at #main-content but the <main> in LoginPage and AuthPageShell has no such id.",
+    "expires": "2027-02-05"
+  },
+  {
+    "rule": "keyboard/scrollable-region-focusable",
+    "routes": [
+      "/admin/content-studio",
+      "/collab-notes/:roomId",
+      "/lessons/:slug"
+    ],
+    "owner": "Anshuu2004",
+    "rationale": "Code blocks and preview panes scroll but cannot be focused, so keyboard users cannot scroll them.",
+    "expires": "2027-02-05"
+  },
+  {
+    "rule": "focus/lost-after-action",
+    "routes": ["/lessons/:slug"],
+    "owner": "Anshuu2004",
+    "rationale": "The command input is disabled when the lesson is finished, so focus falls back to body. Needs focus moved to the result or the next lesson link.",
+    "expires": "2027-02-05"
+  },
+  {
+    "rule": "focus/route-change-silent",
+    "routes": ["/dashboard"],
+    "owner": "Anshuu2004",
+    "rationale": "The app has no focus handling on route change yet, so focus does not move into the new page and nothing is announced.",
+    "expires": "2027-02-05"
+  },
+  {
+    "rule": "labels/button-name",
+    "routes": ["*"],
+    "breakpoints": ["tablet", "mobile"],
+    "maxFindings": 1,
+    "owner": "Anshuu2004",
+    "rationale": "The user menu button in Navigation has its only text in a hidden lg:inline span, so below lg it has no name.",
+    "expires": "2027-02-05"
+  },
+  {
+    "rule": "labels/button-name",
+    "routes": ["/admin/content-studio"],
+    "maxFindings": 2,
+    "owner": "Anshuu2004",
+    "rationale": "The trash icon delete buttons in the notes list have no aria-label.",
+    "expires": "2027-02-05"
+  },
+  {
+    "rule": "labels/label",
+    "routes": ["/collab-notes/:roomId"],
+    "maxFindings": 2,
+    "owner": "Anshuu2004",
+    "rationale": "The note title and room id inputs in CollabNotesPage have no label.",
+    "expires": "2027-02-05"
+  },
+  {
+    "rule": "labels/label",
+    "routes": ["/admin/content-studio"],
+    "owner": "Anshuu2004",
+    "rationale": "The studio content textarea has no label.",
+    "expires": "2027-02-05"
+  },
+  {
+    "rule": "labels/select-name",
+    "routes": ["/collab-notes/:roomId"],
+    "owner": "Anshuu2004",
+    "rationale": "The template select in CollabNotesPage has no label.",
+    "expires": "2027-02-05"
+  },
+  {
+    "rule": "labels/label-content-name-mismatch",
+    "routes": ["/collab-notes/:roomId", "/lessons/:slug"],
+    "maxFindings": 2,
+    "owner": "Anshuu2004",
+    "rationale": "aria-label does not contain the visible text on the view mode, share and back buttons, which breaks voice control.",
+    "expires": "2027-02-05"
+  },
+  {
+    "rule": "structure/landmark-unique",
+    "routes": ["*"],
+    "maxFindings": 2,
+    "owner": "Anshuu2004",
+    "rationale": "The top nav and the other landmarks have no aria-label, so screen readers list identical landmarks.",
+    "expires": "2027-02-05"
+  },
+  {
+    "rule": "structure/landmark-no-duplicate-main",
+    "routes": ["/collab-notes/:roomId", "/moderation"],
+    "owner": "Anshuu2004",
+    "rationale": "These pages render their own <main> inside the one from AppLayout.",
+    "expires": "2027-02-05"
+  },
+  {
+    "rule": "structure/landmark-main-is-top-level",
+    "routes": ["/collab-notes/:roomId", "/moderation"],
+    "owner": "Anshuu2004",
+    "rationale": "Same nested <main> as above, one change fixes both.",
+    "expires": "2027-02-05"
+  },
+  {
+    "rule": "structure/page-has-heading-one",
+    "routes": ["/chat/:roomId", "/collab-notes/:roomId", "/signup"],
+    "owner": "Anshuu2004",
+    "rationale": "No h1 on the chat and notes rooms. On /signup the only h1 is in the panel that is hidden below lg.",
+    "expires": "2027-02-05"
+  },
+  {
+    "rule": "structure/heading-order",
+    "routes": ["/dashboard", "/lessons/:slug", "/signup"],
+    "maxFindings": 2,
+    "owner": "Anshuu2004",
+    "rationale": "Card titles skip heading levels. Needs a heading pass over the dashboard widgets and the lesson panels.",
+    "expires": "2027-02-05"
+  },
+  {
+    "rule": "structure/region",
+    "routes": [
+      "/admin/audit",
+      "/admin/content-studio",
+      "/chat/:roomId",
+      "/collab-notes/:roomId",
+      "/dashboard",
+      "/moderation"
+    ],
+    "breakpoints": ["desktop"],
+    "maxFindings": 1,
+    "owner": "Anshuu2004",
+    "rationale": "SessionTracker renders outside every landmark on desktop.",
+    "expires": "2027-02-05"
+  },
+  {
+    "rule": "structure/region",
+    "routes": ["/login", "/signup"],
+    "owner": "Anshuu2004",
+    "rationale": "The skip link has no target here (see keyboard/skip-link), so axe counts it as content outside a landmark.",
+    "expires": "2027-02-05"
+  },
+  {
+    "rule": "structure/region",
+    "routes": ["/lessons/:slug"],
+    "owner": "Anshuu2004",
+    "rationale": "The confetti overlay from NotificationProvider is a fixed div outside every landmark while it plays.",
+    "expires": "2027-02-05"
+  },
+  {
+    "rule": "motion/keeps-animating",
+    "routes": ["*"],
+    "target": "pulse on <svg.animate-pulse>",
+    "owner": "Anshuu2004",
+    "rationale": "The Timer icon in SessionTracker and the Sparkles icons in CollabNotesPage and ContentStudioPage pulse forever and ignore prefers-reduced-motion.",
+    "expires": "2027-02-05"
+  },
+  {
+    "rule": "motion/keeps-animating",
+    "routes": ["/signup"],
+    "target": "pulse on <div.animate-pulse>",
+    "owner": "Anshuu2004",
+    "rationale": "The background blobs in AuthPageShell pulse forever and ignore prefers-reduced-motion.",
+    "expires": "2027-02-05"
+  },
+  {
+    "rule": "motion/keeps-animating",
+    "routes": ["/lessons/:slug"],
+    "target": "bounce on <div.animate-bounce>",
+    "owner": "Anshuu2004",
+    "rationale": "The success message in LessonPage keeps bouncing and ignores prefers-reduced-motion.",
+    "expires": "2027-02-05"
+  },
+  {
+    "rule": "motion/keeps-animating",
+    "routes": ["/dashboard"],
+    "maxFindings": 2,
+    "owner": "Anshuu2004",
+    "rationale": "The Trophy icon in StatsCards bounces forever and the live badge in AdminDashboard pulses forever.",
+    "expires": "2027-02-05"
+  },
+  {
+    "rule": "contrast/color-contrast",
+    "routes": ["/admin/audit"],
+    "maxFindings": 3,
+    "owner": "Anshuu2004",
+    "rationale": "Muted text classes (text-slate-400, text-gray-400, amber on white) sit under 4.5:1. Fixing it is a design token change. The budget stops it growing.",
+    "expires": "2027-02-05"
+  },
+  {
+    "rule": "contrast/color-contrast",
+    "routes": ["/admin/content-studio"],
+    "maxFindings": 12,
+    "owner": "Anshuu2004",
+    "rationale": "Muted text classes (text-slate-400, text-gray-400, amber on white) sit under 4.5:1. Fixing it is a design token change. The budget stops it growing.",
+    "expires": "2027-02-05"
+  },
+  {
+    "rule": "contrast/color-contrast",
+    "routes": ["/chat/:roomId"],
+    "maxFindings": 9,
+    "owner": "Anshuu2004",
+    "rationale": "Muted text classes (text-slate-400, text-gray-400, amber on white) sit under 4.5:1. Fixing it is a design token change. The budget stops it growing.",
+    "expires": "2027-02-05"
+  },
+  {
+    "rule": "contrast/color-contrast",
+    "routes": ["/collab-notes/:roomId"],
+    "maxFindings": 7,
+    "owner": "Anshuu2004",
+    "rationale": "Muted text classes (text-slate-400, text-gray-400, amber on white) sit under 4.5:1. Fixing it is a design token change. The budget stops it growing.",
+    "expires": "2027-02-05"
+  },
+  {
+    "rule": "contrast/color-contrast",
+    "routes": ["/dashboard"],
+    "maxFindings": 11,
+    "owner": "Anshuu2004",
+    "rationale": "Muted text classes (text-slate-400, text-gray-400, amber on white) sit under 4.5:1. Fixing it is a design token change. The budget stops it growing.",
+    "expires": "2027-02-05"
+  },
+  {
+    "rule": "contrast/color-contrast",
+    "routes": ["/login"],
+    "maxFindings": 1,
+    "owner": "Anshuu2004",
+    "rationale": "The divider text under the sign in form is text-slate-400 on white, 2.56:1.",
+    "expires": "2027-02-05"
+  },
+  {
+    "rule": "contrast/color-contrast",
+    "routes": ["/moderation"],
+    "maxFindings": 4,
+    "owner": "Anshuu2004",
+    "rationale": "Muted text classes (text-slate-400, text-gray-400, amber on white) sit under 4.5:1. Fixing it is a design token change. The budget stops it growing.",
+    "expires": "2027-02-05"
+  }
+]
