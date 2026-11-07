@@ -90,4 +90,7 @@ export default defineConfig({
 
   /* ✅ Added: Test directory for accessibility tests */
   testMatch: ["**/*.spec.ts", "**/accessibility/**/*.spec.ts"],
+
+  /* The a11y smoke matrix and conformance gate have their own configs. */
+  testIgnore: ["**/a11y-matrix/**", "**/a11y-conformance/**"],
 });
