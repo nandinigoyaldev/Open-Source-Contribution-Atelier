@@ -22,6 +22,8 @@ Welcome to the permanent **Hall of Fame & Contributor Legacy** for **Open-Source
 
 | 1 | @ankitkr104 | 🥉 Bronze Contributor ⚡ | 2 | 50 | 2026-11-07 |
 
+| 1 | @Trunal2005 | 🥉 Bronze Contributor  | 1 | 25 | 2026-11-08 |
+
 ---
 
 ## 🌟 Historic Milestones & Seasonal Legacy
