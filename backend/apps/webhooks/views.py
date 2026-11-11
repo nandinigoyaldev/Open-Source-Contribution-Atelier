@@ -343,12 +343,73 @@ class GitHubWebhookView(APIView):
             allow_legacy=True,
         )
         audit_verification(result, request, source="github_webhook")
-        if not result.ok:
-            code, message = rejection_response(result, "Invalid webhook signature")
-            return Response({"error": message}, status=code)
-
         event_type = request.META.get("HTTP_X_GITHUB_EVENT", "ping")
         delivery_id = request.META.get("HTTP_X_GITHUB_DELIVERY", "")
+
+        from apps.webhooks.services.inbound_processor import process_inbound_webhook
+
+        try:
+            payload = json.loads(request.body.decode("utf-8")) if request.body else {}
+        except Exception:
+            payload = {}
+
+        raw_ts = request.META.get("HTTP_X_WEBHOOK_TIMESTAMP") or request.META.get(
+            "HTTP_X_GITHUB_TIMESTAMP"
+        )
+        event_timestamp = None
+        if raw_ts:
+            try:
+                import datetime
+
+                event_timestamp = datetime.datetime.fromtimestamp(
+                    float(raw_ts), tz=datetime.timezone.utc
+                )
+            except Exception:
+                pass
+
+        if not result.ok:
+            code, message = rejection_response(result, "Invalid webhook signature")
+            process_inbound_webhook(
+                provider="github",
+                event_id=delivery_id,
+                event_type=event_type,
+                payload=payload,
+                signature_valid=False,
+                event_timestamp=event_timestamp,
+            )
+            return Response({"error": message}, status=code)
+
+        ack, outcome, event_record = process_inbound_webhook(
+            provider="github",
+            event_id=delivery_id,
+            event_type=event_type,
+            payload=payload,
+            signature_valid=True,
+            event_timestamp=event_timestamp,
+            out_of_order_policy="reject",
+        )
+
+        if outcome == "duplicate_acknowledged":
+            return Response(
+                {
+                    "status": "duplicate_acknowledged",
+                    "message": "Webhook already received and acknowledged",
+                    "event": event_type,
+                    "delivery_id": delivery_id,
+                },
+                status=status.HTTP_200_OK,
+            )
+
+        if outcome == "out_of_order_rejected":
+            return Response(
+                {
+                    "status": "rejected",
+                    "error": "Out-of-order webhook delivery rejected",
+                    "event": event_type,
+                    "delivery_id": delivery_id,
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         return Response(
             {
