@@ -9,6 +9,8 @@ class Note(models.Model):
     title = models.CharField(max_length=255, blank=True)
     encrypted_content = models.TextField()
     iv = models.CharField(max_length=255)
+    version = models.PositiveIntegerField(default=1)
+    client_id = models.CharField(max_length=64, blank=True, default="", db_index=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 

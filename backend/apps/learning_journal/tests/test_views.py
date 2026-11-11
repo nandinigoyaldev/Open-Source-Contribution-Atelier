@@ -77,6 +77,46 @@ class JournalEntryDetailViewTest(BaseJournalTest):
         )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
 
+    def test_two_device_concurrent_edit_conflict(self):
+        url = reverse("learning_journal:entry-detail", args=[self.entry.id])
+        # Device A updates with expected_version=1 -> succeeds, version becomes 2
+        res_a = self.client.patch(
+            url,
+            {"what_i_learned": "Device A update", "expected_version": 1},
+            format="json",
+        )
+        self.assertEqual(res_a.status_code, status.HTTP_200_OK)
+        self.entry.refresh_from_db()
+        self.assertEqual(self.entry.version, 2)
+
+        # Device B updates with stale expected_version=1 -> 409 Conflict
+        res_b = self.client.patch(
+            url,
+            {"what_i_learned": "Device B update", "expected_version": 1},
+            format="json",
+        )
+        self.assertEqual(res_b.status_code, status.HTTP_409_CONFLICT)
+        self.assertEqual(res_b.data["error"], "conflict")
+        self.assertEqual(res_b.data["server_version"], 2)
+
+    def test_offline_retry_with_client_id_does_not_duplicate(self):
+        url = reverse("learning_journal:entry-list")
+        payload = {
+            "date": (timezone.now().date() - timedelta(days=2)).isoformat(),
+            "what_i_learned": "Offline journal entry",
+            "client_id": "journal-uuid-999",
+        }
+        res1 = self.client.post(url, payload, format="json")
+        self.assertIn(
+            res1.status_code, [status.HTTP_201_CREATED, status.HTTP_200_OK]
+        )
+
+        res2 = self.client.post(url, payload, format="json")
+        self.assertEqual(res2.status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            JournalEntry.objects.filter(client_id="journal-uuid-999").count(), 1
+        )
+
     def test_delete(self):
         url = reverse("learning_journal:entry-detail", args=[self.entry.id])
         response = self.client.delete(url)
