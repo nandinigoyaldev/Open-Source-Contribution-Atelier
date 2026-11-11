@@ -181,9 +181,14 @@ async function fetchApiRaw(
 
   const headers = new Headers(customHeaders);
 
-  // Attach X-Request-ID and W3C trace context for distributed tracing
-  const requestId = safeGenerateUUID();
-  headers.set("X-Request-ID", requestId);
+  // Attach X-Correlation-ID, X-Request-ID, and W3C trace context for distributed tracing
+  const correlationId =
+    headers.get("X-Correlation-ID") ||
+    headers.get("X-Request-ID") ||
+    safeGenerateUUID();
+  headers.set("X-Correlation-ID", correlationId);
+  headers.set("X-Request-ID", correlationId);
+  const requestId = correlationId;
   const traceHeaders = getTraceHeaders();
   if (traceHeaders.traceparent) {
     headers.set("traceparent", traceHeaders.traceparent);
@@ -315,16 +320,21 @@ async function fetchApiRaw(
           : isJson
             ? await response.json().catch(() => ({}))
             : {};
+        const respCorrId =
+          response.headers.get("X-Correlation-ID") ||
+          response.headers.get("X-Request-ID") ||
+          correlationId;
         const apiError = createApiError({
           status: response.status,
           endpoint,
-          requestId,
+          requestId: respCorrId,
+          correlationId: respCorrId,
           body: errorBody,
           retryable: isRetryableStatus,
           authExpired: response.status === 401 && requireAuth,
         });
 
-        console.error(`[API Error] ReqID=${requestId}`, errorBody);
+        console.error(`[API Error] CorrelationID=${respCorrId}`, errorBody);
 
         if (response.status === 401 && requireAuth && !options._isRetry) {
           clearAccessToken();
