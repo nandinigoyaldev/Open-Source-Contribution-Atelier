@@ -10,14 +10,28 @@ import {
   type ActivityType,
 } from "../lib/activityTimeline";
 
+export interface UseActivityTimelineOptions {
+  types?: readonly ActivityType[];
+  since?: string | null;
+  until?: string | null;
+}
+
 /**
  * The signed-in learner's activity timeline, loaded a page at a time.
  *
- * `types` is the filter (empty means every type). Changing it starts a new list, so results from
- * another filter never show up under the wrong chip.
+ * Supports cursor pagination, date filtering (since/until), type filtering,
+ * and maintains loading, error, empty, and retry states.
  */
-export function useActivityTimeline(types: readonly ActivityType[] = []) {
+export function useActivityTimeline(
+  params: readonly ActivityType[] | UseActivityTimelineOptions = [],
+) {
   const { user } = useAuth();
+
+  const {
+    types = [],
+    since = null,
+    until = null,
+  } = Array.isArray(params) ? { types: params } : params;
 
   // A stable key: the same filter always maps to the same cache entry, however it was built.
   const filterKey = useMemo(
@@ -26,11 +40,19 @@ export function useActivityTimeline(types: readonly ActivityType[] = []) {
   );
 
   const query = useInfiniteQuery<ActivityPage, Error>({
-    queryKey: ["activity-timeline", user?.id ?? null, filterKey],
+    queryKey: [
+      "activity-timeline",
+      user?.id ?? null,
+      filterKey,
+      since ?? "",
+      until ?? "",
+    ],
     queryFn: ({ pageParam, signal }) =>
       fetchActivityTimeline({
         types: filterKey ? (filterKey.split(",") as ActivityType[]) : [],
         cursor: pageParam as string | null,
+        since,
+        until,
         signal,
       }),
     initialPageParam: null as string | null,
@@ -46,6 +68,7 @@ export function useActivityTimeline(types: readonly ActivityType[] = []) {
   return {
     items,
     isLoading: query.isLoading,
+    isEmpty: items.length === 0 && !query.isLoading && !query.isError,
     /** The first page failed. A later page failing is `isFetchNextPageError`. */
     isError: query.isError && items.length === 0,
     isFetchNextPageError: query.isFetchNextPageError,
