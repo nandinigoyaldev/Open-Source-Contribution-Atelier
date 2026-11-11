@@ -27,9 +27,27 @@ class FeatureFlags:
         """Return whether ``flag_name`` is active for this request.
 
         Works identically for authenticated users and ``AnonymousUser``.
+        Evaluates database-backed FeatureFlag if configured, falling back to django-waffle.
         Unknown flags evaluate to ``settings.WAFFLE_FLAG_DEFAULT`` (``False``
         unless overridden).
         """
+        try:
+            from apps.feature_flags.models import FeatureFlag
+            from apps.feature_flags.services import evaluate_feature_flag
+
+            flag = FeatureFlag.objects.filter(name=flag_name).first()
+            if flag:
+                user = getattr(self._request, "user", None)
+                org = getattr(self._request, "organization", None) or getattr(
+                    self._request, "tenant", None
+                )
+                enabled, _ = evaluate_feature_flag(
+                    flag, user=user, organization=org
+                )
+                return enabled
+        except Exception:
+            pass
+
         return bool(waffle.flag_is_active(self._request, flag_name))
 
 
