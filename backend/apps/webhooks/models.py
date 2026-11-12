@@ -255,3 +255,48 @@ class WebhookDeliveryLog(models.Model):
 
     def __str__(self):
         return f"Log for Delivery {self.delivery_id} - Status {self.status_code}"
+
+
+class InboundWebhookEvent(models.Model):
+    """
+    Observability & replay protection record for inbound webhooks received from third-party services.
+    """
+
+    STATUS_CHOICES = [
+        ("received", "Received"),
+        ("processed", "Processed"),
+        ("duplicate", "Duplicate"),
+        ("rejected", "Rejected"),
+        ("out_of_order", "Out of Order"),
+        ("failed", "Failed"),
+    ]
+
+    provider = models.CharField(max_length=64, db_index=True)
+    event_id = models.CharField(max_length=255, db_index=True)
+    event_type = models.CharField(max_length=128, db_index=True)
+    signature_valid = models.BooleanField(default=False)
+    status = models.CharField(
+        max_length=32, choices=STATUS_CHOICES, default="received", db_index=True
+    )
+    payload = models.JSONField(default=dict, blank=True)
+    event_timestamp = models.DateTimeField(null=True, blank=True)
+    sequence = models.BigIntegerField(null=True, blank=True)
+    failure_reason = models.TextField(blank=True, default="")
+    replayed = models.BooleanField(default=False)
+    replayed_at = models.DateTimeField(null=True, blank=True)
+    replayed_by = models.CharField(max_length=150, blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["provider", "event_id"],
+                condition=models.Q(event_id__gt=""),
+                name="webhooks_unique_provider_event_id",
+            )
+        ]
+
+    def __str__(self):
+        return f"[{self.provider}] {self.event_type} ({self.event_id}) - {self.status}"
