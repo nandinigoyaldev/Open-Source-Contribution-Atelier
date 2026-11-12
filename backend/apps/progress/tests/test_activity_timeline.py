@@ -415,3 +415,47 @@ class ServiceUnitTests(TestCase):
         page = get_activity_timeline(user)
         self.assertEqual(page["results"], [])
         self.assertEqual(page["limit"], 20)
+
+    def test_date_filters_since_and_until(self):
+        from apps.progress.services.activity_timeline import parse_date
+
+        self.assertEqual(parse_date(None), None)
+        d = parse_date("2026-10-15")
+        self.assertIsNotNone(d)
+        with self.assertRaises(TimelineError):
+            parse_date("not-a-valid-date")
+
+        user = User.objects.create_user(username="date_test", password="Password123!")
+        page = get_activity_timeline(
+            user, since=parse_date("2026-10-01"), until=parse_date("2026-10-31")
+        )
+        self.assertIn("since", page)
+        self.assertIn("until", page)
+
+    def test_view_date_filters_validation(self):
+        # Invalid date format -> 400 Bad Request
+        res = self.get(since="invalid-date")
+        self.assertEqual(res.status_code, 400)
+        self.assertIn("invalid since format", res.data["error"].lower())
+
+        # since > until -> 400 Bad Request
+        res = self.get(since="2026-10-20", until="2026-10-10")
+        self.assertEqual(res.status_code, 400)
+        self.assertIn("cannot be later than", res.data["error"].lower())
+
+    def test_pagination_with_date_filters_is_stable(self):
+        for i in range(10):
+            self.quiz(i)
+        first_page = self.get(since="2026-01-01", limit=4)
+        self.assertEqual(first_page.status_code, 200)
+        self.assertTrue(first_page.data["has_more"])
+
+        second_page = self.get(
+            since="2026-01-01", limit=4, cursor=first_page.data["next_cursor"]
+        )
+        self.assertEqual(second_page.status_code, 200)
+
+        # No items overlap between page 1 and page 2
+        p1_ids = set(self.ids(first_page))
+        p2_ids = set(self.ids(second_page))
+        self.assertEqual(len(p1_ids.intersection(p2_ids)), 0)

@@ -68,6 +68,7 @@ from .serializers import (
 from .services.activity_timeline import (
     TimelineError,
     get_activity_timeline,
+    parse_date,
     parse_limit,
     parse_types,
 )
@@ -986,11 +987,25 @@ class ActivityTimelineView(APIView):
         try:
             types = parse_types(request.query_params.getlist("type"))
             limit = parse_limit(request.query_params.get("limit"))
+            since = parse_date(
+                request.query_params.get("since")
+                or request.query_params.get("from_date"),
+                "since",
+            )
+            until = parse_date(
+                request.query_params.get("until")
+                or request.query_params.get("to_date"),
+                "until",
+            )
+            if since and until and since > until:
+                raise TimelineError("'since' cannot be later than 'until'.")
             data = get_activity_timeline(
                 request.user,
                 types=types,
                 limit=limit,
                 cursor=request.query_params.get("cursor") or None,
+                since=since,
+                until=until,
             )
         except TimelineError as exc:
             return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)

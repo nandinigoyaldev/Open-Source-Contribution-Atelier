@@ -56,6 +56,8 @@ export interface FetchActivityParams {
   types?: readonly ActivityType[];
   cursor?: string | null;
   limit?: number;
+  since?: string | null;
+  until?: string | null;
   signal?: AbortSignal;
 }
 
@@ -64,6 +66,8 @@ export function buildActivityQuery({
   types,
   cursor,
   limit = TIMELINE_PAGE_SIZE,
+  since,
+  until,
 }: Omit<FetchActivityParams, "signal">): string {
   const params = new URLSearchParams();
   const selected = ACTIVITY_TYPES.filter((t) => types?.includes(t));
@@ -72,6 +76,8 @@ export function buildActivityQuery({
   }
   params.set("limit", String(limit));
   if (cursor) params.set("cursor", cursor);
+  if (since) params.set("since", since);
+  if (until) params.set("until", until);
   return params.toString();
 }
 

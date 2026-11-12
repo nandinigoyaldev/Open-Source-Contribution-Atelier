@@ -127,6 +127,33 @@ def parse_limit(raw: Any) -> int:
     return min(value, MAX_LIMIT)
 
 
+def parse_date(raw: Any, param_name: str = "date") -> Optional[datetime]:
+    if not raw:
+        return None
+    try:
+        raw_str = str(raw).strip()
+        if len(raw_str) == 10 and raw_str.count("-") == 2:
+            raw_str += "T00:00:00Z"
+        when = datetime.fromisoformat(raw_str.replace("Z", "+00:00"))
+        if when.tzinfo is None:
+            when = when.replace(tzinfo=timezone.utc)
+        return when
+    except (ValueError, TypeError) as exc:
+        raise TimelineError(
+            f"Invalid {param_name} format: '{raw}'. Use ISO 8601 (e.g. YYYY-MM-DD or YYYY-MM-DDTHH:MM:SSZ)."
+        ) from exc
+
+
+def _apply_date_filter(
+    qs: QuerySet, field: str, since: Optional[datetime], until: Optional[datetime]
+) -> QuerySet:
+    if since:
+        qs = qs.filter(**{f"{field}__gte": since})
+    if until:
+        qs = qs.filter(**{f"{field}__lte": until})
+    return qs
+
+
 def _shorten(text: str, length: int = MAX_TITLE_LENGTH) -> str:
     text = " ".join((text or "").split())
     return text if len(text) <= length else text[: length - 1].rstrip() + "…"
@@ -147,10 +174,11 @@ def _before(qs: QuerySet, field: str, type_: str, cursor: Optional[Cursor]) -> Q
     return qs.filter(**{f"{field}__lt": when})
 
 
-def _lessons(user, cursor, limit):
+def _lessons(user, cursor, limit, since=None, until=None):
     qs = LessonProgress.objects.filter(user=user, completed=True).select_related(
         "lesson"
     )
+    qs = _apply_date_filter(qs, "updated_at", since, until)
     qs = _before(qs, "updated_at", LESSON_COMPLETED, cursor)
     for row in qs.order_by("-updated_at", "-pk")[: limit + 1]:
         yield {
@@ -163,10 +191,10 @@ def _lessons(user, cursor, limit):
         }
 
 
-def _quizzes(user, cursor, limit):
-    qs = _before(
-        QuizAttempt.objects.filter(user=user), "created_at", QUIZ_ATTEMPT, cursor
-    )
+def _quizzes(user, cursor, limit, since=None, until=None):
+    qs = QuizAttempt.objects.filter(user=user)
+    qs = _apply_date_filter(qs, "created_at", since, until)
+    qs = _before(qs, "created_at", QUIZ_ATTEMPT, cursor)
     for row in qs.order_by("-created_at", "-pk")[: limit + 1]:
         yield {
             "type": QUIZ_ATTEMPT,
@@ -182,8 +210,9 @@ def _quizzes(user, cursor, limit):
         }
 
 
-def _certificates(user, cursor, limit):
+def _certificates(user, cursor, limit, since=None, until=None):
     qs = Certificate.objects.filter(user=user, is_active=True)
+    qs = _apply_date_filter(qs, "issued_at", since, until)
     qs = _before(qs, "issued_at", CERTIFICATE_ISSUED, cursor)
     for row in qs.order_by("-issued_at", "-pk")[: limit + 1]:
         yield {
@@ -196,8 +225,9 @@ def _certificates(user, cursor, limit):
         }
 
 
-def _badges(user, cursor, limit):
+def _badges(user, cursor, limit, since=None, until=None):
     qs = UserBadge.objects.filter(user=user).select_related("badge")
+    qs = _apply_date_filter(qs, "earned_at", since, until)
     qs = _before(qs, "earned_at", BADGE_EARNED, cursor)
     for row in qs.order_by("-earned_at", "-pk")[: limit + 1]:
         yield {
@@ -238,6 +268,8 @@ def get_activity_timeline(
     types: Optional[Iterable[str]] = None,
     limit: int = DEFAULT_LIMIT,
     cursor: Optional[str] = None,
+    since: Optional[datetime] = None,
+    until: Optional[datetime] = None,
 ) -> dict:
     """One page of the user's activity, newest first. ``types`` must already be validated."""
     selected = tuple(types) if types else ACTIVITY_TYPES
@@ -247,7 +279,7 @@ def get_activity_timeline(
     # the page size however much history there is.
     merged: list = []
     for type_ in selected:
-        merged.extend(_SOURCES[type_](user, decoded, limit))
+        merged.extend(_SOURCES[type_](user, decoded, limit, since=since, until=until))
     merged.sort(key=_sort_key, reverse=True)
 
     page = merged[:limit]
@@ -263,4 +295,6 @@ def get_activity_timeline(
         "has_more": has_more,
         "limit": limit,
         "types": list(selected),
+        "since": since.isoformat() if since else None,
+        "until": until.isoformat() if until else None,
     }
