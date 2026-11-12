@@ -3,6 +3,7 @@ import logging
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.postgres.search import SearchVector
 
+from .durable import drop_document, push_document
 from .meili_client import get_meili_index
 from .models import SearchDocument
 from .utils import bump_search_cache_version, sanitize_index_text
@@ -66,24 +67,8 @@ def index_model_for_search(
             )
         )
 
-    # Sync to Meilisearch
-    try:
-        index = get_meili_index()
-        if index:
-            index.add_documents(
-                [
-                    {
-                        "id": str(doc.id),
-                        "title": doc.title,
-                        "description": doc.description,
-                        "tags": doc.tags,
-                        "body_text": doc.body_text,
-                        "content_type_name": doc.content_type_name,
-                    }
-                ]
-            )
-    except Exception as exc:
-        logger.warning("Failed to index document %s in Meilisearch: %s", doc.id, exc)
+    # Sync to Meilisearch (bounded retries, dead-letter row on failure)
+    push_document(doc)
 
     bump_search_cache_version()
 
@@ -99,15 +84,9 @@ def remove_model_from_search(app_label, model_name, object_id):
         )
 
         for doc in docs:
-            # Delete from Meilisearch first
-            try:
-                index = get_meili_index()
-                if index:
-                    index.delete_document(str(doc.id))
-            except Exception as exc:
-                logger.warning(
-                    "Failed to delete document %s from Meilisearch: %s", doc.id, exc
-                )
+            # Delete from Meilisearch first; a failure leaves a dead-letter row
+            # because the DB row below is removed either way.
+            drop_document(doc.id, content_type, object_id)
 
         docs.delete()
         bump_search_cache_version()
