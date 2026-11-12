@@ -479,6 +479,7 @@ class BulkSyncProgressView(APIView):
 class BulkProgressUpdateView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
+    @idempotent
     def post(self, request):
         serializer = BulkSyncSerializer(data=request.data)
         if not serializer.is_valid():
