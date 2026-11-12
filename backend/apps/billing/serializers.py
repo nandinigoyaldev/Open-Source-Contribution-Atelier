@@ -38,7 +38,11 @@ class BountyClaimSerializer(serializers.ModelSerializer):
     class Meta:
         model = BountyClaim
         fields = "__all__"
-        read_only_fields = ["payout_id", "is_approved"]
+        read_only_fields = ["user", "payout_id", "is_approved"]
+
+    def create(self, validated_data):
+        validated_data["user"] = self.context["request"].user
+        return super().create(validated_data)
 
 
 class SubscriptionPlanSerializer(serializers.ModelSerializer):

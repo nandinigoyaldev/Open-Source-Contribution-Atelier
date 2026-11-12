@@ -725,7 +725,7 @@ class AnalyticsExportCSVView(APIView):
     Supports filtering by date range (days) and dataset type.
     """
 
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAdminUser]
 
     def get(self, request):
         try:

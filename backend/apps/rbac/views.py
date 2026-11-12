@@ -275,9 +275,19 @@ class RevokeRoleView(APIView):
 
 
 class AuditLogListView(generics.ListAPIView):
-    queryset = AuditLog.objects.all()
     serializer_class = AuditLogSerializer
     permission_classes = [
         permissions.IsAuthenticated,
         lambda: HasPermission("view_audit_logs"),
     ]
+
+    def get_queryset(self):
+        if self.request.user.is_superuser:
+            return AuditLog.objects.all()
+
+        organization_ids = UserRole.objects.filter(
+            user=self.request.user,
+            role__permissions__slug="view_audit_logs",
+            organization__isnull=False,
+        ).values("organization_id")
+        return AuditLog.objects.filter(organization_id__in=organization_ids)

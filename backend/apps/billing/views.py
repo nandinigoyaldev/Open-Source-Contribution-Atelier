@@ -237,11 +237,23 @@ class OrganizationSponsorViewSet(viewsets.ModelViewSet):
     serializer_class = OrganizationSponsorSerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
 
+    def get_permissions(self):
+        if self.request.method in permissions.SAFE_METHODS:
+            return [permissions.AllowAny()]
+        return [permissions.IsAdminUser()]
+
 
 class BountyViewSet(viewsets.ModelViewSet):
     queryset = Bounty.objects.all()
     serializer_class = BountySerializer
     permission_classes = [permissions.IsAuthenticatedOrReadOnly]
+
+    def get_permissions(self):
+        if self.action == "claim":
+            return [permissions.IsAuthenticated()]
+        if self.request.method in permissions.SAFE_METHODS:
+            return [permissions.AllowAny()]
+        return [permissions.IsAdminUser()]
 
     @action(
         detail=True, methods=["post"], permission_classes=[permissions.IsAuthenticated]
@@ -265,8 +277,14 @@ class BountyClaimViewSet(viewsets.ModelViewSet):
     serializer_class = BountyClaimSerializer
     permission_classes = [permissions.IsAuthenticated]
 
+    def get_permissions(self):
+        if self.action in ["update", "partial_update", "destroy", "approve_payout"]:
+            return [permissions.IsAdminUser()]
+        return [permissions.IsAuthenticated()]
+
     def get_queryset(self):
-        # Users see their own claims. Admins could see all.
+        if self.request.user.is_staff:
+            return self.queryset
         return self.queryset.filter(user=self.request.user)
 
     @action(detail=True, methods=["post"], permission_classes=[permissions.IsAdminUser])
