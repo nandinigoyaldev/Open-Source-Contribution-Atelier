@@ -33,6 +33,17 @@ def invalidate_user_organization_rbac_cache(user_id, organization_id=None):
                 f"rbac:user_org_role:{user_id}:{organization_id}",
             ]
         )
+        try:
+            from apps.cache.services.cache_manager import CacheManager
+
+            CacheManager().invalidate_tenant_user(organization_id, user_id)
+        except Exception as e:
+            logger.warning(
+                "Failed to invalidate tenant-scoped cache for org %s, user %s: %s",
+                organization_id,
+                user_id,
+                e,
+            )
 
     cache.delete_many(cache_keys)
     logger.debug(

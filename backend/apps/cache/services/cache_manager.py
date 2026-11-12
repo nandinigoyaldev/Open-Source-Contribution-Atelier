@@ -2,7 +2,9 @@
 Cache manager with write-through and invalidation strategies.
 """
 
+import fnmatch
 import hashlib
+import inspect
 import json
 import logging
 from functools import wraps
@@ -19,18 +21,134 @@ from apps.cache.models import CacheConfig, CacheDependency
 logger = logging.getLogger(__name__)
 
 
+class TenantContextRequiredError(ValueError):
+    """
+    Raised when a tenant-scoped cache operation or key generation is invoked
+    without a valid, non-empty tenant identifier.
+    """
+
+    pass
+
+
+class CacheKeyCollisionError(ValueError):
+    """
+    Raised when an ambiguous key construction, cross-tenant collision, or
+    invalid namespace overlap is detected in development or test environments.
+    """
+
+    pass
+
+
 class CacheManager:
     """
     Manages cache operations with write-through and invalidation.
+    Supports tenant-aware key isolation, collision detection, and tenant invalidation.
     """
+
+    _collision_detection_enabled: bool = False
+    _key_registry: Dict[str, Dict[str, Any]] = {}
 
     def __init__(self):
         self.default_ttl = 300
         self.version = 1
 
-    def get_cache_key(self, prefix: str, *args, **kwargs) -> str:
+    @classmethod
+    def enable_collision_detection(cls, enabled: bool = True):
+        """Enable or disable collision detection at runtime."""
+        cls._collision_detection_enabled = enabled
+
+    @classmethod
+    def reset_collision_registry(cls):
+        """Clear recorded cache keys in the collision detection registry."""
+        cls._key_registry.clear()
+
+    def _record_and_check_collision(
+        self,
+        key: str,
+        tenant_id: Optional[str],
+        prefix: str,
+        args: tuple,
+        kwargs: dict,
+    ):
         """
-        Generate a consistent cache key.
+        Record generated keys and detect cross-tenant collisions in dev/test mode.
+        """
+        if key in self._key_registry:
+            existing = self._key_registry[key]
+            if existing.get("tenant_id") != tenant_id:
+                raise CacheKeyCollisionError(
+                    f"Cache key collision detected for key '{key}': "
+                    f"tenant_id '{tenant_id}' conflicts with existing tenant_id '{existing.get('tenant_id')}'."
+                )
+        else:
+            self._key_registry[key] = {
+                "tenant_id": tenant_id,
+                "prefix": prefix,
+                "args": args,
+                "kwargs": kwargs,
+            }
+
+    def get_tenant_cache_key(
+        self, tenant_id: Union[str, int], prefix: str, *args, **kwargs
+    ) -> str:
+        """
+        Generate a consistent, tenant-isolated cache key.
+        Enforces tenant context to prevent cross-tenant data leakage.
+
+        Args:
+            tenant_id: Organization or tenant identifier
+            prefix: Key prefix
+            *args: Positional arguments
+            **kwargs: Keyword arguments
+
+        Returns:
+            str: Tenant-namespaced cache key
+        """
+        if tenant_id is None:
+            raise TenantContextRequiredError(
+                f"tenant_id is required for tenant-scoped cache key (prefix='{prefix}')."
+            )
+
+        tenant_str = str(tenant_id).strip()
+        if not tenant_str:
+            raise TenantContextRequiredError(
+                f"tenant_id cannot be empty for tenant-scoped cache key (prefix='{prefix}')."
+            )
+
+        sorted_kwargs = sorted(kwargs.items())
+
+        key_parts = [f"tenant:{tenant_str}", prefix, str(self.version)]
+        if args:
+            key_parts.extend(str(arg) for arg in args)
+        if sorted_kwargs:
+            key_parts.extend(f"{k}:{v}" for k, v in sorted_kwargs)
+
+        key_string = ":".join(key_parts)
+        hashed = hashlib.md5(key_string.encode()).hexdigest()[:16]
+
+        # Embed user segment if user context is provided for fine-grained invalidation
+        user_id = kwargs.get("user_id")
+        if user_id is None and "user" in kwargs:
+            user_val = kwargs.get("user")
+            user_id = getattr(user_val, "pk", getattr(user_val, "id", user_val))
+
+        user_segment = f"user:{user_id}:" if user_id is not None else ""
+        cache_key = f"cache:tenant:{tenant_str}:{user_segment}{prefix}:{hashed}"
+
+        if self._collision_detection_enabled:
+            self._record_and_check_collision(
+                key=cache_key,
+                tenant_id=tenant_str,
+                prefix=prefix,
+                args=args,
+                kwargs=kwargs,
+            )
+
+        return cache_key
+
+    def get_global_cache_key(self, prefix: str, *args, **kwargs) -> str:
+        """
+        Generate a global, system-wide cache key explicitly separated from tenant namespaces.
 
         Args:
             prefix: Key prefix
@@ -38,23 +156,88 @@ class CacheManager:
             **kwargs: Keyword arguments
 
         Returns:
+            str: Global cache key
+        """
+        sorted_kwargs = sorted(kwargs.items())
+        key_parts = ["global", prefix, str(self.version)]
+        if args:
+            key_parts.extend(str(arg) for arg in args)
+        if sorted_kwargs:
+            key_parts.extend(f"{k}:{v}" for k, v in sorted_kwargs)
+
+        key_string = ":".join(key_parts)
+        hashed = hashlib.md5(key_string.encode()).hexdigest()[:16]
+
+        cache_key = f"cache:global:{prefix}:{hashed}"
+
+        if self._collision_detection_enabled:
+            self._record_and_check_collision(
+                key=cache_key,
+                tenant_id=None,
+                prefix=prefix,
+                args=args,
+                kwargs=kwargs,
+            )
+
+        return cache_key
+
+    def get_cache_key(
+        self,
+        prefix: str,
+        *args,
+        tenant_id: Optional[Union[str, int]] = None,
+        tenant_scoped: bool = False,
+        **kwargs,
+    ) -> str:
+        """
+        Generate a consistent cache key. Supports tenant-aware isolation when
+        tenant_id or tenant_scoped is provided.
+
+        Args:
+            prefix: Key prefix
+            *args: Positional arguments
+            tenant_id: Optional tenant/organization identifier
+            tenant_scoped: If True, mandates a tenant_id
+            **kwargs: Keyword arguments
+
+        Returns:
             str: Cache key
         """
-        # Sort kwargs for consistency
+        resolved_tenant = tenant_id
+        if resolved_tenant is None:
+            if "tenant_id" in kwargs:
+                resolved_tenant = kwargs.pop("tenant_id")
+            elif "organization_id" in kwargs:
+                resolved_tenant = kwargs.pop("organization_id")
+            elif "org_id" in kwargs:
+                resolved_tenant = kwargs.pop("org_id")
+
+        if tenant_scoped or resolved_tenant is not None:
+            return self.get_tenant_cache_key(resolved_tenant, prefix, *args, **kwargs)
+
         sorted_kwargs = sorted(kwargs.items())
 
-        # Create a unique string
         key_parts = [prefix, str(self.version)]
         if args:
             key_parts.extend(str(arg) for arg in args)
         if sorted_kwargs:
             key_parts.extend(f"{k}:{v}" for k, v in sorted_kwargs)
 
-        # Hash for consistent length
         key_string = ":".join(key_parts)
         hashed = hashlib.md5(key_string.encode()).hexdigest()[:16]
 
-        return f"cache:{prefix}:{hashed}"
+        cache_key = f"cache:{prefix}:{hashed}"
+
+        if self._collision_detection_enabled:
+            self._record_and_check_collision(
+                key=cache_key,
+                tenant_id=None,
+                prefix=prefix,
+                args=args,
+                kwargs=kwargs,
+            )
+
+        return cache_key
 
     def get(self, key: str, default: Any = None) -> Any:
         """
@@ -88,14 +271,13 @@ class CacheManager:
             bool: Success status
         """
         ttl = ttl or self.default_ttl
-        result = cache.set(key, value, ttl)
-
-        if result:
+        try:
+            cache.set(key, value, ttl)
             logger.debug(f"Cache set: {key} (TTL: {ttl}s)")
             return True
-
-        logger.warning(f"Cache set failed: {key}")
-        return False
+        except Exception as e:
+            logger.warning("Cache set failed for %s: %s", key, e)
+            return False
 
     def delete(self, key: str) -> bool:
         """
@@ -123,14 +305,38 @@ class CacheManager:
         Returns:
             int: Number of keys deleted
         """
-        # Note: This is a simplified implementation using standard django cache backend features
-        # In production, use Redis SCAN for better performance if using a Redis backend
         count = 0
+        clean_pattern = pattern.strip("*")
+        glob_pattern = f"*{clean_pattern}*"
+
+        # 1. Redis backend support
         if hasattr(cache, "keys"):
-            keys = cache.keys(f"*{pattern}*")  # type: ignore
-            for key in keys:
-                if cache.delete(key):
+            try:
+                keys = cache.keys(glob_pattern)
+                for key in keys:
+                    if cache.delete(key):
+                        count += 1
+            except Exception as e:
+                logger.warning(
+                    "Error querying cache keys with pattern %s: %s",
+                    glob_pattern,
+                    e,
+                )
+        # 2. LocMemCache support (common in test environments)
+        elif hasattr(cache, "_cache"):
+            try:
+                keys_to_delete = [
+                    k
+                    for k in list(cache._cache.keys())
+                    if fnmatch.fnmatch(str(k), glob_pattern)
+                ]
+                for k in keys_to_delete:
+                    cache._cache.pop(k, None)
+                    if hasattr(cache, "_expire_info"):
+                        cache._expire_info.pop(k, None)
                     count += 1
+            except Exception as e:
+                logger.warning("Error deleting keys from LocMemCache: %s", e)
         else:
             logger.warning(
                 "Cache backend does not support keys() pattern extraction natively."
@@ -138,6 +344,123 @@ class CacheManager:
 
         logger.info(f"Cleared {count} keys matching pattern: {pattern}")
         return count
+
+    def invalidate_tenant(
+        self, tenant_id: Union[str, int], prefix: Optional[str] = None
+    ) -> int:
+        """
+        Invalidate all cache entries belonging to a tenant (or restricted by prefix).
+
+        Args:
+            tenant_id: Organization or tenant identifier
+            prefix: Optional cache prefix within the tenant
+
+        Returns:
+            int: Number of deleted keys
+        """
+        if tenant_id is None or not str(tenant_id).strip():
+            raise TenantContextRequiredError(
+                "tenant_id is required to invalidate tenant cache."
+            )
+        tenant_str = str(tenant_id).strip()
+
+        if prefix:
+            pattern = f"tenant:{tenant_str}:{prefix}"
+        else:
+            pattern = f"tenant:{tenant_str}:"
+
+        count = self.clear_pattern(pattern)
+        logger.info(
+            f"Invalidated {count} cache keys for tenant '{tenant_str}' (prefix='{prefix}')"
+        )
+        return count
+
+    def invalidate_tenant_user(
+        self, tenant_id: Union[str, int], user_id: Union[str, int]
+    ) -> int:
+        """
+        Invalidate cache entries for a specific user within a tenant.
+        Ideal for membership, permission, or role changes.
+
+        Args:
+            tenant_id: Organization or tenant identifier
+            user_id: User identifier
+
+        Returns:
+            int: Number of deleted keys
+        """
+        if tenant_id is None or not str(tenant_id).strip():
+            raise TenantContextRequiredError(
+                "tenant_id is required to invalidate tenant user cache."
+            )
+        if user_id is None or not str(user_id).strip():
+            raise ValueError("user_id is required to invalidate tenant user cache.")
+
+        tenant_str = str(tenant_id).strip()
+        user_str = str(user_id).strip()
+
+        patterns = [
+            f"tenant:{tenant_str}:user:{user_str}:",
+            f"tenant:{tenant_str}:*user:{user_str}*",
+            f"tenant:{tenant_str}:*user_id:{user_str}*",
+            f"tenant:{tenant_str}:*user_{user_str}*",
+            f"tenant:{tenant_str}:rbac",
+            f"tenant:{tenant_str}:membership",
+            f"tenant:{tenant_str}:permission",
+        ]
+
+        deleted_count = 0
+        for pattern in patterns:
+            deleted_count += self.clear_pattern(pattern)
+
+        # Also invalidate direct org/rbac cache keys
+        direct_keys = [
+            f"org:membership:{user_str}:{tenant_str}",
+            f"org:user_role:{user_str}:{tenant_str}",
+            f"user_org_membership:{user_str}:{tenant_str}",
+            f"rbac:user_org_role:{user_str}:{tenant_str}",
+        ]
+        for direct_key in direct_keys:
+            if self.delete(direct_key):
+                deleted_count += 1
+
+        logger.info(
+            f"Invalidated {deleted_count} cache keys for user '{user_str}' in tenant '{tenant_str}'"
+        )
+        return deleted_count
+
+    def invalidate_tenant_resource(
+        self,
+        tenant_id: Union[str, int],
+        resource_type: str,
+        resource_id: Union[str, int],
+    ) -> int:
+        """
+        Invalidate cache entries for a specific resource under a tenant.
+
+        Args:
+            tenant_id: Organization or tenant identifier
+            resource_type: Resource type name (e.g. 'document', 'project')
+            resource_id: Resource identifier
+
+        Returns:
+            int: Number of deleted keys
+        """
+        if tenant_id is None or not str(tenant_id).strip():
+            raise TenantContextRequiredError(
+                "tenant_id is required to invalidate tenant resource cache."
+            )
+        tenant_str = str(tenant_id).strip()
+        resource_str = str(resource_id).strip()
+
+        patterns = [
+            f"tenant:{tenant_str}:{resource_type}:{resource_str}:",
+            f"tenant:{tenant_str}:*{resource_type}*{resource_str}*",
+        ]
+        deleted_count = 0
+        for pattern in patterns:
+            deleted_count += self.clear_pattern(pattern)
+        return deleted_count
 
     def track_dependency(
         self, source: models.Model, target: models.Model, cache_key: str
@@ -298,11 +621,16 @@ class CacheManager:
 class cached:
     """
     Decorator for caching function results.
+    Supports tenant-aware caching with enforcement of tenant context.
 
     Usage:
         @cached(prefix='user_stats', ttl=300)
         def get_user_stats(user_id):
             return compute_stats(user_id)
+
+        @cached(prefix='org_analytics', tenant_scoped=True, ttl=600)
+        def get_org_analytics(tenant_id, metric):
+            return compute_metrics(tenant_id, metric)
     """
 
     def __init__(
@@ -310,17 +638,52 @@ class cached:
         prefix: str = "",
         ttl: Optional[int] = None,
         dependencies: Optional[List[str]] = None,
+        tenant_scoped: bool = False,
+        tenant_id_param: Optional[str] = None,
     ):
         self.prefix = prefix
         self.ttl = ttl
         self.dependencies = dependencies or []
+        self.tenant_scoped = tenant_scoped
+        self.tenant_id_param = tenant_id_param
         self.manager = CacheManager()
+
+    def _resolve_tenant_id(self, func, args, kwargs) -> Optional[Union[str, int]]:
+        if self.tenant_id_param and self.tenant_id_param in kwargs:
+            return kwargs[self.tenant_id_param]
+
+        for candidate in ("tenant_id", "organization_id", "org_id"):
+            if candidate in kwargs:
+                return kwargs[candidate]
+
+        try:
+            sig = inspect.signature(func)
+            bound = sig.bind_partial(*args, **kwargs)
+            bound.apply_defaults()
+            if self.tenant_id_param and self.tenant_id_param in bound.arguments:
+                return bound.arguments[self.tenant_id_param]
+            for candidate in ("tenant_id", "organization_id", "org_id"):
+                if candidate in bound.arguments:
+                    return bound.arguments[candidate]
+        except Exception:
+            pass
+
+        return None
 
     def __call__(self, func):
         @wraps(func)
         def wrapper(*args, **kwargs):
-            # Generate cache key
-            key = self.manager.get_cache_key(self.prefix, *args, **kwargs)
+            if self.tenant_scoped:
+                tenant_id = self._resolve_tenant_id(func, args, kwargs)
+                if tenant_id is None:
+                    raise TenantContextRequiredError(
+                        f"Function '{func.__name__}' is tenant_scoped but no tenant_id was provided."
+                    )
+                key = self.manager.get_tenant_cache_key(
+                    tenant_id, self.prefix, *args, **kwargs
+                )
+            else:
+                key = self.manager.get_cache_key(self.prefix, *args, **kwargs)
 
             # Try to get from cache
             result = self.manager.get(key)
@@ -341,25 +704,69 @@ class cached:
 class invalidates:
     """
     Decorator for invalidating cache after function execution.
+    Supports tenant-scoped invalidation.
 
     Usage:
         @invalidates('user_stats')
         def update_user(user_id):
             return update_user_in_db(user_id)
+
+        @invalidates('org_analytics', tenant_scoped=True)
+        def update_org_settings(tenant_id, data):
+            return update_settings(tenant_id, data)
     """
 
-    def __init__(self, *patterns):
+    def __init__(
+        self,
+        *patterns,
+        tenant_scoped: bool = False,
+        tenant_id_param: Optional[str] = None,
+    ):
         self.patterns = patterns
+        self.tenant_scoped = tenant_scoped
+        self.tenant_id_param = tenant_id_param
         self.manager = CacheManager()
+
+    def _resolve_tenant_id(self, func, args, kwargs) -> Optional[Union[str, int]]:
+        if self.tenant_id_param and self.tenant_id_param in kwargs:
+            return kwargs[self.tenant_id_param]
+
+        for candidate in ("tenant_id", "organization_id", "org_id"):
+            if candidate in kwargs:
+                return kwargs[candidate]
+
+        try:
+            sig = inspect.signature(func)
+            bound = sig.bind_partial(*args, **kwargs)
+            bound.apply_defaults()
+            if self.tenant_id_param and self.tenant_id_param in bound.arguments:
+                return bound.arguments[self.tenant_id_param]
+            for candidate in ("tenant_id", "organization_id", "org_id"):
+                if candidate in bound.arguments:
+                    return bound.arguments[candidate]
+        except Exception:
+            pass
+
+        return None
 
     def __call__(self, func):
         @wraps(func)
         def wrapper(*args, **kwargs):
             result = func(*args, **kwargs)
 
-            # Invalidate cache patterns
-            for pattern in self.patterns:
-                self.manager.clear_pattern(pattern)
+            if self.tenant_scoped:
+                tenant_id = self._resolve_tenant_id(func, args, kwargs)
+                if tenant_id is not None:
+                    for pattern in self.patterns:
+                        self.manager.invalidate_tenant(tenant_id, prefix=pattern)
+                else:
+                    logger.warning(
+                        "Tenant-scoped invalidator for '%s' could not resolve tenant_id.",
+                        func.__name__,
+                    )
+            else:
+                for pattern in self.patterns:
+                    self.manager.clear_pattern(pattern)
 
             return result
 
