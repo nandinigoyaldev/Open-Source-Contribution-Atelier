@@ -39,3 +39,10 @@ body:
     validations:
       required: false
 
+  - type: checkboxes
+    id: nsoc26
+    attributes:
+      label: NSoC '26 participation
+      options:
+        - label: Add the `nsoc26` label to this issue
+          required: false

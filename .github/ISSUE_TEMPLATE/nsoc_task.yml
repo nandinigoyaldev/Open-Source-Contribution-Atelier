@@ -13,6 +13,14 @@ body:
         - **Difficulty Levels:** `LEVEL1` (10 pts), `LEVEL2` (25 pts), `LEVEL3` (50 pts)
         - To claim this issue, comment `/claim` or `/assign`.
 
+  - type: checkboxes
+    id: nsoc26
+    attributes:
+      label: NSoC '26 participation
+      options:
+        - label: Add the `nsoc26` label to this issue
+          required: false
+
   - type: dropdown
     id: level
     attributes:
