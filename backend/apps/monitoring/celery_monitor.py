@@ -7,6 +7,7 @@ from django.db import models
 from django.utils import timezone
 
 from apps.monitoring.models import TaskRun
+from apps.monitoring.utils.redaction import format_redacted_args
 
 logger = logging.getLogger(__name__)
 
@@ -114,13 +115,33 @@ def on_task_prerun(sender=None, task_id=None, task=None, args=None, kwargs=None,
     task_name = (sender.name if sender else None) or (
         task.name if task else "unknown_task"
     )
-    args_repr = str(args or kwargs or "")[:500]
+    args_repr = format_redacted_args(args=args, kwargs=kwargs)
+
+    corr_id = ""
+    if kwargs and isinstance(kwargs, dict):
+        corr_id = str(kwargs.get("correlation_id") or "")
+    if not corr_id and task and hasattr(task, "request"):
+        headers = getattr(task.request, "headers", None) or {}
+        corr_id = str(
+            getattr(task.request, "correlation_id", None)
+            or headers.get("correlation_id")
+            or headers.get("X-Correlation-ID")
+            or ""
+        )
+    if not corr_id:
+        try:
+            from apps.core.middleware.request_id import get_request_id
+
+            corr_id = str(get_request_id() or "")
+        except Exception:
+            pass
 
     try:
         task_run, created = TaskRun.objects.get_or_create(
             task_id=task_id,
             defaults={
                 "task_name": task_name,
+                "correlation_id": corr_id,
                 "status": "STARTED",
                 "started_at": timezone.now(),
                 "args_summary": args_repr,
@@ -130,6 +151,8 @@ def on_task_prerun(sender=None, task_id=None, task=None, args=None, kwargs=None,
             task_run.status = "STARTED"
             task_run.started_at = timezone.now()
             task_run.args_summary = args_repr
+            if corr_id and not task_run.correlation_id:
+                task_run.correlation_id = corr_id
             task_run.save()
 
         broadcast_task_update(task_run)

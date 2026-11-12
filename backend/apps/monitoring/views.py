@@ -118,9 +118,76 @@ class TaskRunViewSet(viewsets.ReadOnlyModelViewSet):
             qs = qs.filter(
                 models.Q(task_name__icontains=search)
                 | models.Q(task_id__icontains=search)
+                | models.Q(correlation_id__icontains=search)
                 | models.Q(error_message__icontains=search)
             )
+        task_param = self.request.query_params.get(
+            "task"
+        ) or self.request.query_params.get("task_name")
+        if task_param:
+            qs = qs.filter(task_name__icontains=task_param)
+
         status_param = self.request.query_params.get("status")
         if status_param and status_param.upper() != "ALL":
             qs = qs.filter(status=status_param.upper())
+
+        correlation_id = self.request.query_params.get("correlation_id")
+        if correlation_id:
+            qs = qs.filter(correlation_id=correlation_id)
+
+        age_hours = self.request.query_params.get(
+            "age_hours"
+        ) or self.request.query_params.get("age")
+        if age_hours:
+            try:
+                hours = float(age_hours)
+                qs = qs.filter(started_at__gte=timezone.now() - timedelta(hours=hours))
+            except ValueError:
+                pass
+
         return qs
+
+    @action(detail=True, methods=["post"], permission_classes=[permissions.IsAdminUser])
+    def retry(self, request, pk=None):
+        """
+        Idempotent and permission-protected action to retry a task run.
+        """
+        task_run = self.get_object()
+
+        # Idempotency check: if the task is already pending or started within the last 60 seconds
+        if task_run.status in [
+            "PENDING",
+            "STARTED",
+        ] and task_run.started_at >= timezone.now() - timedelta(seconds=60):
+            return Response(
+                {
+                    "status": "already_queued",
+                    "task_id": task_run.task_id,
+                    "retry_count": task_run.retry_count,
+                    "message": f"Task '{task_run.task_name}' is already {task_run.status.lower()}.",
+                },
+                status=status.HTTP_200_OK,
+            )
+
+        task_run.status = "RETRY"
+        task_run.retry_count += 1
+        task_run.started_at = timezone.now()
+        task_run.save()
+
+        # Attempt to dispatch task with Celery if available
+        try:
+            from celery import current_app
+
+            current_app.send_task(task_run.task_name)
+        except Exception:
+            pass
+
+        return Response(
+            {
+                "status": "queued",
+                "task_id": task_run.task_id,
+                "retry_count": task_run.retry_count,
+                "message": f"Task '{task_run.task_name}' dispatched for retry.",
+            },
+            status=status.HTTP_202_ACCEPTED,
+        )

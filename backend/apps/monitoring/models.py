@@ -33,6 +33,9 @@ class TaskRun(models.Model):
 
     task_id = models.CharField(max_length=255, unique=True, db_index=True)
     task_name = models.CharField(max_length=255, db_index=True)
+    correlation_id = models.CharField(
+        max_length=255, blank=True, default="", db_index=True
+    )
     status = models.CharField(
         max_length=20, choices=STATUS_CHOICES, default="PENDING", db_index=True
     )

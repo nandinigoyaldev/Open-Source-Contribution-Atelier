@@ -23,6 +23,7 @@ class TaskRunSerializer(serializers.ModelSerializer):
             "id",
             "task_id",
             "task_name",
+            "correlation_id",
             "status",
             "started_at",
             "finished_at",
