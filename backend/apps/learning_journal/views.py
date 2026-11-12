@@ -56,6 +56,17 @@ class JournalEntryListCreateView(generics.ListCreateAPIView):
             user=self.request.user,
         ).order_by("-date", "-created_at")
 
+    def create(self, request, *args, **kwargs):
+        client_id = request.data.get("client_id")
+        if client_id:
+            existing = JournalEntry.objects.filter(
+                user=request.user, client_id=client_id
+            ).first()
+            if existing:
+                serializer = self.get_serializer(existing)
+                return Response(serializer.data, status=status.HTTP_200_OK)
+        return super().create(request, *args, **kwargs)
+
     def perform_create(self, serializer):
         entry = serializer.save(user=self.request.user)
         # Award XP based on word count
@@ -75,6 +86,30 @@ class JournalEntryDetailView(generics.RetrieveUpdateDestroyAPIView):
 
     def get_queryset(self):
         return JournalEntry.objects.filter(user=self.request.user)
+
+    def update(self, request, *args, **kwargs):
+        partial = kwargs.pop("partial", False)
+        instance = self.get_object()
+        expected_version = request.data.get("expected_version") or request.data.get(
+            "version"
+        )
+        if expected_version is not None and int(expected_version) != instance.version:
+            return Response(
+                {
+                    "error": "conflict",
+                    "message": "Journal entry has been modified by another device or session.",
+                    "conflict_type": "version_mismatch",
+                    "server_version": instance.version,
+                    "server_data": self.get_serializer(instance).data,
+                    "server_updated_at": instance.updated_at.isoformat(),
+                },
+                status=status.HTTP_409_CONFLICT,
+            )
+        serializer = self.get_serializer(instance, data=request.data, partial=partial)
+        serializer.is_valid(raise_exception=True)
+        instance.version += 1
+        self.perform_update(serializer)
+        return Response(serializer.data)
 
 
 # ---------------------------------------------------------------------------

@@ -42,6 +42,8 @@ class JournalEntrySerializer(serializers.ModelSerializer):
             "linked_flashcard_decks",
             "xp_earned",
             "word_count",
+            "version",
+            "client_id",
             "is_bookmarked",
             "reactions_count",
             "comments_count",
