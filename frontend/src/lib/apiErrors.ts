@@ -2,6 +2,7 @@ export interface ApiErrorOptions {
   status?: number;
   endpoint?: string;
   requestId?: string;
+  correlationId?: string;
   retryable?: boolean;
   authExpired?: boolean;
   details?: string | null;
@@ -38,6 +39,7 @@ export class ApiError extends Error {
   status?: number;
   endpoint?: string;
   requestId?: string;
+  correlationId?: string;
   retryable: boolean;
   authExpired: boolean;
   details?: string | null;
@@ -52,6 +54,7 @@ export class ApiError extends Error {
     this.status = options.status;
     this.endpoint = options.endpoint;
     this.requestId = options.requestId;
+    this.correlationId = options.correlationId || options.requestId;
     this.retryable = options.retryable ?? false;
     this.authExpired = options.authExpired ?? false;
     this.details = options.details ?? null;
@@ -59,6 +62,11 @@ export class ApiError extends Error {
     this.fieldErrors = options.fieldErrors;
     this.fieldCodes = options.fieldCodes;
     this.body = options.body;
+  }
+
+  get supportRef(): string {
+    const id = this.correlationId || this.requestId || "";
+    return id ? id.slice(0, 8) : "";
   }
 }
 
@@ -105,6 +113,7 @@ export function createApiError(params: {
   status?: number;
   endpoint?: string;
   requestId?: string;
+  correlationId?: string;
   body?: unknown;
   retryable?: boolean;
   authExpired?: boolean;
@@ -115,8 +124,19 @@ export function createApiError(params: {
   let fieldErrors: Record<string, string[]> | undefined;
   let fieldCodes: Record<string, string[]> | undefined;
 
-  if (params.body && typeof params.body === "object") {
-    const b = params.body as Record<string, unknown>;
+  const rawBodyObj =
+    params.body && typeof params.body === "object"
+      ? (params.body as Record<string, unknown>)
+      : undefined;
+
+  const resolvedCorrelationId =
+    params.correlationId ||
+    params.requestId ||
+    (rawBodyObj?.correlation_id as string | undefined) ||
+    (rawBodyObj?.request_id as string | undefined);
+
+  if (rawBodyObj) {
+    const b = rawBodyObj;
     fieldErrors = readFieldMap(b.errors);
     fieldCodes = readFieldMap(b.error_codes);
     if (typeof b.code === "string" && b.code.trim()) {
@@ -156,13 +176,23 @@ export function createApiError(params: {
     detailsStr = bodyMessage;
   }
 
-  const message =
+  let message =
     bodyMessage || summarizeStatusMessage(params.status, params.endpoint);
+
+  if (
+    params.status &&
+    params.status >= 500 &&
+    resolvedCorrelationId &&
+    !message.includes("Ref:")
+  ) {
+    message = `${message} (Ref: ${resolvedCorrelationId.slice(0, 8)})`;
+  }
 
   return new ApiError(message, {
     status: params.status,
     endpoint: params.endpoint,
     requestId: params.requestId,
+    correlationId: resolvedCorrelationId,
     retryable: params.retryable,
     authExpired: params.authExpired,
     details: detailsStr,

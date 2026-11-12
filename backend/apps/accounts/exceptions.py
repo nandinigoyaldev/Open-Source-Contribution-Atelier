@@ -37,21 +37,54 @@ _DEFAULT_MESSAGE = "Request limit exceeded. Please wait before retrying."
 
 def throttle_exception_handler(exc, context):
     """
-    Custom DRF exception handler that standardizes API error responses.
+    Custom DRF exception handler that standardizes API error responses
+    and attaches correlation IDs for backend-frontend observability.
     """
+
+    request = context.get("request") if context else None
+    correlation_id = getattr(request, "correlation_id", None) or getattr(
+        request, "request_id", None
+    )
+    if not correlation_id:
+        try:
+            from apps.core.middleware.request_id import get_correlation_id
+
+            correlation_id = get_correlation_id()
+        except Exception:
+            pass
+
+    def _attach_correlation_id(resp):
+        if resp is not None and correlation_id:
+            resp["X-Correlation-ID"] = correlation_id
+            resp["X-Request-ID"] = correlation_id
+            if isinstance(resp.data, dict) and "correlation_id" not in resp.data:
+                resp.data["correlation_id"] = correlation_id
+        return resp
 
     response = exception_handler(exc, context)
 
     if response is None:
-        request = context.get("request")
-
         logger.exception(
             "Internal server error",
             extra={
                 "path": request.path if request else None,
                 "method": request.method if request else None,
+                "correlation_id": correlation_id,
             },
         )
+        safe_ref = f" (Ref: {correlation_id[:8]})" if correlation_id else ""
+        return _attach_correlation_id(
+            Response(
+                {
+                    "error": True,
+                    "code": "internal_server_error",
+                    "message": f"An unexpected server error occurred.{safe_ref}",
+                    "correlation_id": correlation_id or "",
+                },
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            )
+        )
+
     # Authentication required
     if isinstance(exc, NotAuthenticated):
         code = "authentication_required"
@@ -61,13 +94,15 @@ def throttle_exception_handler(exc, context):
                 code = codes
             elif isinstance(codes, dict) and "detail" in codes:
                 code = codes["detail"]
-        return Response(
-            {
-                "error": True,
-                "code": code,
-                "message": str(exc.detail),
-            },
-            status=status.HTTP_401_UNAUTHORIZED,
+        return _attach_correlation_id(
+            Response(
+                {
+                    "error": True,
+                    "code": code,
+                    "message": str(exc.detail),
+                },
+                status=status.HTTP_401_UNAUTHORIZED,
+            )
         )
 
     # Invalid credentials / authentication failure
@@ -121,7 +156,9 @@ def throttle_exception_handler(exc, context):
         response_data["code"] = code
         response_data["message"] = message or str(detail)
 
-        return Response(response_data, status=status.HTTP_401_UNAUTHORIZED)
+        return _attach_correlation_id(
+            Response(response_data, status=status.HTTP_401_UNAUTHORIZED)
+        )
 
     # Validation errors
     if isinstance(exc, ValidationError):
@@ -141,15 +178,19 @@ def throttle_exception_handler(exc, context):
             response_data["errors"] = field_errors
             response_data["error_codes"] = field_codes
 
-        return Response(response_data, status=status.HTTP_400_BAD_REQUEST)
+        return _attach_correlation_id(
+            Response(response_data, status=status.HTTP_400_BAD_REQUEST)
+        )
     if isinstance(exc, PermissionDenied):
-        return Response(
-            {
-                "error": True,
-                "code": "permission_denied",
-                "message": str(exc.detail),
-            },
-            status=status.HTTP_403_FORBIDDEN,
+        return _attach_correlation_id(
+            Response(
+                {
+                    "error": True,
+                    "code": "permission_denied",
+                    "message": str(exc.detail),
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
         )
 
     # Rate limiting
@@ -185,9 +226,9 @@ def throttle_exception_handler(exc, context):
         response["X-RateLimit-Remaining"] = "0"
         response["X-RateLimit-Reset"] = str(int(time.time() + wait_secs))
 
-        return response
+        return _attach_correlation_id(response)
 
-    return response
+    return _attach_correlation_id(response)
 
 
 def _flatten_validation_detail(detail):
