@@ -100,6 +100,46 @@ def register_default_datasets() -> None:
     register_dataset(
         "sandbox_logs", "Sandbox runs", "sandbox.SandboxExecutionLog", "user"
     )
+    register_dataset(
+        "notes", "Notes", "notes.Note", "user", exclude=("iv",)
+    )
+    register_dataset(
+        "certificates", "Certificates", "progress.Certificate", "user"
+    )
+    register_dataset(
+        "organizations", "Organization memberships", "organizations.OrganizationMembership", "user"
+    )
+    register_dataset(
+        "daily_activity", "Daily activity", "progress.DailyActivity", "user"
+    )
+
+
+def get_documented_exclusions() -> dict:
+    """Document all sensitive data redactions, exclusions, and privacy protections."""
+    return {
+        "sensitive_fields_excluded": [
+            "passwords",
+            "password_hashes",
+            "password_salts",
+            "auth_tokens",
+            "session_tokens",
+            "verification_tokens",
+            "encryption_initialization_vectors",
+            "peer_private_messages",
+            "tenant_organization_secrets",
+        ],
+        "dataset_exclusions": {
+            "notes": ["iv (encryption initialization vector is excluded to preserve cryptographic confidentiality)"],
+            "organizations": ["Tenant-wide configurations and other member profiles excluded; strictly scoped to requester's membership record."],
+            "all_datasets": ["System internal caches, deleted records, and authentication tokens are never included in exports."],
+        },
+        "retention_and_privacy_safeguards": {
+            "export_ttl_hours": 24,
+            "isolation": "Exports strictly filter rows where owner matches requesting user ID.",
+            "formula_injection_protection": "CSV cell values starting with =, +, -, @, \\t, \\r are safely escaped.",
+            "download_policy": "Download links expire after 24 hours (HTTP 410 Gone) and require authenticated ownership check.",
+        },
+    }
 
 
 # ---------------------------------------------------------------------------- serialization
