@@ -77,19 +77,60 @@ class ValidateCurriculumTests(unittest.TestCase):
         )
 
     def test_broken_internal_links(self):
-        text = "[a](missing.md) [b](/lessons/nope) [c](https://x.dev) `[d](gone.md)`"
+        text = "[a](missing.md)\n[b](/lessons/nope)\n[c](https://x.dev)\n`[d](gone.md)`"
         root = self.build([lesson()], files={"intro": text})
         found = self.messages(root)
-        self.assertTrue(any("missing.md (file not found)" in m for m in found))
-        self.assertTrue(any("/lessons/nope (unknown lesson)" in m for m in found))
+        self.assertTrue(any("m1/intro.md:1" in m and "missing.md" in m for m in found))
+        self.assertTrue(any("m1/intro.md:2" in m and "/lessons/nope" in m for m in found))
         self.assertFalse(any("gone.md" in m or "x.dev" in m for m in found))
 
     def test_valid_internal_links_pass(self):
         root = self.build(
             [lesson(), lesson("next")],
-            files={"intro": "[n](next.md#top) [l](/lessons/next)", "next": "ok"},
+            files={
+                "intro": "[n](next.md#top)\n[l](/lessons/next#step-one)",
+                "next": "## Top\n\n### Step One\n\nContent",
+            },
         )
         self.assertEqual(validate(root), [])
+
+    def test_broken_anchors_fail_validation(self):
+        text = "# Intro\n\n[self](#missing-section)\n[other](next.md#unknown-heading)"
+        root = self.build(
+            [lesson(), lesson("next")],
+            files={"intro": text, "next": "## Present Heading\n"},
+        )
+        found = self.messages(root)
+        self.assertTrue(any("anchor '#missing-section' not found" in m for m in found))
+        self.assertTrue(any("anchor '#unknown-heading' not found" in m for m in found))
+
+    def test_url_encoded_paths_and_spaces(self):
+        root = self.build(
+            [lesson()],
+            files={
+                "intro": "[guide](sub%20folder/guide.md)\n![pic](sub%20folder/asset%201.png)"
+            },
+        )
+        sub = root / "m1" / "sub folder"
+        sub.mkdir()
+        (sub / "guide.md").write_text("# Guide\n", encoding="utf-8")
+        (sub / "asset 1.png").write_bytes(b"dummy")
+
+        self.assertEqual(validate(root), [])
+
+    def test_missing_image_and_asset_references(self):
+        text = "## Test\n\n![diagram](missing_diagram.png)\n<img src=\"assets/missing.svg\" />"
+        root = self.build([lesson()], files={"intro": text})
+        found = self.messages(root)
+        self.assertTrue(any("missing asset reference: missing_diagram.png" in m for m in found))
+        self.assertTrue(any("missing asset reference: assets/missing.svg" in m for m in found))
+
+    def test_module_links_validation(self):
+        text = "[Module 1](/modules/m1)\n[Bad Module](/modules/missing_mod)"
+        root = self.build([lesson()], files={"intro": text})
+        found = self.messages(root)
+        self.assertTrue(any("broken module link: /modules/missing_mod" in m for m in found))
+        self.assertFalse(any("broken module link: /modules/m1" in m for m in found))
 
     def test_quiz_answer_out_of_range_and_bad_options(self):
         bad = [
