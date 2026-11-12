@@ -24,6 +24,8 @@ Welcome to the permanent **Hall of Fame & Contributor Legacy** for **Open-Source
 
 | 1 | @Trunal2005 | 🥉 Bronze Contributor  | 1 | 25 | 2026-11-08 |
 
+| 1 | @Mr-Neutr0n | 🥈 Silver Contributor  | 3 | 75 | 2026-11-12 |
+
 ---
 
 ## 🌟 Historic Milestones & Seasonal Legacy
