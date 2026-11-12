@@ -138,6 +138,13 @@ def test_github_callback_allows_existing_email_owner(
     mock_get.return_value = github_user_response
 
     client = APIClient()
+    session = client.session
+    session["github_oauth_state"] = {
+        "value": "test-state",
+        "created_at": __import__("time").time(),
+    }
+    session["github_oauth_verifier"] = "test-verifier"
+    session.save()
 
     with patch.dict(
         "os.environ",
@@ -146,7 +153,7 @@ def test_github_callback_allows_existing_email_owner(
             "GITHUB_CLIENT_SECRET": "client-secret",
         },
     ):
-        response = client.get("/api/auth/github/callback/?code=test-code")
+        response = client.get("/api/auth/github/callback/?code=test-code&state=test-state")
 
     assert response.status_code == status.HTTP_302_FOUND
     assert User.objects.filter(pk=user.pk).exists()

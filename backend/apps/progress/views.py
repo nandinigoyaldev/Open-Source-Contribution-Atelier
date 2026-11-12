@@ -593,7 +593,7 @@ class CommunityFeedView(APIView):
                 organization_id=org_id, user__is_active=True
             ).values_list("user_id", flat=True)
         else:
-            user_ids = User.objects.none().values_list("id", flat=True)
+            user_ids = User.objects.filter(is_active=True).values_list("id", flat=True)
 
         paginator = CommunityFeedPagination()
         page_size = paginator.get_page_size(request) or paginator.page_size
