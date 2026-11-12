@@ -432,6 +432,30 @@ class ClearExecutionView(APIView):
             {"message": "Execution cleared from cache"}, status=status.HTTP_200_OK
         )
 
+
+class SessionQuotaView(APIView):
+    """
+    Inspect or reset current sandbox session quotas and resource usage.
+    """
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        session_id = str(request.user.id)
+        from ..resource_manager import ResourceManagementEngine
+
+        quota_status = ResourceManagementEngine.get_session_quota_status(session_id)
+        return Response(quota_status, status=status.HTTP_200_OK)
+
+    def delete(self, request):
+        session_id = str(request.user.id)
+        from ..resource_manager import ResourceManagementEngine
+
+        ResourceManagementEngine.reset_session_quota(session_id)
+        return Response(
+            {"message": "Session quota reset successfully"}, status=status.HTTP_200_OK
+        )
+
         # Filtering
         collection_id = self.request.query_params.get("collection", None)
         if collection_id is not None:
