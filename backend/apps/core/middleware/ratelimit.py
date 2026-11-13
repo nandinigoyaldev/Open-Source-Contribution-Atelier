@@ -1,4 +1,5 @@
 import logging
+import math
 import time
 from typing import Optional, Tuple
 
@@ -9,7 +10,12 @@ from django.core.cache.backends.base import CacheKeyWarning
 from django.http import JsonResponse
 from django.utils.deprecation import MiddlewareMixin
 
-from apps.core.throttling import is_premium_user
+from apps.core.throttling import (
+    get_rate_limit_states,
+    is_premium_user,
+    most_restrictive,
+    set_rate_limit_headers,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -373,16 +379,37 @@ class RateLimitMiddleware(MiddlewareMixin):
         Returns:
             HttpResponse: Response with rate limiting headers attached.
         """
-        if hasattr(request, "_rate_limit_info"):
-            info = request._rate_limit_info
-            reset_secs = info.get("reset") or self.window
-            response["X-RateLimit-Limit"] = str(info["limit"])
-            response["X-RateLimit-Remaining"] = str(info["remaining"])
-            response["X-RateLimit-Reset"] = str(int(time.time() + reset_secs))
-            if "category" in info:
-                response["X-RateLimit-Category"] = str(info["category"])
-                response["X-RateLimit-Category-Limit"] = str(info["cat_limit"])
-                response["X-RateLimit-Category-Remaining"] = str(info["cat_remaining"])
+        # A 429 already carries its own headers (this middleware's or the
+        # exception handler's). Do not overwrite them with a bucket that still
+        # has room.
+        if response.status_code == 429:
+            return response
+
+        states = list(get_rate_limit_states(request))
+        info = getattr(request, "_rate_limit_info", None)
+        if info:
+            states.append(
+                {
+                    "limit": info["limit"],
+                    "remaining": info["remaining"],
+                    "reset": info.get("reset") or self.window,
+                }
+            )
+            states.append(
+                {
+                    "limit": info["cat_limit"],
+                    "remaining": info["cat_remaining"],
+                    "reset": info["cat_reset"],
+                }
+            )
+
+        # Report the limit the client will hit first, not just the hourly tier.
+        set_rate_limit_headers(response, most_restrictive(states))
+
+        if info and "category" in info:
+            response["X-RateLimit-Category"] = str(info["category"])
+            response["X-RateLimit-Category-Limit"] = str(info["cat_limit"])
+            response["X-RateLimit-Category-Remaining"] = str(info["cat_remaining"])
 
         return response
 
@@ -425,18 +452,30 @@ class RateLimitMiddleware(MiddlewareMixin):
 
         # Fallback to local fixed-window via Django cache (atomic increment)
         try:
+            # The cache cannot report a key's TTL, so remember when the window ends.
+            expiry_key = f"{key}:expires"
             if cache.add(key, 1, window):
+                cache.set(expiry_key, time.time() + window, window)
                 return True, max(0, limit - 1), window
 
             try:
                 current = cache.incr(key)
             except ValueError:
                 cache.set(key, 1, window)
+                cache.set(expiry_key, time.time() + window, window)
                 current = 1
 
+            expires_at = cache.get(expiry_key)
+            ttl = (
+                max(1, int(math.ceil(expires_at - time.time())))
+                if isinstance(expires_at, (int, float))
+                else window
+            )
+            ttl = min(ttl, window)
+
             if current > limit:
-                return False, 0, window
-            return True, max(0, limit - current), window
+                return False, 0, ttl
+            return True, max(0, limit - current), ttl
         except (
             redis.exceptions.ConnectionError,
             redis.exceptions.TimeoutError,

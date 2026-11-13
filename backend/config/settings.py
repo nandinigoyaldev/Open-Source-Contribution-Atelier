@@ -182,7 +182,14 @@ CORS_ALLOW_ALL_ORIGINS = DEBUG and not TESTING
 
 # The frontend is on another origin, so the browser only lets it read X-Request-ID (to show or
 # report it next to an error) when the header is exposed, and only lets it send one when it is allowed.
-CORS_EXPOSE_HEADERS = ["X-Request-ID"]
+CORS_EXPOSE_HEADERS = [
+    "X-Request-ID",
+    # Rate limit state, so browser clients can read it (see docs/API/rate-limits.md).
+    "X-RateLimit-Limit",
+    "X-RateLimit-Remaining",
+    "X-RateLimit-Reset",
+    "Retry-After",
+]
 CORS_ALLOW_HEADERS = [*default_cors_headers, "x-request-id"]
 
 
