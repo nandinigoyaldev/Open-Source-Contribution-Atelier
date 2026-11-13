@@ -1,3 +1,5 @@
+# pyright: reportAttributeAccessIssue=false, reportIndexIssue=false, reportOperatorIssue=false, reportArgumentType=false, reportReturnType=false, reportGeneralTypeIssues=false
+# (Django model/field types are unresolved without stubs; these rules are noise here.)
 """Admin-only API for bulk curriculum imports."""
 
 from rest_framework import mixins, permissions, serializers, status, viewsets

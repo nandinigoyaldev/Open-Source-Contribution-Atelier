@@ -422,9 +422,10 @@ class CurriculumImport(models.Model):
         max_length=16, choices=STATUS_CHOICES, default=VALIDATING, db_index=True
     )
     cursor = models.PositiveIntegerField(
-        default=0, help_text="Index of the next lesson to validate"
+        default=0,  # type: ignore[arg-type]
+        help_text="Index of the next lesson to validate",
     )
-    total_lessons = models.PositiveIntegerField(default=0)
+    total_lessons = models.PositiveIntegerField(default=0)  # type: ignore[arg-type]
     report = models.JSONField(default=dict, blank=True)
     error = models.TextField(blank=True)
     created_by = models.ForeignKey(

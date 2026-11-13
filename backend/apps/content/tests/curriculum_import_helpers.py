@@ -4,7 +4,7 @@ import io
 import json
 import zipfile
 from pathlib import Path
-from typing import Dict, Union
+from typing import Dict, Optional, Union
 
 SAMPLE_DIR = Path(__file__).parent / "fixtures" / "curriculum_import" / "sample"
 
@@ -28,7 +28,7 @@ def make_zip(files: Files) -> bytes:
     return buffer.getvalue()
 
 
-def sample_zip(changes: Dict[str, Union[str, bytes, None]] = None) -> bytes:
+def sample_zip(changes: Optional[Dict[str, Union[str, bytes, None]]] = None) -> bytes:
     """The sample archive with ``changes`` applied (path -> data, None drops it)."""
     files = sample_files()
     for name, data in (changes or {}).items():
@@ -43,7 +43,7 @@ def sample_manifest() -> dict:
     return json.loads(sample_files()["manifest.json"])
 
 
-def zip_with_manifest(manifest: dict, extra: Files = None) -> bytes:
+def zip_with_manifest(manifest: dict, extra: Optional[Files] = None) -> bytes:
     files = sample_files()
     files["manifest.json"] = json.dumps(manifest)
     files.update(extra or {})

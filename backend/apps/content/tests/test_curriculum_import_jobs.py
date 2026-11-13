@@ -1,3 +1,5 @@
+# pyright: reportAttributeAccessIssue=false, reportIndexIssue=false, reportOperatorIssue=false, reportArgumentType=false, reportReturnType=false, reportGeneralTypeIssues=false
+# (Django model/field types are unresolved without stubs; these rules are noise here.)
 import json
 from io import StringIO
 
