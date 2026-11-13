@@ -291,6 +291,8 @@ def process_buffered_progress_updates():
             )
         except Exception as e:
             logger.error(f"Failed to process bulk updates for user {user_id}: {str(e)}")
+            for item in user_data:
+                item["last_error"] = str(e)
             failed_updates.extend(user_data)
 
     if successful_keys:

@@ -50,6 +50,7 @@ from .models import (
     HelpRequest,
     LessonBookmark,
     LessonProgress,
+    ProgressBufferDeadLetter,
     QuizAttempt,
     UserBadge,
     WeeklyGoal,
@@ -62,6 +63,7 @@ from .serializers import (
     HelpRequestSerializer,
     LessonProgressCreateSerializer,
     LessonProgressSerializer,
+    ProgressBufferDeadLetterSerializer,
     QuizAttemptSerializer,
     WeeklyGoalSerializer,
 )
@@ -1772,19 +1774,83 @@ class BufferMetricsView(APIView):
     def get(self, request):
         from apps.progress.services.progress_buffer import ProgressBufferService
 
-        metrics = ProgressBufferService.get_queue_metrics()
+        m = ProgressBufferService.get_queue_metrics()
+        q, p = m.get("total_queued", 0), m.get("total_processed", 0)
+        m["success_rate_percent"] = round((p / q) * 100, 2) if q > 0 else 100.0
+        m["db_dlq_pending"] = ProgressBufferDeadLetter.objects.filter(
+            status="pending"
+        ).count()
+        m["db_dlq_total"] = ProgressBufferDeadLetter.objects.count()
+        return Response({"success": True, "metrics": m})
 
-        # Calculate some derived metrics
-        total_queued = metrics.get("total_queued", 0)
-        total_processed = metrics.get("total_processed", 0)
 
-        success_rate = 100.0
-        if total_queued > 0:
-            success_rate = round((total_processed / total_queued) * 100, 2)
+class ProgressBufferDeadLetterListView(APIView):
+    permission_classes = [permissions.IsAdminUser]
 
-        metrics["success_rate_percent"] = success_rate
+    def get(self, request):
+        qs = ProgressBufferDeadLetter.objects.select_related("user").all()
+        for param in ("status", "activity_type", "user_id"):
+            val = request.query_params.get(param)
+            if val and val.lower() != "all":
+                qs = qs.filter(**{param: val.lower() if param != "user_id" else val})
+        if request.query_params.get("username"):
+            qs = qs.filter(user__username=request.query_params["username"])
+        serializer = ProgressBufferDeadLetterSerializer(qs, many=True)
+        return Response(
+            {"success": True, "count": qs.count(), "results": serializer.data}
+        )
 
-        return Response({"success": True, "metrics": metrics})
+    def post(self, request):
+        action = request.data.get("action", "replay_all")
+        op = request.user.username or "admin"
+        qs = ProgressBufferDeadLetter.objects.all()
+        sp = request.data.get("status", "pending")
+        if sp and sp.lower() != "all":
+            qs = qs.filter(status=sp.lower())
+        succeeded = 0
+        for rec in list(qs):
+            try:
+                if action == "discard_all":
+                    rec.discard(operator=op, reason=request.data.get("reason", ""))
+                else:
+                    rec.replay(operator=op)
+                succeeded += 1
+            except Exception:
+                pass
+        return Response({"success": True, "action": action, "succeeded": succeeded})
+
+
+class ProgressBufferDeadLetterDetailView(APIView):
+    permission_classes = [permissions.IsAdminUser]
+
+    def get(self, request, pk):
+        rec = get_object_or_404(ProgressBufferDeadLetter, pk=pk)
+        return Response(
+            {
+                "success": True,
+                "record": ProgressBufferDeadLetterSerializer(rec).data,
+            }
+        )
+
+    def post(self, request, pk):
+        rec = get_object_or_404(ProgressBufferDeadLetter, pk=pk)
+        action = request.data.get("action", "replay")
+        op = request.user.username or "admin"
+        if action == "replay":
+            rec.replay(operator=op)
+        elif action == "discard":
+            rec.discard(operator=op, reason=request.data.get("reason", ""))
+        else:
+            return Response(
+                {"success": False, "error": f"Invalid action: {action}"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return Response(
+            {
+                "success": True,
+                "record": ProgressBufferDeadLetterSerializer(rec).data,
+            }
+        )
 
 
 class HeatmapView(APIView):
