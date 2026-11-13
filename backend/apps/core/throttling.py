@@ -2,7 +2,7 @@ import logging
 import math
 import time
 import uuid
-from typing import List, Optional, TypedDict
+from typing import Optional, TypedDict
 
 from django.core.cache import cache
 from rest_framework.exceptions import Throttled
@@ -68,11 +68,11 @@ def record_rate_limit_state(request, state: RateLimitState) -> None:
     states = getattr(_http_request(request), "_throttle_states", None)
     if states is None:
         states = []
-        setattr(_http_request(request), "_throttle_states", states)
+        _http_request(request)._throttle_states = states
     states.append(state)
 
 
-def get_rate_limit_states(request) -> List[RateLimitState]:
+def get_rate_limit_states(request) -> list[RateLimitState]:
     return list(getattr(_http_request(request), "_throttle_states", None) or [])
 
 
@@ -132,7 +132,7 @@ def record_throttle_state(request, throttle, allowed: bool) -> None:
         {
             "limit": int(limit),
             "remaining": int(remaining),
-            "reset": max(1, int(math.ceil(reset))),
+            "reset": max(1, math.ceil(reset)),
         },
     )
 

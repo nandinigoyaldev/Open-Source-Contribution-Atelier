@@ -467,7 +467,7 @@ class RateLimitMiddleware(MiddlewareMixin):
 
             expires_at = cache.get(expiry_key)
             ttl = (
-                max(1, int(math.ceil(expires_at - time.time())))
+                max(1, math.ceil(expires_at - time.time()))
                 if isinstance(expires_at, (int, float))
                 else window
             )
