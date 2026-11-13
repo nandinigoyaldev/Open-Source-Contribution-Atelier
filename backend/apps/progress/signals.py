@@ -1,5 +1,4 @@
 import logging
-from datetime import timedelta
 
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
@@ -7,49 +6,19 @@ from django.db import transaction
 from django.db.models.signals import post_save
 from django.dispatch import receiver
 
-from .models import ExerciseAttempt, LessonProgress
+from .models import DailyActivity, ExerciseAttempt, LessonProgress
 from .streak_engine import get_user_local_date
 
 logger = logging.getLogger(__name__)
 
 
-def update_user_streak(user):
-    """
-    Core business logic to calculate and update daily coding streaks.
-    """
-    from apps.progress.models import StreakProfile
-
-    today = get_user_local_date(user)
-
-    with transaction.atomic():
-        profile, created = StreakProfile.objects.select_for_update().get_or_create(
-            user=user
-        )
-
-        # If already updated today, do nothing
-        if profile.last_activity_date == today:
-            return
-
-        # If last activity was exactly yesterday, continue the streak
-        if profile.last_activity_date == today - timedelta(days=1):
-            profile.current_streak += 1
-        else:
-            # Otherwise, the streak broke. Reset to 1.
-            profile.current_streak = 1
-
-        # Update all-time high
-        if profile.current_streak > profile.longest_streak:
-            profile.longest_streak = profile.current_streak
-
-        profile.last_activity_date = today
-        profile.save(
-            update_fields=[
-                "current_streak",
-                "longest_streak",
-                "last_activity_date",
-                "updated_at",
-            ]
-        )
+def update_user_streak(user, *, activity_type=None):
+    """Record signal-driven activity through the shared, freeze-aware ledger."""
+    DailyActivity.log_and_update_streak(
+        user=user,
+        date=get_user_local_date(user),
+        activity_type=activity_type,
+    )
 
 
 @receiver(post_save, sender=LessonProgress)
@@ -68,7 +37,7 @@ def on_lesson_completed(sender, instance, created, **kwargs):
 
     # --- UPDATE STREAK ---
     try:
-        update_user_streak(instance.user)
+        update_user_streak(instance.user, activity_type="lesson")
     except Exception as exc:
         logger.error("Failed to update user streak: %s", exc)
 
@@ -118,7 +87,7 @@ def on_exercise_attempt(sender, instance, created, **kwargs):
     if instance.is_correct:
         # --- UPDATE STREAK ---
         try:
-            update_user_streak(instance.user)
+            update_user_streak(instance.user, activity_type="exercise")
         except Exception as exc:
             logger.error("Failed to update user streak: %s", exc)
 
