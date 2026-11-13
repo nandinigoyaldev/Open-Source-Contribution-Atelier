@@ -1,8 +1,9 @@
-import re
-from typing import Optional
+from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
 
 from django.conf import settings
 from django.http import JsonResponse
+from django.utils.cache import patch_vary_headers
 from django.utils.deprecation import MiddlewareMixin
 
 from apps.core.versioning import (
@@ -37,7 +38,7 @@ class APIVersionMiddleware(MiddlewareMixin):
         header_version = parse_version_from_accept_header(accept_header)
         url_version = parse_version_from_url_path(request.path_info)
 
-        if header_version:
+        if header_version is not None:
             requested_version = header_version
             version_source = "header"
         elif url_version:
@@ -64,11 +65,32 @@ class APIVersionMiddleware(MiddlewareMixin):
 
         request.version = requested_version
         request.version_source = version_source
+        dep_info = getattr(settings, "DEPRECATED_API_VERSIONS", {}).get(
+            requested_version, {}
+        )
+        sunset = dep_info.get("sunset")
+        if sunset:
+            try:
+                sunset_at = parsedate_to_datetime(sunset)
+                if sunset_at.tzinfo is None:
+                    sunset_at = sunset_at.replace(tzinfo=timezone.utc)
+                if datetime.now(timezone.utc) >= sunset_at:
+                    return JsonResponse(
+                        {
+                            "error": "API version has been retired",
+                            "version": requested_version,
+                        },
+                        status=410,
+                    )
+            except (TypeError, ValueError, OverflowError):
+                pass
         return None
 
     def process_response(self, request, response):
         if not request.path_info.startswith("/api/"):
             return response
+
+        patch_vary_headers(response, ("Accept",))
 
         # 1. Unversioned request fallback deprecation warning
         version_source = getattr(request, "version_source", None)
