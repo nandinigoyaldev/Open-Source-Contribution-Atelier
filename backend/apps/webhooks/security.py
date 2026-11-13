@@ -3,6 +3,7 @@ import hashlib
 import hmac
 import json
 import logging
+import math
 import re
 import time
 from dataclasses import dataclass
@@ -242,7 +243,22 @@ def check_signature(
     elif require_timestamp:
         return reject("missing_timestamp")
 
-    keys = _normalise_keys(secret)
+    # Deadlines are server-side absolute Unix times, never supplied by callers.
+    # Check on every verification so long-running workers expire keys too.
+    deadlines = getattr(settings, "WEBHOOK_SIGNING_KEY_EXPIRATIONS", {})
+    verification_time = time.time() if now is None else now
+    keys = []
+    for kid, sec in _normalise_keys(secret):
+        if kid in deadlines:
+            deadline = deadlines[kid]
+            if (
+                isinstance(deadline, bool)
+                or not isinstance(deadline, (int, float))
+                or not math.isfinite(deadline)
+                or verification_time >= deadline
+            ):
+                continue
+        keys.append((kid, sec))
     if claimed is not None:
         keys = [k for k in keys if k[0] == claimed]
         if not keys:
@@ -311,7 +327,7 @@ def audit_verification(
     result: VerificationResult, request: Any = None, source: str = ""
 ) -> None:
     """
-    Structured audit line for a rejected webhook (or an accepted legacy one).
+    Structured audit line identifying the key used, or the rejection reason.
 
     Goes to the "audit" logger as one JSON object, like apps.cache.audit_logger.
     It never contains the secret, the signature or the body. Values that came
@@ -321,12 +337,14 @@ def audit_verification(
     from unauthenticated callers, and one DB write per forged request would be
     a cheap way to fill the table.
     """
-    if result.ok and not result.legacy:
-        return
     meta = getattr(request, "META", {}) or {}
     entry = {
         "event": (
-            "webhook.legacy_signature_accepted"
+            (
+                "webhook.legacy_signature_accepted"
+                if result.legacy
+                else "webhook.signature_accepted"
+            )
             if result.ok
             else "webhook.signature_rejected"
         ),
@@ -341,7 +359,8 @@ def audit_verification(
             None if result.skew_seconds is None else round(result.skew_seconds, 3)
         ),
     }
-    audit_logger.warning(json.dumps(entry))
+    log = audit_logger.info if result.ok and not result.legacy else audit_logger.warning
+    log(json.dumps(entry))
 
 
 _REJECTION_RESPONSES = {

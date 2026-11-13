@@ -369,10 +369,13 @@ def test_sender_controlled_values_cannot_forge_log_lines(caplog):
     assert len(entry["key_id"]) <= 64 and '"' not in entry["key_id"]
 
 
-def test_accepted_requests_are_not_logged_but_legacy_ones_are(caplog):
+def test_accepted_requests_identify_key_and_legacy_ones_are_flagged(caplog):
     caplog.set_level(logging.INFO, logger="audit")
     security.audit_verification(check(sig()), source="test")
-    assert _audit_entries(caplog) == []
+    (entry,) = _audit_entries(caplog)
+    assert entry["event"] == "webhook.signature_accepted"
+    assert caplog.records[0].levelno == logging.INFO
+    caplog.clear()
     security.audit_verification(
         check(compute_signature(SECRET, BODY), allow_legacy=True), source="test"
     )
