@@ -94,7 +94,7 @@ class SearchIndexFailure(models.Model):
     )
     object_id = models.PositiveIntegerField(null=True, blank=True)
     operation = models.CharField(max_length=10, choices=OPERATION_CHOICES)
-    attempts = models.PositiveIntegerField(default=0)
+    attempts = models.PositiveIntegerField()
     last_error = models.CharField(max_length=500, blank=True, default="")
     first_failed_at = models.DateTimeField()
     last_failed_at = models.DateTimeField()

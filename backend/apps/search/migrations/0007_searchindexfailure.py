@@ -33,7 +33,7 @@ class Migration(migrations.Migration):
                         max_length=10,
                     ),
                 ),
-                ("attempts", models.PositiveIntegerField(default=0)),
+                ("attempts", models.PositiveIntegerField()),
                 (
                     "last_error",
                     models.CharField(blank=True, default="", max_length=500),

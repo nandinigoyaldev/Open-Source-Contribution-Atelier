@@ -15,7 +15,16 @@ class SearchIndexFailureAdmin(admin.ModelAdmin):
     )
     list_filter = ("operation", "content_type")
     search_fields = ("document_id", "last_error")
-    readonly_fields = [f.name for f in SearchIndexFailure._meta.fields]
+    readonly_fields = (
+        "document_id",
+        "content_type",
+        "object_id",
+        "operation",
+        "attempts",
+        "last_error",
+        "first_failed_at",
+        "last_failed_at",
+    )
 
     def has_add_permission(self, request):
         return False
