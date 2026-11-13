@@ -113,6 +113,8 @@ When an API version or endpoint is scheduled for removal, standard RFC deprecati
 | `Deprecation` | Date or boolean indicating when the feature was deprecated | RFC 9261 |
 | `Sunset` | HTTP-date indicating when the endpoint will be permanently retired | RFC 8594 |
 
+Rate limit state (`X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`, `Retry-After`) is documented in [API/rate-limits.md](API/rate-limits.md).
+
 ---
 
 ## 5. Developer Guide: Adding or Deprecating API Versions

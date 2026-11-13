@@ -101,7 +101,7 @@ class RedisLuaRateLimiter:
         return allowed, current_count, ttl_remaining
 
 
-from apps.core.throttling import SlidingWindowAnonThrottle
+from apps.core.throttling import SlidingWindowAnonThrottle, ThrottleStateMixin
 
 
 def _get_real_ip(request) -> str:
@@ -124,7 +124,7 @@ def _get_real_ip(request) -> str:
     return request.META.get("REMOTE_ADDR", "")
 
 
-class BaseDistributedThrottle(SimpleRateThrottle):
+class BaseDistributedThrottle(ThrottleStateMixin, SimpleRateThrottle):
     """
     Base throttle that uses Redis Lua scripting when settings.RATE_LIMIT_BACKEND == "redis".
     Falls back to local cache implementation if "local" or when Redis is down.
@@ -273,6 +273,9 @@ class _ProxyAwareThrottle(AnonRateThrottle):
 
 
 class StrictIdentityLoginThrottle(SlidingWindowAnonThrottle):
+    # Keyed on a name/email the caller chose; counts must not show up on 2xx.
+    expose_rate_limit_state = False
+
     scope = "auth_login"
 
     def get_ident(self, request):
@@ -303,6 +306,9 @@ class OtpVerifyThrottle(_ProxyAwareThrottle):
 
 
 class StrictIdentityPasswordResetThrottle(SlidingWindowAnonThrottle):
+    # Keyed on a name/email the caller chose; counts must not show up on 2xx.
+    expose_rate_limit_state = False
+
     scope = "auth_password_reset"
 
     def get_cache_key(self, request, view):
@@ -339,6 +345,9 @@ class MagicLinkRequestThrottle(_ProxyAwareThrottle):
 
 
 class StrictIdentityMagicLinkThrottle(SlidingWindowAnonThrottle):
+    # Keyed on a name/email the caller chose; counts must not show up on 2xx.
+    expose_rate_limit_state = False
+
     scope = "auth_magic_link_request"
 
     def get_ident(self, request):
@@ -361,6 +370,9 @@ class ResendVerificationThrottle(_ProxyAwareThrottle):
 
 
 class StrictIdentityResendVerificationThrottle(SlidingWindowAnonThrottle):
+    # Keyed on a name/email the caller chose; counts must not show up on 2xx.
+    expose_rate_limit_state = False
+
     scope = "auth_email_verification_resend"
 
     def get_ident(self, request):
