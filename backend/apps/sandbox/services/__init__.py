@@ -170,7 +170,10 @@ async def stream_python_execution(
                 from asgiref.sync import sync_to_async
 
                 await sync_to_async(ResourceManagementEngine.log_violation)(
-                    user_id, code, "output", f"Output exceeded {ResourceManagementEngine.MAX_OUTPUT_BYTES} bytes"
+                    user_id,
+                    code,
+                    "output",
+                    f"Output exceeded {ResourceManagementEngine.MAX_OUTPUT_BYTES} bytes",
                 )
                 await send_callback(
                     {
@@ -218,7 +221,9 @@ async def stream_python_execution(
         await send_callback({"action": "execution_error", "error": str(e)})
     finally:
         elapsed = asyncio.get_event_loop().time() - start_time
-        ResourceManagementEngine.record_session_usage(user_id, elapsed, total_output_bytes)
+        ResourceManagementEngine.record_session_usage(
+            user_id, elapsed, total_output_bytes
+        )
         ResourceManagementEngine.release_execution_lock(user_id)
 
 

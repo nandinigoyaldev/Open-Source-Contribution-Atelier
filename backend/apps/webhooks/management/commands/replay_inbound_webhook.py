@@ -1,4 +1,5 @@
 import logging
+
 from django.core.management.base import BaseCommand, CommandError
 from django.utils import timezone
 
@@ -80,12 +81,16 @@ class Command(BaseCommand):
         event.status = "processed"
         event.failure_reason = ""
         event.save(
-            update_fields=["replayed", "replayed_at", "replayed_by", "status", "failure_reason"]
+            update_fields=[
+                "replayed",
+                "replayed_at",
+                "replayed_by",
+                "status",
+                "failure_reason",
+            ]
         )
 
-        logger.info(
-            f"Inbound webhook event {event.id} replayed by operator {operator}"
-        )
+        logger.info(f"Inbound webhook event {event.id} replayed by operator {operator}")
         self.stdout.write(
             self.style.SUCCESS(
                 f"Successfully replayed event {event.event_id} (ID: {event.id})."

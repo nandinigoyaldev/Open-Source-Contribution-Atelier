@@ -109,7 +109,9 @@ class SecureAccountDeleteTest(TestCase):
         # Preview should show cannot delete
         preview = self.client.get("/api/auth/me/delete/preview/")
         self.assertFalse(preview.data["can_delete"])
-        self.assertEqual(preview.data["blocking_dependencies"][0]["type"], "organization_sole_owner")
+        self.assertEqual(
+            preview.data["blocking_dependencies"][0]["type"], "organization_sole_owner"
+        )
 
         # Immediate DELETE attempt must be blocked
         response = self.client.delete("/api/auth/me/delete/")
@@ -136,14 +138,18 @@ class SecureAccountDeleteTest(TestCase):
         self.client.force_authenticate(user=self.user)
         response = self.client.delete("/api/auth/me/delete/")
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        self.assertEqual(response.data["blocking_dependencies"][0]["type"], "active_subscription")
+        self.assertEqual(
+            response.data["blocking_dependencies"][0]["type"], "active_subscription"
+        )
 
     def test_grace_period_schedule_and_cancellation(self):
         """Test scheduling account deletion with grace period and cancelling it."""
         self.client.force_authenticate(user=self.user)
 
         # Schedule deletion
-        sched_resp = self.client.post("/api/auth/me/delete/", {"reason": "Taking a break"})
+        sched_resp = self.client.post(
+            "/api/auth/me/delete/", {"reason": "Taking a break"}
+        )
         self.assertEqual(sched_resp.status_code, status.HTTP_202_ACCEPTED)
         self.assertEqual(sched_resp.data["status"], "pending")
 

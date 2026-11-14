@@ -44,9 +44,7 @@ def evaluate_feature_flag(
     user_key = ""
     if user is not None:
         user_key = str(
-            getattr(user, "username", None)
-            or getattr(user, "id", None)
-            or user
+            getattr(user, "username", None) or getattr(user, "id", None) or user
         )
 
     if user_key and flag.target_users:
@@ -64,9 +62,15 @@ def evaluate_feature_flag(
 
         bucket = compute_deterministic_bucket(entity_key, salt=flag.name)
         if bucket < flag.rollout_percentage:
-            return True, f"percentage_included (bucket={bucket} < {flag.rollout_percentage})"
+            return (
+                True,
+                f"percentage_included (bucket={bucket} < {flag.rollout_percentage})",
+            )
         else:
-            return False, f"percentage_excluded (bucket={bucket} >= {flag.rollout_percentage})"
+            return (
+                False,
+                f"percentage_excluded (bucket={bucket} >= {flag.rollout_percentage})",
+            )
 
     # 4. Standard active boolean flag
     return True, "flag_active_global"
@@ -109,9 +113,7 @@ def rollback_feature_flag(
         target_log = flag.audit_logs.filter(id=target_audit_id).first()
     else:
         target_log = (
-            flag.audit_logs.exclude(action="rolled_back")
-            .order_by("-timestamp")
-            .first()
+            flag.audit_logs.exclude(action="rolled_back").order_by("-timestamp").first()
         )
 
     if not target_log:

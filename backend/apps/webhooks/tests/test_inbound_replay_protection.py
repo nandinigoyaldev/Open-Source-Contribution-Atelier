@@ -1,5 +1,6 @@
 import datetime
-from django.core.management import call_command, CommandError
+
+from django.core.management import CommandError, call_command
 from django.test import TestCase
 from django.utils import timezone
 
@@ -120,9 +121,7 @@ class InboundWebhookProtectionTests(TestCase):
             call_command("replay_inbound_webhook", id=event.id, operator="")
 
         # Replay with valid operator succeeds
-        call_command(
-            "replay_inbound_webhook", id=event.id, operator="admin_alice"
-        )
+        call_command("replay_inbound_webhook", id=event.id, operator="admin_alice")
         event.refresh_from_db()
         self.assertTrue(event.replayed)
         self.assertEqual(event.replayed_by, "admin_alice")
@@ -142,6 +141,4 @@ class InboundWebhookProtectionTests(TestCase):
 
         # Guarded replay rejects events with invalid signatures
         with self.assertRaises(CommandError):
-            call_command(
-                "replay_inbound_webhook", id=event.id, operator="admin_bob"
-            )
+            call_command("replay_inbound_webhook", id=event.id, operator="admin_bob")

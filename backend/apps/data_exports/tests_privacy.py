@@ -1,20 +1,20 @@
 import os
 import unittest
-from unittest.mock import patch
 from datetime import timedelta
+from unittest.mock import patch
 
 import django
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.utils import timezone
-from rest_framework.test import APIClient
 from rest_framework import status
+from rest_framework.test import APIClient
 
 from apps.data_exports import datasets
 from apps.data_exports.models import ExportJob
 from apps.notes.models import Note
-from apps.progress.models import Certificate, DailyActivity
 from apps.organizations.models import Organization, OrganizationMembership
+from apps.progress.models import Certificate, DailyActivity
 
 
 class PrivacySafeDataExportTestCase(unittest.TestCase):
@@ -59,8 +59,12 @@ class PrivacySafeDataExportTestCase(unittest.TestCase):
         org1 = Organization.objects.create(name=f"Org One {os.urandom(4).hex()}")
         org2 = Organization.objects.create(name=f"Org Two {os.urandom(4).hex()}")
 
-        mem1 = OrganizationMembership.objects.create(organization=org1, user=self.user, role="admin")
-        mem2 = OrganizationMembership.objects.create(organization=org2, user=self.other_user, role="owner")
+        mem1 = OrganizationMembership.objects.create(
+            organization=org1, user=self.user, role="admin"
+        )
+        mem2 = OrganizationMembership.objects.create(
+            organization=org2, user=self.other_user, role="owner"
+        )
 
         org_dataset = datasets.get_dataset("organizations")
         qs = org_dataset.queryset(self.user)
@@ -74,7 +78,9 @@ class PrivacySafeDataExportTestCase(unittest.TestCase):
         exclusions = datasets.get_documented_exclusions()
         self.assertIn("sensitive_fields_excluded", exclusions)
         self.assertIn("passwords", exclusions["sensitive_fields_excluded"])
-        self.assertIn("encryption_initialization_vectors", exclusions["sensitive_fields_excluded"])
+        self.assertIn(
+            "encryption_initialization_vectors", exclusions["sensitive_fields_excluded"]
+        )
         self.assertIn("notes", exclusions["dataset_exclusions"])
         self.assertIn("organizations", exclusions["dataset_exclusions"])
 
@@ -107,7 +113,9 @@ class PrivacySafeDataExportTestCase(unittest.TestCase):
             total_rows=5,
         )
 
-        response = self.client.post("/api/exports/", {"dataset": "notes", "format": "csv"}, format="json")
+        response = self.client.post(
+            "/api/exports/", {"dataset": "notes", "format": "csv"}, format="json"
+        )
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         data = response.json()
         self.assertEqual(data["id"], str(job.id))

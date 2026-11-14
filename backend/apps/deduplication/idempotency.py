@@ -103,6 +103,7 @@ def idempotent(view_func):
     Safely serializes concurrent requests with the same key, returns cached responses
     for retries, and rejects requests reusing the same key with different payloads.
     """
+
     @wraps(view_func)
     def wrapper(*args, **kwargs):
         # Support both view_func(self, request, ...) and view_func(request, ...)
@@ -228,12 +229,18 @@ def idempotent(view_func):
                         json.dumps(response.data) if response.data is not None else ""
                     )
                 except (TypeError, ValueError):
-                    response_body = str(response.data) if response.data is not None else ""
+                    response_body = (
+                        str(response.data) if response.data is not None else ""
+                    )
 
                 if 200 <= response_status < 500:
                     try:
                         user = getattr(request, "user", None)
-                        auth_user = user if user and getattr(user, "is_authenticated", False) else None
+                        auth_user = (
+                            user
+                            if user and getattr(user, "is_authenticated", False)
+                            else None
+                        )
                         IdempotencyRecord.objects.create(
                             idempotency_key=idempotency_key,
                             user=auth_user,

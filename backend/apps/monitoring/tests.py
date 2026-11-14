@@ -175,6 +175,7 @@ class TestCeleryMonitoring:
 
     def test_correlation_id_and_age_filtering(self):
         from datetime import timedelta
+
         from django.utils import timezone
 
         self.client.force_authenticate(user=self.admin_user)
@@ -212,6 +213,7 @@ class TestCeleryMonitoring:
 
     def test_retry_action_authorization_and_idempotency(self):
         from datetime import timedelta
+
         from django.utils import timezone
 
         run = TaskRun.objects.create(
@@ -247,6 +249,7 @@ class TestCeleryMonitoring:
 
     def test_retention_cleanup_command(self):
         from datetime import timedelta
+
         from django.core.management import call_command
         from django.utils import timezone
 

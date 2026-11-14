@@ -1,4 +1,5 @@
 import logging
+
 from celery.signals import before_task_publish, task_postrun, task_prerun
 
 from apps.core.middleware.request_id import (
@@ -35,9 +36,11 @@ def add_request_id_to_task(headers=None, **kwargs):
 @task_prerun.connect
 def set_request_id_in_task(task_id, task, *args, **kwargs):
     # task.request holds the headers passed to the task
-    req_id = getattr(task.request, "correlation_id", None) or getattr(
-        task.request, "x-correlation-id", None
-    ) or getattr(task.request, "x-request-id", None)
+    req_id = (
+        getattr(task.request, "correlation_id", None)
+        or getattr(task.request, "x-correlation-id", None)
+        or getattr(task.request, "x-request-id", None)
+    )
     if not req_id and hasattr(task.request, "headers") and task.request.headers:
         req_id = (
             task.request.headers.get("correlation_id")
