@@ -926,6 +926,7 @@ class MentorHelpRequestListView(ListAPIView):
         assigned = self.request.user.mentor_profile.assigned_lessons.all()
         return (
             HelpRequest.objects.filter(lesson__in=assigned)
+            .filter(organization=self.request.user.organization)
             .select_related("user", "lesson")
             .order_by("-created_at")
         )
@@ -1277,6 +1278,7 @@ class CodeSubmissionView(APIView):
     def get(self, request):
         submissions = (
             CodeSubmission.objects.filter(status=CodeSubmission.Status.PENDING_REVIEW)
+            .filter(user__user_profile__organization=request.user.organization)
             .exclude(user=request.user)
             .select_related("user")
         )
@@ -1320,7 +1322,11 @@ class PeerReviewView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request, submission_id):
-        submission = get_object_or_404(CodeSubmission, id=submission_id)
+        submission = get_object_or_404(
+            CodeSubmission,
+            id=submission_id,
+            user__user_profile__organization=request.user.organization,
+        )
 
         if submission.user == request.user:
             return Response(
@@ -2367,16 +2373,6 @@ class ClaimMultiTierRewardView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request):
-        tiers = request.data.get("tiers", [])
-        if not isinstance(tiers, list) or not tiers:
-            raise ValidationError("`tiers` must be a non-empty list.")
-
-        result = XPService.claim_multi_tier_rewards(request.user, tiers)
-        return Response(
-            {
-                "success": True,
-                "xp_events_awarded": len(result["xp_events"]),
-                "badges_awarded": len(result["badges"]),
-            },
-            status=status.HTTP_201_CREATED,
+        raise ValidationError(
+            "Rewards are awarded automatically after server-side milestone verification."
         )

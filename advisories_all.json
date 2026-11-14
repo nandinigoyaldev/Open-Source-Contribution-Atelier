@@ -1,0 +1,868 @@
+[
+  {
+    "ghsa_id": "GHSA-h6m7-pj8g-7cm3",
+    "cve_id": null,
+    "url": "https://api.github.com/repos/nandinigoyaldev/Open-Source-Contribution-Atelier/security-advisories/GHSA-h6m7-pj8g-7cm3",
+    "html_url": "https://github.com/nandinigoyaldev/Open-Source-Contribution-Atelier/security/advisories/GHSA-h6m7-pj8g-7cm3",
+    "summary": "Any logged in user can give themselves XP and any badge, plus 7 other findings",
+    "description": "Found by reading the code on main (224f1a50). None of this was tested against a live deployment, and items 2 and 3 depend on how production is configured, which I can't see. These are new, separate from the 5 reports already in triage (GHSA-fj38-xmqm-gj7m, GHSA-v7wq-797p-7q49, GHSA-j8mh-xcjr-2p9v, GHSA-rqxw-5xcm-93fh, GHSA-mw9p-rhx2-5w93).\n\n## 1. Any logged in user can give themselves XP and any badge (high)\n\n`POST /api/progress/rewards/claim/` (`ClaimMultiTierRewardView` in `apps/progress/views.py`, around line 2274) only needs `IsAuthenticated`. It passes `tiers` from the request body to `XPService.claim_multi_tier_rewards`, which creates an `XPEvent` with `xp_delta` set to the client's `xp` value and awards whatever `badge_slug` the client names. Nothing checks that the challenge was completed, and there is no dedup, so the same claim can be repeated.\n\nSuggested fix: remove the client supplied amounts. Work out the tiers on the server from a completed challenge, with a unique constraint per user and tier.\n\n## 2. The Stripe webhook skips signature checks on a mock key (high if it applies)\n\n`apps/billing/webhooks.py`: `is_mock = getattr(settings, \"TESTING\", False) or stripe.api_key == \"sk_test_mock\"`. In mock mode the payload is parsed with no signature check, and there is no DEBUG or production guard. If a deployment ever runs with `STRIPE_SECRET_KEY=sk_test_mock`, any unauthenticated POST can activate a subscription for any user through `metadata.user_id`. My open PR #3339 does not change this.\n\nSuggested fix: only allow mock mode when `DEBUG` is on or under tests, and refuse to start in production with a mock key.\n\n## 3. A missing Stripe key gives away paid subscriptions (high if it applies)\n\n`CheckoutSessionView` in `apps/billing/views.py` treats a blank `STRIPE_SECRET_KEY` as mock mode and marks the subscription active with no payment. `.env.example` documents this for development, but nothing blocks it in production. `apps/core/throttling.py` then gives that user the premium throttle tier.\n\nSuggested fix: same guard as item 2. In production, return an error when the key is missing.\n\n## 4. Editing public challenges across organizations (medium)\n\n`apps/challenges/views.py`: `get_queryset` returns all public challenges for update and delete too. `HasPermission` in `apps/core/permissions.py` checks a user's roles without looking at `UserRole.organization`, and the serializer uses `fields = \"__all__\"`, so `organization` can be set by the client. Someone holding `edit_content` or `delete_content` in one organization can change another organization's public challenges. It needs a content role, so it is lower risk.\n\nSuggested fix: limit writes to the user's own organization and make `organization` read only.\n\n## 5. Audit rows can carry a fake client IP (low)\n\n`_get_client_ip` in `apps/audit/middleware.py` and `apps/cache/audit_middleware.py` takes the leftmost `X-Forwarded-For` value, which the client controls. The throttles already have a proxy aware lookup that could be reused. The new `password_reset` audit events in my open PR #3340 use that one.\n\n## 6. Magic link has the same problems as password reset (low)\n\n`MagicLinkRequestView` in `apps/accounts/views.py` only does the token and email work for known addresses, so timing can tell them apart. `MagicLinkToken.token` is stored as a raw UUID, and the raw link goes through the task queue. PR #3340 fixes this for password reset only.\n\n## 7. Webhook body in the audit log (low)\n\nThe audit logger stored the full webhook body as `request_data` on the mock path in test output. If it does the same for real events, checkout sessions would put customer email and address in the logs. Not checked on a real deployment.\n\n## 8. Inactive accounts can use password reset (low)\n\nThe reset flow never checks `is_active`, so a deactivated account can still request and redeem a reset token. Worth deciding if that is intended.\n",
+    "severity": "high",
+    "author": {
+      "login": "Anshuu2004",
+      "id": 160928248,
+      "node_id": "U_kgDOCZeR-A",
+      "avatar_url": "https://avatars.githubusercontent.com/u/160928248?v=4",
+      "gravatar_id": "",
+      "url": "https://api.github.com/users/Anshuu2004",
+      "html_url": "https://github.com/Anshuu2004",
+      "followers_url": "https://api.github.com/users/Anshuu2004/followers",
+      "following_url": "https://api.github.com/users/Anshuu2004/following{/other_user}",
+      "gists_url": "https://api.github.com/users/Anshuu2004/gists{/gist_id}",
+      "starred_url": "https://api.github.com/users/Anshuu2004/starred{/owner}{/repo}",
+      "subscriptions_url": "https://api.github.com/users/Anshuu2004/subscriptions",
+      "organizations_url": "https://api.github.com/users/Anshuu2004/orgs",
+      "repos_url": "https://api.github.com/users/Anshuu2004/repos",
+      "events_url": "https://api.github.com/users/Anshuu2004/events{/privacy}",
+      "received_events_url": "https://api.github.com/users/Anshuu2004/received_events",
+      "type": "User",
+      "user_view_type": "public",
+      "site_admin": false
+    },
+    "publisher": null,
+    "identifiers": [
+      {
+        "value": "GHSA-h6m7-pj8g-7cm3",
+        "type": "GHSA"
+      }
+    ],
+    "state": "draft",
+    "created_at": "2026-11-05T06:53:19Z",
+    "updated_at": "2026-11-12T11:23:47Z",
+    "published_at": null,
+    "closed_at": null,
+    "withdrawn_at": null,
+    "submission": {
+      "accepted": true
+    },
+    "vulnerabilities": [],
+    "cvss_severities": {
+      "cvss_v3": {
+        "vector_string": null,
+        "score": null
+      },
+      "cvss_v4": {
+        "vector_string": null,
+        "score": null
+      }
+    },
+    "cwes": [],
+    "cwe_ids": [],
+    "credits": [
+      {
+        "login": "Anshuu2004",
+        "type": "reporter"
+      }
+    ],
+    "credits_detailed": [
+      {
+        "user": {
+          "login": "Anshuu2004",
+          "id": 160928248,
+          "node_id": "U_kgDOCZeR-A",
+          "avatar_url": "https://avatars.githubusercontent.com/u/160928248?v=4",
+          "gravatar_id": "",
+          "url": "https://api.github.com/users/Anshuu2004",
+          "html_url": "https://github.com/Anshuu2004",
+          "followers_url": "https://api.github.com/users/Anshuu2004/followers",
+          "following_url": "https://api.github.com/users/Anshuu2004/following{/other_user}",
+          "gists_url": "https://api.github.com/users/Anshuu2004/gists{/gist_id}",
+          "starred_url": "https://api.github.com/users/Anshuu2004/starred{/owner}{/repo}",
+          "subscriptions_url": "https://api.github.com/users/Anshuu2004/subscriptions",
+          "organizations_url": "https://api.github.com/users/Anshuu2004/orgs",
+          "repos_url": "https://api.github.com/users/Anshuu2004/repos",
+          "events_url": "https://api.github.com/users/Anshuu2004/events{/privacy}",
+          "received_events_url": "https://api.github.com/users/Anshuu2004/received_events",
+          "type": "User",
+          "user_view_type": "public",
+          "site_admin": false
+        },
+        "type": "reporter",
+        "state": "pending"
+      }
+    ],
+    "collaborating_users": [
+      {
+        "login": "Anshuu2004",
+        "id": 160928248,
+        "node_id": "U_kgDOCZeR-A",
+        "avatar_url": "https://avatars.githubusercontent.com/u/160928248?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/Anshuu2004",
+        "html_url": "https://github.com/Anshuu2004",
+        "followers_url": "https://api.github.com/users/Anshuu2004/followers",
+        "following_url": "https://api.github.com/users/Anshuu2004/following{/other_user}",
+        "gists_url": "https://api.github.com/users/Anshuu2004/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/Anshuu2004/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/Anshuu2004/subscriptions",
+        "organizations_url": "https://api.github.com/users/Anshuu2004/orgs",
+        "repos_url": "https://api.github.com/users/Anshuu2004/repos",
+        "events_url": "https://api.github.com/users/Anshuu2004/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/Anshuu2004/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      }
+    ],
+    "collaborating_teams": [],
+    "private_fork": null,
+    "comments": 0,
+    "cvss": {
+      "vector_string": null,
+      "score": null
+    }
+  },
+  {
+    "ghsa_id": "GHSA-mw9p-rhx2-5w93",
+    "cve_id": null,
+    "url": "https://api.github.com/repos/nandinigoyaldev/Open-Source-Contribution-Atelier/security-advisories/GHSA-mw9p-rhx2-5w93",
+    "html_url": "https://github.com/nandinigoyaldev/Open-Source-Contribution-Atelier/security/advisories/GHSA-mw9p-rhx2-5w93",
+    "summary": "RBAC audit log endpoint returns every organization's entries to anyone holding view_audit_logs in any org",
+    "description": "### Summary\n\n`GET /api/rbac/audit-logs/` is gated by `HasPermission(\"view_audit_logs\")`, which looks at `UserRole` rows but ignores `UserRole.organization`, and the view returns `AuditLog.objects.all()`. A manager who was only given that permission inside org A reads the role changes of org B (actor, target user, role, details). This is the cross tenant case #3144 wants covered for progress and dashboard, but for RBAC.\n\n### Steps to reproduce\n\n1. Two orgs A and B. A role `OrgManager` with permissions `manage_roles` and `view_audit_logs`.\n2. `a_mgr` gets `OrgManager` scoped to org A (member of A only), `b_mgr` gets it scoped to org B.\n3. As `b_mgr`: `POST /api/rbac/assign/` `{\"user_id\": <b_user>, \"role_id\": <OrgManager>, \"organization_id\": <B>}` (201, writes an `AuditLog`).\n4. As `a_mgr`: `GET /api/rbac/audit-logs/`.\n\n### Expected\n\n`a_mgr` only sees audit entries for organizations where they hold `view_audit_logs` (or none of B's).\n\n### Actual\n\n```\nB assigns in B   201\nA reads audit logs 200 [{'id': 1, 'actor': 2, 'actor_name': 'b_mgr', 'target_user': 3,\n   'target_user_name': 'b_user', 'action': 'assign', 'role': 1, 'role_name': 'OrgManager',\n   'timestamp': '...', 'details': 'Assigned role OrgManager'}]\n```\n\n### Evidence\n\n- `backend/apps/rbac/views.py:245-251`: `AuditLogListView.queryset = AuditLog.objects.all()`, no `get_queryset` filtering by organization although `AuditLog` has an `organization` FK (`rbac/models.py`).\n- `backend/apps/core/permissions.py` `HasPermission.has_permission`: `UserRole.objects.filter(user=request.user)` with no organization argument, so a role granted for org A counts everywhere. `HasRole` and `HasAnyRole` have the same shape.\n- Related in the same area, while writing the test: an org scoped manager can assign themselves any other role in their own org (`POST /api/rbac/assign/` with their own id returned 201), because `AssignRoleView` has no role hierarchy check. I am not claiming that one is a bug on its own (could be intended), but together with `HasRole(\"Admin\")` ignoring the org it means an org scoped role can turn into a global one. It would be good to decide that on purpose.\n- Also `AssignRoleView` / `RevokeRoleView` return 500 for non numeric ids (`{\"user_id\":\"abc\"}`, `\"role_id\":\"abc\"`, `\"organization_id\":\"abc\"`, or a list) because `User.objects.get(id=\"abc\")` raises `ValueError`; I confirmed 500 for all four, it could go into the same PR with a 400.\n- #2227 / PRs #2419, #2421 added the audit trail; #3144 is open for tenant tests on progress and dashboard only. No issue about audit log scoping. Raw output: `atelier-evidence.log`, test `backend/tests/test_hunt_a.py`.\n\n### Suggested fix\n\n- `AuditLogListView.get_queryset`: superusers see all, everyone else only rows whose `organization_id` is in the orgs where they hold a role with `view_audit_logs`.\n- Make `HasPermission` accept an optional organization from the view and match `UserRole.organization` (or null for global roles).\n- Validate ids in assign / revoke (400 on non integers).\n- Regression test: org A manager does not see org B entries.\n\n### Acceptance Criteria\n\n- [ ] An org A manager does not see org B audit entries\n- [ ] Superusers still see everything\n- [ ] Malformed ids return 400 instead of 500 on assign and revoke\n- [ ] Regression tests added\n- [ ] `pytest` passes\n- [ ] PR links this issue with `Fixes #<number>`\n\n### Code Pointers & Resources\n\n- backend/apps/rbac/views.py:80-251\n- backend/apps/rbac/models.py (AuditLog, UserRole)\n- backend/apps/core/permissions.py (HasPermission, HasRole)\n- backend/apps/rbac/test_rbac_organization_security.py\n\n**Effort:** about a day (queryset scoping is quick, changing `HasPermission` semantics needs care and tests).\n**Suggested difficulty:** LEVEL3, it touches the permission class used across the backend.\n",
+    "severity": "medium",
+    "author": {
+      "login": "Anshuu2004",
+      "id": 160928248,
+      "node_id": "U_kgDOCZeR-A",
+      "avatar_url": "https://avatars.githubusercontent.com/u/160928248?v=4",
+      "gravatar_id": "",
+      "url": "https://api.github.com/users/Anshuu2004",
+      "html_url": "https://github.com/Anshuu2004",
+      "followers_url": "https://api.github.com/users/Anshuu2004/followers",
+      "following_url": "https://api.github.com/users/Anshuu2004/following{/other_user}",
+      "gists_url": "https://api.github.com/users/Anshuu2004/gists{/gist_id}",
+      "starred_url": "https://api.github.com/users/Anshuu2004/starred{/owner}{/repo}",
+      "subscriptions_url": "https://api.github.com/users/Anshuu2004/subscriptions",
+      "organizations_url": "https://api.github.com/users/Anshuu2004/orgs",
+      "repos_url": "https://api.github.com/users/Anshuu2004/repos",
+      "events_url": "https://api.github.com/users/Anshuu2004/events{/privacy}",
+      "received_events_url": "https://api.github.com/users/Anshuu2004/received_events",
+      "type": "User",
+      "user_view_type": "public",
+      "site_admin": false
+    },
+    "publisher": null,
+    "identifiers": [
+      {
+        "value": "GHSA-mw9p-rhx2-5w93",
+        "type": "GHSA"
+      }
+    ],
+    "state": "draft",
+    "created_at": "2026-10-31T10:00:28Z",
+    "updated_at": "2026-11-12T11:23:47Z",
+    "published_at": null,
+    "closed_at": null,
+    "withdrawn_at": null,
+    "submission": {
+      "accepted": true
+    },
+    "vulnerabilities": [],
+    "cvss_severities": {
+      "cvss_v3": {
+        "vector_string": null,
+        "score": null
+      },
+      "cvss_v4": {
+        "vector_string": null,
+        "score": null
+      }
+    },
+    "cwes": [],
+    "cwe_ids": [],
+    "credits": [
+      {
+        "login": "Anshuu2004",
+        "type": "reporter"
+      }
+    ],
+    "credits_detailed": [
+      {
+        "user": {
+          "login": "Anshuu2004",
+          "id": 160928248,
+          "node_id": "U_kgDOCZeR-A",
+          "avatar_url": "https://avatars.githubusercontent.com/u/160928248?v=4",
+          "gravatar_id": "",
+          "url": "https://api.github.com/users/Anshuu2004",
+          "html_url": "https://github.com/Anshuu2004",
+          "followers_url": "https://api.github.com/users/Anshuu2004/followers",
+          "following_url": "https://api.github.com/users/Anshuu2004/following{/other_user}",
+          "gists_url": "https://api.github.com/users/Anshuu2004/gists{/gist_id}",
+          "starred_url": "https://api.github.com/users/Anshuu2004/starred{/owner}{/repo}",
+          "subscriptions_url": "https://api.github.com/users/Anshuu2004/subscriptions",
+          "organizations_url": "https://api.github.com/users/Anshuu2004/orgs",
+          "repos_url": "https://api.github.com/users/Anshuu2004/repos",
+          "events_url": "https://api.github.com/users/Anshuu2004/events{/privacy}",
+          "received_events_url": "https://api.github.com/users/Anshuu2004/received_events",
+          "type": "User",
+          "user_view_type": "public",
+          "site_admin": false
+        },
+        "type": "reporter",
+        "state": "pending"
+      }
+    ],
+    "collaborating_users": [
+      {
+        "login": "Anshuu2004",
+        "id": 160928248,
+        "node_id": "U_kgDOCZeR-A",
+        "avatar_url": "https://avatars.githubusercontent.com/u/160928248?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/Anshuu2004",
+        "html_url": "https://github.com/Anshuu2004",
+        "followers_url": "https://api.github.com/users/Anshuu2004/followers",
+        "following_url": "https://api.github.com/users/Anshuu2004/following{/other_user}",
+        "gists_url": "https://api.github.com/users/Anshuu2004/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/Anshuu2004/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/Anshuu2004/subscriptions",
+        "organizations_url": "https://api.github.com/users/Anshuu2004/orgs",
+        "repos_url": "https://api.github.com/users/Anshuu2004/repos",
+        "events_url": "https://api.github.com/users/Anshuu2004/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/Anshuu2004/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      }
+    ],
+    "collaborating_teams": [],
+    "private_fork": null,
+    "comments": 0,
+    "cvss": {
+      "vector_string": null,
+      "score": null
+    }
+  },
+  {
+    "ghsa_id": "GHSA-rqxw-5xcm-93fh",
+    "cve_id": null,
+    "url": "https://api.github.com/repos/nandinigoyaldev/Open-Source-Contribution-Atelier/security-advisories/GHSA-rqxw-5xcm-93fh",
+    "html_url": "https://github.com/nandinigoyaldev/Open-Source-Contribution-Atelier/security/advisories/GHSA-rqxw-5xcm-93fh",
+    "summary": "OTP email verification returns 500 for every valid code (writes User.is_verified, which no longer exists) and does not check expiry",
+    "description": "### Summary\n\n`POST /api/auth/otp/verify/` ends with `user.is_verified = True; user.save(update_fields=[\"is_verified\"])`. The `User` model has no such field (email verification moved to allauth `EmailAddress` in #3098), so Django raises `ValueError` and the request returns 500. The OTP is already marked used before that happens, so the user's code is burnt and cannot be retried. Separately, the view never calls `OTPToken.is_expired()`, so expiry is not enforced (#1583 / PR #1595 was closed as fixed, but current main does not have the check in the view).\n\n### Steps to reproduce\n\n1. Create a user, `OTPToken.objects.create(user=user)`.\n2. `POST /api/auth/otp/verify/` `{\"email\": \"<user email>\", \"otp\": \"<token uuid>\"}`.\n3. Repeat with a token whose `created_at` is 30 days old (`OTPToken.objects.filter(pk=...).update(created_at=now - 30 days)`), `is_expired()` is True for it.\n\n### Expected\n\n1. 200, the address marked verified (via `email_verification.mark_verified(user)`).\n2. 400 `invalid_otp` / expired for the 30 day old token.\n\n### Actual\n\n```\nPROBE otp verify fresh token          500   ValueError: The following fields do not exist in this model, are m2m fields, primary keys, or are non-concrete fields: is_verified\nPROBE fresh token is_used after crash True\nPROBE otp verify 30-day-old token     500   (same ValueError, so it got past every expiry check)\n```\n\n### Evidence\n\n- `backend/apps/accounts/views.py:1224-1229` (inside `OtpVerifyView.post`): `token.is_used = True; token.save()` runs first, then `user.is_verified = True` and `user.save(update_fields=[\"is_verified\"])`. `ATOMIC_REQUESTS` is not set, so the used flag stays.\n- `backend/apps/accounts/views.py:1218-1221` filters on `user`, `token`, `is_used=False` only, no `token.is_expired()`. The same file does this correctly in `PasswordResetConfirmView` (line 1120).\n- `backend/apps/accounts/models.py:93-100`: `OTPToken.is_expired()` exists and is documented as the 10 minute expiry.\n- `backend/apps/accounts/email_verification.py:91-124` has `is_verified(user)` and `mark_verified(user)` based on `EmailAddress`, which is what login and `VerifyEmailView` now use.\n- Closed #1583 \"[BUG]: OTP verification tokens never expire\" and merged PR #1595 \"enforce OTP token expiry\". Current main has no such check, so this looks like it got lost in a later merge. #2001 is about a duplicate `is_expired` in the model. Not duplicates of this.\n- Raw output: `atelier-evidence.log`.\n\n### Suggested fix\n\n- Replace the last lines with `email_verification.mark_verified(user)`.\n- Check `token.is_expired()` before consuming the token, and wrap \"mark used + mark verified\" in `transaction.atomic()` so a failure does not burn the code.\n- Add tests for: valid code verifies the address, expired code is rejected, used code is rejected.\n\n### Acceptance Criteria\n\n- [ ] A valid, fresh OTP returns 200 and `email_verification.is_verified(user)` is True afterwards\n- [ ] An expired OTP is rejected with a 400 and does not verify the user\n- [ ] A failure while verifying does not leave the OTP marked used\n- [ ] Tests added for the three cases\n- [ ] `pytest` passes\n- [ ] PR links this issue with `Fixes #<number>`\n\n### Code Pointers & Resources\n\n- backend/apps/accounts/views.py:1194-1247\n- backend/apps/accounts/models.py:70-100\n- backend/apps/accounts/email_verification.py:91-124\n\n**Effort:** about 1 hour with tests.\n**Suggested difficulty:** LEVEL2, three behaviours to fix and test (not just a one liner).\n",
+    "severity": "high",
+    "author": {
+      "login": "Anshuu2004",
+      "id": 160928248,
+      "node_id": "U_kgDOCZeR-A",
+      "avatar_url": "https://avatars.githubusercontent.com/u/160928248?v=4",
+      "gravatar_id": "",
+      "url": "https://api.github.com/users/Anshuu2004",
+      "html_url": "https://github.com/Anshuu2004",
+      "followers_url": "https://api.github.com/users/Anshuu2004/followers",
+      "following_url": "https://api.github.com/users/Anshuu2004/following{/other_user}",
+      "gists_url": "https://api.github.com/users/Anshuu2004/gists{/gist_id}",
+      "starred_url": "https://api.github.com/users/Anshuu2004/starred{/owner}{/repo}",
+      "subscriptions_url": "https://api.github.com/users/Anshuu2004/subscriptions",
+      "organizations_url": "https://api.github.com/users/Anshuu2004/orgs",
+      "repos_url": "https://api.github.com/users/Anshuu2004/repos",
+      "events_url": "https://api.github.com/users/Anshuu2004/events{/privacy}",
+      "received_events_url": "https://api.github.com/users/Anshuu2004/received_events",
+      "type": "User",
+      "user_view_type": "public",
+      "site_admin": false
+    },
+    "publisher": null,
+    "identifiers": [
+      {
+        "value": "GHSA-rqxw-5xcm-93fh",
+        "type": "GHSA"
+      }
+    ],
+    "state": "draft",
+    "created_at": "2026-10-31T09:59:11Z",
+    "updated_at": "2026-11-12T11:23:48Z",
+    "published_at": null,
+    "closed_at": null,
+    "withdrawn_at": null,
+    "submission": {
+      "accepted": true
+    },
+    "vulnerabilities": [],
+    "cvss_severities": {
+      "cvss_v3": {
+        "vector_string": null,
+        "score": null
+      },
+      "cvss_v4": {
+        "vector_string": null,
+        "score": null
+      }
+    },
+    "cwes": [],
+    "cwe_ids": [],
+    "credits": [
+      {
+        "login": "Anshuu2004",
+        "type": "reporter"
+      }
+    ],
+    "credits_detailed": [
+      {
+        "user": {
+          "login": "Anshuu2004",
+          "id": 160928248,
+          "node_id": "U_kgDOCZeR-A",
+          "avatar_url": "https://avatars.githubusercontent.com/u/160928248?v=4",
+          "gravatar_id": "",
+          "url": "https://api.github.com/users/Anshuu2004",
+          "html_url": "https://github.com/Anshuu2004",
+          "followers_url": "https://api.github.com/users/Anshuu2004/followers",
+          "following_url": "https://api.github.com/users/Anshuu2004/following{/other_user}",
+          "gists_url": "https://api.github.com/users/Anshuu2004/gists{/gist_id}",
+          "starred_url": "https://api.github.com/users/Anshuu2004/starred{/owner}{/repo}",
+          "subscriptions_url": "https://api.github.com/users/Anshuu2004/subscriptions",
+          "organizations_url": "https://api.github.com/users/Anshuu2004/orgs",
+          "repos_url": "https://api.github.com/users/Anshuu2004/repos",
+          "events_url": "https://api.github.com/users/Anshuu2004/events{/privacy}",
+          "received_events_url": "https://api.github.com/users/Anshuu2004/received_events",
+          "type": "User",
+          "user_view_type": "public",
+          "site_admin": false
+        },
+        "type": "reporter",
+        "state": "pending"
+      }
+    ],
+    "collaborating_users": [
+      {
+        "login": "Anshuu2004",
+        "id": 160928248,
+        "node_id": "U_kgDOCZeR-A",
+        "avatar_url": "https://avatars.githubusercontent.com/u/160928248?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/Anshuu2004",
+        "html_url": "https://github.com/Anshuu2004",
+        "followers_url": "https://api.github.com/users/Anshuu2004/followers",
+        "following_url": "https://api.github.com/users/Anshuu2004/following{/other_user}",
+        "gists_url": "https://api.github.com/users/Anshuu2004/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/Anshuu2004/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/Anshuu2004/subscriptions",
+        "organizations_url": "https://api.github.com/users/Anshuu2004/orgs",
+        "repos_url": "https://api.github.com/users/Anshuu2004/repos",
+        "events_url": "https://api.github.com/users/Anshuu2004/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/Anshuu2004/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      }
+    ],
+    "collaborating_teams": [],
+    "private_fork": null,
+    "comments": 0,
+    "cvss": {
+      "vector_string": null,
+      "score": null
+    }
+  },
+  {
+    "ghsa_id": "GHSA-5pjv-gc9f-x5pw",
+    "cve_id": null,
+    "url": "https://api.github.com/repos/nandinigoyaldev/Open-Source-Contribution-Atelier/security-advisories/GHSA-5pjv-gc9f-x5pw",
+    "html_url": "https://github.com/nandinigoyaldev/Open-Source-Contribution-Atelier/security/advisories/GHSA-5pjv-gc9f-x5pw",
+    "summary": "Cross-tenant data exposure in progress and dashboard endpoints",
+    "description": "**Summary**\nWhile adding tenant-isolation regression tests for issue #3144, I found four endpoints where a signed-in user can read data that belongs to another organisation, or that the user's role shouldn't allow. Each one reproduces against current `main` with the shared tenant fixtures (`org_a`/`org_b`, `user_a`/`user_b`). The tests are written as `xfail(strict=True)`, so each one fails until its leak is fixed.\n\n**Findings**\n1. **Mentor help-request queue:** `MentorHelpRequestListView` filters by mentor status only, not by tenant. A mentor in Org A sees Org B's open help requests.\n2. **Code submissions:** `GET /api/progress/code-submissions/` (`CodeSubmissionView.get`) lists every pending submission across tenants, **including the submitted code**.\n3. **Community feed:** `CommunityFeedView` falls back to all active users when the requester has no organisation, so a user with no org sees every tenant's activity.\n4. **Analytics export:** `/api/dashboard/analytics/export/` (`AnalyticsExportCSVView`) only requires authentication. The matching analytics view requires an Admin or Moderator role, so any signed-in member can export analytics.\n\n**Reproduction**\nThe four reproduction tests are included below (the other tests from these files are in public PR #3179, which moves the `org_a`/`org_b`/`user_a`/`user_b` fixtures into `backend/conftest.py`). Add each test to the class named in its heading, and add `from rest_framework.test import APIClient` and `from apps.accounts.models import MentorProfile` to the progress test module (the public version leaves them out because nothing there uses them). Then run:\n\n```\ncd backend && pytest apps/progress/tests/test_progress_tenant_isolation.py apps/dashboard/tests/test_dashboard_tenant_isolation.py -rxX\n```\n\nEach of the four tests reports XFAIL, which means the leak reproduced.\n\n\n**Reproduction tests**\n\n`test_progress_tenant_isolation.py`, class `TestProgressListEndpointsExcludeOtherTenant`:\n```python\n    @pytest.mark.xfail(\n        strict=True,\n        reason=(\n            \"Known leak (#3144): MentorHelpRequestListView filters only by \"\n            \"assigned lessons, so a mentor in Org A sees Org B help requests.\"\n        ),\n    )\n    def test_mentor_help_requests_exclude_other_tenant(\n        self, authed_client_a, user_a, lesson, tenant_b_activity\n    ):\n        mentor = MentorProfile.objects.create(user=user_a)\n        mentor.assigned_lessons.add(lesson)\n        response = authed_client_a.get(\"/api/progress/mentor/help-requests/\")\n        assert response.status_code == 200\n        ids = [row[\"id\"] for row in _results(response.data)]\n        assert tenant_b_activity.help_request.id not in ids\n```\n\n`test_progress_tenant_isolation.py`, class `TestProgressListEndpointsExcludeOtherTenant`:\n```python\n    @pytest.mark.xfail(\n        strict=True,\n        reason=(\n            \"Known leak (#3144): CodeSubmissionView.get lists every pending \"\n            \"submission, including code snippets from other tenants.\"\n        ),\n    )\n    def test_code_submissions_exclude_other_tenant(\n        self, authed_client_a, tenant_b_activity\n    ):\n        response = authed_client_a.get(\"/api/progress/code-submissions/\")\n        assert response.status_code == 200\n        ids = [row[\"id\"] for row in response.data]\n        assert tenant_b_activity.submission.id not in ids\n```\n\n`test_progress_tenant_isolation.py`, class `TestProgressListEndpointsExcludeOtherTenant`:\n```python\n    @pytest.mark.xfail(\n        strict=True,\n        reason=(\n            \"Known leak (#3144): CommunityFeedView falls back to all active \"\n            \"users when the requester has no organization.\"\n        ),\n    )\n    def test_community_feed_for_user_without_org_excludes_tenants(\n        self, user_b, tenant_b_activity\n    ):\n        carol = User.objects.create_user(username=\"carol\", password=\"pw123456\")\n        client = APIClient()\n        client.force_authenticate(user=carol)\n        response = client.get(\"/api/progress/feed/\")\n        assert response.status_code == 200\n        entries = _results(response.data)\n        assert user_b.id not in [e[\"user_id\"] for e in entries]\n```\n\n`test_dashboard_tenant_isolation.py`, class `TestDashboardAnalyticsRejectTenantMember`:\n```python\n    @pytest.mark.xfail(\n        strict=True,\n        reason=(\n            \"Known leak (#3144): AnalyticsExportCSVView only requires \"\n            \"authentication, so any member can export platform-wide analytics \"\n            \"that ModeratorAnalyticsView restricts to Admin/Moderator.\"\n        ),\n    )\n    def test_member_without_role_cannot_export_analytics(\n        self, authed_client_a, tenant_b_dashboard_data\n    ):\n        response = authed_client_a.get(\"/api/dashboard/analytics/export/\")\n        assert response.status_code == 403\n```\n\n**Suggested fixes**\n- Scope (1) and (2) with the existing tenant filter used by the other progress views.\n- For (3), return an empty feed, or only the user's own activity, when the user has no org.\n- For (4), apply the same permission class as the analytics view.\n\nThe public PR for #3144 only contains the passing tests. It doesn't describe these four findings. I'm happy to open fixes once you decide how each should behave.\n",
+    "severity": "high",
+    "author": {
+      "login": "Blazehue",
+      "id": 179529241,
+      "node_id": "U_kgDOCrNmGQ",
+      "avatar_url": "https://avatars.githubusercontent.com/u/179529241?v=4",
+      "gravatar_id": "",
+      "url": "https://api.github.com/users/Blazehue",
+      "html_url": "https://github.com/Blazehue",
+      "followers_url": "https://api.github.com/users/Blazehue/followers",
+      "following_url": "https://api.github.com/users/Blazehue/following{/other_user}",
+      "gists_url": "https://api.github.com/users/Blazehue/gists{/gist_id}",
+      "starred_url": "https://api.github.com/users/Blazehue/starred{/owner}{/repo}",
+      "subscriptions_url": "https://api.github.com/users/Blazehue/subscriptions",
+      "organizations_url": "https://api.github.com/users/Blazehue/orgs",
+      "repos_url": "https://api.github.com/users/Blazehue/repos",
+      "events_url": "https://api.github.com/users/Blazehue/events{/privacy}",
+      "received_events_url": "https://api.github.com/users/Blazehue/received_events",
+      "type": "User",
+      "user_view_type": "public",
+      "site_admin": false
+    },
+    "publisher": null,
+    "identifiers": [
+      {
+        "value": "GHSA-5pjv-gc9f-x5pw",
+        "type": "GHSA"
+      }
+    ],
+    "state": "draft",
+    "created_at": "2026-10-26T17:50:59Z",
+    "updated_at": "2026-11-12T11:23:49Z",
+    "published_at": null,
+    "closed_at": null,
+    "withdrawn_at": null,
+    "submission": {
+      "accepted": true
+    },
+    "vulnerabilities": [],
+    "cvss_severities": {
+      "cvss_v3": {
+        "vector_string": null,
+        "score": null
+      },
+      "cvss_v4": {
+        "vector_string": null,
+        "score": null
+      }
+    },
+    "cwes": [
+      {
+        "cwe_id": "CWE-639",
+        "name": "Authorization Bypass Through User-Controlled Key"
+      },
+      {
+        "cwe_id": "CWE-862",
+        "name": "Missing Authorization"
+      }
+    ],
+    "cwe_ids": [
+      "CWE-639",
+      "CWE-862"
+    ],
+    "credits": [
+      {
+        "login": "Blazehue",
+        "type": "reporter"
+      }
+    ],
+    "credits_detailed": [
+      {
+        "user": {
+          "login": "Blazehue",
+          "id": 179529241,
+          "node_id": "U_kgDOCrNmGQ",
+          "avatar_url": "https://avatars.githubusercontent.com/u/179529241?v=4",
+          "gravatar_id": "",
+          "url": "https://api.github.com/users/Blazehue",
+          "html_url": "https://github.com/Blazehue",
+          "followers_url": "https://api.github.com/users/Blazehue/followers",
+          "following_url": "https://api.github.com/users/Blazehue/following{/other_user}",
+          "gists_url": "https://api.github.com/users/Blazehue/gists{/gist_id}",
+          "starred_url": "https://api.github.com/users/Blazehue/starred{/owner}{/repo}",
+          "subscriptions_url": "https://api.github.com/users/Blazehue/subscriptions",
+          "organizations_url": "https://api.github.com/users/Blazehue/orgs",
+          "repos_url": "https://api.github.com/users/Blazehue/repos",
+          "events_url": "https://api.github.com/users/Blazehue/events{/privacy}",
+          "received_events_url": "https://api.github.com/users/Blazehue/received_events",
+          "type": "User",
+          "user_view_type": "public",
+          "site_admin": false
+        },
+        "type": "reporter",
+        "state": "pending"
+      }
+    ],
+    "collaborating_users": [
+      {
+        "login": "Blazehue",
+        "id": 179529241,
+        "node_id": "U_kgDOCrNmGQ",
+        "avatar_url": "https://avatars.githubusercontent.com/u/179529241?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/Blazehue",
+        "html_url": "https://github.com/Blazehue",
+        "followers_url": "https://api.github.com/users/Blazehue/followers",
+        "following_url": "https://api.github.com/users/Blazehue/following{/other_user}",
+        "gists_url": "https://api.github.com/users/Blazehue/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/Blazehue/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/Blazehue/subscriptions",
+        "organizations_url": "https://api.github.com/users/Blazehue/orgs",
+        "repos_url": "https://api.github.com/users/Blazehue/repos",
+        "events_url": "https://api.github.com/users/Blazehue/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/Blazehue/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      }
+    ],
+    "collaborating_teams": [],
+    "private_fork": null,
+    "comments": 0,
+    "cvss": {
+      "vector_string": null,
+      "score": null
+    }
+  },
+  {
+    "ghsa_id": "GHSA-j8mh-xcjr-2p9v",
+    "cve_id": null,
+    "url": "https://api.github.com/repos/nandinigoyaldev/Open-Source-Contribution-Atelier/security-advisories/GHSA-j8mh-xcjr-2p9v",
+    "html_url": "https://github.com/nandinigoyaldev/Open-Source-Contribution-Atelier/security/advisories/GHSA-j8mh-xcjr-2p9v",
+    "summary": "Billing bounty endpoints have no real authorization (any user can create sponsors and bounties, spoof claims, and admins cannot approve payouts)",
+    "description": "### Summary\n\nThe sponsor / bounty / bounty-claim API under `/api/billing/` is registered as plain `ModelViewSet`s. Any logged in user can create, edit and delete sponsors and bounties (including the reward amount), can create a bounty claim on behalf of another user, and the admin only `approve_payout` action can never reach a claim that belongs to someone else.\n\n### Steps to reproduce\n\nBackend on current main (bccf9049), using a normal user (not staff) `plain`:\n\n1. `POST /api/billing/sponsors/` `{\"name\":\"Evil Corp\"}`\n2. `POST /api/billing/bounties/` `{\"sponsor\":1,\"title\":\"free money\",\"description\":\"x\",\"amount\":\"99999.00\",\"currency\":\"USD\"}`\n3. `PATCH /api/billing/bounties/1/` `{\"amount\":\"1.00\"}`, then `DELETE /api/billing/sponsors/1/`\n4. As user `mallory` : `POST /api/billing/bounty-claims/` `{\"bounty\":1,\"user\":<victim id>}`\n5. As a staff user: `POST /api/billing/bounty-claims/<that claim id>/approve_payout/` and `GET /api/billing/bounty-claims/`\n\n### Expected\n\n- Sponsors and bounties are created / changed / deleted by staff (or the sponsor's org admins) only, everybody else read only.\n- `user` on a claim is always `request.user`, not a client field.\n- A staff user can list all claims and approve a payout for any user's claim, otherwise the `IsAdminUser` action is pointless.\n\n### Actual\n\nFrom my pytest run (APIClient, Django 5.2):\n\n```\ncreate sponsor              201 {'id': 1, 'name': 'Evil Corp', ...}\ncreate bounty (non staff)   201 {... 'amount': '99999.00' ...}\npatch bounty                200\ndelete sponsor              204   (Bounty count afterwards: 0, cascade)\nmallory creates claim for victim 201 {'bounty': 1, 'user': 2, ...}   DB: claim.user.username == 'victim'\nstaff approve_payout on that claim -> 404 {\"detail\":\"No BountyClaim matches the given query.\"}\nstaff GET /bounty-claims/           -> 200 []\n```\n\n### Evidence\n\n- `backend/apps/billing/views.py:235-244`: `OrganizationSponsorViewSet` and `BountyViewSet` are `ModelViewSet` with `IsAuthenticatedOrReadOnly`, which allows every unsafe method for any authenticated user.\n- `backend/apps/billing/serializers.py:16, 40-41`: `BountyClaimSerializer` uses `fields = \"__all__\"` and only `payout_id` and `is_approved` are read only, so `user` is writable.\n- `backend/apps/billing/views.py:263-278`: `BountyClaimViewSet.get_queryset` filters by `user=request.user` for everybody (the comment says \"Admins could see all\", but there is no admin branch), and `approve_payout` calls `self.get_object()`, which uses that filtered queryset. So the `IsAdminUser` action can only ever see the admin's own claims. The only claim an admin can approve is their own.\n- `backend/apps/billing/services.py:payout_bounty` sets `is_approved`, a mock `payout_id` and `bounty.is_active = False`, and is documented as the thing that will become a Stripe Connect transfer, so the permission gap will matter more once that is real.\n- I searched \"bounty\", \"sponsor\", \"approve_payout\", \"billing permissions\" (open and closed). #2541 / PR #2575 is about a race in the other `BountyViewSet.claim` (in `apps/issues`), #1737 and PR #1772 about N+1 on submissions. Nothing about authorization in `apps/billing`. Raw output: `atelier-evidence.log`.\n\n### Suggested fix\n\n- Sponsor and bounty viewsets: `permission_classes = [IsAdminUser]` for write actions (or `get_permissions()` returning `IsAuthenticatedOrReadOnly` for `list/retrieve` and `IsAdminUser` otherwise).\n- `BountyClaimSerializer`: make `user` read only and set it in `perform_create` (`serializer.save(user=self.request.user)`). Probably also block PATCH / DELETE on approved claims.\n- `BountyClaimViewSet.get_queryset`: return all claims for staff.\n- Tests: normal user gets 403 on sponsor/bounty writes, claim `user` is ignored, staff can approve someone else's claim.\n\n### Acceptance Criteria\n\n- [ ] Non staff users get 403 on sponsor and bounty create / update / delete\n- [ ] A claim is always created for the requesting user\n- [ ] Staff can list and approve other users' claims\n- [ ] Regression tests added\n- [ ] `pytest` passes\n- [ ] PR links this issue with `Fixes #<number>`\n\n### Code Pointers & Resources\n\n- backend/apps/billing/views.py:235-280\n- backend/apps/billing/serializers.py:12-42\n- backend/apps/billing/services.py\n- backend/tests/test_billing.py\n\n**Effort:** about 2 to 3 hours with tests.\n**Suggested difficulty:** LEVEL2, several small permission and serializer changes plus tests.\n",
+    "severity": "high",
+    "author": {
+      "login": "Anshuu2004",
+      "id": 160928248,
+      "node_id": "U_kgDOCZeR-A",
+      "avatar_url": "https://avatars.githubusercontent.com/u/160928248?v=4",
+      "gravatar_id": "",
+      "url": "https://api.github.com/users/Anshuu2004",
+      "html_url": "https://github.com/Anshuu2004",
+      "followers_url": "https://api.github.com/users/Anshuu2004/followers",
+      "following_url": "https://api.github.com/users/Anshuu2004/following{/other_user}",
+      "gists_url": "https://api.github.com/users/Anshuu2004/gists{/gist_id}",
+      "starred_url": "https://api.github.com/users/Anshuu2004/starred{/owner}{/repo}",
+      "subscriptions_url": "https://api.github.com/users/Anshuu2004/subscriptions",
+      "organizations_url": "https://api.github.com/users/Anshuu2004/orgs",
+      "repos_url": "https://api.github.com/users/Anshuu2004/repos",
+      "events_url": "https://api.github.com/users/Anshuu2004/events{/privacy}",
+      "received_events_url": "https://api.github.com/users/Anshuu2004/received_events",
+      "type": "User",
+      "user_view_type": "public",
+      "site_admin": false
+    },
+    "publisher": null,
+    "identifiers": [
+      {
+        "value": "GHSA-j8mh-xcjr-2p9v",
+        "type": "GHSA"
+      }
+    ],
+    "state": "draft",
+    "created_at": "2026-10-26T10:37:45Z",
+    "updated_at": "2026-11-12T11:23:50Z",
+    "published_at": null,
+    "closed_at": null,
+    "withdrawn_at": null,
+    "submission": {
+      "accepted": true
+    },
+    "vulnerabilities": [],
+    "cvss_severities": {
+      "cvss_v3": {
+        "vector_string": null,
+        "score": null
+      },
+      "cvss_v4": {
+        "vector_string": null,
+        "score": null
+      }
+    },
+    "cwes": [],
+    "cwe_ids": [],
+    "credits": [
+      {
+        "login": "Anshuu2004",
+        "type": "reporter"
+      }
+    ],
+    "credits_detailed": [
+      {
+        "user": {
+          "login": "Anshuu2004",
+          "id": 160928248,
+          "node_id": "U_kgDOCZeR-A",
+          "avatar_url": "https://avatars.githubusercontent.com/u/160928248?v=4",
+          "gravatar_id": "",
+          "url": "https://api.github.com/users/Anshuu2004",
+          "html_url": "https://github.com/Anshuu2004",
+          "followers_url": "https://api.github.com/users/Anshuu2004/followers",
+          "following_url": "https://api.github.com/users/Anshuu2004/following{/other_user}",
+          "gists_url": "https://api.github.com/users/Anshuu2004/gists{/gist_id}",
+          "starred_url": "https://api.github.com/users/Anshuu2004/starred{/owner}{/repo}",
+          "subscriptions_url": "https://api.github.com/users/Anshuu2004/subscriptions",
+          "organizations_url": "https://api.github.com/users/Anshuu2004/orgs",
+          "repos_url": "https://api.github.com/users/Anshuu2004/repos",
+          "events_url": "https://api.github.com/users/Anshuu2004/events{/privacy}",
+          "received_events_url": "https://api.github.com/users/Anshuu2004/received_events",
+          "type": "User",
+          "user_view_type": "public",
+          "site_admin": false
+        },
+        "type": "reporter",
+        "state": "pending"
+      }
+    ],
+    "collaborating_users": [
+      {
+        "login": "Anshuu2004",
+        "id": 160928248,
+        "node_id": "U_kgDOCZeR-A",
+        "avatar_url": "https://avatars.githubusercontent.com/u/160928248?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/Anshuu2004",
+        "html_url": "https://github.com/Anshuu2004",
+        "followers_url": "https://api.github.com/users/Anshuu2004/followers",
+        "following_url": "https://api.github.com/users/Anshuu2004/following{/other_user}",
+        "gists_url": "https://api.github.com/users/Anshuu2004/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/Anshuu2004/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/Anshuu2004/subscriptions",
+        "organizations_url": "https://api.github.com/users/Anshuu2004/orgs",
+        "repos_url": "https://api.github.com/users/Anshuu2004/repos",
+        "events_url": "https://api.github.com/users/Anshuu2004/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/Anshuu2004/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      }
+    ],
+    "collaborating_teams": [],
+    "private_fork": null,
+    "comments": 0,
+    "cvss": {
+      "vector_string": null,
+      "score": null
+    }
+  },
+  {
+    "ghsa_id": "GHSA-v7wq-797p-7q49",
+    "cve_id": null,
+    "url": "https://api.github.com/repos/nandinigoyaldev/Open-Source-Contribution-Atelier/security-advisories/GHSA-v7wq-797p-7q49",
+    "html_url": "https://github.com/nandinigoyaldev/Open-Source-Contribution-Atelier/security/advisories/GHSA-v7wq-797p-7q49",
+    "summary": "Progress sync trusts the client `score`, so any user can put themselves at #1 on the leaderboard (and negative or text scores return 500)",
+    "description": "### Summary\n\nThe leaderboard total is the sum of `LessonProgress.score` for completed lessons. `POST /api/progress/bulk-sync/` takes `score` straight from the request body with no upper or lower bound, and when it creates a new progress row it does not write an `XPEvent` either, so the 0..1000 cap on `XPEvent.base_points` never gets a chance to apply. Result: one request makes a user rank 1. Also, bad score values (negative, text, too big) make the progress endpoints return 500 instead of 400.\n\n### Steps to reproduce\n\nAuthenticated normal user, one lesson `intro` exists:\n\n1. `POST /api/progress/bulk-sync/` with `{\"lessons\":[{\"lesson_slug\":\"intro\",\"score\":1000000}]}`\n2. `GET /api/progress/leaderboard/`\n3. `POST /api/progress/bulk-sync/` with 3 slugs that do not exist (`does-not-exist-0..2`)\n4. `POST /api/progress/me/` with `{\"lesson_slug\":\"intro\",\"score\":-5}`, then `\"score\":\"50\"`, then `1001`\n5. `POST /api/progress/bulk-sync/` with `\"score\":-5`\n\n### Expected\n\n- `score` validated (for example 0..100 or 0..1000, matching the `XPEvent` constraint), 400 on bad values.\n- A client cannot create a score larger than a lesson can award.\n- Unknown lesson slugs do not create new `Lesson` rows.\n\n### Actual\n\nFrom my pytest run (APIClient, `raise_request_exception=False`, Django 5.2):\n\n```\nbulk-sync score 1000000      -> 200 {\"synced_count\":1,\"progress_ids\":[1]}\nLessonProgress rows          -> [{'score': 1000000, 'base_score': 1000000}]   XPEvent rows: []\nleaderboard                  -> rank 1, username grinder, total_xp 1000015\nbulk-sync 3 unknown slugs    -> 200 synced_count 3, Lesson table now has 4 rows (intro + 3 invented)\n/me/ score 1000              -> 201\n/me/ score 1001              -> 500   (CHECK constraint failed: base_points_range_constraint)\n/me/ score -5                -> 500   (CHECK constraint failed: score)\n/me/ score \"50\"              -> 500   (TypeError: can't multiply sequence by non-int of type 'float')\n/me/ score 1e30              -> 500   (OverflowError)\nbulk-sync score -5           -> 500\nbulk-update score -5         -> 500 with the raw DB message in the body:\n   {\"success\":false,\"transaction_outcome\":\"rolled_back\",\"validation_failures\":{\"exception\":\"CHECK constraint failed: score\"},...}\n```\n\n(`total_xp` 1000015 is the 1,000,000 plus the 3 invented lessons I sent afterwards with score 5 each. In this run the leaderboard call came after step 3.)\n\n### Evidence\n\n- `backend/apps/progress/serializers.py:95`: `BulkLessonProgressSerializer.score = serializers.IntegerField(default=100)`, no `min_value` / `max_value`. Same at line 79 for `LessonProgressCreateSerializer`.\n- `backend/apps/progress/views.py:347-428` (`MyProgressView.post`): reads `request.data.get(\"score\", 100)` directly and never uses the serializer, so strings and negatives reach `int(base_score * multiplier)` in `progress_tracking_service.py`.\n- `backend/apps/progress/services/progress_tracking_service.py:~170-200` (`bulk_sync_progress`): creates `LessonProgress` with the client `base_score` and, unlike `record_lesson_progress` (line 76-85), does not create an `XPEvent` in the `created` branch.\n- `backend/apps/progress/models.py:196-201`: `XPEvent` has a `base_points` check of 0..1000, which shows the intended cap, but only the single `/me/` path ever reaches it (and then as a 500).\n- `backend/apps/progress/views.py:1495-1510`: the leaderboard sums `LessonProgress.score` for `completed=True`, so the bulk path directly decides ranking.\n- `backend/apps/content/services/lesson_service.py:24-37` (`get_or_create_dynamic_lesson`): bulk-sync uses this for any slug, so every authenticated user can create unlimited `Lesson` rows. It also does `Lesson.objects.get(slug=slug)` without the organization filter that `MyProgressView` uses, so the other tenant's lesson with the same slug is picked.\n- `backend/apps/progress/views.py:466-540` (`BulkProgressUpdateView`): the catch-all `except Exception` returns `str(e)` to the client.\n- Existing issues I checked: #1002 (XP and level), #1004 (idempotent sync), #123 (tests for dynamic lesson stub creation). None covers validation of `score` or the leaderboard impact. Raw log: `atelier-evidence.log`.\n\n### Suggested fix\n\n- Add `min_value=0, max_value=1000` (or whatever the real lesson max is) to both serializers and use `LessonProgressCreateSerializer` in `MyProgressView.post` so bad input gives 400.\n- Better: do not accept `score` from the client at all, derive it server side from the quiz or exercise result.\n- In `bulk_sync_progress` look the lesson up with the organization filter and return 404 / skip for unknown slugs instead of creating a lesson, and write the same `XPEvent` as the single path.\n- Stop returning `str(e)` from `BulkProgressUpdateView`.\n- Tests: huge score, negative score, text score, unknown slug, leaderboard unchanged.\n\n### Acceptance Criteria\n\n- [ ] Out of range or non numeric `score` returns 400 on `/me/`, `/bulk-sync/` and `/bulk-update/`\n- [ ] A bulk sync with `score=1000000` cannot change the leaderboard\n- [ ] Unknown lesson slugs do not create `Lesson` rows\n- [ ] Bulk create writes an `XPEvent` like the single path\n- [ ] Regression tests added\n- [ ] `pytest` passes\n- [ ] PR links this issue with `Fixes #<number>`\n\n### Code Pointers & Resources\n\n- backend/apps/progress/serializers.py:77-106\n- backend/apps/progress/views.py:347-540, 1430-1510\n- backend/apps/progress/services/progress_tracking_service.py\n- backend/apps/progress/models.py:196-201\n- backend/apps/content/services/lesson_service.py:24-37\n\n**Effort:** about half a day with tests.\n**Suggested difficulty:** LEVEL2 (validation changes in 3 endpoints plus one service change). LEVEL3 if the maintainers want server side scoring.\n",
+    "severity": "high",
+    "author": {
+      "login": "Anshuu2004",
+      "id": 160928248,
+      "node_id": "U_kgDOCZeR-A",
+      "avatar_url": "https://avatars.githubusercontent.com/u/160928248?v=4",
+      "gravatar_id": "",
+      "url": "https://api.github.com/users/Anshuu2004",
+      "html_url": "https://github.com/Anshuu2004",
+      "followers_url": "https://api.github.com/users/Anshuu2004/followers",
+      "following_url": "https://api.github.com/users/Anshuu2004/following{/other_user}",
+      "gists_url": "https://api.github.com/users/Anshuu2004/gists{/gist_id}",
+      "starred_url": "https://api.github.com/users/Anshuu2004/starred{/owner}{/repo}",
+      "subscriptions_url": "https://api.github.com/users/Anshuu2004/subscriptions",
+      "organizations_url": "https://api.github.com/users/Anshuu2004/orgs",
+      "repos_url": "https://api.github.com/users/Anshuu2004/repos",
+      "events_url": "https://api.github.com/users/Anshuu2004/events{/privacy}",
+      "received_events_url": "https://api.github.com/users/Anshuu2004/received_events",
+      "type": "User",
+      "user_view_type": "public",
+      "site_admin": false
+    },
+    "publisher": null,
+    "identifiers": [
+      {
+        "value": "GHSA-v7wq-797p-7q49",
+        "type": "GHSA"
+      }
+    ],
+    "state": "draft",
+    "created_at": "2026-10-26T10:37:43Z",
+    "updated_at": "2026-11-12T11:23:51Z",
+    "published_at": null,
+    "closed_at": null,
+    "withdrawn_at": null,
+    "submission": {
+      "accepted": true
+    },
+    "vulnerabilities": [],
+    "cvss_severities": {
+      "cvss_v3": {
+        "vector_string": null,
+        "score": null
+      },
+      "cvss_v4": {
+        "vector_string": null,
+        "score": null
+      }
+    },
+    "cwes": [],
+    "cwe_ids": [],
+    "credits": [
+      {
+        "login": "Anshuu2004",
+        "type": "reporter"
+      }
+    ],
+    "credits_detailed": [
+      {
+        "user": {
+          "login": "Anshuu2004",
+          "id": 160928248,
+          "node_id": "U_kgDOCZeR-A",
+          "avatar_url": "https://avatars.githubusercontent.com/u/160928248?v=4",
+          "gravatar_id": "",
+          "url": "https://api.github.com/users/Anshuu2004",
+          "html_url": "https://github.com/Anshuu2004",
+          "followers_url": "https://api.github.com/users/Anshuu2004/followers",
+          "following_url": "https://api.github.com/users/Anshuu2004/following{/other_user}",
+          "gists_url": "https://api.github.com/users/Anshuu2004/gists{/gist_id}",
+          "starred_url": "https://api.github.com/users/Anshuu2004/starred{/owner}{/repo}",
+          "subscriptions_url": "https://api.github.com/users/Anshuu2004/subscriptions",
+          "organizations_url": "https://api.github.com/users/Anshuu2004/orgs",
+          "repos_url": "https://api.github.com/users/Anshuu2004/repos",
+          "events_url": "https://api.github.com/users/Anshuu2004/events{/privacy}",
+          "received_events_url": "https://api.github.com/users/Anshuu2004/received_events",
+          "type": "User",
+          "user_view_type": "public",
+          "site_admin": false
+        },
+        "type": "reporter",
+        "state": "pending"
+      }
+    ],
+    "collaborating_users": [
+      {
+        "login": "Anshuu2004",
+        "id": 160928248,
+        "node_id": "U_kgDOCZeR-A",
+        "avatar_url": "https://avatars.githubusercontent.com/u/160928248?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/Anshuu2004",
+        "html_url": "https://github.com/Anshuu2004",
+        "followers_url": "https://api.github.com/users/Anshuu2004/followers",
+        "following_url": "https://api.github.com/users/Anshuu2004/following{/other_user}",
+        "gists_url": "https://api.github.com/users/Anshuu2004/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/Anshuu2004/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/Anshuu2004/subscriptions",
+        "organizations_url": "https://api.github.com/users/Anshuu2004/orgs",
+        "repos_url": "https://api.github.com/users/Anshuu2004/repos",
+        "events_url": "https://api.github.com/users/Anshuu2004/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/Anshuu2004/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      }
+    ],
+    "collaborating_teams": [],
+    "private_fork": null,
+    "comments": 0,
+    "cvss": {
+      "vector_string": null,
+      "score": null
+    }
+  },
+  {
+    "ghsa_id": "GHSA-fj38-xmqm-gj7m",
+    "cve_id": null,
+    "url": "https://api.github.com/repos/nandinigoyaldev/Open-Source-Contribution-Atelier/security-advisories/GHSA-fj38-xmqm-gj7m",
+    "html_url": "https://github.com/nandinigoyaldev/Open-Source-Contribution-Atelier/security/advisories/GHSA-fj38-xmqm-gj7m",
+    "summary": "Anyone can create lessons via bulk-import and edit or delete curriculum drafts without logging in",
+    "description": "### Summary\n\nA few content endpoints are left on `AllowAny`, so an anonymous visitor (no token, no cookie) can write to the curriculum. The normal published-lesson create is protected (401 for anonymous), but the `bulk-import` action on the same viewset and all the draft viewsets are not.\n\n### Steps to reproduce\n\nBackend on current main (bccf9049), no credentials at all:\n\n1. Upload a CSV to the bulk import action:\n   ```\n   curl -X POST http://localhost:8000/api/content/published-lessons/bulk-import/ \\\n     -F \"file=@x.csv\"        # x.csv: title,summary,content,difficulty / Spam lesson,s,buy pills,beginner\n   ```\n2. Create, rename, reorder, delete and restore module drafts:\n   ```\n   POST   /api/content/modules/            {\"title\":\"anon mod\",\"slug\":\"anon-mod\"}\n   PATCH  /api/content/modules/1/          {\"title\":\"defaced\"}\n   POST   /api/content/modules/reorder/    {\"modules\":[{\"id\":1}]}\n   DELETE /api/content/modules/1/\n   POST   /api/content/drafts/1/restore/\n   ```\n3. Same thing for `/api/content/lessons/` (lesson drafts) and `/api/content/quiz-questions/`.\n4. Control: `POST /api/content/published-lessons/` with no auth.\n\n### Expected\n\nAnything that creates or changes curriculum content needs the same auth and `create_content` / `edit_content` / `delete_content` permission as the normal create / update / destroy, so anonymous gets 401 and a plain user gets 403.\n\n### Actual\n\nI ran these through DRF's APIClient with no credentials (pytest, Django 5.2, SQLite):\n\n```\nPROBE anon bulk-import 201 1 lessons imported Lesson count 1 ['Spam lesson']\nPROBE anon create module draft 201 {\"id\":1,...,\"title\":\"anon mod\",\"slug\":\"anon-mod\",...}\nPROBE anon patch module 200 defaced\nPROBE anon create lesson draft 201\nPROBE anon reorder 200\nPROBE anon delete module 204   (ModuleDraft count afterwards: 0)\nPROBE anon restore 200\nPROBE anon create published lesson (control) 401\n```\n\nSo an anonymous user ends up with a row in `Lesson` (the table the public lesson pages read from).\n\n### Evidence\n\n- `backend/apps/content/views.py:68-77`: `LessonViewSet.get_permissions()` only special-cases `create`, `update`/`partial_update` and `destroy`, everything else falls through to `AllowAny()`. `bulk_import` (line 91, a POST that does `Lesson.objects.create(...)`) and `versions` therefore get `AllowAny`.\n- `bulk_import` even has a branch for unauthenticated users (`org = ... if request.user.is_authenticated else None`, around line 127), so it looks like the anonymous case was never meant to be reachable.\n- `backend/apps/content/views.py:659-662`, `696-699`, `738-741`: `ModuleDraftViewSet`, `LessonDraftViewSet`, `QuizDraftViewSet` are full `ModelViewSet`s with `permission_classes = [permissions.AllowAny]`. `DraftRestoreView` (line 716) is also `AllowAny`.\n- The global default in `config/settings.py:675` is `IsAuthenticatedOrReadOnly`, so these were set to AllowAny on purpose or by copy paste, not inherited.\n- Full output: `atelier-evidence.log` (same folder as this draft), test file `backend/tests/test_hunt_c.py` in my local clone.\n\nI searched open and closed issues and PRs for \"bulk import\", \"ModuleDraftViewSet\", \"AllowAny\", \"unauthenticated\" and did not find this. PR #2549 touched `bulk_import` for CSV error reporting only.\n\n### Suggested fix\n\n- In `LessonViewSet.get_permissions()` map `bulk_import` to `IsAuthenticated` + `HasPermission(\"create_content\")`, and `versions` to at least `IsAuthenticated`.\n- Put the three draft viewsets and `DraftRestoreView` behind `IsAuthenticated` + `HasPermission(\"edit_content\")` (or `IsAdminRole`, whichever the content studio is meant to use).\n- Add a regression test that loops over the endpoints above and asserts 401 for anonymous and 403 for a user without the permission.\n\n### Acceptance Criteria\n\n- [ ] Anonymous requests to `bulk-import`, the draft viewsets and `drafts/<pk>/restore/` return 401\n- [ ] Authenticated users without the content permissions get 403\n- [ ] Users with the permission can still use the content studio\n- [ ] A regression test covers each endpoint\n- [ ] `pytest` passes\n- [ ] PR links this issue with `Fixes #<number>`\n\n### Code Pointers & Resources\n\n- backend/apps/content/views.py:68-77, 91, 659-741\n- backend/apps/core/permissions.py (HasPermission)\n- backend/apps/content/urls.py:25-32\n\n**Effort:** about 1 to 2 hours including tests.\n**Suggested difficulty:** LEVEL2, the fix is small but it touches several viewsets and needs a test per endpoint.\n",
+    "severity": "critical",
+    "author": {
+      "login": "Anshuu2004",
+      "id": 160928248,
+      "node_id": "U_kgDOCZeR-A",
+      "avatar_url": "https://avatars.githubusercontent.com/u/160928248?v=4",
+      "gravatar_id": "",
+      "url": "https://api.github.com/users/Anshuu2004",
+      "html_url": "https://github.com/Anshuu2004",
+      "followers_url": "https://api.github.com/users/Anshuu2004/followers",
+      "following_url": "https://api.github.com/users/Anshuu2004/following{/other_user}",
+      "gists_url": "https://api.github.com/users/Anshuu2004/gists{/gist_id}",
+      "starred_url": "https://api.github.com/users/Anshuu2004/starred{/owner}{/repo}",
+      "subscriptions_url": "https://api.github.com/users/Anshuu2004/subscriptions",
+      "organizations_url": "https://api.github.com/users/Anshuu2004/orgs",
+      "repos_url": "https://api.github.com/users/Anshuu2004/repos",
+      "events_url": "https://api.github.com/users/Anshuu2004/events{/privacy}",
+      "received_events_url": "https://api.github.com/users/Anshuu2004/received_events",
+      "type": "User",
+      "user_view_type": "public",
+      "site_admin": false
+    },
+    "publisher": null,
+    "identifiers": [
+      {
+        "value": "GHSA-fj38-xmqm-gj7m",
+        "type": "GHSA"
+      }
+    ],
+    "state": "draft",
+    "created_at": "2026-10-26T10:37:24Z",
+    "updated_at": "2026-11-12T11:23:52Z",
+    "published_at": null,
+    "closed_at": null,
+    "withdrawn_at": null,
+    "submission": {
+      "accepted": true
+    },
+    "vulnerabilities": [],
+    "cvss_severities": {
+      "cvss_v3": {
+        "vector_string": null,
+        "score": null
+      },
+      "cvss_v4": {
+        "vector_string": null,
+        "score": null
+      }
+    },
+    "cwes": [],
+    "cwe_ids": [],
+    "credits": [
+      {
+        "login": "Anshuu2004",
+        "type": "reporter"
+      }
+    ],
+    "credits_detailed": [
+      {
+        "user": {
+          "login": "Anshuu2004",
+          "id": 160928248,
+          "node_id": "U_kgDOCZeR-A",
+          "avatar_url": "https://avatars.githubusercontent.com/u/160928248?v=4",
+          "gravatar_id": "",
+          "url": "https://api.github.com/users/Anshuu2004",
+          "html_url": "https://github.com/Anshuu2004",
+          "followers_url": "https://api.github.com/users/Anshuu2004/followers",
+          "following_url": "https://api.github.com/users/Anshuu2004/following{/other_user}",
+          "gists_url": "https://api.github.com/users/Anshuu2004/gists{/gist_id}",
+          "starred_url": "https://api.github.com/users/Anshuu2004/starred{/owner}{/repo}",
+          "subscriptions_url": "https://api.github.com/users/Anshuu2004/subscriptions",
+          "organizations_url": "https://api.github.com/users/Anshuu2004/orgs",
+          "repos_url": "https://api.github.com/users/Anshuu2004/repos",
+          "events_url": "https://api.github.com/users/Anshuu2004/events{/privacy}",
+          "received_events_url": "https://api.github.com/users/Anshuu2004/received_events",
+          "type": "User",
+          "user_view_type": "public",
+          "site_admin": false
+        },
+        "type": "reporter",
+        "state": "pending"
+      }
+    ],
+    "collaborating_users": [
+      {
+        "login": "Anshuu2004",
+        "id": 160928248,
+        "node_id": "U_kgDOCZeR-A",
+        "avatar_url": "https://avatars.githubusercontent.com/u/160928248?v=4",
+        "gravatar_id": "",
+        "url": "https://api.github.com/users/Anshuu2004",
+        "html_url": "https://github.com/Anshuu2004",
+        "followers_url": "https://api.github.com/users/Anshuu2004/followers",
+        "following_url": "https://api.github.com/users/Anshuu2004/following{/other_user}",
+        "gists_url": "https://api.github.com/users/Anshuu2004/gists{/gist_id}",
+        "starred_url": "https://api.github.com/users/Anshuu2004/starred{/owner}{/repo}",
+        "subscriptions_url": "https://api.github.com/users/Anshuu2004/subscriptions",
+        "organizations_url": "https://api.github.com/users/Anshuu2004/orgs",
+        "repos_url": "https://api.github.com/users/Anshuu2004/repos",
+        "events_url": "https://api.github.com/users/Anshuu2004/events{/privacy}",
+        "received_events_url": "https://api.github.com/users/Anshuu2004/received_events",
+        "type": "User",
+        "user_view_type": "public",
+        "site_admin": false
+      }
+    ],
+    "collaborating_teams": [],
+    "private_fork": null,
+    "comments": 0,
+    "cvss": {
+      "vector_string": null,
+      "score": null
+    }
+  }
+]

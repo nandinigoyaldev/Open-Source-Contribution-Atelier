@@ -26,18 +26,27 @@ jobs:
             const repo = context.repo.repo;
             const title = (issue.title || '').trim();
             const body = (issue.body || '').trim();
+            const issueText = `${title}\n${body}`;
+            const labels = new Set((issue.labels || []).map(label => label.name.toLowerCase()));
+            const hasNsocCheckbox = /- \[[xX]\][^\n]*\bnsoc\s*['` ]?26\b/i.test(body);
 
             // NSoC '26 Auto-Labeling (Compulsory: NSOC26 and LEVEL1/LEVEL2/LEVEL3)
-            const isNsoc = /\[?nsoc26\]?/i.test(title) || /\bnsoc\b/i.test(title) || /\bnsoc\b/i.test(body);
+            const isNsoc = /\[?nsoc26\]?/i.test(issueText) || /\bnsoc\b/i.test(issueText) || hasNsocCheckbox;
             if (isNsoc) {
-              const labelsToAdd = ['NSOC26'];
+              const labelsToAdd = ['nsoc26'];
 
               // Detect level
-              if (/\b(level-?1|beginner)\b/i.test(body) || /\b(level-?1)\b/i.test(title)) {
+              if (labels.has('level1')) {
                 labelsToAdd.push('LEVEL1');
-              } else if (/\b(level-?3|advanced)\b/i.test(body) || /\b(level-?3)\b/i.test(title)) {
+              } else if (labels.has('level3')) {
                 labelsToAdd.push('LEVEL3');
-              } else if (/\b(level-?2|intermediate)\b/i.test(body) || /\b(level-?2)\b/i.test(title)) {
+              } else if (labels.has('level2')) {
+                labelsToAdd.push('LEVEL2');
+              } else if (/\b(level-?1|beginner|typo|spelling|copy|documentation|docs|readme|style|styling|label|text)\b/i.test(issueText)) {
+                labelsToAdd.push('LEVEL1');
+              } else if (/\b(level-?3|advanced|security|auth(?:entication|orization)?|database|migration|architecture|distributed|performance|scalab|integration|api|backend|deployment|workflow|audit)\b/i.test(issueText)) {
+                labelsToAdd.push('LEVEL3');
+              } else {
                 labelsToAdd.push('LEVEL2');
               }
 
@@ -69,6 +78,17 @@ jobs:
                 labels: labelsToAdd
               });
               console.log(`Labeled issue #${issue.number} with NSoC labels: ${labelsToAdd.join(', ')}`);
+            }
+
+            // Assign the author immediately, except for the repository owner.
+            if (issue.user?.login && issue.user.login.toLowerCase() !== owner.toLowerCase()) {
+              await github.rest.issues.addAssignees({
+                owner,
+                repo,
+                issue_number: issue.number,
+                assignees: [issue.user.login]
+              });
+              console.log(`Assigned issue #${issue.number} to its author @${issue.user.login}.`);
             }
 
             // Low-Quality Issue Auto-Triage Check
@@ -135,7 +155,7 @@ jobs:
 
             // Check if comment is claiming the issue
             const isClaimCommand = /\b(\/claim|!claim|\/assign|!assign|claim)\b/i.test(commentText) ||
-                                 /\b(can i work|can i take|can i claim|i want to work|i'd like to work|please assign|can i be assigned|assign me|i want to contribute|can i contribute)\b/i.test(commentText);
+                                 /\b(can i work|can i take|can i claim|i want to work|i'd like to work|please assign|can i be assigned|assign me(?: this)? issue|assign this issue to me|i want to contribute|can i contribute)\b/i.test(commentText);
 
             if (!isClaimCommand) return;
 

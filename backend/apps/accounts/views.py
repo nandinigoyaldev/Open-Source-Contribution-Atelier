@@ -1212,7 +1212,7 @@ class OtpVerifyView(APIView):
             )
 
         token = OTPToken.objects.filter(user=user, token=otp, is_used=False).first()
-        if not token:
+        if not token or token.is_expired():
             return Response(
                 {"error": "invalid_otp"}, status=status.HTTP_400_BAD_REQUEST
             )
@@ -1221,8 +1221,7 @@ class OtpVerifyView(APIView):
         token.is_used = True
         token.save()
 
-        user.is_verified = True  # type: ignore[attr-defined]
-        user.save(update_fields=["is_verified"])
+        email_verification.mark_verified(user)
 
         return Response(
             {

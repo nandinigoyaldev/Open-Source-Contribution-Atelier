@@ -200,8 +200,10 @@ class ProgressTrackingService:
         with transaction.atomic():
             for item in lessons_data:
                 lesson_slug = item["lesson_slug"]
-                base_score = item.get("score", 100)
                 completed = item.get("completed", True)
+                # Scores are derived from completion state; clients cannot set
+                # authoritative leaderboard values.
+                base_score = 100 if completed else 0
                 expected_version = item.get("expected_version")
 
                 lesson = LessonService.get_or_create_dynamic_lesson(lesson_slug)

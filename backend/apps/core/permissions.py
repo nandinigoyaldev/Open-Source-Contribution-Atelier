@@ -11,6 +11,7 @@ This module contains:
 """
 
 from django.core.cache import cache
+from django.db import models
 from rest_framework.permissions import SAFE_METHODS, BasePermission
 
 # -- Tenant Isolation Permissions ---------------------------------------------
@@ -214,6 +215,12 @@ class HasPermission(BasePermission):
         from apps.rbac.models import UserRole
 
         user_roles = UserRole.objects.filter(user=request.user).select_related("role")
+        organization = getattr(request.user, "organization", None)
+        if organization is not None:
+            user_roles = user_roles.filter(
+                models.Q(organization=organization)
+                | models.Q(organization__isnull=True)
+            )
         for user_role in user_roles:
             if user_role.role.permissions.filter(
                 slug=self.required_permission

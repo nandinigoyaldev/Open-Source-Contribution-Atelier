@@ -76,7 +76,7 @@ class LessonViewSet(viewsets.ModelViewSet):
     def get_permissions(self):
         from apps.core.permissions import HasPermission
 
-        if self.action in ["create"]:
+        if self.action in ["create", "bulk_import"]:
             return [permissions.IsAuthenticated(), HasPermission("create_content")]
         elif self.action in ["update", "partial_update"]:
             return [permissions.IsAuthenticated(), HasPermission("edit_content")]
@@ -667,7 +667,14 @@ class UserLessonFeedbackView(views.APIView):
 class ModuleDraftViewSet(viewsets.ModelViewSet):
     queryset = ModuleDraft.objects.prefetch_related("lessons__quizzes").all()
     serializer_class = ModuleDraftSerializer
-    permission_classes = [permissions.AllowAny]
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_permissions(self):
+        from apps.core.permissions import HasPermission
+
+        if self.action in ["list", "retrieve"]:
+            return [permissions.AllowAny()]
+        return [permissions.IsAuthenticated(), HasPermission("edit_content")]
 
     from rest_framework.decorators import action
 
@@ -704,7 +711,14 @@ class ModuleDraftViewSet(viewsets.ModelViewSet):
 class LessonDraftViewSet(viewsets.ModelViewSet):
     queryset = LessonDraft.objects.prefetch_related("quizzes").all()
     serializer_class = LessonDraftSerializer
-    permission_classes = [permissions.AllowAny]
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_permissions(self):
+        from apps.core.permissions import HasPermission
+
+        if self.action in ["list", "retrieve"]:
+            return [permissions.AllowAny()]
+        return [permissions.IsAuthenticated(), HasPermission("edit_content")]
 
     from rest_framework.decorators import action
 
@@ -722,7 +736,12 @@ class LessonDraftViewSet(viewsets.ModelViewSet):
 
 
 class DraftRestoreView(views.APIView):
-    permission_classes = [permissions.AllowAny]
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_permissions(self):
+        from apps.core.permissions import HasPermission
+
+        return [permissions.IsAuthenticated(), HasPermission("edit_content")]
 
     def post(self, request, pk):
         draft = (
@@ -746,7 +765,14 @@ class DraftRestoreView(views.APIView):
 class QuizDraftViewSet(viewsets.ModelViewSet):
     queryset = QuizDraft.objects.all()
     serializer_class = QuizDraftSerializer
-    permission_classes = [permissions.AllowAny]
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get_permissions(self):
+        from apps.core.permissions import HasPermission
+
+        if self.action in ["list", "retrieve"]:
+            return [permissions.AllowAny()]
+        return [permissions.IsAuthenticated(), HasPermission("edit_content")]
 
 
 class LearningPathViewSet(viewsets.ModelViewSet):
