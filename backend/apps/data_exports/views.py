@@ -136,7 +136,9 @@ class ExportListCreateView(APIView):
             .first()
         )
         if existing_active:
-            return Response(serialize(existing_active, request), status=status.HTTP_200_OK)
+            return Response(
+                serialize(existing_active, request), status=status.HTTP_200_OK
+            )
 
         active = ExportJob.objects.filter(
             user=request.user, status__in=ExportJob.ACTIVE_STATUSES

@@ -41,9 +41,7 @@ class FeatureFlags:
                 org = getattr(self._request, "organization", None) or getattr(
                     self._request, "tenant", None
                 )
-                enabled, _ = evaluate_feature_flag(
-                    flag, user=user, organization=org
-                )
+                enabled, _ = evaluate_feature_flag(flag, user=user, organization=org)
                 return enabled
         except Exception:
             pass

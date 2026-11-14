@@ -1480,7 +1480,9 @@ class SecureAccountDeleteView(APIView):
 
     @extend_schema(
         responses={
-            200: OpenApiResponse(description="Preview account deletion dependencies and retention policies"),
+            200: OpenApiResponse(
+                description="Preview account deletion dependencies and retention policies"
+            ),
         }
     )
     def get(self, request):
@@ -1491,9 +1493,13 @@ class SecureAccountDeleteView(APIView):
 
     @extend_schema(
         responses={
-            202: OpenApiResponse(description="Account deletion scheduled with grace period"),
+            202: OpenApiResponse(
+                description="Account deletion scheduled with grace period"
+            ),
             204: OpenApiResponse(description="Account immediately deleted"),
-            400: OpenApiResponse(description="Deletion blocked by unresolved dependencies"),
+            400: OpenApiResponse(
+                description="Deletion blocked by unresolved dependencies"
+            ),
         }
     )
     def post(self, request):
@@ -1538,7 +1544,9 @@ class SecureAccountDeleteView(APIView):
     @extend_schema(
         responses={
             204: OpenApiResponse(description="Account securely deleted"),
-            400: OpenApiResponse(description="Deletion blocked by unresolved dependencies"),
+            400: OpenApiResponse(
+                description="Deletion blocked by unresolved dependencies"
+            ),
         }
     )
     def delete(self, request):
@@ -1576,7 +1584,9 @@ class AccountDeletionCancelView(APIView):
     @extend_schema(
         responses={
             200: OpenApiResponse(description="Account deletion successfully cancelled"),
-            404: OpenApiResponse(description="No active pending deletion request found"),
+            404: OpenApiResponse(
+                description="No active pending deletion request found"
+            ),
         }
     )
     def post(self, request):

@@ -1,13 +1,14 @@
 import uuid
+
 from django.test import RequestFactory, TestCase
-from rest_framework.exceptions import ValidationError, AuthenticationFailed
+from rest_framework.exceptions import AuthenticationFailed, ValidationError
 from rest_framework.response import Response
 
 from apps.accounts.exceptions import throttle_exception_handler
 from apps.core.celery_signals import (
     add_request_id_to_task,
-    set_request_id_in_task,
     cleanup_request_id_in_task,
+    set_request_id_in_task,
 )
 from apps.core.middleware.request_id import (
     RequestIdMiddleware,

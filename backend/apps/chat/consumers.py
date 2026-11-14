@@ -275,9 +275,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
     async def check_retention_gap(self, since_id: int) -> bool:
         """Check if since_id is older than the oldest message in the room (indicating a purge or retention gap)."""
         oldest = (
-            await Message.objects.filter(room_id=self.room_id)
-            .order_by("id")
-            .afirst()
+            await Message.objects.filter(room_id=self.room_id).order_by("id").afirst()
         )
         if oldest and since_id < oldest.id:
             return True

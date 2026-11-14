@@ -4,9 +4,7 @@ from apps.feature_flags.models import FeatureFlag, FeatureFlagAuditLog
 
 
 class FeatureFlagAuditLogSerializer(serializers.ModelSerializer):
-    actor_username = serializers.CharField(
-        source="actor.username", read_only=True
-    )
+    actor_username = serializers.CharField(source="actor.username", read_only=True)
 
     class Meta:
         model = FeatureFlagAuditLog
@@ -25,9 +23,7 @@ class FeatureFlagAuditLogSerializer(serializers.ModelSerializer):
 
 
 class FeatureFlagSerializer(serializers.ModelSerializer):
-    change_reason = serializers.CharField(
-        write_only=True, required=False, default=""
-    )
+    change_reason = serializers.CharField(write_only=True, required=False, default="")
 
     class Meta:
         model = FeatureFlag

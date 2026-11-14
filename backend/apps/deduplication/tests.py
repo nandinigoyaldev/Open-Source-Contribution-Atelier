@@ -92,11 +92,15 @@ class IdempotencyKeyTest(TestCase):
     def test_key_extraction_variants(self):
         """Supports Idempotency-Key, X-Idempotency-Key, and body payload."""
         # 1. Idempotency-Key header
-        req1 = self.factory.post("/api/v1/progress/quiz/", {}, HTTP_IDEMPOTENCY_KEY="key-1")
+        req1 = self.factory.post(
+            "/api/v1/progress/quiz/", {}, HTTP_IDEMPOTENCY_KEY="key-1"
+        )
         self.assertEqual(extract_idempotency_key(req1), "key-1")
 
         # 2. X-Idempotency-Key header
-        req2 = self.factory.post("/api/v1/progress/quiz/", {}, HTTP_X_IDEMPOTENCY_KEY="key-2")
+        req2 = self.factory.post(
+            "/api/v1/progress/quiz/", {}, HTTP_X_IDEMPOTENCY_KEY="key-2"
+        )
         self.assertEqual(extract_idempotency_key(req2), "key-2")
 
         # 3. Body idempotency_key
@@ -124,7 +128,9 @@ class IdempotencyKeyTest(TestCase):
         @idempotent
         def dummy_quiz_attempt(view, request):
             call_count["count"] += 1
-            return Response({"earned_xp": 50, "attempt_id": call_count["count"]}, status=200)
+            return Response(
+                {"earned_xp": 50, "attempt_id": call_count["count"]}, status=200
+            )
 
         mock_view = MagicMock()
         req1 = self.factory.post(
@@ -159,6 +165,7 @@ class IdempotencyKeyTest(TestCase):
 
     def test_different_payload_with_same_key_returns_409(self):
         """Reusing key with a different payload must be rejected with 409 Conflict."""
+
         @idempotent
         def dummy_view(view, request):
             return Response({"status": "success"}, status=200)
@@ -184,7 +191,9 @@ class IdempotencyKeyTest(TestCase):
         req2.user = self.user
         resp2 = dummy_view(mock_view, req2)
         self.assertEqual(resp2.status_code, 409)
-        self.assertIn("already exists with a different request body", resp2.data["error"])
+        self.assertIn(
+            "already exists with a different request body", resp2.data["error"]
+        )
 
     def test_concurrent_request_waiting_and_replaying(self):
         """Simulate concurrent request where second request waits for lock and gets completed record."""
@@ -270,5 +279,9 @@ class IdempotencyKeyTest(TestCase):
 
         deleted = cleanup_expired_records()
         self.assertEqual(deleted, 1)
-        self.assertFalse(IdempotencyRecord.objects.filter(idempotency_key="expired-key").exists())
-        self.assertTrue(IdempotencyRecord.objects.filter(idempotency_key="active-key").exists())
+        self.assertFalse(
+            IdempotencyRecord.objects.filter(idempotency_key="expired-key").exists()
+        )
+        self.assertTrue(
+            IdempotencyRecord.objects.filter(idempotency_key="active-key").exists()
+        )
