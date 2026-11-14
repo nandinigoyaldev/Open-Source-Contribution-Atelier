@@ -19,6 +19,7 @@ from .views import (
     SemanticSearchView,
     UserLessonFeedbackView,
 )
+from .views_imports import CurriculumImportViewSet
 
 router = DefaultRouter()
 router.include_format_suffixes = False
@@ -26,6 +27,9 @@ router.register("modules", ModuleDraftViewSet, basename="module-draft")
 router.register("lessons", LessonDraftViewSet, basename="lesson-draft")
 router.register("quiz-questions", QuizDraftViewSet, basename="quiz-draft")
 router.register("published-lessons", LessonViewSet, basename="lesson")
+router.register(
+    "curriculum-imports", CurriculumImportViewSet, basename="curriculum-import"
+)
 router.register("learning-paths", LearningPathViewSet, basename="learning-path")
 
 urlpatterns = router.urls + [

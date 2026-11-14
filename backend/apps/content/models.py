@@ -391,3 +391,55 @@ class LearningPath(models.Model):
             return True
         user_role_ids = user.user_roles.values_list("role_id", flat=True)
         return self.required_roles.filter(id__in=user_role_ids).exists()
+
+
+class CurriculumImport(models.Model):
+    """One bulk curriculum import: an uploaded archive and its progress.
+
+    The row is the single source of truth for a run: ``status`` is the state
+    machine, ``cursor`` is the index of the next lesson to validate (so a
+    crashed worker resumes instead of starting over) and ``report`` holds the
+    problems and the publish plan/result.
+    """
+
+    VALIDATING = "validating"
+    PREVIEWED = "previewed"
+    PUBLISHING = "publishing"
+    PUBLISHED = "published"
+    FAILED = "failed"
+    STATUS_CHOICES = [
+        (VALIDATING, "Validating"),
+        (PREVIEWED, "Previewed"),
+        (PUBLISHING, "Publishing"),
+        (PUBLISHED, "Published"),
+        (FAILED, "Failed"),
+    ]
+
+    archive = models.FileField(upload_to="curriculum_imports/")
+    original_name = models.CharField(max_length=255, blank=True)
+    sha256 = models.CharField(max_length=64, blank=True)
+    status = models.CharField(
+        max_length=16, choices=STATUS_CHOICES, default=VALIDATING, db_index=True
+    )
+    cursor = models.PositiveIntegerField(
+        default=0,  # type: ignore[arg-type]
+        help_text="Index of the next lesson to validate",
+    )
+    total_lessons = models.PositiveIntegerField(default=0)  # type: ignore[arg-type]
+    report = models.JSONField(default=dict, blank=True)
+    error = models.TextField(blank=True)
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="curriculum_imports",
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+
+    def __str__(self) -> str:
+        return f"Curriculum import #{self.pk} ({self.status})"
