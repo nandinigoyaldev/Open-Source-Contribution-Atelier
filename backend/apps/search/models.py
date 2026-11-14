@@ -74,3 +74,39 @@ class SearchAnalytics(models.Model):
 
     def __str__(self):
         return f"Search: {self.query} ({self.result_count} results)"
+
+
+class SearchIndexFailure(models.Model):
+    """
+    Dead-letter record for a Meilisearch write that kept failing.
+
+    One open row per (document_id, operation); repeated failures update it.
+    No document text is stored: replay reads the current SearchDocument.
+    """
+
+    OP_INDEX = "index"
+    OP_DELETE = "delete"
+    OPERATION_CHOICES = [(OP_INDEX, "Index"), (OP_DELETE, "Delete")]
+
+    document_id = models.CharField(max_length=64)
+    content_type = models.ForeignKey(
+        ContentType, on_delete=models.CASCADE, null=True, blank=True
+    )
+    object_id = models.PositiveIntegerField(null=True, blank=True)
+    operation = models.CharField(max_length=10, choices=OPERATION_CHOICES)
+    attempts = models.PositiveIntegerField()
+    last_error = models.CharField(max_length=500, blank=True, default="")
+    first_failed_at = models.DateTimeField()
+    last_failed_at = models.DateTimeField()
+
+    class Meta:
+        ordering = ["first_failed_at"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["document_id", "operation"],
+                name="uniq_search_failure_doc_operation",
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.operation} {self.document_id} ({self.attempts} attempts)"
