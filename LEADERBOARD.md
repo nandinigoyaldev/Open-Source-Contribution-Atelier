@@ -26,6 +26,8 @@ Welcome to the permanent **Hall of Fame & Contributor Legacy** for **Open-Source
 
 | 1 | @Mr-Neutr0n | 🥈 Silver Contributor  | 3 | 75 | 2026-11-12 |
 
+| 1 | @aush5895 | 🥉 Bronze Contributor  | 2 | 50 | 2026-11-14 |
+
 ---
 
 ## 🌟 Historic Milestones & Seasonal Legacy
