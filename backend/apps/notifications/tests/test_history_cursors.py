@@ -7,6 +7,7 @@ from django.db import connection
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django.utils import timezone
+from rest_framework.response import Response
 from rest_framework.test import APIClient
 
 from apps.notifications.models import Notification
@@ -163,9 +164,9 @@ def test_cursor_empty_history_and_authentication(history):
         "next_cursor": None,
         "results": [],
     }
-    assert (
-        APIClient()
-        .get(reverse("notification-list"), {"pagination": "cursor"})
-        .status_code
-        == 401
+    unauthorized = APIClient().get(
+        reverse("notification-list"), {"pagination": "cursor"}
     )
+    assert isinstance(unauthorized, Response)
+    assert unauthorized.status_code == 401
+
