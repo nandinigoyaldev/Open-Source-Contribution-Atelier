@@ -85,3 +85,62 @@ class NoteAPITestCase(TestCase):
         response = self.client.delete(f"/api/notes/{note.id}/")
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
         self.assertEqual(Note.objects.count(), 0)
+
+    def test_two_device_concurrent_edit_conflict(self):
+        self.client.force_authenticate(user=self.user1)
+        note = Note.objects.create(
+            user=self.user1,
+            title="Initial Title",
+            encrypted_content="Initial Content",
+            iv="IV1",
+            version=1,
+        )
+
+        # Device A updates note with expected_version=1
+        dev_a_data = {
+            "title": "Device A Title",
+            "encrypted_content": "Device A Content",
+            "iv": "IVA",
+            "expected_version": 1,
+        }
+        res_a = self.client.put(f"/api/notes/{note.id}/", dev_a_data, format="json")
+        self.assertEqual(res_a.status_code, status.HTTP_200_OK)
+        note.refresh_from_db()
+        self.assertEqual(note.version, 2)
+        self.assertEqual(note.title, "Device A Title")
+
+        # Device B (stale, expected_version=1) tries to update -> HTTP 409 Conflict
+        dev_b_data = {
+            "title": "Device B Title",
+            "encrypted_content": "Device B Content",
+            "iv": "IVB",
+            "expected_version": 1,
+        }
+        res_b = self.client.put(f"/api/notes/{note.id}/", dev_b_data, format="json")
+        self.assertEqual(res_b.status_code, status.HTTP_409_CONFLICT)
+        self.assertEqual(res_b.data["error"], "conflict")
+        self.assertEqual(res_b.data["server_version"], 2)
+        self.assertIn("server_data", res_b.data)
+        # Verify content was not silently overwritten
+        note.refresh_from_db()
+        self.assertEqual(note.title, "Device A Title")
+
+    def test_offline_retry_with_client_id_does_not_duplicate(self):
+        self.client.force_authenticate(user=self.user1)
+        payload = {
+            "title": "Offline Created Note",
+            "encrypted_content": "content",
+            "iv": "iv",
+            "client_id": "client-uuid-12345",
+        }
+        # First creation attempt
+        res1 = self.client.post("/api/notes/", payload, format="json")
+        self.assertIn(
+            res1.status_code, [status.HTTP_201_CREATED, status.HTTP_200_OK]
+        )
+        self.assertEqual(Note.objects.count(), 1)
+
+        # Replay/Retry of offline queue with same client_id
+        res2 = self.client.post("/api/notes/", payload, format="json")
+        self.assertEqual(res2.status_code, status.HTTP_200_OK)
+        self.assertEqual(Note.objects.count(), 1)

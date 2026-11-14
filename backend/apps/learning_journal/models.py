@@ -93,6 +93,8 @@ class JournalEntry(models.Model):
     )
     xp_earned = models.PositiveIntegerField(default=0)
     word_count = models.PositiveIntegerField(default=0)
+    version = models.PositiveIntegerField(default=1)
+    client_id = models.CharField(max_length=64, blank=True, default="", db_index=True)
     is_bookmarked = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)

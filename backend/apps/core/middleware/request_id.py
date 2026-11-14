@@ -6,6 +6,7 @@ import uuid
 _thread_locals = threading.local()
 
 REQUEST_ID_HEADER = "X-Request-ID"
+CORRELATION_ID_HEADER = "X-Correlation-ID"
 MAX_REQUEST_ID_LENGTH = 64
 
 # A caller-supplied id ends up in log lines, JSON log records and a response header, so it must be
@@ -26,13 +27,19 @@ def get_request_id():
     return getattr(_thread_locals, "request_id", None)
 
 
+def get_correlation_id():
+    return getattr(_thread_locals, "correlation_id", None) or getattr(
+        _thread_locals, "request_id", None
+    )
+
+
 def get_user_id():
     return getattr(_thread_locals, "user_id", None)
 
 
 class RequestIdMiddleware:
     """
-    Middleware that ensures every request has an X-Request-ID.
+    Middleware that ensures every request has an X-Request-ID and X-Correlation-ID.
     It reuses the incoming header when it is a safe id (see ``clean_request_id``: at most 64
     characters, letters, digits and ``._:-``) and generates a new UUID otherwise, so an untrusted
     value never reaches the logs or the response.
@@ -46,17 +53,21 @@ class RequestIdMiddleware:
     def __call__(self, request):
         request.start_time = time.time()
 
-        request_id = clean_request_id(request.headers.get(REQUEST_ID_HEADER)) or str(
-            uuid.uuid4()
+        correlation_id = (
+            clean_request_id(request.headers.get(CORRELATION_ID_HEADER))
+            or clean_request_id(request.headers.get(REQUEST_ID_HEADER))
+            or str(uuid.uuid4())
         )
 
-        _thread_locals.request_id = request_id
+        _thread_locals.request_id = correlation_id
+        _thread_locals.correlation_id = correlation_id
 
         # User id might not be available yet, but we will set it if it becomes available.
         # Actually AuthenticationMiddleware runs after this, so request.user isn't set yet.
         _thread_locals.user_id = None
 
-        request.request_id = request_id
+        request.request_id = correlation_id
+        request.correlation_id = correlation_id
 
         try:
             response = self.get_response(request)
@@ -74,11 +85,13 @@ class RequestIdMiddleware:
             _thread_locals.duration_ms = duration_ms
             _thread_locals.view_name = view_name_str
 
-            response[REQUEST_ID_HEADER] = request_id
+            response[REQUEST_ID_HEADER] = correlation_id
+            response[CORRELATION_ID_HEADER] = correlation_id
         finally:
             # Clear thread locals to avoid leaking to other requests in the same thread,
             # also when the request raised.
             _thread_locals.request_id = None
+            _thread_locals.correlation_id = None
             _thread_locals.user_id = None
             _thread_locals.duration_ms = None
             _thread_locals.view_name = None

@@ -41,33 +41,47 @@ const api = axios.create({
 });
 
 api.interceptors.request.use((config) => {
-  const requestId = generateUUID();
-  config.headers["X-Request-ID"] = requestId;
+  const correlationId =
+    config.headers["X-Correlation-ID"] ||
+    config.headers["X-Request-ID"] ||
+    generateUUID();
+  config.headers["X-Correlation-ID"] = correlationId;
+  config.headers["X-Request-ID"] = correlationId;
   // attach for error logging later
-  config.requestId = requestId;
+  config.requestId = correlationId;
+  config.correlationId = correlationId;
   return config;
 });
 
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    const requestId = error.config?.requestId || "unknown";
+    const correlationId =
+      error.response?.headers?.["x-correlation-id"] ||
+      error.response?.headers?.["x-request-id"] ||
+      error.config?.correlationId ||
+      error.config?.requestId ||
+      "unknown";
     const status = error.response?.status;
     const friendlyMessage = status
       ? createApiError({
           status,
           endpoint: error.config?.url,
+          correlationId,
+          requestId: correlationId,
           body: error.response?.data,
         }).message
       : "We couldn't complete your request. Please try again in a moment.";
     console.error(
-      `[API Error] ReqID=${requestId}`,
+      `[API Error] CorrelationID=${correlationId}`,
       error.response?.data || error.message,
     );
     if (status && status >= 400) {
       error.message = friendlyMessage;
       error.userMessage = friendlyMessage;
       error.status = status;
+      error.correlationId = correlationId;
+      error.supportRef = correlationId.slice(0, 8);
     }
     return Promise.reject(error);
   },

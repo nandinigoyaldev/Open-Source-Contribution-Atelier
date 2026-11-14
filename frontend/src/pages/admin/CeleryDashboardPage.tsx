@@ -65,6 +65,7 @@ interface TaskRun {
   id: number;
   task_id: string;
   task_name: string;
+  correlation_id?: string;
   status: "PENDING" | "STARTED" | "SUCCESS" | "FAILURE" | "RETRY";
   started_at: string;
   finished_at: string | null;
@@ -83,6 +84,23 @@ export default function CeleryDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [wsConnected, setWsConnected] = useState(false);
+  const [retryingTaskId, setRetryingTaskId] = useState<string | null>(null);
+
+  const handleRetryTask = async (taskRun: TaskRun) => {
+    try {
+      setRetryingTaskId(taskRun.task_id);
+      await fetchApi(`/admin/celery-task-runs/${taskRun.id}/retry/`, {
+        method: "POST",
+      });
+      toast.success(`Task ${taskRun.task_name} retry requested`);
+      loadData(false);
+      setSelectedTaskRun(null);
+    } catch (err: any) {
+      toast.error(err?.message || "Failed to retry task");
+    } finally {
+      setRetryingTaskId(null);
+    }
+  };
 
   // Search and Filter states
   const [searchQuery, setSearchQuery] = useState("");
@@ -679,6 +697,11 @@ export default function CeleryDashboardPage() {
                   <p className="text-xs text-gray-400 font-mono mt-1">
                     ID: {selectedTaskRun.task_id}
                   </p>
+                  {selectedTaskRun.correlation_id && (
+                    <p className="text-xs text-indigo-400 font-mono mt-0.5">
+                      Correlation ID: {selectedTaskRun.correlation_id}
+                    </p>
+                  )}
                 </div>
 
                 <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 bg-[#0b0f17] p-4 rounded-xl border border-gray-800">
@@ -752,6 +775,25 @@ export default function CeleryDashboardPage() {
                     executed smoothly without any recorded exceptions.
                   </div>
                 )}
+
+                <div className="flex justify-end items-center pt-2 border-t border-gray-800">
+                  <button
+                    onClick={() => handleRetryTask(selectedTaskRun)}
+                    disabled={retryingTaskId === selectedTaskRun.task_id}
+                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white rounded-xl text-xs font-semibold flex items-center gap-2 transition-colors cursor-pointer"
+                  >
+                    <RotateCcw
+                      className={`w-3.5 h-3.5 ${
+                        retryingTaskId === selectedTaskRun.task_id
+                          ? "animate-spin"
+                          : ""
+                      }`}
+                    />
+                    {retryingTaskId === selectedTaskRun.task_id
+                      ? "Retrying..."
+                      : "Retry Task"}
+                  </button>
+                </div>
               </div>
             </div>
           )}

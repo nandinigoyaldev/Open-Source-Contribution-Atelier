@@ -152,3 +152,117 @@ class TestCeleryMonitoring:
         results = res.data.get("results") if isinstance(res.data, dict) else res.data
         assert len(results) == 1
         assert results[0]["task_name"] == "sync_repo"
+
+    def test_task_arguments_redaction(self):
+        task_id = "test-redact-123"
+        on_task_prerun(
+            sender=type("Task", (), {"name": "sensitive_task"}),
+            task_id=task_id,
+            args=("public_arg",),
+            kwargs={
+                "password": "supersecretpassword",
+                "api_key": "live_key_999",
+                "safe_field": "visible_data",
+                "nested": {"token": "secret_token"},
+            },
+        )
+        run = TaskRun.objects.get(task_id=task_id)
+        assert "supersecretpassword" not in run.args_summary
+        assert "live_key_999" not in run.args_summary
+        assert "secret_token" not in run.args_summary
+        assert "[REDACTED]" in run.args_summary
+        assert "visible_data" in run.args_summary
+
+    def test_correlation_id_and_age_filtering(self):
+        from datetime import timedelta
+        from django.utils import timezone
+
+        self.client.force_authenticate(user=self.admin_user)
+        now = timezone.now()
+        TaskRun.objects.create(
+            task_id="t-corr-1",
+            task_name="task_a",
+            correlation_id="corr-abc-123",
+            status="SUCCESS",
+            started_at=now,
+        )
+        TaskRun.objects.create(
+            task_id="t-corr-2",
+            task_name="task_b",
+            correlation_id="corr-xyz-789",
+            status="FAILURE",
+            started_at=now - timedelta(hours=5),
+        )
+
+        url = reverse("celery-task-runs-list")
+
+        # Filter by correlation_id
+        res = self.client.get(f"{url}?correlation_id=corr-abc-123")
+        assert res.status_code == status.HTTP_200_OK
+        results = res.data.get("results") if isinstance(res.data, dict) else res.data
+        assert len(results) == 1
+        assert results[0]["task_id"] == "t-corr-1"
+
+        # Filter by age_hours (only within last 2 hours)
+        res = self.client.get(f"{url}?age_hours=2")
+        assert res.status_code == status.HTTP_200_OK
+        results = res.data.get("results") if isinstance(res.data, dict) else res.data
+        assert len(results) == 1
+        assert results[0]["task_id"] == "t-corr-1"
+
+    def test_retry_action_authorization_and_idempotency(self):
+        from datetime import timedelta
+        from django.utils import timezone
+
+        run = TaskRun.objects.create(
+            task_id="fail-task-to-retry",
+            task_name="test_retry_task",
+            status="FAILURE",
+            started_at=timezone.now() - timedelta(minutes=5),
+            retry_count=0,
+        )
+
+        url = reverse("celery-task-runs-retry", kwargs={"pk": run.id})
+
+        # Non-admin -> 403 Forbidden
+        self.client.force_authenticate(user=self.normal_user)
+        res = self.client.post(url)
+        assert res.status_code == status.HTTP_403_FORBIDDEN
+
+        # Admin -> 202 Accepted
+        self.client.force_authenticate(user=self.admin_user)
+        res = self.client.post(url)
+        assert res.status_code == status.HTTP_202_ACCEPTED
+        run.refresh_from_db()
+        assert run.status == "RETRY"
+        assert run.retry_count == 1
+
+        # Idempotent retry within 60s
+        run.status = "STARTED"
+        run.started_at = timezone.now()
+        run.save()
+        res_idempotent = self.client.post(url)
+        assert res_idempotent.status_code == status.HTTP_200_OK
+        assert res_idempotent.data["status"] == "already_queued"
+
+    def test_retention_cleanup_command(self):
+        from datetime import timedelta
+        from django.core.management import call_command
+        from django.utils import timezone
+
+        old_run = TaskRun.objects.create(
+            task_id="old-task",
+            task_name="old_job",
+            status="SUCCESS",
+            started_at=timezone.now() - timedelta(days=40),
+        )
+        recent_run = TaskRun.objects.create(
+            task_id="recent-task",
+            task_name="recent_job",
+            status="SUCCESS",
+            started_at=timezone.now() - timedelta(days=5),
+        )
+
+        call_command("cleanup_old_task_runs", days=30)
+        assert not TaskRun.objects.filter(id=old_run.id).exists()
+        assert TaskRun.objects.filter(id=recent_run.id).exists()
