@@ -7,7 +7,13 @@ from django.core.cache import cache
 from django.test import TestCase
 
 from apps.content.models import Lesson
-from apps.progress.models import DailyActivity, LessonProgress, StreakProfile, XPEvent
+from apps.progress.models import (
+    DailyActivity,
+    LessonProgress,
+    ProgressBufferDeadLetter,
+    StreakProfile,
+    XPEvent,
+)
 from apps.progress.services.progress_buffer import ProgressBufferService
 from apps.progress.tasks import process_buffered_progress_updates
 
@@ -178,3 +184,71 @@ class ProgressBufferTests(TestCase):
         self.assertEqual(metrics["retry_queue_size"], 0)
         self.assertEqual(metrics["dlq_size"], 1)
         self.assertFalse(DailyActivity._default_manager.filter(user=self.user).exists())
+        dlq_entry = ProgressBufferDeadLetter.objects.get(user=self.user)
+        self.assertTrue(
+            dlq_entry.status == "pending"
+            and dlq_entry.retry_count == 4
+            and not dlq_entry.replayed
+        )
+
+    def test_dlq_lifecycle_and_management(self):
+        from io import StringIO
+
+        from django.core.management import call_command
+        from rest_framework.test import APIClient
+
+        dlq = ProgressBufferDeadLetter.objects.create(
+            user=self.user,
+            source_id=self.lesson.slug,
+            payload={
+                "user_id": self.user.id,
+                "lesson_slug": self.lesson.slug,
+                "score": 100,
+                "completed": True,
+            },
+            retry_count=4,
+        )
+        self.assertTrue(dlq.replay(operator="ops"))
+        self.assertTrue(
+            dlq.replayed and dlq.status == "replayed" and dlq.replay(operator="ops")
+        )
+
+        dlq2 = ProgressBufferDeadLetter.objects.create(
+            user=self.user, source_id="s", payload={}, retry_count=4
+        )
+        dlq2.discard(operator="ops", reason="invalid")
+        self.assertEqual(dlq2.status, "discarded")
+
+        out = StringIO()
+        call_command(
+            "replay_buffered_progress_dlq",
+            "--all",
+            "--operator=ops",
+            "--status=all",
+            "--dry-run",
+            stdout=out,
+        )
+        self.assertIn("[DRY-RUN]", out.getvalue())
+
+        admin = User.objects.create_superuser("admin_dlq", "adm@test.com", "pass123")
+        client = APIClient()
+        client.force_authenticate(user=self.user)
+        self.assertEqual(
+            client.get("/api/progress/admin/progress-dlq/").status_code, 403
+        )
+
+        client.force_authenticate(user=admin)
+        self.assertEqual(
+            client.get("/api/progress/admin/progress-dlq/").status_code, 200
+        )
+
+        rep = client.post(
+            f"/api/progress/admin/progress-dlq/{dlq.id}/",
+            {"action": "replay"},
+            format="json",
+        )
+        self.assertEqual(rep.status_code, 200)
+        self.assertIn(
+            "db_dlq_pending",
+            client.get("/api/progress/buffer-metrics/").json()["metrics"],
+        )

@@ -5,6 +5,7 @@ from .models import (
     Certificate,
     HelpRequest,
     LessonProgress,
+    ProgressBufferDeadLetter,
     QuizAttempt,
     UserBadge,
     WeeklyGoal,
@@ -246,3 +247,27 @@ class WeeklyGoalSerializer(serializers.ModelSerializer):
                 "Target minutes must be between 10 and 10,080."
             )
         return value
+
+
+class ProgressBufferDeadLetterSerializer(serializers.ModelSerializer):
+    username = serializers.ReadOnlyField(source="user.username")
+
+    class Meta:
+        model = ProgressBufferDeadLetter
+        fields = [
+            "id",
+            "user",
+            "username",
+            "activity_type",
+            "source_id",
+            "payload",
+            "retry_count",
+            "error_message",
+            "status",
+            "replayed",
+            "replayed_at",
+            "replayed_by",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = fields

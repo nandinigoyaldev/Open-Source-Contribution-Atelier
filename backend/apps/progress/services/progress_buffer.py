@@ -130,10 +130,18 @@ class ProgressBufferService:
     def handle_failed_updates(cls, failed_updates, max_retries=3):
         """
         Implements automatic retry mechanism and Dead-Letter Queue (DLQ).
+        Persists exhausted updates both to Redis and durably to the database.
         """
-        client = cls.get_redis_client()
-        if not client or not failed_updates:
+        if not failed_updates:
             return
+
+        client = cls.get_redis_client()
+
+        from django.contrib.auth import get_user_model
+
+        from apps.progress.models import ProgressBufferDeadLetter
+
+        User = get_user_model()
 
         for update in failed_updates:
             key = update.pop("_redis_key", None)
@@ -145,14 +153,41 @@ class ProgressBufferService:
             if update["retry_count"] > max_retries:
                 # Move to DLQ
                 logger.error(f"Max retries exceeded for {key}. Moving to DLQ.")
-                client.sadd(cls.DLQ_KEY, json.dumps(update))
-                client.delete(key)
-                client.incr("metrics:total_dlq_updates")
+                if client:
+                    client.sadd(cls.DLQ_KEY, json.dumps(update))
+                    client.delete(key)
+                    client.incr("metrics:total_dlq_updates")
+
+                # Persist durably to DB
+                try:
+                    p = key.split(":") if key.startswith("progress_buffer:") else []
+                    uid = update.get("user_id") or (
+                        int(p[2]) if len(p) >= 3 and p[2].isdigit() else None
+                    )
+                    user = User.objects.filter(id=uid).first() if uid else None
+                    if user:
+                        ProgressBufferDeadLetter.objects.create(
+                            user=user,
+                            activity_type=p[1] if len(p) >= 2 else "lesson",
+                            source_id=update.get("lesson_slug")
+                            or update.get("source_id")
+                            or (p[3] if len(p) >= 4 else ""),
+                            payload=update,
+                            retry_count=update["retry_count"],
+                            error_message=str(
+                                update.get("last_error") or "Max retries exceeded"
+                            ),
+                        )
+                except Exception as exc:
+                    logger.exception(
+                        "Failed to record ProgressBufferDeadLetter: %s", exc
+                    )
             else:
                 # Re-queue for retry
-                client.set(key, json.dumps(update), ex=3600)  # Reset expiration
-                client.sadd(cls.RETRY_SET_KEY, key)
-                client.incr("metrics:total_retries")
+                if client:
+                    client.set(key, json.dumps(update), ex=3600)  # Reset expiration
+                    client.sadd(cls.RETRY_SET_KEY, key)
+                    client.incr("metrics:total_retries")
 
     @classmethod
     def get_queue_metrics(cls):

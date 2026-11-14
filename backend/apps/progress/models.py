@@ -804,3 +804,80 @@ class LeaderboardArchive(models.Model):
 
     def __str__(self):
         return f"LeaderboardArchive(user={self.user.username}, period={self.month_key}, rank={self.rank}, xp={self.monthly_xp})"
+
+
+class ProgressBufferDeadLetter(models.Model):
+    STATUS_PENDING, STATUS_REPLAYED, STATUS_DISCARDED = (
+        "pending",
+        "replayed",
+        "discarded",
+    )
+    STATUS_CHOICES = [
+        (STATUS_PENDING, "Pending"),
+        (STATUS_REPLAYED, "Replayed"),
+        (STATUS_DISCARDED, "Discarded"),
+    ]
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="progress_dead_letters",
+    )
+    activity_type = models.CharField(max_length=64, default="lesson", db_index=True)
+    source_id = models.CharField(max_length=255, db_index=True)
+    payload = models.JSONField(default=dict)
+    retry_count = models.PositiveIntegerField(default=0)
+    error_message = models.TextField(blank=True, default="")
+    status = models.CharField(
+        max_length=32, choices=STATUS_CHOICES, default=STATUS_PENDING, db_index=True
+    )
+    replayed = models.BooleanField(default=False)
+    replayed_at = models.DateTimeField(null=True, blank=True)
+    replayed_by = models.CharField(max_length=150, blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+
+    def __str__(self):
+        return f"DLQ #{self.id} for user {self.user.username} ({self.activity_type}:{self.source_id}) - [{self.status}]"
+
+    def replay(self, operator: str = "system") -> bool:
+        if self.status == self.STATUS_REPLAYED and self.replayed:
+            return True
+        from apps.progress.services.progress_batch_service import (
+            process_bulk_progress_updates,
+        )
+
+        clean = {k: v for k, v in self.payload.items() if not k.startswith("_")}
+        if "lesson_slug" not in clean and self.source_id:
+            clean["lesson_slug"] = self.source_id
+        process_bulk_progress_updates(self.user, [clean])
+        self.replayed, self.replayed_at, self.replayed_by, self.status = (
+            True,
+            timezone.now(),
+            operator,
+            self.STATUS_REPLAYED,
+        )
+        self.save(
+            update_fields=[
+                "replayed",
+                "replayed_at",
+                "replayed_by",
+                "status",
+                "updated_at",
+            ]
+        )
+        return True
+
+    def discard(self, operator: str = "system", reason: str = "") -> None:
+        self.status = self.STATUS_DISCARDED
+        if reason:
+            self.error_message = (
+                f"{self.error_message}\nDiscarded by {operator}: {reason}".strip()
+            )
+        self.replayed_by = operator
+        self.save(
+            update_fields=["status", "error_message", "replayed_by", "updated_at"]
+        )
