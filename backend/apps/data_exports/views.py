@@ -57,6 +57,28 @@ def serialize(job: ExportJob, request=None) -> dict:
     return data
 
 
+class ExportDocumentationView(APIView):
+    """Provides privacy, retention, and documented exclusions metadata for account data export."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request):
+        datasets_info = {
+            d.key: {
+                "label": d.label,
+                "columns": d.columns,
+                "excluded_fields": list(d.exclude),
+            }
+            for d in datasets.all_datasets()
+        }
+        return Response(
+            {
+                "datasets": datasets_info,
+                "documented_exclusions": datasets.get_documented_exclusions(),
+            }
+        )
+
+
 class ExportListCreateView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
@@ -65,9 +87,16 @@ class ExportListCreateView(APIView):
         return Response(
             {
                 "datasets": [
-                    {"key": d.key, "label": d.label} for d in datasets.all_datasets()
+                    {
+                        "key": d.key,
+                        "label": d.label,
+                        "columns": d.columns,
+                        "excluded_fields": list(d.exclude),
+                    }
+                    for d in datasets.all_datasets()
                 ],
                 "formats": [f for f, _ in ExportJob.FORMAT_CHOICES],
+                "documented_exclusions": datasets.get_documented_exclusions(),
                 "results": [serialize(j, request) for j in jobs],
             }
         )
@@ -93,6 +122,21 @@ class ExportListCreateView(APIView):
                 },
                 status=status.HTTP_400_BAD_REQUEST,
             )
+
+        # Repeat request handling: if an export for this dataset and format is already running/queued,
+        # return the existing job gracefully rather than erroring or creating duplicates.
+        existing_active = (
+            ExportJob.objects.filter(
+                user=request.user,
+                dataset=dataset.key,
+                file_format=file_format,
+                status__in=ExportJob.ACTIVE_STATUSES,
+            )
+            .order_by("-created_at")
+            .first()
+        )
+        if existing_active:
+            return Response(serialize(existing_active, request), status=status.HTTP_200_OK)
 
         active = ExportJob.objects.filter(
             user=request.user, status__in=ExportJob.ACTIVE_STATUSES
