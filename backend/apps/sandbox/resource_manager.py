@@ -17,11 +17,19 @@ class SecurityViolation(Exception):
     pass
 
 
+class QuotaViolation(Exception):
+    pass
+
+
 class ResourceManagementEngine:
     MAX_EXECUTION_TIME_SECONDS = 5
     MAX_MEMORY_MB = 128
     MAX_CPU_TIME_SECONDS = 3
     MAX_CONCURRENT_EXECUTIONS = 2
+    MAX_OUTPUT_BYTES = 64 * 1024  # 64 KB
+    MAX_SESSION_CPU_SECONDS = 30.0  # max 30s CPU time per session window
+    MAX_SESSION_PROCESSES = 20  # max processes spawned across session
+    SESSION_WINDOW_SECONDS = 3600  # 1 hour window
 
     # AST Whitelist rules
     FORBIDDEN_IMPORTS = {
@@ -112,25 +120,155 @@ class ResourceManagementEngine:
                     )
 
     @classmethod
+    def check_session_quotas(cls, session_id: str) -> tuple[bool, str | None]:
+        """Verify whether session is within concurrent, CPU, and process quotas."""
+        # 1. Concurrent executions
+        concurrency_key = f"sandbox_concurrent_executions_{session_id}"
+        current_concurrent = cache.get(concurrency_key, 0)
+        if current_concurrent >= cls.MAX_CONCURRENT_EXECUTIONS:
+            return False, "concurrency"
+
+        # 2. Cumulative CPU quota for this session window
+        cpu_key = f"sandbox_session_cpu_{session_id}"
+        current_cpu = float(cache.get(cpu_key, 0.0))
+        if current_cpu >= cls.MAX_SESSION_CPU_SECONDS:
+            return False, "cpu"
+
+        # 3. Process count quota for this session window
+        proc_key = f"sandbox_session_processes_{session_id}"
+        current_procs = int(cache.get(proc_key, 0))
+        if current_procs >= cls.MAX_SESSION_PROCESSES:
+            return False, "process"
+
+        return True, None
+
+    @classmethod
+    def check_and_acquire(cls, session_id: str) -> tuple[bool, str | None]:
+        """Check all session quotas and acquire an execution slot if within limits."""
+        allowed, reason = cls.check_session_quotas(session_id)
+        if not allowed:
+            return False, reason
+
+        concurrency_key = f"sandbox_concurrent_executions_{session_id}"
+        current = cache.get(concurrency_key, 0)
+        cache.set(concurrency_key, current + 1, timeout=cls.MAX_EXECUTION_TIME_SECONDS * 2)
+
+        proc_key = f"sandbox_session_processes_{session_id}"
+        procs = int(cache.get(proc_key, 0))
+        cache.set(proc_key, procs + 1, timeout=cls.SESSION_WINDOW_SECONDS)
+
+        return True, None
+
+    @classmethod
     def acquire_execution_lock(cls, session_id: str) -> bool:
-        cache_key = f"sandbox_concurrent_executions_{session_id}"
-        current = cache.get(cache_key, 0)
+        """Backwards compatible lock acquisition (returns True if acquired)."""
+        allowed, _ = cls.check_and_acquire(session_id)
+        return allowed
 
-        if current >= cls.MAX_CONCURRENT_EXECUTIONS:
-            return False
-
-        cache.set(cache_key, current + 1, timeout=cls.MAX_EXECUTION_TIME_SECONDS * 2)
-        return True
+    @classmethod
+    def record_session_usage(cls, session_id: str, cpu_time: float, output_bytes: int = 0):
+        """Record CPU usage and output bytes for the session."""
+        cpu_key = f"sandbox_session_cpu_{session_id}"
+        current_cpu = float(cache.get(cpu_key, 0.0))
+        cache.set(cpu_key, current_cpu + max(0.0, cpu_time), timeout=cls.SESSION_WINDOW_SECONDS)
 
     @classmethod
     def release_execution_lock(cls, session_id: str):
-        cache_key = f"sandbox_concurrent_executions_{session_id}"
-        current = cache.get(cache_key, 0)
-
+        """Release execution slot."""
+        concurrency_key = f"sandbox_concurrent_executions_{session_id}"
+        current = cache.get(concurrency_key, 0)
         if current > 0:
-            cache.set(
-                cache_key, current - 1, timeout=cls.MAX_EXECUTION_TIME_SECONDS * 2
-            )
+            cache.set(concurrency_key, current - 1, timeout=cls.MAX_EXECUTION_TIME_SECONDS * 2)
+
+    @classmethod
+    def get_session_quota_status(cls, session_id: str) -> dict:
+        """Returns the current quota allocation and consumption for a session."""
+        concurrency_key = f"sandbox_concurrent_executions_{session_id}"
+        cpu_key = f"sandbox_session_cpu_{session_id}"
+        proc_key = f"sandbox_session_processes_{session_id}"
+
+        return {
+            "session_id": session_id,
+            "concurrent_executions": int(cache.get(concurrency_key, 0)),
+            "max_concurrent_executions": cls.MAX_CONCURRENT_EXECUTIONS,
+            "session_cpu_seconds_used": round(float(cache.get(cpu_key, 0.0)), 3),
+            "max_session_cpu_seconds": cls.MAX_SESSION_CPU_SECONDS,
+            "session_processes_used": int(cache.get(proc_key, 0)),
+            "max_session_processes": cls.MAX_SESSION_PROCESSES,
+            "max_memory_mb": cls.MAX_MEMORY_MB,
+            "max_cpu_time_seconds": cls.MAX_CPU_TIME_SECONDS,
+            "max_output_bytes": cls.MAX_OUTPUT_BYTES,
+        }
+
+    @classmethod
+    def reset_session_quota(cls, session_id: str):
+        """Reset all quota counters for the given session."""
+        cache.delete(f"sandbox_concurrent_executions_{session_id}")
+        cache.delete(f"sandbox_session_cpu_{session_id}")
+        cache.delete(f"sandbox_session_processes_{session_id}")
+
+    @classmethod
+    def kill_process_tree(cls, pid: int):
+        """Cross-platform termination of a process and any children spawned by it."""
+        if not pid:
+            return
+        try:
+            import os
+            import signal
+            import subprocess
+
+            if sys.platform == "win32":
+                subprocess.run(
+                    ["taskkill", "/F", "/T", "/PID", str(pid)],
+                    stdout=subprocess.DEVNULL,
+                    stderr=subprocess.DEVNULL,
+                )
+            else:
+                try:
+                    os.killpg(os.getpgid(pid), signal.SIGKILL)
+                except (ProcessLookupError, OSError):
+                    try:
+                        os.kill(pid, signal.SIGKILL)
+                    except (ProcessLookupError, OSError):
+                        pass
+        except Exception as e:
+            logger.warning("Error killing process tree %s: %s", pid, e)
+
+    @classmethod
+    def get_wrapper_script(cls, code: str) -> str:
+        return f"""
+import sys
+try:
+    import resource
+    memory_limit = {cls.MAX_MEMORY_MB} * 1024 * 1024
+    resource.setrlimit(resource.RLIMIT_AS, (memory_limit, memory_limit))
+    cpu_limit = {cls.MAX_CPU_TIME_SECONDS}
+    resource.setrlimit(resource.RLIMIT_CPU, (cpu_limit, cpu_limit))
+    if hasattr(resource, 'RLIMIT_NPROC'):
+        # Limit max child processes to 5 to protect process quota
+        resource.setrlimit(resource.RLIMIT_NPROC, (5, 5))
+except ImportError:
+    pass
+
+code = {repr(code)}
+
+# NOTE: __builtins__ is the *builtins module* here (not a dict), because this
+# script runs as the top-level `__main__` module (via `python -c`). Importing
+# the module explicitly and using vars() works in both contexts.
+import builtins
+safe_builtins = {{k: v for k, v in vars(builtins).items() if k not in {cls.FORBIDDEN_FUNCTIONS}}}
+safe_globals = {{"__builtins__": safe_builtins}}
+
+try:
+    exec(code, safe_globals)
+except MemoryError:
+    print("Error: Memory limit exceeded.", file=sys.stderr)
+    sys.exit(137)
+except Exception as e:
+    import traceback
+    traceback.print_exc(file=sys.stderr)
+    sys.exit(1)
+"""
 
 
 class SandboxResourceManager:
@@ -189,35 +327,4 @@ class SandboxResourceManager:
         """Reset circuit breaker."""
         self.redis.set(self.failure_key, 0)
 
-    @classmethod
-    def get_wrapper_script(cls, code: str) -> str:
-        return f"""
-import sys
-try:
-    import resource
-    memory_limit = {cls.MAX_MEMORY_MB} * 1024 * 1024
-    resource.setrlimit(resource.RLIMIT_AS, (memory_limit, memory_limit))
-    cpu_limit = {cls.MAX_CPU_TIME_SECONDS}
-    resource.setrlimit(resource.RLIMIT_CPU, (cpu_limit, cpu_limit))
-except ImportError:
-    pass
-
-code = {repr(code)}
-
-# NOTE: __builtins__ is the *builtins module* here (not a dict), because this
-# script runs as the top-level `__main__` module (via `python -c`). Importing
-# the module explicitly and using vars() works in both contexts.
-import builtins
-safe_builtins = {{k: v for k, v in vars(builtins).items() if k not in {cls.FORBIDDEN_FUNCTIONS}}}
-safe_globals = {{"__builtins__": safe_builtins}}
-
-try:
-    exec(code, safe_globals)
-except MemoryError:
-    print("Error: Memory limit exceeded.", file=sys.stderr)
-    sys.exit(137)
-except Exception as e:
-    import traceback
-    traceback.print_exc(file=sys.stderr)
-    sys.exit(1)
-"""
+    get_wrapper_script = ResourceManagementEngine.get_wrapper_script

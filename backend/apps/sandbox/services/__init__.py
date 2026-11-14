@@ -81,20 +81,33 @@ async def stream_python_execution(
 ):
     """
     Executes Python code securely with resource limits in a subprocess and streams output asynchronously.
+    Enforces per-session CPU, memory, output, and process quotas.
     """
-    if not ResourceManagementEngine.acquire_execution_lock(user_id):
+    allowed, reason = ResourceManagementEngine.check_and_acquire(user_id)
+    if not allowed:
         from asgiref.sync import sync_to_async
 
+        violation_type = reason or "concurrency"
+        err_msg = {
+            "concurrency": "Execution limit reached. Please wait for your previous code to finish.",
+            "cpu": "Session CPU quota exceeded. Please wait before executing more code.",
+            "process": "Session process quota exceeded. Maximum session executions reached.",
+        }.get(violation_type, "Execution quota exceeded.")
+
         await sync_to_async(ResourceManagementEngine.log_violation)(
-            user_id, code, "concurrency", "Exceeded concurrent executions limit."
+            user_id, code, violation_type, f"Quota breached: {violation_type}"
         )
         await send_callback(
             {
                 "action": "execution_error",
-                "error": "Execution limit reached. Please wait for your previous code to finish.",
+                "error": err_msg,
             }
         )
         return
+
+    start_time = asyncio.get_event_loop().time()
+    total_output_bytes = 0
+    quota_killed = False
 
     try:
         # 1. AST Static Security Analysis
@@ -124,9 +137,15 @@ async def stream_python_execution(
         )
 
         async def read_stream(stream, stream_type):
+            nonlocal total_output_bytes, quota_killed
             while True:
                 line = await stream.readline()
                 if line:
+                    total_output_bytes += len(line)
+                    if total_output_bytes > ResourceManagementEngine.MAX_OUTPUT_BYTES:
+                        quota_killed = True
+                        ResourceManagementEngine.kill_process_tree(process.pid)
+                        break
                     await send_callback(
                         {
                             "action": "execution_output",
@@ -147,13 +166,28 @@ async def stream_python_execution(
                 timeout=timeout,
             )
 
+            if quota_killed:
+                from asgiref.sync import sync_to_async
+
+                await sync_to_async(ResourceManagementEngine.log_violation)(
+                    user_id, code, "output", f"Output exceeded {ResourceManagementEngine.MAX_OUTPUT_BYTES} bytes"
+                )
+                await send_callback(
+                    {
+                        "action": "execution_end",
+                        "status": "Output Quota Exceeded (Limit 64KB)",
+                        "returncode": -1,
+                    }
+                )
+                return
+
             status = "Completed"
             if process.returncode == 137:
                 status = "Memory Limit Exceeded"
                 from asgiref.sync import sync_to_async
 
                 await sync_to_async(ResourceManagementEngine.log_violation)(
-                    user_id, code, "memory", "Process returned 137"
+                    user_id, code, "memory", "Process returned 137 (Memory/CPU limit)"
                 )
             elif process.returncode != 0:
                 status = "Failed"
@@ -166,10 +200,7 @@ async def stream_python_execution(
                 }
             )
         except asyncio.TimeoutError:
-            try:
-                process.kill()
-            except ProcessLookupError:
-                pass
+            ResourceManagementEngine.kill_process_tree(process.pid)
             from asgiref.sync import sync_to_async
 
             await sync_to_async(ResourceManagementEngine.log_violation)(
@@ -186,6 +217,8 @@ async def stream_python_execution(
     except Exception as e:
         await send_callback({"action": "execution_error", "error": str(e)})
     finally:
+        elapsed = asyncio.get_event_loop().time() - start_time
+        ResourceManagementEngine.record_session_usage(user_id, elapsed, total_output_bytes)
         ResourceManagementEngine.release_execution_lock(user_id)
 
 
@@ -216,7 +249,12 @@ async def start_debug_session(code: str, breakpoints: list):
 async def run_code_trace(code: str, user_id: str = "anonymous", timeout: int = 10):
     """
     Runs the tracer script on the provided code and returns the parsed JSON trace array.
+    Enforces per-session execution and process quotas.
     """
+    allowed, reason = ResourceManagementEngine.check_and_acquire(user_id)
+    if not allowed:
+        return []
+
     fd, path = tempfile.mkstemp(suffix=".py")
     with os.fdopen(fd, "w") as f:
         f.write(code)
@@ -231,6 +269,7 @@ async def run_code_trace(code: str, user_id: str = "anonymous", timeout: int = 1
         stderr=asyncio.subprocess.PIPE,
     )
 
+    start_time = asyncio.get_event_loop().time()
     try:
         stdout, stderr = await asyncio.wait_for(process.communicate(), timeout=timeout)
         if process.returncode == 0:
@@ -245,12 +284,12 @@ async def run_code_trace(code: str, user_id: str = "anonymous", timeout: int = 1
             except:
                 return []
     except asyncio.TimeoutError:
-        try:
-            process.kill()
-        except ProcessLookupError:
-            pass
+        ResourceManagementEngine.kill_process_tree(process.pid)
         return []
     finally:
+        elapsed = asyncio.get_event_loop().time() - start_time
+        ResourceManagementEngine.record_session_usage(user_id, elapsed)
+        ResourceManagementEngine.release_execution_lock(user_id)
         if os.path.exists(path):
             try:
                 os.remove(path)

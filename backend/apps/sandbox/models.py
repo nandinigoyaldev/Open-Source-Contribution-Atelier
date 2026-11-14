@@ -42,6 +42,9 @@ class ExecutionViolationLog(models.Model):
         TIMEOUT = "timeout", "Execution Timeout"
         SECURITY = "security", "AST Security Violation"
         CONCURRENCY = "concurrency", "Concurrency Limit Exceeded"
+        CPU = "cpu", "CPU Quota Exceeded"
+        PROCESS = "process", "Process Quota Exceeded"
+        OUTPUT = "output", "Output Quota Exceeded"
 
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
