@@ -88,6 +88,33 @@ def verify_webhook(payload_body: bytes, secret_token: str, headers) -> bool:
 
 Incoming endpoints also accept an optional `X-Webhook-Key-Id`. A sender that names a key the server does not know is rejected, and a known id limits verification to that one key.
 
+### Rotating an incoming verification key
+
+Configure the new key first and retain the previous key during a bounded overlap:
+
+```python
+WEBHOOK_SIGNING_KEYS = [("current", new_secret), ("previous", previous_secret)]
+WEBHOOK_SIGNING_KEY_EXPIRATIONS = {"previous": 1900000000}
+```
+
+The expiry is an absolute Unix timestamp in seconds, configured by the operator.
+Choose it once when rotation begins; do not calculate it as startup time plus a
+duration, which would extend the grace period on every restart. Both keys verify
+before that deadline. At and after the deadline the previous key is rejected,
+including payload-only signatures and requests without a key-id header. Expiry is
+checked on each verification, so workers need no restart at the deadline. Remove
+the expired key material after the transition.
+
+An absent expiry map preserves existing key-list behavior. Every previous key
+must have a unique, non-secret key ID and an entry in the map to get bounded
+acceptance; keys without an entry remain valid. Invalid per-key deadlines fail
+closed for that key. Timestamp replay protection still applies independently.
+Successful timestamped verifications produce an INFO audit event
+`webhook.signature_accepted` with the actual matching `key_id`; configure the
+`audit` logger at INFO to observe the transition. Logs omit secrets, signatures
+and payload bodies. Outgoing endpoint secrets and the separate GitHub fallback
+secret are not rotated by this setting.
+
 Rejected requests are written to the `audit` logger as one JSON line (`event`, `reason`, `source`, `path`, `remote_addr`, `key_id`, `timestamp`, `skew_seconds`). The secret, the signature and the body are never logged. See [WEBHOOK_THREAT_MODEL.md](WEBHOOK_THREAT_MODEL.md) for what is and is not covered.
 
 ## 4. Webhook API Specifications

@@ -63,7 +63,8 @@ class RateLimitingTierTests(TestCase):
         middleware.process_request(req_anon)
         response = middleware.process_response(req_anon, Response("OK"))
 
-        self.assertEqual(response["X-RateLimit-Limit"], "100")
+        # GET is also bound by the 60/minute read bucket, which is the tighter one.
+        self.assertEqual(response["X-RateLimit-Limit"], "60")
         self.assertIn("X-RateLimit-Remaining", response)
         self.assertIn("X-RateLimit-Reset", response)
 
@@ -73,7 +74,8 @@ class RateLimitingTierTests(TestCase):
         middleware.process_request(req_auth)
         response_auth = middleware.process_response(req_auth, Response("OK"))
 
-        self.assertEqual(response_auth["X-RateLimit-Limit"], "1000")
+        self.assertEqual(response_auth["X-RateLimit-Limit"], "60")
+        self.assertEqual(response_auth["X-RateLimit-Category-Limit"], "60")
 
         # Test premium request headers
         req_prem = self.factory.get("/api/lessons/")
@@ -81,7 +83,8 @@ class RateLimitingTierTests(TestCase):
         middleware.process_request(req_prem)
         response_prem = middleware.process_response(req_prem, Response("OK"))
 
-        self.assertEqual(response_prem["X-RateLimit-Limit"], "10000")
+        # premium reads get 5x the category budget
+        self.assertEqual(response_prem["X-RateLimit-Limit"], "300")
 
     def test_middleware_429_response_format(self):
         middleware = RateLimitMiddleware(get_response=lambda r: Response("OK"))
@@ -110,5 +113,4 @@ class RateLimitingTierTests(TestCase):
         self.assertEqual(resp.data["code"], "rate_limited")
         self.assertEqual(resp.data["retry_after"], 46)
         self.assertEqual(resp["Retry-After"], "46")
-        self.assertIn("X-RateLimit-Limit", resp)
         self.assertEqual(resp["X-RateLimit-Remaining"], "0")

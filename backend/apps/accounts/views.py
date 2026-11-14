@@ -1468,47 +1468,130 @@ from apps.content.models import Comment
 
 class SecureAccountDeleteView(APIView):
     """
+    GET /api/users/me/delete/ or /api/auth/me/delete/preview/
+      Previews blocking dependencies, retention exceptions, and erasable data.
+    POST /api/users/me/delete/
+      Requests account deletion with a grace period (or immediate execution if immediate=True).
     DELETE /api/users/me/delete/
-    Securely deletes the user's PII while anonymizing public contributions.
+      Immediate account deletion with dependency validation and contribution anonymization.
     """
 
     permission_classes = [permissions.IsAuthenticated]
 
     @extend_schema(
         responses={
-            204: OpenApiResponse(description="Account securely deleted"),
+            200: OpenApiResponse(description="Preview account deletion dependencies and retention policies"),
         }
     )
-    def delete(self, request):
-        user = request.user
+    def get(self, request):
+        from apps.accounts.deletion_service import get_deletion_preview
 
-        # If the user is already deleted (e.g. from a repeated request)
+        preview = get_deletion_preview(request.user)
+        return Response(preview, status=status.HTTP_200_OK)
+
+    @extend_schema(
+        responses={
+            202: OpenApiResponse(description="Account deletion scheduled with grace period"),
+            204: OpenApiResponse(description="Account immediately deleted"),
+            400: OpenApiResponse(description="Deletion blocked by unresolved dependencies"),
+        }
+    )
+    def post(self, request):
+        from apps.accounts.deletion_service import (
+            check_blocking_dependencies,
+            execute_account_deletion,
+            schedule_account_deletion,
+        )
+
+        user = request.user
         if not user or not user.pk:
             return Response(status=status.HTTP_204_NO_CONTENT)
 
-        # 1. Fetch or create Anonymous user
-        anonymous_user, _ = User.objects.get_or_create(
-            username="anonymous_contributor",
-            defaults={
-                "email": "anonymous@example.com",
-                "first_name": "Anonymous",
-                "last_name": "Contributor",
-                "is_active": False,
+        blocking = check_blocking_dependencies(user)
+        if blocking:
+            return Response(
+                {
+                    "error": "Account deletion blocked by existing dependencies.",
+                    "blocking_dependencies": blocking,
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        immediate = request.data.get("immediate", False)
+        reason = request.data.get("reason", "")
+
+        if immediate:
+            execute_account_deletion(user)
+            return Response(status=status.HTTP_204_NO_CONTENT)
+
+        req = schedule_account_deletion(user, reason=reason)
+        return Response(
+            {
+                "message": "Account deletion scheduled. You may cancel during the grace period.",
+                "request_id": str(req.id),
+                "scheduled_for": req.scheduled_for.isoformat(),
+                "status": req.status,
             },
+            status=status.HTTP_202_ACCEPTED,
         )
-        if anonymous_user.password == "":
-            anonymous_user.set_unusable_password()
-            anonymous_user.save()
 
-        # 2. Re-assign public contributions to preserve context without PII
-        Comment.objects.filter(user=user).update(user=anonymous_user)
-        Message.objects.filter(user=user).update(user=anonymous_user)
+    @extend_schema(
+        responses={
+            204: OpenApiResponse(description="Account securely deleted"),
+            400: OpenApiResponse(description="Deletion blocked by unresolved dependencies"),
+        }
+    )
+    def delete(self, request):
+        from apps.accounts.deletion_service import (
+            check_blocking_dependencies,
+            execute_account_deletion,
+        )
 
-        # 3. Delete the user
-        # This will CASCADE and delete: UserProfile, Certificates, LessonProgress, Notes, Tokens, etc.
-        user.delete()
+        user = request.user
+        if not user or not user.pk:
+            return Response(status=status.HTTP_204_NO_CONTENT)
 
+        blocking = check_blocking_dependencies(user)
+        if blocking:
+            return Response(
+                {
+                    "error": "Account deletion blocked by existing dependencies.",
+                    "blocking_dependencies": blocking,
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        execute_account_deletion(user)
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class AccountDeletionCancelView(APIView):
+    """
+    POST /api/auth/me/delete/cancel/
+    Cancels an active account deletion request during its grace period.
+    """
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    @extend_schema(
+        responses={
+            200: OpenApiResponse(description="Account deletion successfully cancelled"),
+            404: OpenApiResponse(description="No active pending deletion request found"),
+        }
+    )
+    def post(self, request):
+        from apps.accounts.deletion_service import cancel_account_deletion
+
+        success = cancel_account_deletion(request.user)
+        if success:
+            return Response(
+                {"message": "Scheduled account deletion was successfully cancelled."},
+                status=status.HTTP_200_OK,
+            )
+        return Response(
+            {"error": "No active pending deletion request found to cancel."},
+            status=status.HTTP_404_NOT_FOUND,
+        )
 
 
 import json

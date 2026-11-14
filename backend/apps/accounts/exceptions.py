@@ -208,7 +208,23 @@ def throttle_exception_handler(exc, context):
 
         message = _THROTTLE_MESSAGES.get(scope, _DEFAULT_MESSAGE)
         retry_after = getattr(exc, "wait", None)
-        wait_secs = int(retry_after) + 1 if retry_after is not None else 60
+
+        # The limit comes from the throttle that refused the request. If the
+        # exception was raised by hand there is no throttle to ask.
+        blocking = None
+        if request is not None:
+            from apps.core.throttling import get_rate_limit_states, most_restrictive
+
+            blocking = most_restrictive(
+                [s for s in get_rate_limit_states(request) if s["remaining"] == 0]
+            )
+
+        if retry_after is not None:
+            wait_secs = int(retry_after) + 1
+        elif blocking:
+            wait_secs = blocking["reset"]
+        else:
+            wait_secs = 60
 
         response_data = {
             "error": "rate_limited",
@@ -222,9 +238,10 @@ def throttle_exception_handler(exc, context):
             status=status.HTTP_429_TOO_MANY_REQUESTS,
         )
         response["Retry-After"] = str(wait_secs)
-        response["X-RateLimit-Limit"] = str(getattr(exc, "limit", 100))
         response["X-RateLimit-Remaining"] = "0"
         response["X-RateLimit-Reset"] = str(int(time.time() + wait_secs))
+        if blocking:
+            response["X-RateLimit-Limit"] = str(blocking["limit"])
 
         return _attach_correlation_id(response)
 

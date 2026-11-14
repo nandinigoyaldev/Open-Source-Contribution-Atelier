@@ -24,6 +24,7 @@ from .views import (
     ProjectFileViewSet,
     ProjectViewSet,
     SandboxVerifyView,
+    SessionQuotaView,
     SnippetCollectionViewSet,
     TriageIssueViewSet,
     WorkspaceSnapshotViewSet,
@@ -76,5 +77,6 @@ urlpatterns = [
     path("verify/", SandboxVerifyView.as_view(), name="sandbox-verify"),
     path("execution-status/", ExecutionStatusView.as_view(), name="execution-status"),
     path("clear-execution/", ClearExecutionView.as_view(), name="clear-execution"),
+    path("quotas/", SessionQuotaView.as_view(), name="sandbox-quotas"),
     path("", include(router.urls)),
 ]

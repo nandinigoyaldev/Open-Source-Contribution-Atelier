@@ -1,7 +1,9 @@
 from rest_framework.throttling import UserRateThrottle
 
+from apps.core.throttling import ThrottleStateMixin
 
-class AiTutorRateThrottle(UserRateThrottle):
+
+class AiTutorRateThrottle(ThrottleStateMixin, UserRateThrottle):
     """Limit AI Tutor queries to protect the upstream AI token budget."""
 
     scope = "ai_tutor"

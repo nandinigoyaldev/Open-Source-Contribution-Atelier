@@ -50,7 +50,53 @@ class MessageListView(generics.ListAPIView):
 
     def get_queryset(self):
         room_id = self.kwargs["room_id"]
-        return Message.objects.filter(room_id=room_id).select_related("user")
+        qs = Message.objects.filter(room_id=room_id).select_related("user")
+        since_id = self.request.query_params.get("since_id")
+        if since_id:
+            try:
+                qs = qs.filter(id__gt=int(since_id)).order_by("id")
+            except (ValueError, TypeError):
+                pass
+        return qs
+
+
+class MessageSyncView(APIView):
+    """
+    Reconnect-safe message history synchronization endpoint.
+    Returns messages created after `since_id` in chronological order with retention status.
+    """
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, room_id):
+        since_id = request.query_params.get("since_id", 0)
+        limit = min(int(request.query_params.get("limit", 100)), 200)
+        try:
+            since_id = int(since_id)
+        except (ValueError, TypeError):
+            since_id = 0
+
+        qs = Message.objects.filter(room_id=room_id).select_related("user")
+        oldest = qs.order_by("id").first()
+        resync_required = bool(oldest and since_id > 0 and since_id < oldest.id)
+
+        if since_id > 0:
+            qs = qs.filter(id__gt=since_id)
+
+        messages = list(qs.order_by("id")[:limit])
+        latest = Message.objects.filter(room_id=room_id).order_by("-id").first()
+        latest_id = latest.id if latest else since_id
+
+        serializer = MessageSerializer(messages, many=True)
+        return Response(
+            {
+                "room_id": room_id,
+                "since_id": since_id,
+                "latest_id": latest_id,
+                "resync_required": resync_required,
+                "messages": serializer.data,
+            }
+        )
 
 
 @extend_schema_view(

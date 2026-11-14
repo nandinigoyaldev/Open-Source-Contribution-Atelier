@@ -1,0 +1,8 @@
+{
+  "commit-basics": {
+    "question": "Which command records staged changes?",
+    "options": ["git add", "git commit", "git push"],
+    "answer": 1,
+    "explanation": "git commit saves the staged snapshot."
+  }
+}

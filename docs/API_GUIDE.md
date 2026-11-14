@@ -105,6 +105,18 @@ Clients and integration tools can query available API versions, lifecycle status
 
 ## 4. Endpoint Deprecation and Sunset Policy
 
+An explicit unsupported or malformed version returns HTTP 406 instead of
+silently using the default. Requests without a version continue to use the
+default during the migration window. Responses vary on the `Accept` header so
+shared caches do not mix clients requesting different versions.
+
+For a version listed in `DEPRECATED_API_VERSIONS`, the server includes the
+configured `Deprecation` and `Sunset` headers. Once the configured HTTP-date
+in `sunset` has passed, requests for that version return HTTP 410 Gone. Keep
+the version in `ALLOWED_API_VERSIONS` until the migration window ends so that
+existing clients continue to work and receive those headers. Operators must
+configure a valid HTTP-date; an invalid date does not retire the API.
+
 When an API version or endpoint is scheduled for removal, standard RFC deprecation response headers are attached to all responses for that version:
 
 | Response Header | Description | Standard |
@@ -112,6 +124,8 @@ When an API version or endpoint is scheduled for removal, standard RFC deprecati
 | `X-API-Deprecation` | Warning header for unversioned fallback requests | Custom Header |
 | `Deprecation` | Date or boolean indicating when the feature was deprecated | RFC 9261 |
 | `Sunset` | HTTP-date indicating when the endpoint will be permanently retired | RFC 8594 |
+
+Rate limit state (`X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset`, `Retry-After`) is documented in [API/rate-limits.md](API/rate-limits.md).
 
 ---
 

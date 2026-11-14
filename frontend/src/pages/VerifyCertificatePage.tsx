@@ -1,9 +1,12 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { fetchApi } from "../lib/api";
+import {
+  isCertificateHash,
+  useCertificateVerification,
+} from "../hooks/useCertificateVerification";
+import { VerificationError } from "../components/Certificate/VerificationError";
 import {
   CheckCircle,
-  XCircle,
   Award,
   Calendar,
   User,
@@ -13,71 +16,24 @@ import {
   AlertOctagon,
 } from "lucide-react";
 
-interface CertificateData {
-  verification_hash: string;
-  course_name: string;
-  issued_at: string;
-  learner_name: string;
-  is_active?: boolean;
-}
-
 export function VerifyCertificatePage() {
   const { hash } = useParams<{ hash: string }>();
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(false);
+  const { loading, data, failure, retry } = useCertificateVerification(hash);
   const [error, setError] = useState("");
-  const [data, setData] = useState<CertificateData | null>(null);
   const [searchHash, setSearchHash] = useState("");
-
-  useEffect(() => {
-    const verifyHash = async () => {
-      setLoading(true);
-      setError("");
-      setData(null);
-      try {
-        const response = await fetchApi(`/progress/verify/${hash}/`, {
-          method: "GET",
-          requireAuth: false,
-        });
-        if (response.certificate) {
-          setData(response.certificate);
-          if (!response.is_valid) {
-            setError(
-              response.error ||
-                "This certificate has been revoked or deactivated.",
-            );
-          }
-        } else {
-          setError("Invalid certificate response format.");
-        }
-      } catch (err: unknown) {
-        setError(
-          err instanceof Error
-            ? err.message
-            : "Certificate Not Found or Invalid Hash.",
-        );
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    if (hash) {
-      verifyHash();
-    } else {
-      setLoading(false);
-      setError("");
-      setData(null);
-    }
-  }, [hash]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     const cleanHash = searchHash.trim();
-    if (!cleanHash) {
-      setError("Please enter a certificate hash to search.");
+    if (!isCertificateHash(cleanHash)) {
+      setError(
+        "Please enter a valid certificate hash: 1–64 letters, numbers, hyphens or underscores.",
+      );
       return;
     }
-    navigate(`/verify/${cleanHash}`);
+    setError("");
+    navigate(`/verify/${encodeURIComponent(cleanHash)}`);
   };
 
   // 1. Loading State
@@ -150,6 +106,7 @@ export function VerifyCertificatePage() {
                   <Hash className="absolute left-4 top-1/2 -translate-y-1/2 h-5 w-5 text-muted" />
                   <input
                     type="text"
+                    aria-label="Certificate verification hash"
                     placeholder="Enter Certificate Hash..."
                     value={searchHash}
                     onChange={(e) => setSearchHash(e.target.value)}
@@ -199,23 +156,8 @@ export function VerifyCertificatePage() {
       </div>
 
       <div className="w-full max-w-3xl bg-white border-4 border-black rounded-2xl p-8 sm:p-12 shadow-card certificate-printable">
-        {error && !data ? (
-          /* Case 3a: Non-existent hash (404 Error) */
-          <div className="flex flex-col items-center text-center space-y-6">
-            <XCircle className="h-24 w-24 text-red-500" strokeWidth={2} />
-            <h1 className="text-4xl font-black text-black uppercase">
-              Invalid Certificate
-            </h1>
-            <p className="text-lg font-bold text-muted">
-              We couldn't verify this certificate. The hash might be incorrect,
-              expired, or tampered with.
-            </p>
-            <div className="bg-red-50 border-4 border-red-500 rounded-2xl p-4 w-full max-w-md">
-              <span className="font-bold text-red-700 break-all">
-                Hash: {hash}
-              </span>
-            </div>
-          </div>
+        {failure ? (
+          <VerificationError kind={failure} onRetry={retry} />
         ) : data && data.is_active === false ? (
           /* Case 3b: Revoked/Inactive Certificate */
           <div className="flex flex-col items-center space-y-10">

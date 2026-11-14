@@ -1,0 +1,54 @@
+{
+  "format_version": 1,
+  "modules": [
+    {
+      "id": "module-1",
+      "title": "Getting Started",
+      "description": "Sample module used by the import tests.",
+      "lessons": [
+        {
+          "slug": "sample-what-is-git",
+          "title": "What is Git?",
+          "description": "A short introduction to version control.",
+          "difficulty": "beginner",
+          "estimatedMinutes": 5,
+          "filePath": "module-1/what-is-git.md",
+          "quizzes": [
+            {
+              "question": "What does Git track?",
+              "options": ["Changes to files over time", "Network traffic"],
+              "answer": 0,
+              "explanation": "Git records a history of changes."
+            }
+          ]
+        },
+        {
+          "slug": "sample-first-commit",
+          "title": "Your First Commit",
+          "description": "Stage and commit a file.",
+          "difficulty": "beginner",
+          "estimatedMinutes": 8,
+          "filePath": "module-1/first-commit.md",
+          "prerequisites": ["sample-what-is-git"],
+          "quizzes": ["commit-basics"]
+        }
+      ]
+    },
+    {
+      "id": "module-2",
+      "title": "Branching",
+      "description": "Work in parallel.",
+      "lessons": [
+        {
+          "slug": "sample-branches",
+          "title": "Branches",
+          "description": "Create and switch branches.",
+          "difficulty": "intermediate",
+          "estimatedMinutes": 10,
+          "filePath": "module-2/branches.md",
+          "prerequisites": ["sample-first-commit"]
+        }
+      ]
+    }
+  ]
+}

@@ -6,6 +6,7 @@ from .views import (
     DirectMessageListView,
     MessageCreateView,
     MessageListView,
+    MessageSyncView,
     UserPublicKeyView,
 )
 
@@ -17,6 +18,11 @@ urlpatterns = [
         "rooms/<str:room_id>/messages/",
         MessageListView.as_view(),
         name="chat-message-list",
+    ),
+    path(
+        "rooms/<str:room_id>/messages/sync/",
+        MessageSyncView.as_view(),
+        name="chat-message-sync",
     ),
     path(
         "rooms/<str:room_id>/messages/send/",

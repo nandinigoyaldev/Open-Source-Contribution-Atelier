@@ -118,10 +118,22 @@ export function useChat({ roomId, token, username }: UseChatOptions) {
   const [onlineUsers, setOnlineUsers] = useState<OnlineUser[]>([]);
   const messageIdRef = useRef(0);
   const localUserIdRef = useRef<number | null>(null);
+  const lastSeenIdRef = useRef<number>(0);
 
   const localKeyPairRef = useRef<KeyPair | null>(null);
   const sharedKeysRef = useRef<Record<number, CryptoKey>>({});
   const knownUsersRef = useRef<Set<number>>(new Set());
+
+  const updateLastSeenId = (id: string | number | undefined) => {
+    if (typeof id === "number" && !isNaN(id)) {
+      lastSeenIdRef.current = Math.max(lastSeenIdRef.current, id);
+    } else if (typeof id === "string") {
+      const parsed = parseInt(id, 10);
+      if (!isNaN(parsed)) {
+        lastSeenIdRef.current = Math.max(lastSeenIdRef.current, parsed);
+      }
+    }
+  };
 
   // Fetch REST history and merge with live WebSocket messages
   useEffect(() => {
@@ -139,17 +151,20 @@ export function useChat({ roomId, token, username }: UseChatOptions) {
         const rawList: ChatHistoryItem[] = Array.isArray(data)
           ? data
           : data?.results || [];
-        const formatted: ChatMessage[] = rawList.map((m) => ({
-          id: m.id,
-          parent_id: m.parent_id ?? m.parent ?? null,
-          username: m.username || "",
-          user_id: m.user_id ?? 0,
-          message: m.content || m.message || "",
-          timestamp: m.created_at
-            ? new Date(m.created_at).toLocaleTimeString()
-            : new Date().toLocaleTimeString(),
-          created_at: m.created_at,
-        }));
+        const formatted: ChatMessage[] = rawList.map((m) => {
+          updateLastSeenId(m.id);
+          return {
+            id: m.id,
+            parent_id: m.parent_id ?? m.parent ?? null,
+            username: m.username || "",
+            user_id: m.user_id ?? 0,
+            message: m.content || m.message || "",
+            timestamp: m.created_at
+              ? new Date(m.created_at).toLocaleTimeString()
+              : new Date().toLocaleTimeString(),
+            created_at: m.created_at,
+          };
+        });
         setMessages((prev) =>
           sortAndDeduplicateMessages([...prev, ...formatted]),
         );
@@ -169,6 +184,7 @@ export function useChat({ roomId, token, username }: UseChatOptions) {
     try {
       const msg = data as Record<string, unknown>;
       if (msg.type === "new_message") {
+        updateLastSeenId(msg.id as number | string | undefined);
         let plaintext = msg.message as string;
         const senderId = msg.user_id as number;
         const myId = localUserIdRef.current;
@@ -263,6 +279,30 @@ export function useChat({ roomId, token, username }: UseChatOptions) {
           };
           return sortAndDeduplicateMessages([...prev, incoming]);
         });
+      } else if (msg.type === "history_sync" && Array.isArray(msg.messages)) {
+        const rawList = msg.messages as Array<Record<string, unknown>>;
+        const incoming: ChatMessage[] = rawList.map((m) => {
+          const mId = (m.id as number | string) || 0;
+          updateLastSeenId(mId);
+          return {
+            id: mId,
+            parent_id: (m.parent_id as number | null) ?? null,
+            username: (m.username as string) || "",
+            user_id: (m.user_id as number) || 0,
+            message: (m.content as string) || (m.message as string) || "",
+            timestamp: m.created_at
+              ? new Date(m.created_at as string).toLocaleTimeString()
+              : new Date().toLocaleTimeString(),
+            created_at: m.created_at as string | undefined,
+          };
+        });
+
+        setMessages((prev) => {
+          if (msg.resync_required) {
+            return sortAndDeduplicateMessages(incoming);
+          }
+          return sortAndDeduplicateMessages([...prev, ...incoming]);
+        });
       }
     } catch (err) {
       console.error("Error processing incoming message", err);
@@ -286,6 +326,10 @@ export function useChat({ roomId, token, username }: UseChatOptions) {
       const handleMsg = async () => {
         if (msg.type === "connection_established") {
           localUserIdRef.current = msg.user_id as number;
+
+          if (lastSeenIdRef.current > 0) {
+            ws.send({ action: "sync_history", since_id: lastSeenIdRef.current });
+          }
 
           if (!localKeyPairRef.current) {
             localKeyPairRef.current = await generateKeyPair();
@@ -382,6 +426,14 @@ export function useChat({ roomId, token, username }: UseChatOptions) {
     [ws, username],
   );
 
+  const syncHistory = useCallback(
+    (sinceId?: number) => {
+      const targetId = sinceId ?? lastSeenIdRef.current;
+      ws.send({ action: "sync_history", since_id: targetId });
+    },
+    [ws],
+  );
+
   return {
     messages,
     typingUsers: typing.typingUsers,
@@ -390,6 +442,8 @@ export function useChat({ roomId, token, username }: UseChatOptions) {
     state: ws.state,
     getMetrics: ws.getMetrics,
     sendMessage,
+    syncHistory,
+    lastSeenId: lastSeenIdRef.current,
     onInputChange: typing.onInputChange,
     onInputBlur: typing.onInputBlur,
     onInputSubmit: typing.onInputSubmit,
