@@ -156,21 +156,58 @@ class ChatConsumer(AsyncWebsocketConsumer):
             )
         )
 
-        messages = await self.get_last_50_messages()
-        for msg in messages:
+        query_string = self.scope.get("query_string", b"").decode("utf-8")
+        since_id = None
+        if query_string:
+            from urllib.parse import parse_qs
+
+            params = parse_qs(query_string)
+            since_id_param = params.get(
+                "since_id", params.get("last_message_id", [None])
+            )[0]
+            if since_id_param:
+                try:
+                    since_id = int(since_id_param)
+                except (ValueError, TypeError):
+                    since_id = None
+
+        if since_id is not None and since_id > 0:
+            gap = await self.check_retention_gap(since_id)
+            messages = await self.get_messages_since(since_id)
+            latest_msg = (
+                await Message.objects.filter(room_id=self.room_id)
+                .order_by("-id")
+                .afirst()
+            )
+            latest_id = latest_msg.id if latest_msg else since_id
             await self.send(
                 text_data=json.dumps(
                     {
-                        "type": "new_message",
-                        "id": msg["id"],
-                        "parent_id": msg["parent_id"],
-                        "username": msg["username"],
-                        "user_id": msg["user_id"],
-                        "message": msg["content"],
-                        "created_at": msg["created_at"],
+                        "type": "history_sync",
+                        "room_id": self.room_id,
+                        "since_id": since_id,
+                        "latest_id": latest_id,
+                        "resync_required": gap,
+                        "messages": messages,
                     }
                 )
             )
+        else:
+            messages = await self.get_last_50_messages()
+            for msg in messages:
+                await self.send(
+                    text_data=json.dumps(
+                        {
+                            "type": "new_message",
+                            "id": msg["id"],
+                            "parent_id": msg["parent_id"],
+                            "username": msg["username"],
+                            "user_id": msg["user_id"],
+                            "message": msg["content"],
+                            "created_at": msg["created_at"],
+                        }
+                    )
+                )
 
         is_new = await self.add_user_to_presence()
         online_users = await self.get_online_users()
@@ -206,7 +243,7 @@ class ChatConsumer(AsyncWebsocketConsumer):
         return [
             {
                 "id": m.id,  # type: ignore
-                "parent_id": m.parent,
+                "parent_id": m.parent_id,
                 "username": m.user.username,
                 "user_id": m.user.id,  # type: ignore
                 "content": m.content,
@@ -214,6 +251,37 @@ class ChatConsumer(AsyncWebsocketConsumer):
             }
             for m in reversed(messages)
         ]
+
+    async def get_messages_since(self, since_id: int, limit: int = 100):
+        """Fetch messages in room created after `since_id` in ascending ID order."""
+        qs = (
+            Message.objects.select_related("user")
+            .filter(room_id=self.room_id, id__gt=since_id)
+            .order_by("id")[:limit]
+        )
+        messages = [m async for m in qs]
+        return [
+            {
+                "id": m.id,  # type: ignore
+                "parent_id": m.parent_id,
+                "username": m.user.username,
+                "user_id": m.user.id,  # type: ignore
+                "content": m.content,
+                "created_at": m.created_at.isoformat(),
+            }
+            for m in messages
+        ]
+
+    async def check_retention_gap(self, since_id: int) -> bool:
+        """Check if since_id is older than the oldest message in the room (indicating a purge or retention gap)."""
+        oldest = (
+            await Message.objects.filter(room_id=self.room_id)
+            .order_by("id")
+            .afirst()
+        )
+        if oldest and since_id < oldest.id:
+            return True
+        return False
 
     async def save_message(self, user, room_id, content, parent_id=None):
         return await Message.objects.acreate(
@@ -376,6 +444,38 @@ class ChatConsumer(AsyncWebsocketConsumer):
 
         elif action == "ping":
             await self.send(text_data=json.dumps({"type": "pong"}))
+
+        elif action in ["sync_history", "history_sync"]:
+            since_id = data.get("since_id") or data.get("last_message_id") or 0
+            try:
+                since_id = int(since_id)
+            except (ValueError, TypeError):
+                since_id = 0
+
+            gap = False
+            if since_id > 0:
+                gap = await self.check_retention_gap(since_id)
+
+            messages = await self.get_messages_since(since_id, limit=100)
+            latest_msg = (
+                await Message.objects.filter(room_id=self.room_id)
+                .order_by("-id")
+                .afirst()
+            )
+            latest_id = latest_msg.id if latest_msg else since_id
+
+            await self.send(
+                text_data=json.dumps(
+                    {
+                        "type": "history_sync",
+                        "room_id": self.room_id,
+                        "since_id": since_id,
+                        "latest_id": latest_id,
+                        "resync_required": gap,
+                        "messages": messages,
+                    }
+                )
+            )
 
         elif action == "send_message":
             content = data.get("message", "")
