@@ -41,10 +41,12 @@ def api_versions_view(request):
     from django.conf import settings
 
     discovery_map = getattr(settings, "API_VERSION_DISCOVERY", {})
+    deprecated_versions = getattr(settings, "DEPRECATED_API_VERSIONS", {})
     default_version = getattr(settings, "DEFAULT_API_VERSION", "1.0")
 
     versions_list = []
     for ver_name, ver_info in discovery_map.items():
+        lifecycle = deprecated_versions.get(ver_name, {})
         versions_list.append(
             {
                 "version": ver_name,
@@ -52,8 +54,10 @@ def api_versions_view(request):
                 "changelog_url": ver_info.get(
                     "changelog_url", f"/docs/changelog/v{ver_name}"
                 ),
-                "sunset": ver_info.get("sunset"),
-                "deprecation": ver_info.get("deprecation"),
+                "sunset": lifecycle.get("sunset", ver_info.get("sunset")),
+                "deprecation": lifecycle.get(
+                    "deprecation", ver_info.get("deprecation")
+                ),
             }
         )
 

@@ -1,5 +1,5 @@
 import re
-from typing import Dict, List, Optional, Tuple
+from typing import Dict, List, Optional
 
 from django.conf import settings
 from django.http import HttpRequest
@@ -17,10 +17,15 @@ def parse_version_from_accept_header(accept_header: str) -> Optional[str]:
 
     # Match version=<val> in Accept header parameters
     match = re.search(
-        r";\s*version=['\"]?v?(\d+(?:\.\d+)?)['\"]?", accept_header, re.IGNORECASE
+        r";\s*version\s*=\s*([^;,]*)",
+        accept_header,
+        re.IGNORECASE,
     )
     if match:
-        return match.group(1)
+        value = match.group(1).strip()
+        if len(value) >= 2 and value[0] in "\"'" and value[-1] == value[0]:
+            value = value[1:-1]
+        return re.sub(r"^v(?=\d)", "", value, flags=re.IGNORECASE)
     return None
 
 
@@ -49,9 +54,7 @@ class AcceptHeaderOrURLVersioning(versioning.BaseVersioning):
     and falls back to DEFAULT_API_VERSION.
     """
 
-    def determine_version(
-        self, request: HttpRequest, *args, **kwargs
-    ) -> Tuple[Optional[str], Optional[versioning.BaseVersioning]]:
+    def determine_version(self, request: HttpRequest, *args, **kwargs) -> str:
         allowed_versions: List[str] = getattr(settings, "ALLOWED_API_VERSIONS", ["1.0"])
         default_version: str = getattr(settings, "DEFAULT_API_VERSION", "1.0")
 
@@ -60,11 +63,11 @@ class AcceptHeaderOrURLVersioning(versioning.BaseVersioning):
         version = parse_version_from_accept_header(accept_header)
 
         # 2. Check URL path (e.g., /api/v1/...)
-        if not version:
+        if version is None:
             version = parse_version_from_url_path(request.path_info)
 
         # 3. Fallback to default
-        if not version:
+        if version is None:
             version = default_version
 
         # 4. Standardize version string
@@ -77,7 +80,7 @@ class AcceptHeaderOrURLVersioning(versioning.BaseVersioning):
                 f"Invalid API version '{version}'. Supported versions are: {', '.join(allowed_versions)}."
             )
 
-        return version, self
+        return version
 
 
 class VersionedAPIRouter:
