@@ -473,3 +473,41 @@ class WebAuthnCredential(models.Model):
         return (
             f"WebAuthnCredential(user={self.user.username}, nickname={self.nickname})"
         )
+
+
+class AccountDeletionRequest(models.Model):
+    """
+    Tracks account deletion requests, grace periods, and outcomes.
+    """
+
+    STATUS_PENDING = "pending"
+    STATUS_CANCELLED = "cancelled"
+    STATUS_COMPLETED = "completed"
+
+    STATUS_CHOICES = [
+        (STATUS_PENDING, "Pending"),
+        (STATUS_CANCELLED, "Cancelled"),
+        (STATUS_COMPLETED, "Completed"),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="account_deletion_requests",
+    )
+    status = models.CharField(
+        max_length=20, choices=STATUS_CHOICES, default=STATUS_PENDING, db_index=True
+    )
+    requested_at = models.DateTimeField(auto_now_add=True)
+    scheduled_for = models.DateTimeField()
+    completed_at = models.DateTimeField(null=True, blank=True)
+    reason = models.TextField(blank=True, default="")
+
+    class Meta:
+        db_table = "accounts_accountdeletionrequest"
+        ordering = ["-requested_at"]
+
+    def __str__(self):
+        return f"AccountDeletionRequest(user={self.user_id}, status={self.status})"
+
