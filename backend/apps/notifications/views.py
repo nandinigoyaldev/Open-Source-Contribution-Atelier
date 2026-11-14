@@ -4,6 +4,7 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .models import Notification, NotificationPreference, PushSubscription
+from .pagination import NotificationCursorPagination
 from .serializers import NotificationSerializer, PushSubscriptionSerializer
 
 
@@ -96,6 +97,17 @@ class NotificationListView(generics.ListAPIView):
     serializer_class = NotificationSerializer
     permission_classes = [permissions.IsAuthenticated]
     pagination_class = NotificationPagination
+
+    @property
+    def paginator(self):
+        if not hasattr(self, "_paginator"):
+            params = getattr(getattr(self, "request", None), "query_params", {})
+            use_cursor = params.get("pagination") == "cursor" or "cursor" in params
+            pagination_class = (
+                NotificationCursorPagination if use_cursor else self.pagination_class
+            )
+            self._paginator = pagination_class()
+        return self._paginator
 
     def get_queryset(self):
         return (
