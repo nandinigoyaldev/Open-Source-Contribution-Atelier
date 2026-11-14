@@ -1,4 +1,5 @@
-from datetime import date, datetime
+from datetime import date, datetime, timezone
+from unittest.mock import patch
 
 import pytest
 from django.contrib.auth import get_user_model
@@ -100,3 +101,76 @@ class TestWeekendXpBonusMultiplier:
         res_sun = StreakEngine.record_activity(self.user, sun)
         assert res_sun["current_streak"] == 2
         assert "effective_multiplier" in res_sun
+
+    def test_streak_status_and_getter_frozen_clock_weekday_and_weekend(self):
+        # 7-day streak base milestone is 1.25x
+        self.profile.current_streak = 7  # type: ignore[assignment]
+        self.profile.longest_streak = 7  # type: ignore[assignment]
+        self.profile.save()
+
+        # Friday: expected=1.25, effective_multiplier=1.25, is_weekend=False
+        friday = datetime(2026, 8, 21, 12, tzinfo=timezone.utc)
+        with patch("django.utils.timezone.now", return_value=friday):
+            data_fri = StreakEngine.get_streak_data(self.user)
+            getter_fri = StreakEngine.get_multiplier_for_user(self.user)
+            expected_fri = StreakEngine.get_multiplier_for_streak(7, friday.date())
+            assert expected_fri == 1.25
+            assert data_fri["effective_multiplier"] == 1.25
+            assert getter_fri == 1.25
+            assert data_fri["is_weekend_event"] is False
+
+        # Saturday: expected=1.88, effective_multiplier=1.88 (not 2.82), is_weekend=True
+        saturday = datetime(2026, 8, 22, 12, tzinfo=timezone.utc)
+        with patch("django.utils.timezone.now", return_value=saturday):
+            data_sat = StreakEngine.get_streak_data(self.user)
+            getter_sat = StreakEngine.get_multiplier_for_user(self.user)
+            expected_sat = StreakEngine.get_multiplier_for_streak(7, saturday.date())
+            assert expected_sat == 1.88
+            assert data_sat["effective_multiplier"] == 1.88
+            assert getter_sat == 1.88
+            assert data_sat["is_weekend_event"] is True
+
+        # Sunday: expected=1.88, effective_multiplier=1.88 (not 2.82), is_weekend=True
+        sunday = datetime(2026, 8, 23, 12, tzinfo=timezone.utc)
+        with patch("django.utils.timezone.now", return_value=sunday):
+            data_sun = StreakEngine.get_streak_data(self.user)
+            getter_sun = StreakEngine.get_multiplier_for_user(self.user)
+            expected_sun = StreakEngine.get_multiplier_for_streak(7, sunday.date())
+            assert expected_sun == 1.88
+            assert data_sun["effective_multiplier"] == 1.88
+            assert getter_sun == 1.88
+            assert data_sun["is_weekend_event"] is True
+
+        # Monday: expected=1.25, effective_multiplier=1.25, is_weekend=False
+        monday = datetime(2026, 8, 24, 12, tzinfo=timezone.utc)
+        with patch("django.utils.timezone.now", return_value=monday):
+            data_mon = StreakEngine.get_streak_data(self.user)
+            getter_mon = StreakEngine.get_multiplier_for_user(self.user)
+            expected_mon = StreakEngine.get_multiplier_for_streak(7, monday.date())
+            assert expected_mon == 1.25
+            assert data_mon["effective_multiplier"] == 1.25
+            assert getter_mon == 1.25
+            assert data_mon["is_weekend_event"] is False
+
+    def test_get_multiplier_for_user_explicit_date_differs_from_system_date(self):
+        # 7-day streak base milestone is 1.25x
+        self.profile.current_streak = 7  # type: ignore[assignment]
+        self.profile.save()
+
+        # System clock frozen on Saturday (weekend)
+        saturday_sys = datetime(2026, 8, 22, 12, tzinfo=timezone.utc)
+        with patch("django.utils.timezone.now", return_value=saturday_sys):
+            # Querying with explicit weekday date must return weekday multiplier 1.25x
+            explicit_monday = date(2026, 8, 24)
+            assert (
+                StreakEngine.get_multiplier_for_user(self.user, explicit_monday) == 1.25
+            )
+
+        # System clock frozen on Wednesday (weekday)
+        wednesday_sys = datetime(2026, 8, 19, 12, tzinfo=timezone.utc)
+        with patch("django.utils.timezone.now", return_value=wednesday_sys):
+            # Querying with explicit weekend date must return weekend multiplier 1.88x
+            explicit_sunday = date(2026, 8, 23)
+            assert (
+                StreakEngine.get_multiplier_for_user(self.user, explicit_sunday) == 1.88
+            )
