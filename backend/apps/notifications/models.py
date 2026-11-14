@@ -61,6 +61,8 @@ class Notification(models.Model):
 
 
 class NotificationPreference(models.Model):
+    objects = models.Manager()
+
     DIGEST_CHOICES = [
         ("none", "None"),
         ("daily", "Daily"),
@@ -109,6 +111,9 @@ class NotificationDelivery(models.Model):
         ("bounced", "Bounced"),
         ("opened", "Opened"),
         ("clicked", "Clicked"),
+        ("digest_pending", "Waiting for weekly digest"),
+        ("batched", "Included in weekly digest"),
+        ("cancelled", "Cancelled"),
     ]
 
     objects = models.Manager()
@@ -134,6 +139,13 @@ class NotificationDelivery(models.Model):
     dedupe_key = models.CharField(max_length=128, null=True, blank=True)
     # Snapshot of what is delivered, so a retry or crash recovery does not depend on task arguments.
     payload = models.JSONField(default=dict, blank=True)
+    digest_batch = models.ForeignKey(
+        "self",
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="digest_items",
+    )
     # Set while a worker is delivering; another worker may take over once the lease has expired.
     claimed_at = models.DateTimeField(null=True, blank=True)
     last_attempt_at = models.DateTimeField(null=True, blank=True)
