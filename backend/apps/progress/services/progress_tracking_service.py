@@ -121,6 +121,7 @@ class ProgressTrackingService:
                     )
                     return progress, False, True
 
+            outcome = APPLY
             if created:
                 if progress.score != 0:
                     XPEvent.objects.create(
@@ -168,7 +169,7 @@ class ProgressTrackingService:
                 )
             )
 
-            if completed:
+            if completed and outcome == APPLY:
                 try:
                     local_date = user.user_profile.local_today
                 except Exception:

@@ -531,15 +531,18 @@ class DailyActivity(models.Model):
 
         # Ensure deterministic behavior under concurrency.
         with transaction.atomic():
+            streak_profile, _ = StreakProfile.objects.select_for_update().get_or_create(
+                user=user
+            )
             obj, created = cls.objects.get_or_create(
                 user=user,
                 date=date,
                 defaults={"activity_type": activity_type},
             )
 
-            streak_profile, _ = StreakProfile.objects.get_or_create(user=user)
-
-            if created:
+            # Older signal writers and StreakEngine may have counted this date
+            # before it was recorded in the activity ledger.
+            if created and streak_profile.last_activity_date != date:
                 yesterday = date - timezone.timedelta(days=1)
                 yesterday_exists = cls.objects.filter(
                     user=user, date=yesterday
