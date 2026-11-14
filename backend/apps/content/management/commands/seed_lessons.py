@@ -573,7 +573,8 @@ class Command(BaseCommand):
         updated_count = 0
 
         with transaction.atomic():
-            for lesson_data in CURRICULUM_LESSONS:
+            for definition in CURRICULUM_LESSONS:
+                lesson_data = definition.copy()
                 exercises_data = lesson_data.pop("exercises", [])
                 slug = lesson_data["slug"]
 
