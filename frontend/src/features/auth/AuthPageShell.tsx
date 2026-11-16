@@ -72,7 +72,7 @@ export function AuthPageShell({
       </header>
 
       {/* Main Content Area: Vertically centered; scrolls when content exceeds viewport */}
-      <main className="w-full max-w-6xl mx-auto px-4 sm:px-6 py-1 flex-1 flex items-center justify-center relative z-10">
+      <main id="main-content" tabIndex={-1} className="w-full max-w-6xl mx-auto px-4 sm:px-6 py-1 flex-1 flex items-center justify-center relative z-10">
         <div className="w-full flex flex-col lg:flex-row gap-6 lg:gap-12 items-center justify-center">
           {/* LEFT SIDE: Brand Features & Community Showcase */}
           <div className="flex-1 hidden lg:flex flex-col justify-center max-w-lg">
