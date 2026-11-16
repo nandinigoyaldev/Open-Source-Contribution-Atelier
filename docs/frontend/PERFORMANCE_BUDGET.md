@@ -35,6 +35,9 @@ listed route and applies `defaultMaxGzipKB` to other route chunks. A missing or
 renamed required chunk fails with the route name. An oversized chunk fails with
 its artifact filename, measured size, and limit.
 
+The signup route currently carries a large chunk (386.2 KiB gzip in the initial
+CI build), so it has a separate 420 KiB limit until the route can be split.
+
 Run `npm run check:route-chunks` after `npm run build:client` (or `npm run build`).
 When a route is renamed, update `requiredRoutes` in the budget file in the same
 PR; set limits just above the measured baseline and lower them as chunks shrink.

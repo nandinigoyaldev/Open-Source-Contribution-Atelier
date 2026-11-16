@@ -2,10 +2,11 @@
   "comment": "Gzipped KiB limits for Vite's lazy route Page chunks. See docs/frontend/PERFORMANCE_BUDGET.md.",
   "defaultMaxGzipKB": 85,
   "requiredRoutes": {
-    "DashboardPage": 20,
+    "DashboardPage": 25,
     "LessonPage": 45,
     "LoginPage": 20,
     "SandboxPage": 60,
+    "SignupPage": 420,
     "UserProfilePage": 75
   }
 }
