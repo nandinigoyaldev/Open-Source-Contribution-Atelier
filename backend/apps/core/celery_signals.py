@@ -67,3 +67,5 @@ def set_request_id_in_task(task_id, task, *args, **kwargs):
 def cleanup_request_id_in_task(task_id, task, *args, **kwargs):
     if hasattr(_thread_locals, "request_id"):
         _thread_locals.request_id = None
+    if hasattr(_thread_locals, "correlation_id"):
+        _thread_locals.correlation_id = None

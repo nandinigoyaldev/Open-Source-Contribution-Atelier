@@ -152,10 +152,9 @@ class StreakEngine:
         """Return the current effective streak multiplier for a user including weekend bonus."""
         try:
             profile = StreakProfile.objects.get(user=user)
-            base = profile.current_multiplier
-            if cls.is_weekend_event(current_date):
-                return round(base * 1.5, 2)
-            return base
+            return cls.get_multiplier_for_streak(
+                getattr(profile, "current_streak"), current_date
+            )
         except StreakProfile.DoesNotExist:
             return 1.5 if cls.is_weekend_event(current_date) else 1.0
 
@@ -241,10 +240,8 @@ class StreakEngine:
         progress_pct = cls.compute_milestone_progress(profile.current_streak)
 
         is_weekend = cls.is_weekend_event()
-        effective_mult = (
-            round(profile.current_multiplier * 1.5, 2)
-            if is_weekend
-            else profile.current_multiplier
+        effective_mult = cls.get_multiplier_for_streak(
+            getattr(profile, "current_streak")
         )
 
         return {
@@ -277,10 +274,8 @@ class StreakEngine:
     def _build_result(profile: StreakProfile, multiplier_unlocked: bool) -> dict:
         next_ms = StreakEngine.get_next_milestone(profile.current_streak)
         is_weekend = StreakEngine.is_weekend_event()
-        effective_mult = (
-            round(profile.current_multiplier * 1.5, 2)
-            if is_weekend
-            else profile.current_multiplier
+        effective_mult = StreakEngine.get_multiplier_for_streak(
+            getattr(profile, "current_streak")
         )
 
         return {

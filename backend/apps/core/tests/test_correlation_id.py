@@ -97,3 +97,9 @@ class CorrelationIdTests(TestCase):
         self.assertEqual(get_correlation_id(), test_corr_id)
         cleanup_request_id_in_task("task-uuid-1", task)
         self.assertIsNone(get_correlation_id())
+        self.assertIsNone(get_request_id())
+
+        # A subsequent publish in this worker must not inherit the finished task.
+        next_headers = {}
+        add_request_id_to_task(headers=next_headers)
+        self.assertEqual(next_headers, {})
