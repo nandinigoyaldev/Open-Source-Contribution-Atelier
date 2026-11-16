@@ -14,6 +14,7 @@ hops so only the real client IP is used for throttle keys.
 
 import logging
 import time
+from collections.abc import Mapping
 from typing import Tuple
 
 from django.conf import settings as django_settings
@@ -102,6 +103,20 @@ class RedisLuaRateLimiter:
 
 
 from apps.core.throttling import SlidingWindowAnonThrottle, ThrottleStateMixin
+
+
+def body_field(data, key):
+    """
+    Read ``key`` from a request body, or ``None`` if the body is not an object.
+
+    Throttles run before any serializer, so ``request.data`` can be whatever
+    JSON the caller sent (a list, a string, a number). Only a mapping has
+    ``.get``; for anything else return ``None`` and let the view's serializer
+    answer with its normal 400.
+    """
+    if isinstance(data, Mapping):
+        return data.get(key)
+    return None
 
 
 def _get_real_ip(request) -> str:
@@ -279,7 +294,7 @@ class StrictIdentityLoginThrottle(SlidingWindowAnonThrottle):
     scope = "auth_login"
 
     def get_ident(self, request):
-        identity = request.data.get("username")
+        identity = body_field(request.data, "username")
         if identity:
             return str(identity).strip().lower()
         return _get_real_ip(request)
@@ -319,7 +334,7 @@ class StrictIdentityPasswordResetThrottle(SlidingWindowAnonThrottle):
         }
 
     def get_ident(self, request):
-        email = request.data.get("email")
+        email = body_field(request.data, "email")
         if email:
             return str(email).strip().lower()
         return _get_real_ip(request)
@@ -351,7 +366,7 @@ class StrictIdentityMagicLinkThrottle(SlidingWindowAnonThrottle):
     scope = "auth_magic_link_request"
 
     def get_ident(self, request):
-        email = request.data.get("email")
+        email = body_field(request.data, "email")
         if email:
             return str(email).strip().lower()
         return _get_real_ip(request)
@@ -376,14 +391,14 @@ class StrictIdentityResendVerificationThrottle(SlidingWindowAnonThrottle):
     scope = "auth_email_verification_resend"
 
     def get_ident(self, request):
-        email = request.data.get("email")
+        email = body_field(request.data, "email")
         if email:
             return str(email).strip().lower()
         # A resend from an expired link has no email. Falling back to the IP
         # would land in the same bucket as ResendVerificationThrottle and
         # count every request twice, so use the link's payload (the account
         # it was issued for) instead.
-        key = request.data.get("key")
+        key = body_field(request.data, "key")
         if key:
             return "key:" + str(key).split(":", 1)[0][:200]
         return _get_real_ip(request)
