@@ -52,6 +52,9 @@ Example event as returned by `GET /api/admin/audit/<id>/` (trimmed):
 | `user.role_revoked` | `deleted` | `auth.user` | `POST /api/rbac/revoke/` | `role_id`, `role_name`, `organization_id`. |
 | `billing.reconcile_run` | `created` | `billing.reconciliation` (the run id) | `reconcile_billing` command, dry run or `--apply` | `dry_run`, counts, and the mismatches found. |
 | `billing.reconcile_repair` | `created` or `updated` | `billing.customersubscription` or `billing.invoice` | `reconcile_billing --apply` | `run_id`, `kind`, Stripe ids, and the local and Stripe value of each changed field. |
+| `task_run.retried` | `updated` | `monitoring.taskrun` | `POST /api/admin/celery-task-runs/<id>/retry/` | `task_id`, `task_name`, `from_status`, `to_status`, `retry_count`, `new_task_id`. |
+| `task_run.cancelled` | `updated` | `monitoring.taskrun` | `POST /api/admin/celery-task-runs/<id>/cancel/` | `task_id`, `task_name`, `from_status`, `to_status`, `terminated`. |
+| `task_run.marked_stuck` | `updated` | `monitoring.taskrun` | the stuck-run reaper (no actor) | `task_id`, `task_name`, `from_status`, `to_status`, `lease_expires_at`. |
 
 Notes:
 

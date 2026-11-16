@@ -9,6 +9,7 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from apps.monitoring import job_ops
 from apps.monitoring.celery_monitor import get_celery_stats, get_task_type_stats
 from apps.monitoring.models import BackupVerification, TaskRun
 from apps.monitoring.serializers import BackupVerificationSerializer, TaskRunSerializer
@@ -64,7 +65,7 @@ class TaskTypeStatsView(APIView):
     API endpoint that exposes per-task-type statistics, top 5 failing tasks, and 24h sparkline data.
     """
 
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAdminUser]
 
     def get(self, request):
         data = get_task_type_stats()
@@ -76,7 +77,7 @@ class TriggerTaskView(APIView):
     API endpoint to dispatch or simulate a Celery background task for testing.
     """
 
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAdminUser]
 
     def post(self, request):
         task_name = request.data.get("task_name", "tasks.generate_pdf_report")
@@ -105,10 +106,10 @@ class TriggerTaskView(APIView):
 
 class TaskRunViewSet(viewsets.ReadOnlyModelViewSet):
     """
-    API endpoint to list and search recent Celery TaskRuns.
+    API endpoint for operators to list, search, retry and cancel recent Celery TaskRuns.
     """
 
-    permission_classes = [permissions.IsAuthenticated]
+    permission_classes = [permissions.IsAdminUser]
     serializer_class = TaskRunSerializer
 
     def get_queryset(self):
@@ -147,47 +148,23 @@ class TaskRunViewSet(viewsets.ReadOnlyModelViewSet):
 
         return qs
 
-    @action(detail=True, methods=["post"], permission_classes=[permissions.IsAdminUser])
+    @action(detail=True, methods=["post"])
     def retry(self, request, pk=None):
         """
-        Idempotent and permission-protected action to retry a task run.
+        Re-dispatch a failed, stuck or cancelled run. Idempotent: repeating it while the
+        retry is in flight answers ``already_queued`` and dispatches nothing. Audited.
         """
-        task_run = self.get_object()
+        run = self.get_object()
+        result = job_ops.retry_run(run, request)
+        return Response(result.body(run), status=result.http)
 
-        # Idempotency check: if the task is already pending or started within the last 60 seconds
-        if task_run.status in [
-            "PENDING",
-            "STARTED",
-        ] and task_run.started_at >= timezone.now() - timedelta(seconds=60):
-            return Response(
-                {
-                    "status": "already_queued",
-                    "task_id": task_run.task_id,
-                    "retry_count": task_run.retry_count,
-                    "message": f"Task '{task_run.task_name}' is already {task_run.status.lower()}.",
-                },
-                status=status.HTTP_200_OK,
-            )
-
-        task_run.status = "RETRY"
-        task_run.retry_count += 1
-        task_run.started_at = timezone.now()
-        task_run.save()
-
-        # Attempt to dispatch task with Celery if available
-        try:
-            from celery import current_app
-
-            current_app.send_task(task_run.task_name)
-        except Exception:
-            pass
-
-        return Response(
-            {
-                "status": "queued",
-                "task_id": task_run.task_id,
-                "retry_count": task_run.retry_count,
-                "message": f"Task '{task_run.task_name}' dispatched for retry.",
-            },
-            status=status.HTTP_202_ACCEPTED,
-        )
+    @action(detail=True, methods=["post"])
+    def cancel(self, request, pk=None):
+        """
+        Cancel a queued, retrying or stuck run. Idempotent: cancelling a cancelled run
+        answers ``already_cancelled``. A running run is refused until its lease expires.
+        Audited.
+        """
+        run = self.get_object()
+        result = job_ops.cancel_run(run, request)
+        return Response(result.body(run), status=result.http)

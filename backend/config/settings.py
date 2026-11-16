@@ -1194,6 +1194,11 @@ NOTIFICATION_FAILED_RETENTION_DAYS = int(
     os.getenv("NOTIFICATION_FAILED_RETENTION_DAYS", "180")
 )
 
+# ── Background job leases (see docs/JOB_OPERATIONS.md) ──
+# A running task with no time_limit that has not finished or sent a heartbeat for this long
+# is marked STUCK by the reaper. Tasks with a time_limit get that limit plus a short grace.
+TASK_RUN_LEASE_SECONDS = int(os.getenv("TASK_RUN_LEASE_SECONDS", "900"))
+
 # ── Resumable data exports (see docs/DATA_EXPORTS.md) ──
 # Where export files are written. Must be a private directory that is not served publicly, and
 # shared between the web and worker hosts when they are different machines.
@@ -1245,5 +1250,9 @@ CELERY_BEAT_SCHEDULE = {
     "sweep-data-exports": {
         "task": "data_exports.sweep_exports",
         "schedule": 120.0,
+    },
+    "reap-stuck-task-runs": {
+        "task": "monitoring.reap_stuck_task_runs",
+        "schedule": 60.0,
     },
 }

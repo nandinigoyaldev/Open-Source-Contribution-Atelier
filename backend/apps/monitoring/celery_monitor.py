@@ -1,20 +1,69 @@
+# pyright: reportAttributeAccessIssue=false, reportIndexIssue=false, reportOperatorIssue=false, reportArgumentType=false, reportReturnType=false, reportGeneralTypeIssues=false
 import logging
 import os
 from datetime import timedelta
 
-from celery.signals import task_failure, task_postrun, task_prerun, task_retry
-from django.db import models
+from celery.signals import (
+    before_task_publish,
+    task_failure,
+    task_postrun,
+    task_prerun,
+    task_retry,
+)
+from django.db import models, transaction
 from django.utils import timezone
 
+from apps.audit.redaction import redact_string
+from apps.monitoring.job_ops import lease_seconds_for
 from apps.monitoring.models import TaskRun
 from apps.monitoring.utils.redaction import format_redacted_args
 
 logger = logging.getLogger(__name__)
 
 
+def get_queue_age_stats(now=None):
+    """
+    Age of the oldest run still waiting for a worker, from the publish time recorded
+    by ``before_task_publish``, plus how many runs are waiting and how many are stuck.
+    """
+    now = now or timezone.now()
+    waiting = TaskRun.objects.filter(status="PENDING", queued_at__isnull=False)
+    oldest = waiting.aggregate(oldest=models.Min("queued_at"))["oldest"]
+    return {
+        "pending_runs": waiting.count(),
+        "oldest_queued_age_seconds": (
+            round((now - oldest).total_seconds(), 1) if oldest else None
+        ),
+        "stuck_runs": TaskRun.objects.filter(status="STUCK").count(),
+    }
+
+
+def get_worker_heartbeat(alive_workers):
+    """
+    Worker health from two sources: workers that answered a ping just now, and the last
+    heartbeat that running tasks reported. ``down`` means no worker answered,
+    ``degraded`` means workers answer but some run lost its lease.
+    """
+    running = TaskRun.objects.filter(status__in=["STARTED", "STUCK"])
+    last_beat = running.aggregate(last=models.Max("heartbeat_at"))["last"]
+    stuck = TaskRun.objects.filter(status="STUCK").exists()
+    if not alive_workers:
+        health = "down"
+    elif stuck:
+        health = "degraded"
+    else:
+        health = "healthy"
+    return {
+        "status": health,
+        "workers_alive": sorted(alive_workers),
+        "last_task_heartbeat_at": last_beat.isoformat() if last_beat else None,
+    }
+
+
 def get_celery_stats():
     """
-    Exposes Celery metrics: queue depth, worker count, active tasks, reserved tasks.
+    Exposes Celery metrics: queue depth, worker count, active tasks, reserved tasks,
+    queue age and worker heartbeat health.
     Gracefully handles Redis/Broker connection failures.
     """
     stats_data = {
@@ -24,12 +73,15 @@ def get_celery_stats():
         "total_queue_depth": 0,
         "queues": {},
     }
+    alive_workers = []
 
     # 1. Attempt worker inspection
     try:
         from celery import current_app
 
         inspect = current_app.control.inspect(timeout=1.0)
+
+        alive_workers = list(inspect.ping() or {})
 
         # Workers & Active tasks
         active = inspect.active()
@@ -66,6 +118,8 @@ def get_celery_stats():
     except Exception as e:
         logger.warning(f"Failed to fetch Celery queue lengths from Redis: {e}")
 
+    stats_data.update(get_queue_age_stats())
+    stats_data["worker_heartbeat"] = get_worker_heartbeat(alive_workers)
     return stats_data
 
 
@@ -98,7 +152,7 @@ def broadcast_task_update(task_run):
                             else None
                         ),
                         "duration": task_run.duration,
-                        "error_message": task_run.error_message,
+                        "error_message": redact_string(task_run.error_message),
                         "retry_count": task_run.retry_count,
                     },
                 },
@@ -108,6 +162,40 @@ def broadcast_task_update(task_run):
 
 
 # Signal Listeners for automatic Celery Task monitoring
+@before_task_publish.connect
+def on_task_publish(sender=None, headers=None, body=None, **kw):
+    """
+    Record a PENDING run when a message is published, so queued jobs and queue age are
+    visible before a worker picks them up. A task that is republished under the same id
+    (a Celery retry) already has its run and is left alone.
+    """
+    headers = headers or {}
+    task_id = headers.get("id")
+    if not task_id:
+        return
+    args = kwargs = None
+    if isinstance(body, (list, tuple)) and len(body) >= 2:
+        args, kwargs = body[0], body[1]
+    elif isinstance(body, dict):
+        args, kwargs = body.get("args"), body.get("kwargs")
+    try:
+        # The savepoint keeps a failed insert from breaking a transaction the
+        # publishing request may be in the middle of.
+        with transaction.atomic():
+            TaskRun.objects.get_or_create(
+                task_id=task_id,
+                defaults={
+                    "task_name": headers.get("task") or sender or "unknown_task",
+                    "correlation_id": str(headers.get("correlation_id") or ""),
+                    "status": "PENDING",
+                    "queued_at": timezone.now(),
+                    "args_summary": format_redacted_args(args=args, kwargs=kwargs),
+                },
+            )
+    except Exception as e:
+        logger.error(f"Error handling before_task_publish signal for {task_id}: {e}")
+
+
 @task_prerun.connect
 def on_task_prerun(sender=None, task_id=None, task=None, args=None, kwargs=None, **kw):
     if not task_id:
@@ -136,6 +224,11 @@ def on_task_prerun(sender=None, task_id=None, task=None, args=None, kwargs=None,
         except Exception:
             pass
 
+    now = timezone.now()
+    lease = {
+        "heartbeat_at": now,
+        "lease_expires_at": now + timedelta(seconds=lease_seconds_for(task)),
+    }
     try:
         task_run, created = TaskRun.objects.get_or_create(
             task_id=task_id,
@@ -143,14 +236,17 @@ def on_task_prerun(sender=None, task_id=None, task=None, args=None, kwargs=None,
                 "task_name": task_name,
                 "correlation_id": corr_id,
                 "status": "STARTED",
-                "started_at": timezone.now(),
+                "started_at": now,
                 "args_summary": args_repr,
+                **lease,
             },
         )
         if not created:
             task_run.status = "STARTED"
-            task_run.started_at = timezone.now()
+            task_run.started_at = now
             task_run.args_summary = args_repr
+            task_run.heartbeat_at = lease["heartbeat_at"]
+            task_run.lease_expires_at = lease["lease_expires_at"]
             if corr_id and not task_run.correlation_id:
                 task_run.correlation_id = corr_id
             task_run.save()
@@ -177,12 +273,13 @@ def on_task_postrun(
             task_run = TaskRun(task_id=task_id, task_name=task_name, started_at=now)
 
         task_run.finished_at = now
+        task_run.lease_expires_at = None
         if task_run.started_at:
             task_run.duration = round((now - task_run.started_at).total_seconds(), 4)
 
         if state and state.upper() in ["SUCCESS", "FAILURE", "RETRY"]:
             task_run.status = state.upper()
-        elif not task_run.status or task_run.status == "STARTED":
+        elif not task_run.status or task_run.status in ("STARTED", "STUCK"):
             task_run.status = "SUCCESS"
 
         task_run.save()
@@ -206,6 +303,7 @@ def on_task_failure(sender=None, task_id=None, exception=None, **kw):
 
         task_run.status = "FAILURE"
         task_run.finished_at = now
+        task_run.lease_expires_at = None
         if task_run.started_at:
             task_run.duration = round((now - task_run.started_at).total_seconds(), 4)
         task_run.error_message = error_str
@@ -233,6 +331,7 @@ def on_task_retry(sender=None, request=None, reason=None, **kw):
         task_run.status = "RETRY"
         task_run.retry_count += 1
         task_run.error_message = reason_str
+        task_run.lease_expires_at = None
         task_run.save()
         broadcast_task_update(task_run)
     except Exception as e:
@@ -271,7 +370,9 @@ def get_task_type_stats():
         last_failed = (
             qs.filter(status="FAILURE").order_by("-finished_at", "-started_at").first()
         )
-        last_failure_reason = last_failed.error_message if last_failed else None
+        last_failure_reason = (
+            redact_string(last_failed.error_message) if last_failed else None
+        )
 
         per_task_stats.append(
             {

@@ -16,6 +16,9 @@ import {
   ChevronRight,
   X,
   Database,
+  Ban,
+  HeartPulse,
+  Hourglass,
 } from "lucide-react";
 import {
   AreaChart,
@@ -37,6 +40,16 @@ interface CeleryStats {
   reserved_tasks: number;
   total_queue_depth: number;
   queues: Record<string, number>;
+  pending_runs?: number;
+  oldest_queued_age_seconds?: number | null;
+  stuck_runs?: number;
+  worker_heartbeat?: WorkerHeartbeat;
+}
+
+interface WorkerHeartbeat {
+  status: "healthy" | "degraded" | "down";
+  workers_alive: string[];
+  last_task_heartbeat_at: string | null;
 }
 
 interface TaskTypeStat {
@@ -66,13 +79,45 @@ interface TaskRun {
   task_id: string;
   task_name: string;
   correlation_id?: string;
-  status: "PENDING" | "STARTED" | "SUCCESS" | "FAILURE" | "RETRY";
+  status:
+    | "PENDING"
+    | "STARTED"
+    | "SUCCESS"
+    | "FAILURE"
+    | "RETRY"
+    | "STUCK"
+    | "CANCELLED";
   started_at: string;
   finished_at: string | null;
   duration: number | null;
   error_message: string;
   args_summary: string;
   retry_count: number;
+  queued_at?: string | null;
+  heartbeat_at?: string | null;
+  lease_expires_at?: string | null;
+  queue_age_seconds?: number | null;
+}
+
+interface RunActionResponse {
+  status: string;
+  message: string;
+}
+
+// Statuses the backend accepts for each operator action.
+const RETRYABLE_STATUSES = ["FAILURE", "STUCK", "CANCELLED"];
+const CANCELLABLE_STATUSES = ["PENDING", "RETRY", "STUCK"];
+
+function formatAge(seconds: number | null | undefined): string {
+  if (seconds === null || seconds === undefined) return "-";
+  if (seconds < 60) return `${Math.round(seconds)}s`;
+  if (seconds < 3600)
+    return `${Math.floor(seconds / 60)}m ${Math.round(seconds % 60)}s`;
+  return `${Math.floor(seconds / 3600)}h ${Math.floor((seconds % 3600) / 60)}m`;
+}
+
+function formatTime(value: string | null | undefined, pattern: string): string {
+  return value ? format(new Date(value), pattern) : "-";
 }
 
 export default function CeleryDashboardPage() {
@@ -84,21 +129,34 @@ export default function CeleryDashboardPage() {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [wsConnected, setWsConnected] = useState(false);
-  const [retryingTaskId, setRetryingTaskId] = useState<string | null>(null);
+  const [actingTaskId, setActingTaskId] = useState<string | null>(null);
 
-  const handleRetryTask = async (taskRun: TaskRun) => {
+  const handleRunAction = async (
+    taskRun: TaskRun,
+    action: "retry" | "cancel",
+  ) => {
     try {
-      setRetryingTaskId(taskRun.task_id);
-      await fetchApi(`/admin/celery-task-runs/${taskRun.id}/retry/`, {
-        method: "POST",
-      });
-      toast.success(`Task ${taskRun.task_name} retry requested`);
+      setActingTaskId(taskRun.task_id);
+      const res = await fetchApi<RunActionResponse>(
+        `/admin/celery-task-runs/${taskRun.id}/${action}/`,
+        { method: "POST" },
+      );
+      // The backend is idempotent: "already_*" means nothing changed this time.
+      if (res?.status?.startsWith("already_")) {
+        toast(res.message);
+      } else {
+        toast.success(
+          action === "retry"
+            ? `Task ${taskRun.task_name} retry requested`
+            : `Task ${taskRun.task_name} cancelled`,
+        );
+      }
       loadData(false);
       setSelectedTaskRun(null);
     } catch (err: any) {
-      toast.error(err?.message || "Failed to retry task");
+      toast.error(err?.message || `Failed to ${action} task`);
     } finally {
-      setRetryingTaskId(null);
+      setActingTaskId(null);
     }
   };
 
@@ -193,6 +251,10 @@ export default function CeleryDashboardPage() {
     };
   }, [loadData]);
 
+  const workerHealth =
+    stats?.worker_heartbeat?.status ??
+    ((stats?.worker_count ?? 0) > 0 ? "healthy" : "down");
+
   const getStatusBadge = (status: string) => {
     switch (status) {
       case "SUCCESS":
@@ -211,6 +273,18 @@ export default function CeleryDashboardPage() {
         return (
           <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-500/10 text-amber-400 border border-amber-500/30">
             <RotateCcw className="w-3 h-3 mr-1 animate-spin-slow" /> Retry
+          </span>
+        );
+      case "STUCK":
+        return (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-orange-500/10 text-orange-400 border border-orange-500/30">
+            <AlertTriangle className="w-3 h-3 mr-1" /> Stuck
+          </span>
+        );
+      case "CANCELLED":
+        return (
+          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-slate-500/10 text-slate-400 border border-slate-500/30">
+            <Ban className="w-3 h-3 mr-1" /> Cancelled
           </span>
         );
       case "STARTED":
@@ -333,15 +407,30 @@ export default function CeleryDashboardPage() {
                   {stats?.worker_count ?? 0}
                 </span>
                 <span
+                  data-testid="worker-health"
                   className={`text-xs font-medium px-2 py-0.5 rounded-full ${
-                    (stats?.worker_count ?? 0) > 0
+                    workerHealth === "healthy"
                       ? "bg-emerald-500/20 text-emerald-400"
-                      : "bg-rose-500/20 text-rose-400"
+                      : workerHealth === "degraded"
+                        ? "bg-amber-500/20 text-amber-400"
+                        : "bg-rose-500/20 text-rose-400"
                   }`}
                 >
-                  {(stats?.worker_count ?? 0) > 0 ? "Healthy" : "No Workers"}
+                  {workerHealth === "healthy"
+                    ? "Healthy"
+                    : workerHealth === "degraded"
+                      ? "Degraded"
+                      : "No Workers"}
                 </span>
               </div>
+              <p className="mt-3 text-[11px] text-gray-400 flex items-center gap-1.5">
+                <HeartPulse className="h-3.5 w-3.5 text-rose-400" />
+                Last task heartbeat:{" "}
+                {formatTime(
+                  stats?.worker_heartbeat?.last_task_heartbeat_at,
+                  "HH:mm:ss",
+                )}
+              </p>
             </div>
 
             {/* Total Queue Depth */}
@@ -402,6 +491,52 @@ export default function CeleryDashboardPage() {
                   {stats?.reserved_tasks ?? 0}
                 </span>
                 <span className="text-xs text-gray-400">prefetch buffer</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Queue age and stuck runs */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-6">
+            <div className="bg-[#141a26] border border-gray-800 p-6 rounded-2xl shadow-sm hover:border-gray-700 transition-all">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold uppercase tracking-wider text-gray-400">
+                  Oldest Queued Job
+                </span>
+                <Hourglass className="h-5 w-5 text-amber-400" />
+              </div>
+              <div className="mt-3 flex items-baseline justify-between">
+                <span
+                  data-testid="queue-age"
+                  className="text-3xl font-extrabold text-white"
+                >
+                  {formatAge(stats?.oldest_queued_age_seconds)}
+                </span>
+                <span className="text-xs text-gray-400">
+                  {stats?.pending_runs ?? 0} waiting for a worker
+                </span>
+              </div>
+            </div>
+
+            <div className="bg-[#141a26] border border-gray-800 p-6 rounded-2xl shadow-sm hover:border-gray-700 transition-all">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold uppercase tracking-wider text-gray-400">
+                  Stuck Jobs
+                </span>
+                <AlertTriangle className="h-5 w-5 text-orange-400" />
+              </div>
+              <div className="mt-3 flex items-baseline justify-between">
+                <span
+                  data-testid="stuck-count"
+                  className="text-3xl font-extrabold text-white"
+                >
+                  {stats?.stuck_runs ?? 0}
+                </span>
+                <button
+                  onClick={() => setStatusFilter("STUCK")}
+                  className="text-xs text-indigo-400 hover:text-indigo-300 font-medium"
+                >
+                  Show stuck jobs
+                </button>
               </div>
             </div>
           </div>
@@ -596,6 +731,9 @@ export default function CeleryDashboardPage() {
                   <option value="FAILURE">FAILURE</option>
                   <option value="RETRY">RETRY</option>
                   <option value="STARTED">STARTED</option>
+                  <option value="PENDING">PENDING</option>
+                  <option value="STUCK">STUCK</option>
+                  <option value="CANCELLED">CANCELLED</option>
                 </select>
               </div>
             </div>
@@ -610,6 +748,8 @@ export default function CeleryDashboardPage() {
                     <th className="py-3.5 px-4">Status</th>
                     <th className="py-3.5 px-4">Started At</th>
                     <th className="py-3.5 px-4">Duration</th>
+                    <th className="py-3.5 px-4">Queue Age</th>
+                    <th className="py-3.5 px-4">Failure Reason</th>
                     <th className="py-3.5 px-4">Retries</th>
                     <th className="py-3.5 px-6 text-right">Details</th>
                   </tr>
@@ -642,6 +782,12 @@ export default function CeleryDashboardPage() {
                         <td className="py-3.5 px-4 text-gray-300 font-mono">
                           {run.duration !== null ? `${run.duration}s` : "-"}
                         </td>
+                        <td className="py-3.5 px-4 text-gray-300 font-mono">
+                          {formatAge(run.queue_age_seconds)}
+                        </td>
+                        <td className="py-3.5 px-4 text-gray-400 max-w-[220px] truncate">
+                          {run.error_message || "-"}
+                        </td>
                         <td className="py-3.5 px-4">
                           {run.retry_count > 0 ? (
                             <span className="px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 font-bold">
@@ -667,7 +813,7 @@ export default function CeleryDashboardPage() {
                   ) : (
                     <tr>
                       <td
-                        colSpan={7}
+                        colSpan={9}
                         className="py-12 text-center text-gray-500 italic"
                       >
                         No task runs found matching the current filters.
@@ -746,6 +892,39 @@ export default function CeleryDashboardPage() {
                   </div>
                 </div>
 
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 bg-[#0b0f17] p-4 rounded-xl border border-gray-800">
+                  <div>
+                    <span className="text-[10px] text-gray-500 uppercase font-bold">
+                      Queue Age
+                    </span>
+                    <p className="text-xs font-mono text-gray-200 mt-1">
+                      {formatAge(selectedTaskRun.queue_age_seconds)}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-gray-500 uppercase font-bold">
+                      Last Heartbeat
+                    </span>
+                    <p className="text-xs font-mono text-gray-200 mt-1">
+                      {formatTime(
+                        selectedTaskRun.heartbeat_at,
+                        "HH:mm:ss MMM dd",
+                      )}
+                    </p>
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-gray-500 uppercase font-bold">
+                      Lease Expires
+                    </span>
+                    <p className="text-xs font-mono text-gray-200 mt-1">
+                      {formatTime(
+                        selectedTaskRun.lease_expires_at,
+                        "HH:mm:ss MMM dd",
+                      )}
+                    </p>
+                  </div>
+                </div>
+
                 {/* Task Parameters Summary */}
                 {selectedTaskRun.args_summary && (
                   <div>
@@ -776,23 +955,32 @@ export default function CeleryDashboardPage() {
                   </div>
                 )}
 
-                <div className="flex justify-end items-center pt-2 border-t border-gray-800">
-                  <button
-                    onClick={() => handleRetryTask(selectedTaskRun)}
-                    disabled={retryingTaskId === selectedTaskRun.task_id}
-                    className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white rounded-xl text-xs font-semibold flex items-center gap-2 transition-colors cursor-pointer"
-                  >
-                    <RotateCcw
-                      className={`w-3.5 h-3.5 ${
-                        retryingTaskId === selectedTaskRun.task_id
-                          ? "animate-spin"
-                          : ""
-                      }`}
-                    />
-                    {retryingTaskId === selectedTaskRun.task_id
-                      ? "Retrying..."
-                      : "Retry Task"}
-                  </button>
+                <div className="flex justify-end items-center gap-2 pt-2 border-t border-gray-800">
+                  {CANCELLABLE_STATUSES.includes(selectedTaskRun.status) && (
+                    <button
+                      onClick={() => handleRunAction(selectedTaskRun, "cancel")}
+                      disabled={actingTaskId === selectedTaskRun.task_id}
+                      className="px-4 py-2 bg-rose-600 hover:bg-rose-500 disabled:opacity-50 text-white rounded-xl text-xs font-semibold flex items-center gap-2 transition-colors cursor-pointer"
+                    >
+                      <Ban className="w-3.5 h-3.5" /> Cancel Task
+                    </button>
+                  )}
+                  {RETRYABLE_STATUSES.includes(selectedTaskRun.status) && (
+                    <button
+                      onClick={() => handleRunAction(selectedTaskRun, "retry")}
+                      disabled={actingTaskId === selectedTaskRun.task_id}
+                      className="px-4 py-2 bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 text-white rounded-xl text-xs font-semibold flex items-center gap-2 transition-colors cursor-pointer"
+                    >
+                      <RotateCcw
+                        className={`w-3.5 h-3.5 ${
+                          actingTaskId === selectedTaskRun.task_id
+                            ? "animate-spin"
+                            : ""
+                        }`}
+                      />
+                      Retry Task
+                    </button>
+                  )}
                 </div>
               </div>
             </div>
