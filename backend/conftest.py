@@ -109,6 +109,13 @@ def _configure_django_q_test_settings(settings):
             "LOCATION": "atelier-test-cache",
         },
     }
+    # LocMemCache stores survive database rollback and settings overrides.
+    # Keep real throttles enabled, but do not inherit another test's requests.
+    from django.core.cache import caches
+
+    caches["default"].clear()
+    yield
+    caches["default"].clear()
 
 
 @pytest.fixture(autouse=True)

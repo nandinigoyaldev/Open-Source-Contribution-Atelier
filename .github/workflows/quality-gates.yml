@@ -51,8 +51,11 @@ jobs:
       - run: npm ci --no-audit --fund=false
       - run: npm run lint
       - run: npm run type-check
+      - run: npx playwright install --with-deps chromium
       - run: npm test
       - run: npm run build
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
 
   backend:
     needs: changes
@@ -69,3 +72,4 @@ jobs:
       - run: black --check backend
       - run: isort --check-only backend
       - run: python -m pytest
+        working-directory: backend

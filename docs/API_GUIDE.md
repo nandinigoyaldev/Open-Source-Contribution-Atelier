@@ -2,6 +2,8 @@
 
 This guide describes the API versioning strategy, negotiation mechanisms, deprecation lifecycle, and developer guidelines for the Open Source Contribution Atelier REST API.
 
+For frontend error handling, see the [API error-code reference](API/error-codes.md). It covers authentication, validation, permissions, throttling, server failures, and response shapes that do not carry a `code` field.
+
 ---
 
 ## 1. Overview
