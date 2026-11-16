@@ -1,14 +1,15 @@
 import React from "react";
 import { Flame, Zap, Trophy } from "lucide-react";
 import { useStreak } from "../../hooks/useStreak";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 
 export function StreakWidget() {
   const { streakData, isLoading } = useStreak();
+  const reduceMotion = useReducedMotion() === true;
 
   if (isLoading || !streakData) {
     return (
-      <div className="rounded-[2rem] border-4 border-black bg-white p-6 shadow-card flex flex-col justify-center items-center text-center dark:bg-[#1f1c18] dark:border-[#2e2924] dark:shadow-none min-h-[220px] animate-pulse">
+      <div className="rounded-[2rem] border-4 border-black bg-white p-6 shadow-card flex flex-col justify-center items-center text-center dark:bg-[#1f1c18] dark:border-[#2e2924] dark:shadow-none min-h-[220px] motion-safe:animate-pulse">
         <div className="w-12 h-12 rounded-full bg-gray-200 dark:bg-gray-700" />
       </div>
     );
@@ -21,7 +22,7 @@ export function StreakWidget() {
 
   return (
     <motion.div
-      initial={{ opacity: 0, scale: 0.95 }}
+      initial={reduceMotion ? false : { opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
       className="rounded-[2rem] border-4 border-black bg-white p-6 shadow-card flex flex-col justify-between text-left dark:bg-[#1f1c18] dark:border-[#2e2924] dark:shadow-none hover:-translate-y-0.5 transition-transform"
     >
@@ -31,9 +32,9 @@ export function StreakWidget() {
             Streak
             {current_streak >= 3 && (
               <motion.span
-                initial={{ scale: 0 }}
+                initial={reduceMotion ? false : { scale: 0 }}
                 animate={{ scale: 1 }}
-                transition={{ type: "spring", stiffness: 200, damping: 10 }}
+                transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 200, damping: 10 }}
                 className="bg-primary text-white text-[10px] font-black px-2 py-0.5 rounded-full border-2 border-black rotate-[-5deg]"
               >
                 HOT!
@@ -47,7 +48,7 @@ export function StreakWidget() {
         <div className="p-2 bg-primary/10 rounded-xl border-2 border-primary/20 dark:border-primary/50 text-primary">
           <Flame
             size={24}
-            className={current_streak > 0 ? "animate-pulse" : ""}
+            className={current_streak > 0 ? "motion-safe:animate-pulse" : ""}
           />
         </div>
       </div>
@@ -84,9 +85,9 @@ export function StreakWidget() {
             </div>
             <div className="h-3 w-full bg-surface-low border-2 border-black rounded-full overflow-hidden dark:bg-[#151411] dark:border-[#2e2924]">
               <motion.div
-                initial={{ width: 0 }}
+                initial={reduceMotion ? false : { width: 0 }}
                 animate={{ width: `${progressPercent}%` }}
-                transition={{ duration: 1, ease: "easeOut" }}
+                transition={reduceMotion ? { duration: 0 } : { duration: 1, ease: "easeOut" }}
                 className="h-full bg-gradient-to-r from-primary to-accent border-r-2 border-black"
               />
             </div>

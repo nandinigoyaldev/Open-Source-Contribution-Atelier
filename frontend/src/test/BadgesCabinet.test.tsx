@@ -4,9 +4,15 @@ import { describe, it, expect, beforeEach, vi } from "vitest";
 import BadgesCabinet, { Badge } from "../components/BadgesCabinet";
 
 // Mock framer-motion to prevent ESM bundle loading issue in vitest jsdom
+let mockReduceMotion = false;
 vi.mock("framer-motion", () => ({
+  useReducedMotion: () => mockReduceMotion,
   motion: {
-    div: ({ children, ...props }: any) => <div {...props}>{children}</div>,
+    div: ({ children, initial, transition, animate, exit, ...props }: any) => {
+      void animate;
+      void exit;
+      return <div data-motion-initial={String(initial)} data-motion-duration={transition?.duration} {...props}>{children}</div>;
+    },
   },
   AnimatePresence: ({ children }: any) => <>{children}</>,
 }));
@@ -80,7 +86,16 @@ const MOCK_BADGES: Badge[] = [
 
 describe("BadgesCabinet", () => {
   beforeEach(() => {
-    // Reset state
+    mockReduceMotion = false;
+  });
+
+  it("keeps badge progress visible without motion when reduced motion is requested", () => {
+    mockReduceMotion = true;
+    const { container } = render(<BadgesCabinet badges={MOCK_BADGES} pageSize={10} />);
+    expect(screen.getByText("3/6")).toBeInTheDocument();
+    expect(screen.getByText("Git Novice")).toBeInTheDocument();
+    expect(container.querySelectorAll('[data-motion-initial="false"]')).not.toHaveLength(0);
+    expect(container.querySelector('[data-motion-duration="0"]')).toBeInTheDocument();
   });
 
   it("renders loading state when loading prop is true", () => {
