@@ -5,6 +5,8 @@ string, a number, null) used to blow up there with AttributeError and the
 caller got a 500 instead of a normal 400.
 """
 
+from typing import Any
+
 import pytest
 from django.core.cache import cache
 from rest_framework.test import APIClient
@@ -34,9 +36,9 @@ def _clean_cache():
     cache.clear()
 
 
-def _post(url, body):
+def _post(url, body, ip="203.0.113.77") -> Any:
     client = APIClient()
-    client.defaults["REMOTE_ADDR"] = "203.0.113.77"
+    client.defaults["REMOTE_ADDR"] = ip
     return client.post(url, body, format="json")
 
 
@@ -71,14 +73,11 @@ def test_identity_is_still_taken_from_object_body():
     url = "/api/auth/password-reset/"
     codes = []
     for i in range(4):
-        client = APIClient()
         # different IP each time so only the per-identity throttle can trip
-        client.defaults["REMOTE_ADDR"] = f"203.0.113.{100 + i}"
-        codes.append(
-            client.post(
-                url, {"email": "  Same@Example.com "}, format="json"
-            ).status_code
+        response = _post(
+            url, {"email": "  Same@Example.com "}, ip=f"203.0.113.{100 + i}"
         )
+        codes.append(response.status_code)
     assert codes[:3] == [200, 200, 200]
     assert codes[3] == 429
 
