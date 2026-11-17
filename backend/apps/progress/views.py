@@ -406,7 +406,7 @@ class MyProgressView(APIView):
         try:
             lesson = LessonService.get_lesson_by_slug(lesson_slug, organization)
             # Someone outside any organization only reaches public lessons.
-            if organization is None and lesson.organization_id is not None:
+            if organization is None and lesson.organization is not None:
                 raise Lesson.DoesNotExist
         except Lesson.DoesNotExist:
             return Response(

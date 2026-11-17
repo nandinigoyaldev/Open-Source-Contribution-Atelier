@@ -45,14 +45,16 @@ def org_a_lesson(db):
     # content.Organization is a separate table, matched to the user's
     # organizations.Organization by name.
     return _lesson(
-        "org-a-lesson", ContentOrganization.objects.create(name="Org A", slug="org-a")
+        "org-a-lesson",
+        ContentOrganization._default_manager.create(name="Org A", slug="org-a"),
     )
 
 
 @pytest.fixture
 def org_b_lesson(db):
     return _lesson(
-        "org-b-lesson", ContentOrganization.objects.create(name="Org B", slug="org-b")
+        "org-b-lesson",
+        ContentOrganization._default_manager.create(name="Org B", slug="org-b"),
     )
 
 
