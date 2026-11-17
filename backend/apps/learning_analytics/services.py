@@ -17,12 +17,14 @@ from django.contrib.auth import get_user_model
 from django.db import transaction
 from django.db.models import (
     Avg,
+    Case,
     Count,
     F,
     Max,
     Min,
     Q,
     Sum,
+    When,
     Window,
 )
 from django.db.models.functions import TruncDate, TruncWeek
@@ -33,7 +35,7 @@ User = get_user_model()
 
 def _award_step_xp(step):
     """Award XP to the user when a learning path step is completed."""
-    from .models import DailyLearningMetric
+    from .models import DailyLearningMetric, LearningSession
 
     if step.xp_reward <= 0:
         return
@@ -93,23 +95,38 @@ _DECLINING_THRESHOLD = 0.8  # >20% decrease
 
 
 def compute_skill_level(user, skill_tag) -> dict[str, Any]:
-    """Compute the skill level for a single (user, skill_tag) pair.
+    """Compute the skill level for a single (user, skill_tag) pair via SQL aggregation.
 
     Returns a dict with: level, total_sessions, total_xp, average_score,
     last_practiced, trend.
     """
-    from .models import SessionSkillTag, UserSkillProfile
+    from .models import SessionSkillTag
 
-    sessions_qs = (
-        SessionSkillTag.objects.filter(
-            skill_tag=skill_tag,
-            session__user=user,
-        )
-        .select_related("session")
-        .order_by("-session__started_at")
+    now = timezone.now()
+    week_ago = now - timedelta(days=7)
+    two_weeks_ago = now - timedelta(days=14)
+
+    stats = SessionSkillTag.objects.filter(
+        skill_tag=skill_tag,
+        session__user=user,
+    ).aggregate(
+        total_sessions=Count("id"),
+        total_xp=Sum("session__xp_earned"),
+        avg_score=Avg("session__score"),
+        last_practiced=Max("session__started_at"),
+        this_week_count=Count(Case(When(session__started_at__gte=week_ago, then=1))),
+        last_week_count=Count(
+            Case(
+                When(
+                    session__started_at__gte=two_weeks_ago,
+                    session__started_at__lt=week_ago,
+                    then=1,
+                )
+            )
+        ),
     )
 
-    total_sessions = sessions_qs.count()
+    total_sessions = stats["total_sessions"] or 0
     if total_sessions == 0:
         return {
             "level": 0,
@@ -120,25 +137,14 @@ def compute_skill_level(user, skill_tag) -> dict[str, Any]:
             "trend": "stable",
         }
 
-    total_xp = sum(s.session.xp_earned for s in sessions_qs)
-    scores = [s.session.score for s in sessions_qs if s.session.score is not None]
-    average_score = statistics.mean(scores) if scores else 0.0
-
-    last_practiced = sessions_qs.first().session.started_at
+    total_xp = stats["total_xp"] or 0
+    avg_score = stats["avg_score"]
+    average_score = float(avg_score) if avg_score is not None else 0.0
+    last_practiced = stats["last_practiced"]
+    this_week_count = stats["this_week_count"] or 0
+    last_week_count = stats["last_week_count"] or 0
 
     # --- Trend: compare this week vs last week ---
-    now = timezone.now()
-    week_ago = now - timedelta(days=7)
-    two_weeks_ago = now - timedelta(days=14)
-
-    this_week_count = sessions_qs.filter(
-        session__started_at__gte=week_ago,
-    ).count()
-    last_week_count = sessions_qs.filter(
-        session__started_at__gte=two_weeks_ago,
-        session__started_at__lt=week_ago,
-    ).count()
-
     if last_week_count > 0:
         ratio = this_week_count / last_week_count
         if ratio >= _RISING_THRESHOLD:
@@ -178,21 +184,98 @@ def compute_skill_level(user, skill_tag) -> dict[str, Any]:
 
 
 def compute_all_skill_levels(user) -> list[dict[str, Any]]:
-    """Compute skill levels for every skill the user has interacted with."""
+    """Compute skill levels for every skill the user has interacted with in a single grouped SQL query."""
     from .models import SessionSkillTag, SkillTag
 
-    skill_ids = (
+    now = timezone.now()
+    week_ago = now - timedelta(days=7)
+    two_weeks_ago = now - timedelta(days=14)
+
+    aggregated_skills = (
         SessionSkillTag.objects.filter(session__user=user)
-        .values_list("skill_tag_id", flat=True)
-        .distinct()
+        .values("skill_tag")
+        .annotate(
+            total_sessions=Count("id"),
+            total_xp=Sum("session__xp_earned"),
+            avg_score=Avg("session__score"),
+            last_practiced=Max("session__started_at"),
+            this_week_count=Count(
+                Case(When(session__started_at__gte=week_ago, then=1))
+            ),
+            last_week_count=Count(
+                Case(
+                    When(
+                        session__started_at__gte=two_weeks_ago,
+                        session__started_at__lt=week_ago,
+                        then=1,
+                    )
+                )
+            ),
+        )
     )
-    skill_tags = SkillTag.objects.filter(id__in=skill_ids)
+
+    if not aggregated_skills:
+        return []
+
+    skill_tag_ids = [row["skill_tag"] for row in aggregated_skills]
+    skill_tags_by_id = SkillTag.objects.filter(id__in=skill_tag_ids).in_bulk()
 
     results = []
-    for tag in skill_tags:
-        data = compute_skill_level(user, tag)
-        data["skill_tag"] = tag
-        results.append(data)
+    for row in aggregated_skills:
+        tag_id = row["skill_tag"]
+        tag = skill_tags_by_id.get(tag_id)
+        if not tag:
+            continue
+
+        total_sessions = row["total_sessions"] or 0
+        total_xp = row["total_xp"] or 0
+        avg_score = row["avg_score"]
+        average_score = float(avg_score) if avg_score is not None else 0.0
+        last_practiced = row["last_practiced"]
+        this_week_count = row["this_week_count"] or 0
+        last_week_count = row["last_week_count"] or 0
+
+        # --- Trend: compare this week vs last week ---
+        if last_week_count > 0:
+            ratio = this_week_count / last_week_count
+            if ratio >= _RISING_THRESHOLD:
+                trend = "rising"
+            elif ratio <= _DECLINING_THRESHOLD:
+                trend = "declining"
+            else:
+                trend = "stable"
+        else:
+            trend = "rising" if this_week_count > 0 else "stable"
+
+        # --- Normalised component scores (0-100 each) ---
+        session_score = min(100, total_sessions * 2)
+        xp_score = min(100, total_xp / 5)
+        score_comp = average_score
+
+        # Recency: 100 if practised today, decays over 30 days
+        days_since = (now - last_practiced).days if last_practiced else 999
+        recency_score = max(0, 100 - (days_since * 3.33))
+
+        level = int(
+            session_score * _WEIGHT_SESSIONS
+            + xp_score * _WEIGHT_XP
+            + score_comp * _WEIGHT_SCORE
+            + recency_score * _WEIGHT_RECENCY
+        )
+        level = max(0, min(100, level))
+
+        results.append(
+            {
+                "skill_tag": tag,
+                "level": level,
+                "total_sessions": total_sessions,
+                "total_xp": total_xp,
+                "average_score": round(average_score, 1),
+                "last_practiced": last_practiced,
+                "trend": trend,
+            }
+        )
+
     return sorted(results, key=lambda d: d["level"], reverse=True)
 
 
@@ -636,7 +719,38 @@ def get_analytics_dashboard(user, days=30) -> dict[str, Any]:
     )
 
     # --- Skill levels ---
-    skill_levels = compute_all_skill_levels(user)
+    from .models import UserSkillProfile
+
+    profiles = list(
+        UserSkillProfile.objects.filter(user=user)
+        .select_related("skill_tag")
+        .order_by("-level")
+    )
+    if profiles:
+        skill_levels_data = [
+            {
+                "skill": p.skill_tag.name,
+                "slug": p.skill_tag.slug,
+                "level": p.level,
+                "trend": p.trend,
+                "average_score": p.average_score,
+                "total_sessions": p.total_sessions,
+            }
+            for p in profiles
+        ]
+    else:
+        skill_levels = compute_all_skill_levels(user)
+        skill_levels_data = [
+            {
+                "skill": s["skill_tag"].name,
+                "slug": s["skill_tag"].slug,
+                "level": s["level"],
+                "trend": s["trend"],
+                "average_score": s["average_score"],
+                "total_sessions": s["total_sessions"],
+            }
+            for s in skill_levels
+        ]
 
     # --- Session count heatmap (day of week × hour) ---
     heatmap = _compute_session_heatmap(sessions)
@@ -679,17 +793,7 @@ def get_analytics_dashboard(user, days=30) -> dict[str, Any]:
             "xp_per_day": xp_per_day,
         },
         "activity_breakdown": activity_breakdown,
-        "skill_levels": [
-            {
-                "skill": s["skill_tag"].name,
-                "slug": s["skill_tag"].slug,
-                "level": s["level"],
-                "trend": s["trend"],
-                "average_score": s["average_score"],
-                "total_sessions": s["total_sessions"],
-            }
-            for s in skill_levels
-        ],
+        "skill_levels": skill_levels_data,
         "heatmap": heatmap,
         "active_goals": goals_data,
     }

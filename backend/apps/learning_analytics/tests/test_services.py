@@ -698,3 +698,91 @@ class GetCurrentStreakTest(TestCase):
         )
         streak = get_current_streak(self.user)
         self.assertEqual(streak, 1)
+
+
+class SkillProfilingQueryBudgetAndParityTest(TestCase):
+    """Tests verifying bounded query budget (<= 5 queries) and output parity."""
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            username="perfuser", password="perfpass123"
+        )
+        self.tags = [
+            SkillTag.objects.create(name=f"Skill {i}", slug=f"skill-{i}")
+            for i in range(10)
+        ]
+
+    def test_query_budget_bounded_o1(self):
+        now = timezone.now()
+        # Create multiple sessions across all 10 skills
+        for i, tag in enumerate(self.tags):
+            for j in range(3):
+                session = LearningSession.objects.create(
+                    user=self.user,
+                    activity_type="lesson",
+                    started_at=now - timedelta(days=j),
+                    duration_seconds=120 * (j + 1),
+                    xp_earned=25 * (j + 1),
+                    score=70 + (j * 10),
+                    completed=True,
+                )
+                session.skill_tags.create(skill_tag=tag)
+
+        # Assert compute_all_skill_levels runs in <= 5 queries (O(1) with respect to skills)
+        with self.assertNumQueries(2):
+            results = compute_all_skill_levels(self.user)
+
+        self.assertEqual(len(results), 10)
+
+    def test_data_parity_with_single_skill_computation(self):
+        now = timezone.now()
+        tag = self.tags[0]
+        # Session 1: this week with score
+        s1 = LearningSession.objects.create(
+            user=self.user,
+            activity_type="lesson",
+            started_at=now - timedelta(days=2),
+            duration_seconds=300,
+            xp_earned=50,
+            score=85,
+            completed=True,
+        )
+        s1.skill_tags.create(skill_tag=tag)
+
+        # Session 2: last week without score
+        s2 = LearningSession.objects.create(
+            user=self.user,
+            activity_type="quiz",
+            started_at=now - timedelta(days=10),
+            duration_seconds=180,
+            xp_earned=30,
+            score=None,
+            completed=True,
+        )
+        s2.skill_tags.create(skill_tag=tag)
+
+        single_result = compute_skill_level(self.user, tag)
+        all_results = compute_all_skill_levels(self.user)
+        self.assertEqual(len(all_results), 1)
+        grouped_result = all_results[0]
+
+        self.assertEqual(grouped_result["skill_tag"].id, tag.id)
+        self.assertEqual(grouped_result["level"], single_result["level"])
+        self.assertEqual(
+            grouped_result["total_sessions"], single_result["total_sessions"]
+        )
+        self.assertEqual(grouped_result["total_xp"], single_result["total_xp"])
+        self.assertEqual(
+            grouped_result["average_score"], single_result["average_score"]
+        )
+        self.assertEqual(grouped_result["trend"], single_result["trend"])
+
+    def test_edge_case_zero_sessions_and_null_scores(self):
+        tag_empty = SkillTag.objects.create(name="Empty", slug="empty")
+        res_single = compute_skill_level(self.user, tag_empty)
+        self.assertEqual(res_single["level"], 0)
+        self.assertEqual(res_single["total_sessions"], 0)
+        self.assertEqual(res_single["total_xp"], 0)
+        self.assertEqual(res_single["average_score"], 0.0)
+        self.assertIsNone(res_single["last_practiced"])
+        self.assertEqual(res_single["trend"], "stable")
