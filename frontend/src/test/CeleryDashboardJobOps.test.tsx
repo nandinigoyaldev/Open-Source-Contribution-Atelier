@@ -5,7 +5,15 @@ import {
   cleanup,
   waitFor,
 } from "@testing-library/react";
-import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import {
+  describe,
+  it,
+  expect,
+  vi,
+  beforeEach,
+  afterEach,
+  type MockInstance,
+} from "vitest";
 import React from "react";
 import CeleryDashboardPage from "../pages/admin/CeleryDashboardPage";
 import * as apiModule from "../lib/api";
@@ -79,7 +87,7 @@ const stats = {
 };
 
 describe("Celery dashboard job operations (#3331)", () => {
-  let fetchApi: ReturnType<typeof vi.spyOn>;
+  let fetchApi: MockInstance<typeof apiModule.fetchApi>;
 
   beforeEach(() => {
     vi.restoreAllMocks();
