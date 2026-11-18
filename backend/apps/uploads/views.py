@@ -6,11 +6,14 @@ from pathlib import Path
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
+from django.http import FileResponse
+from django.urls import reverse
 from django.utils.text import get_valid_filename
 from rest_framework import permissions, status, views
 from rest_framework.response import Response
 
 from .models import UploadSession
+from .tasks import enqueue_upload_scan
 from .validators import (
     max_size_for,
     sanitize_svg_file,
@@ -237,7 +240,8 @@ class CompleteUploadView(views.APIView):
                 sanitize_svg_file(quarantine_path)
         except (ValidationError, FileNotFoundError) as exc:
             quarantine_path.unlink(missing_ok=True)
-            session.status = UploadSession.Status.REJECTED
+            if session.status != UploadSession.Status.FAILED:
+                session.status = UploadSession.Status.REJECTED
             session.scan_message = (
                 exc.messages[0] if isinstance(exc, ValidationError) else str(exc)
             )
@@ -271,23 +275,61 @@ class UploadStatusView(views.APIView):
 
     def get(self, request, session_id):
         try:
-            session = UploadSession.objects.get(
-                session_id=session_id, user=request.user
-            )
+            if request.user.is_staff or request.user.is_superuser:
+                session = UploadSession.objects.get(session_id=session_id)
+            else:
+                session = UploadSession.objects.get(
+                    session_id=session_id, user=request.user
+                )
         except UploadSession.DoesNotExist:
             return Response(
                 {"error": "Session not found"}, status=status.HTTP_404_NOT_FOUND
             )
 
+        download_url = None
+        if session.is_accessible:
+            download_url = request.build_absolute_uri(
+                reverse(
+                    "uploads:download_upload", kwargs={"session_id": session.session_id}
+                )
+            )
+
+        history_items = [
+            {
+                "result": h.result,
+                "engine": h.engine,
+                "signature": h.signature,
+                "message": h.message,
+                "scanned_at": h.scanned_at.isoformat() if h.scanned_at else None,
+            }
+            for h in session.scan_history.all()[:10]
+        ]
+
+        failed_statuses = {
+            UploadSession.Status.FAILED,
+            getattr(UploadSession.Status, "SCAN_FAILED", "scan_failed"),
+            UploadSession.Status.QUARANTINED,
+        }
+
         payload = {
             "session_id": session.session_id,
             "upload_id": session.session_id,
+            "filename": session.filename,
             "status": session.status,
             "message": session.scan_message,
+            "is_accessible": session.is_accessible,
+            "is_clean": session.status
+            in {
+                UploadSession.Status.CLEAN,
+                UploadSession.Status.RELEASED,
+            },
+            "retryable": session.status in failed_statuses,
             "uploaded_chunks": session.uploaded_chunks,
             "total_chunks": session.total_chunks,
             "mime_type": session.detected_mime_type,
             "file_path": session.file_path if session.is_accessible else None,
+            "download_url": download_url,
+            "scan_history": history_items,
         }
         return Response(payload)
 
@@ -358,6 +400,151 @@ class DirectUploadView(views.APIView):
                 "message": "File is being scanned...",
                 "upload_id": session.session_id,
                 "session_id": session.session_id,
+                "status": session.status,
+            },
+            status=status.HTTP_202_ACCEPTED,
+        )
+
+
+class DownloadUploadView(views.APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def get(self, request, session_id):
+        try:
+            if request.user.is_staff or request.user.is_superuser:
+                session = UploadSession.objects.get(session_id=session_id)
+            else:
+                session = UploadSession.objects.get(
+                    session_id=session_id, user=request.user
+                )
+        except UploadSession.DoesNotExist:
+            return Response(
+                {"error": "Upload not found"}, status=status.HTTP_404_NOT_FOUND
+            )
+
+        if session.status in {
+            UploadSession.Status.PENDING,
+            UploadSession.Status.UPLOADING,
+            UploadSession.Status.QUARANTINED,
+            UploadSession.Status.SCANNING,
+        }:
+            return Response(
+                {
+                    "error": "File is currently in quarantine pending security scanning.",
+                    "status": session.status,
+                    "actionable": "Please wait for scan completion before accessing.",
+                },
+                status=status.HTTP_423_LOCKED,
+            )
+
+        if session.status == UploadSession.Status.INFECTED:
+            return Response(
+                {
+                    "error": "File was flagged as infected and cannot be accessed.",
+                    "status": session.status,
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        failed_statuses = {
+            UploadSession.Status.REJECTED,
+            UploadSession.Status.FAILED,
+            getattr(UploadSession.Status, "SCAN_FAILED", "scan_failed"),
+        }
+        if session.status in failed_statuses:
+            return Response(
+                {
+                    "error": f"File scan failed ({session.status}). File remains quarantined.",
+                    "status": session.status,
+                    "message": session.scan_message,
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        if not session.is_accessible:
+            return Response(
+                {"error": "File is not accessible.", "status": session.status},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        media_root = Path(settings.MEDIA_ROOT).resolve()
+        target_path = (media_root / session.file_path).resolve()
+        try:
+            target_path.relative_to(media_root)
+        except ValueError:
+            return Response(
+                {"error": "Invalid storage path detected."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        if not target_path.is_file():
+            return Response(
+                {"error": "File not found on storage backend"},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        return FileResponse(
+            open(target_path, "rb"),
+            as_attachment=True,
+            filename=session.filename,
+            content_type=session.detected_mime_type or "application/octet-stream",
+        )
+
+
+class RetryScanView(views.APIView):
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request, session_id):
+        try:
+            if request.user.is_staff or request.user.is_superuser:
+                session = UploadSession.objects.get(session_id=session_id)
+            else:
+                session = UploadSession.objects.get(
+                    session_id=session_id, user=request.user
+                )
+        except UploadSession.DoesNotExist:
+            return Response(
+                {"error": "Upload not found"}, status=status.HTTP_404_NOT_FOUND
+            )
+
+        if session.status in {
+            UploadSession.Status.CLEAN,
+            UploadSession.Status.RELEASED,
+        }:
+            return Response(
+                {"error": "File is already verified clean.", "status": session.status},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if session.status == UploadSession.Status.INFECTED and not (
+            request.user.is_staff or request.user.is_superuser
+        ):
+            return Response(
+                {
+                    "error": "Infected uploads cannot be retried.",
+                    "status": session.status,
+                },
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        if not session.quarantine_path or not os.path.exists(session.quarantine_path):
+            return Response(
+                {
+                    "error": "Quarantined file is missing or expired.",
+                    "status": session.status,
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        session.status = UploadSession.Status.QUARANTINED
+        session.scan_message = "Scan re-queued by user/operator..."
+        session.save(update_fields=["status", "scan_message", "updated_at"])
+        enqueue_upload_scan(str(session.session_id))
+
+        return Response(
+            {
+                "message": "Scan re-queued successfully.",
+                "upload_id": session.session_id,
                 "status": session.status,
             },
             status=status.HTTP_202_ACCEPTED,
