@@ -82,6 +82,30 @@ class NotificationPreference(models.Model):
     webhook_secret = models.CharField(max_length=255, blank=True, null=True)
     phone_number = models.CharField(max_length=50, blank=True, null=True)
 
+    def is_channel_enabled(self, channel: str, notif_type: str = "default") -> bool:
+        if channel == "in_app":
+            if not self.in_app_enabled:
+                return False
+            if isinstance(self.channel_preferences, dict):
+                return self.channel_preferences.get(notif_type, {}).get("in_app", True)
+            return True
+        if channel == "email":
+            if not self.email_enabled:
+                return False
+            if isinstance(self.channel_preferences, dict):
+                return self.channel_preferences.get(notif_type, {}).get("email", True)
+            return True
+        if channel == "websocket":
+            return bool(self.websocket_enabled)
+        if isinstance(self.channel_preferences, dict):
+            type_prefs = self.channel_preferences.get(notif_type, {})
+            if channel in type_prefs:
+                return bool(type_prefs[channel])
+            for _, prefs in self.channel_preferences.items():
+                if isinstance(prefs, dict) and channel in prefs:
+                    return bool(prefs[channel])
+        return True if channel in ("push", "in_app", "email") else False
+
     def __str__(self):
         return f"NotificationPreference(user={self.user_id})"
 

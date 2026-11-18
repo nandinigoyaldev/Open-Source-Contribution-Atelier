@@ -22,11 +22,14 @@ class NotificationPrefsView(APIView):
         receive_weekly_digest = (
             user_profile.receive_weekly_digest if user_profile else True
         )
+        push_enabled = prefs.is_channel_enabled("push")
         return Response(
             {
                 "email": prefs.email_enabled,
                 "in_app": prefs.in_app_enabled,
                 "websocket": prefs.websocket_enabled,
+                "push": push_enabled,
+                "push_enabled": push_enabled,
                 "receive_weekly_digest": receive_weekly_digest,
                 "weekly_digest": receive_weekly_digest,
             }
@@ -57,6 +60,26 @@ class NotificationPrefsView(APIView):
                 update_fields=["email_enabled", "in_app_enabled", "websocket_enabled"]
             )
 
+            if "push" in request.data or "push_enabled" in request.data:
+                push_val = bool(
+                    request.data.get("push", request.data.get("push_enabled"))
+                )
+                if not isinstance(prefs.channel_preferences, dict):
+                    from .models import default_channel_preferences
+
+                    prefs.channel_preferences = default_channel_preferences()
+                for key in [
+                    "badge",
+                    "comment",
+                    "achievement",
+                    "lesson_completed",
+                    "default",
+                ]:
+                    if key not in prefs.channel_preferences:
+                        prefs.channel_preferences[key] = {}
+                    prefs.channel_preferences[key]["push"] = push_val
+                prefs.save(update_fields=["channel_preferences"])
+
             if (
                 "receive_weekly_digest" in request.data
                 or "weekly_digest" in request.data
@@ -76,12 +99,15 @@ class NotificationPrefsView(APIView):
         receive_weekly_digest = (
             user_profile.receive_weekly_digest if user_profile else True
         )
+        push_enabled = prefs.is_channel_enabled("push")
 
         return Response(
             {
                 "email": prefs.email_enabled,
                 "in_app": prefs.in_app_enabled,
                 "websocket": prefs.websocket_enabled,
+                "push": push_enabled,
+                "push_enabled": push_enabled,
                 "receive_weekly_digest": receive_weekly_digest,
                 "weekly_digest": receive_weekly_digest,
             }
