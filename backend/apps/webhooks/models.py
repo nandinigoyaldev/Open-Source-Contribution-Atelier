@@ -273,6 +273,8 @@ class WebhookEndpoint(models.Model):
     def __str__(self):
         return f"{self.target_url} ({self.user.username})"
 
+    objects = models.Manager()
+
 
 class WebhookDelivery(models.Model):
     endpoint = models.ForeignKey(
@@ -326,6 +328,8 @@ class WebhookDelivery(models.Model):
     def __str__(self):
         return f"Delivery {self.id} for {self.endpoint.target_url}"
 
+    objects = models.Manager()
+
 
 class DeadLetterWebhook(models.Model):
     """
@@ -357,6 +361,8 @@ class DeadLetterWebhook(models.Model):
     def __str__(self):
         return f"DLQ entry for delivery {self.delivery_id}"
 
+    objects = models.Manager()
+
 
 class WebhookDeliveryLog(models.Model):
     """
@@ -385,6 +391,8 @@ class WebhookDeliveryLog(models.Model):
 
     def __str__(self):
         return f"Log for Delivery {self.delivery_id} - Status {self.status_code}"
+
+    objects = models.Manager()
 
 
 class InboundWebhookEvent(models.Model):
