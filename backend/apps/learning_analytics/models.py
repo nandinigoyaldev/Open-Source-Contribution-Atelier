@@ -82,6 +82,8 @@ class LearningSession(models.Model):
             setattr(self, k, v)
         self.save()
 
+    objects = models.Manager()
+
 
 class SkillTag(models.Model):
     """A skill area that learning activities map to (e.g. 'git-basics')."""
@@ -101,6 +103,8 @@ class SkillTag(models.Model):
 
     class Meta:
         ordering = ["name"]
+
+    objects = models.Manager()
 
     def __str__(self):
         return self.name
@@ -126,6 +130,8 @@ class SessionSkillTag(models.Model):
 
     class Meta:
         unique_together = ("session", "skill_tag")
+
+    objects = models.Manager()
 
 
 class UserSkillProfile(models.Model):
@@ -173,6 +179,8 @@ class UserSkillProfile(models.Model):
                 name="idx_usp_user_level",
             ),
         ]
+
+    objects = models.Manager()
 
     def __str__(self):
         return f"{self.user.username} — {self.skill_tag.slug} " f"Lv.{self.level}"

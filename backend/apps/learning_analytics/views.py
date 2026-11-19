@@ -70,6 +70,7 @@ class LearningSessionListCreateView(generics.ListCreateAPIView):
     """
 
     permission_classes = [permissions.IsAuthenticated]
+    serializer_class = LearningSessionSerializer
 
     def get_serializer_class(self):
         if self.request.method == "POST":
