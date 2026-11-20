@@ -103,6 +103,7 @@ def idempotent(view_func):
     Safely serializes concurrent requests with the same key, returns cached responses
     for retries, and rejects requests reusing the same key with different payloads.
     """
+
     @wraps(view_func)
     def wrapper(*args, **kwargs):
         # Support both view_func(self, request, ...) and view_func(request, ...)
@@ -123,11 +124,24 @@ def idempotent(view_func):
         method = getattr(request, "method", "POST")
         body_hash = compute_normalized_body_hash(request)
 
-        # Check existing record first
-        existing = IdempotencyRecord.objects.filter(
-            idempotency_key=idempotency_key,
-            endpoint=endpoint,
-        ).first()
+        user = getattr(request, "user", None)
+        auth_user = user if user and getattr(user, "is_authenticated", False) else None
+        storage_key = (
+            f"u{auth_user.id}:{idempotency_key}"[:255] if auth_user else idempotency_key
+        )
+
+        # Check existing record first (supports both scoped and raw records)
+        existing = (
+            IdempotencyRecord.objects.filter(
+                idempotency_key=storage_key,
+                endpoint=endpoint,
+            ).first()
+            or IdempotencyRecord.objects.filter(
+                idempotency_key=idempotency_key,
+                endpoint=endpoint,
+                user=auth_user,
+            ).first()
+        )
 
         if existing is not None:
             if existing.request_body_hash != body_hash:
@@ -161,10 +175,17 @@ def idempotent(view_func):
             # Another concurrent request is in flight. Poll briefly for completion.
             for _ in range(40):
                 time.sleep(0.05)
-                existing = IdempotencyRecord.objects.filter(
-                    idempotency_key=idempotency_key,
-                    endpoint=endpoint,
-                ).first()
+                existing = (
+                    IdempotencyRecord.objects.filter(
+                        idempotency_key=storage_key,
+                        endpoint=endpoint,
+                    ).first()
+                    or IdempotencyRecord.objects.filter(
+                        idempotency_key=idempotency_key,
+                        endpoint=endpoint,
+                        user=auth_user,
+                    ).first()
+                )
                 if existing is not None:
                     if existing.request_body_hash != body_hash:
                         return Response(
@@ -195,10 +216,17 @@ def idempotent(view_func):
 
         try:
             # Re-check in case another request finished right before lock was acquired
-            existing = IdempotencyRecord.objects.filter(
-                idempotency_key=idempotency_key,
-                endpoint=endpoint,
-            ).first()
+            existing = (
+                IdempotencyRecord.objects.filter(
+                    idempotency_key=storage_key,
+                    endpoint=endpoint,
+                ).first()
+                or IdempotencyRecord.objects.filter(
+                    idempotency_key=idempotency_key,
+                    endpoint=endpoint,
+                    user=auth_user,
+                ).first()
+            )
             if existing is not None:
                 if existing.request_body_hash != body_hash:
                     return Response(
@@ -228,14 +256,20 @@ def idempotent(view_func):
                         json.dumps(response.data) if response.data is not None else ""
                     )
                 except (TypeError, ValueError):
-                    response_body = str(response.data) if response.data is not None else ""
+                    response_body = (
+                        str(response.data) if response.data is not None else ""
+                    )
 
                 if 200 <= response_status < 500:
                     try:
                         user = getattr(request, "user", None)
-                        auth_user = user if user and getattr(user, "is_authenticated", False) else None
+                        auth_user = (
+                            user
+                            if user and getattr(user, "is_authenticated", False)
+                            else None
+                        )
                         IdempotencyRecord.objects.create(
-                            idempotency_key=idempotency_key,
+                            idempotency_key=storage_key,
                             user=auth_user,
                             endpoint=endpoint,
                             request_body_hash=body_hash,

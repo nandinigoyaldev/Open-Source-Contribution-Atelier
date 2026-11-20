@@ -880,6 +880,7 @@ class HelpRequestListCreateView(APIView):
         serializer = HelpRequestSerializer(help_requests, many=True)
         return Response(serializer.data)
 
+    @idempotent
     def post(self, request):
         lesson_slug = request.data.get("lesson_slug")
         message = request.data.get("message", "").strip()
@@ -1285,6 +1286,7 @@ class CodeSubmissionView(APIView):
         serializer = CodeSubmissionSerializer(submissions, many=True)
         return Response(serializer.data)
 
+    @idempotent
     def post(self, request):
         serializer = CodeSubmissionSerializer(data=request.data)
         if serializer.is_valid():
@@ -1458,6 +1460,7 @@ class ReadingProgressView(APIView):
         progress = cache.get(cache_key, 0)
         return Response({"progress": progress})
 
+    @idempotent
     def post(self, request):
         lesson_slug = request.data.get("lesson")
         progress = request.data.get("progress")
