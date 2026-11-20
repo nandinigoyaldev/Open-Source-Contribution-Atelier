@@ -5,7 +5,9 @@ of representative API routes. The `API Performance Budget` workflow
 (`.github/workflows/api-performance-budget.yml`) runs
 `python manage.py perf_budget_report` on every PR that touches `backend/` and
 fails when a route goes over its budget. The frontend has its own budget, see
-`docs/frontend/PERFORMANCE_BUDGET.md`.
+`docs/frontend/PERFORMANCE_BUDGET.md`. For dashboard-specific query-count
+budgets guarding against N+1 regressions across organizations and learners,
+see `docs/backend/DASHBOARD_QUERY_BUDGET.md`.
 
 ## Run it locally
 
