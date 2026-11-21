@@ -30,6 +30,12 @@ Common startup errors:
 * Backend hangs on startup or reports a database connection error: `DATABASE_URL` points at a Postgres that is not running. Start Postgres, or comment the line out to use SQLite (`backend/db.sqlite3`).
 * Redis connection warnings: safe to ignore locally. The backend automatically falls back to in-memory channels and cache. Set `FORCE_INMEMORY_CHANNEL_LAYER=1` to skip the channel/cache Redis check.
 
+## Verify database seed data
+
+Run `python manage.py verify_seed_data` from `backend/` to diagnose missing or
+duplicate local curriculum/dashboard records without changing the database.
+See [seed verification](SEED_VERIFICATION.md) for scopes, exit codes and recovery.
+
 ## Redis Fallback Behavior for Local Development
 
 Redis is **not required** for local development. By default, the backend automatically detects whether Redis is available and falls back to in-memory handling for channels, caching, and rate limiting.
