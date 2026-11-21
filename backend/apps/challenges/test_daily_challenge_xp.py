@@ -1,3 +1,5 @@
+from datetime import date
+
 import pytest
 from django.contrib.auth import get_user_model
 
@@ -80,6 +82,14 @@ class TestCalculateDailyChallengeXp:
 
 @pytest.mark.django_db
 class TestCompleteChallengeOfTheDayMultiplier:
+    def setup_method(self):
+        self.user = User.objects.create_user(
+            username="daily_streak_challenger", password="password"
+        )
+        self.profile = StreakProfile.objects.create(
+            user=self.user, current_streak=6, last_activity_date=date(2026, 8, 9)
+        )
+
     def test_completion_applies_streak_multiplier(self):
         from unittest.mock import patch
 

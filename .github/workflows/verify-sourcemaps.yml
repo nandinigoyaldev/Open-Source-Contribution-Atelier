@@ -26,6 +26,8 @@ jobs:
       - name: Build frontend
         run: npm run build
         working-directory: frontend
+        env:
+          NODE_OPTIONS: --max-old-space-size=4096
 
       - name: Verify source maps exist for every .js chunk
         run: |
