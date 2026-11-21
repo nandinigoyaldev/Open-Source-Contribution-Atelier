@@ -14,6 +14,7 @@
     "build:ssr": "npm run build:client && npm run build:server && node prerender.js && node -e \"require('fs').cpSync('dist/client', 'dist', { recursive: true })\"",
     "analyze-bundle": "npm run build:client && tsx scripts/analyze-bundle.ts",
     "perf:budget": "tsx scripts/analyze-bundle.ts",
+    "check:route-chunks": "node scripts/check-route-chunks.mjs",
     "perf:lighthouse": "lhci autorun",
     "preview": "vite preview",
     "lint": "eslint .",

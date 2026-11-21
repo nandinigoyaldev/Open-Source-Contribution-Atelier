@@ -9,6 +9,7 @@ on every PR that touches `frontend/` and fails if a limit is broken.
 | Section      | Checked by                                                                 | In CI |
 | ------------ | -------------------------------------------------------------------------- | ----- |
 | `bundle`     | `frontend/scripts/analyze-bundle.ts` (`npm run perf:budget`)               | yes   |
+| route chunks | `frontend/scripts/check-route-chunks.mjs` (`npm run check:route-chunks`)    | yes   |
 | `lighthouse` | Lighthouse CI with `frontend/lighthouserc.cjs` (`npm run perf:lighthouse`) | yes   |
 | `api`        | nothing yet, target values only                                            | no    |
 | `database`   | nothing yet, target values only                                            | no    |
@@ -24,6 +25,22 @@ precompressed `.gz` / `.br` copies are skipped).
 
 The script also writes a report to `frontend/public/performance.json`, which the
 admin performance dashboard reads.
+
+### Route chunks
+
+`frontend/route-chunk-budget.json` sets gzipped KiB limits for each lazy route
+`*Page-*.js` chunk. The check reads the existing `dist/client/assets` build; it
+does not alter how Vite builds the app. It requires exactly one chunk for each
+listed route and applies `defaultMaxGzipKB` to other route chunks. A missing or
+renamed required chunk fails with the route name. An oversized chunk fails with
+its artifact filename, measured size, and limit.
+
+The signup route currently carries a large chunk (386.2 KiB gzip in the initial
+CI build), so it has a separate 420 KiB limit until the route can be split.
+
+Run `npm run check:route-chunks` after `npm run build:client` (or `npm run build`).
+When a route is renamed, update `requiredRoutes` in the budget file in the same
+PR; set limits just above the measured baseline and lower them as chunks shrink.
 
 #### Bundle report and review threshold
 
@@ -92,6 +109,7 @@ From `frontend/`:
 npm install
 npm run build              # full production build into dist/
 npm run perf:budget        # bundle size check
+npm run check:route-chunks # lazy route chunk size check
 npm run perf:lighthouse    # Lighthouse CI, needs Chrome or Chromium installed
 ```
 
