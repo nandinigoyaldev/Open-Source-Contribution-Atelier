@@ -1,31 +1,216 @@
+import hashlib
 import json
 import logging
+import time
+from datetime import timedelta
 from typing import Optional
 
 from django.conf import settings
 from django.core.mail import EmailMultiAlternatives
+from django.core.serializers.json import DjangoJSONEncoder
+from django.db import IntegrityError, transaction
+from django.db.models import F, Q
+from django.utils import timezone
 from pywebpush import WebPushException, webpush  # type: ignore
 
-from .models import PushSubscription
-from .vapid import build_vapid_claims
+from apps.notifications.channels import get_channel_instance, get_registered_channels
+from apps.notifications.delivery import (
+    MAX_ERROR_CHARS,
+    MAX_RESPONSE_CHARS,
+    PERMANENT,
+    RATE_LIMITED,
+    TRANSIENT,
+    DeliveryResult,
+    _status_of,
+    backoff_seconds,
+    classify_failure,
+    make_dedupe_key,
+    normalize_result,
+    truncate,
+)
+from apps.notifications.models import (
+    Notification,
+    NotificationAttempt,
+    NotificationDeadLetter,
+    NotificationDelivery,
+    NotificationPreference,
+    PushSubscription,
+)
+from apps.notifications.rate_limiter import ChannelRateLimiter
+from apps.notifications.vapid import build_vapid_claims
 
 logger = logging.getLogger(__name__)
 
+FINISHED_STATUSES = ("sent", "opened", "clicked", "bounced")
 
-def send_web_push_notification(user_id, title, message, url=None):
+
+def _setting(name, default):
+    return getattr(settings, name, default)
+
+
+def _json_safe(val):
+    try:
+        return json.loads(json.dumps(val, cls=DjangoJSONEncoder))
+    except Exception:
+        return {}
+
+
+def max_attempts() -> int:
+    """Tries a delivery gets before it is given up on and moved to the dead letters."""
+    return max(1, int(_setting("NOTIFICATION_MAX_ATTEMPTS", 3)))
+
+
+def _claim_lease() -> timedelta:
+    return timedelta(seconds=int(_setting("NOTIFICATION_CLAIM_LEASE_SECONDS", 120)))
+
+
+def _claim_delivery(delivery_id: int):
+    now = timezone.now()
+    taken = (
+        NotificationDelivery.objects.filter(id=delivery_id, status="pending")
+        .filter(Q(claimed_at__isnull=True) | Q(claimed_at__lt=now - _claim_lease()))
+        .update(claimed_at=now)
+    )
+    if not taken:
+        return None
+    return NotificationDelivery.objects.select_related("recipient").get(id=delivery_id)
+
+
+def _can_schedule(task) -> bool:
+    request = getattr(task, "request", None)
+    if request is None or getattr(request, "called_directly", True):
+        return False
+    return not _setting("CELERY_TASK_ALWAYS_EAGER", False)
+
+
+def _enqueue(delivery_id: int, delay: int = 0) -> None:
+    try:
+        process_notification_delivery.apply_async(
+            args=(delivery_id, None), countdown=delay
+        )
+    except Exception as exc:
+        logger.warning("Could not queue delivery #%s: %s", delivery_id, exc)
+
+
+def _dead_letter(delivery, error: str, payload: dict) -> None:
+    NotificationDeadLetter.objects.create(
+        notification=delivery.notification,
+        recipient=delivery.recipient,
+        channel=delivery.channel,
+        retry_count=delivery.retry_count,
+        error_message=truncate(error, MAX_ERROR_CHARS),
+        payload=payload or {},
+    )
+
+
+def _finish_attempt(
+    attempt, started_mono, outcome, *, kind="", error="", result=None, status=None
+):
+    attempt.outcome = outcome
+    attempt.error_class = kind
+    attempt.error_message = truncate(error, MAX_ERROR_CHARS)
+    attempt.finished_at = timezone.now()
+    attempt.duration_ms = int((time.monotonic() - started_mono) * 1000)
+    if result is not None:
+        attempt.provider = result.provider
+        attempt.provider_message_id = truncate(result.message_id, 255)
+        attempt.status_code = result.status_code
+        attempt.provider_response = _clip_response(result.response)
+    if status is not None and attempt.status_code is None:
+        attempt.status_code = status
+    attempt.save()
+
+
+def _clip_response(response) -> dict:
+    if not isinstance(response, dict):
+        return {}
+    clipped = {}
+    for key, value in list(response.items())[:20]:
+        if isinstance(value, (bool, int, float, type(None))):
+            clipped[str(key)[:60]] = value
+        else:
+            clipped[str(key)[:60]] = truncate(value, MAX_RESPONSE_CHARS)
+    return clipped
+
+
+def _skip_finished(delivery_id: int):
+    delivery = NotificationDelivery.objects.filter(id=delivery_id).first()
+    if delivery is None:
+        logger.error("NotificationDelivery #%s does not exist", delivery_id)
+        return False
+    if delivery.status in FINISHED_STATUSES:
+        NotificationAttempt.objects.create(
+            delivery=delivery,
+            attempt_number=delivery.attempts.count() + 1,
+            outcome="skipped",
+            error_message=f"Already {delivery.status}; not sent again",
+            started_at=timezone.now(),
+            finished_at=timezone.now(),
+            duration_ms=0,
+        )
+        logger.info(
+            "Delivery #%s is already %s, skipping.", delivery_id, delivery.status
+        )
+        return True
+    logger.info(
+        "Delivery #%s is %s or being handled by another worker, skipping.",
+        delivery_id,
+        delivery.status,
+    )
+    return False
+
+
+def _fail_for_good(delivery, kind: str, error: str, payload: dict) -> None:
+    delivery.status = "failed"
+    delivery.error_class = kind
+    delivery.error_message = truncate(error, MAX_ERROR_CHARS)
+    delivery.next_retry_at = None
+    delivery.claimed_at = None
+    delivery.save()
+    _dead_letter(delivery, error, payload)
+
+
+def send_web_push_notification(user_id, title, message, url=None, dedupe_key=None):
     """
-    Sends a Web Push notification to all subscribed endpoints for a user.
+    Sends a Web Push notification to all subscribed endpoints for a user
+    with outbox delivery records, retry backoff, endpoint retirement, and deduplication.
     """
+    stable_dedupe = dedupe_key or make_dedupe_key(
+        "push", user_id, title, message, url or ""
+    )
+
+    pref = NotificationPreference.objects.filter(user_id=user_id).first()
+    if pref and not pref.is_channel_enabled("push"):
+        logger.info("Push channel disabled for user %s, skipping.", user_id)
+        return None
+
+    existing = NotificationDelivery.objects.filter(
+        recipient_id=user_id, channel="push", dedupe_key=stable_dedupe
+    ).first()
+    if existing and existing.status in FINISHED_STATUSES:
+        logger.info(
+            "Push notification %s already %s, skipping duplicate delivery.",
+            stable_dedupe,
+            existing.status,
+        )
+        return None
+
     subscriptions = PushSubscription.objects.filter(user_id=user_id)
     if not subscriptions.exists():
-        return
+        if existing:
+            _fail_for_good(
+                existing,
+                PERMANENT,
+                "No active push subscriptions",
+                existing.payload,
+            )
+        return None
 
     vapid_private_key = getattr(settings, "VAPID_PRIVATE_KEY", None)
     vapid_admin_email = getattr(settings, "VAPID_ADMIN_EMAIL", None)
 
     if not vapid_private_key or not vapid_admin_email:
-        # VAPID not configured
-        return
+        return None
 
     payload_data = {
         "title": title,
@@ -36,7 +221,42 @@ def send_web_push_notification(user_id, title, message, url=None):
 
     payload = json.dumps(payload_data)
 
-    for sub in subscriptions:
+    delivery = existing
+    if not delivery:
+        try:
+            delivery = NotificationDelivery.objects.create(
+                recipient_id=user_id,
+                channel="push",
+                status="pending",
+                dedupe_key=stable_dedupe,
+                payload=payload_data,
+            )
+        except IntegrityError:
+            delivery = NotificationDelivery.objects.filter(
+                recipient_id=user_id, channel="push", dedupe_key=stable_dedupe
+            ).first()
+            if delivery and delivery.status in FINISHED_STATUSES:
+                return None
+
+    now = timezone.now()
+    started_mono = time.monotonic()
+    attempt = (
+        NotificationAttempt.objects.create(
+            delivery=delivery,
+            attempt_number=delivery.attempts.count() + 1,
+            started_at=now,
+        )
+        if delivery
+        else None
+    )
+    if delivery:
+        delivery.last_attempt_at = now
+
+    delivered_count = 0
+    retired_count = 0
+    transient_errors = []
+
+    for sub in list(subscriptions):
         try:
             webpush(
                 subscription_info={
@@ -47,17 +267,73 @@ def send_web_push_notification(user_id, title, message, url=None):
                 vapid_private_key=vapid_private_key,
                 vapid_claims=build_vapid_claims(vapid_admin_email),
             )
+            delivered_count += 1
         except WebPushException as ex:
-            # If the endpoint is no longer valid (e.g. 410 Gone, or 404 Not Found),
-            # remove it from the database.
             if ex.response and ex.response.status_code in [404, 410]:
                 sub.delete()
+                retired_count += 1
             else:
                 logger.warning("Web push failed for subscription %s: %s", sub.id, ex)
+                transient_errors.append(str(ex))
         except Exception as exc:
             logger.warning(
                 "Unexpected error sending web push to user %s: %s", user_id, exc
             )
+            transient_errors.append(str(exc))
+
+    if delivery and attempt:
+        if delivered_count > 0:
+            delivery.status = "sent"
+            delivery.sent_at = timezone.now()
+            delivery.error_message = ""
+            delivery.error_class = ""
+            delivery.next_retry_at = None
+            delivery.claimed_at = None
+            delivery.provider = "webpush"
+            delivery.provider_response = {
+                "delivered": delivered_count,
+                "retired": retired_count,
+            }
+            delivery.save()
+            _finish_attempt(
+                attempt,
+                started_mono,
+                "sent",
+                result=DeliveryResult.sent(
+                    provider="webpush", response={"delivered": delivered_count}
+                ),
+            )
+        elif (
+            retired_count > 0
+            and not PushSubscription.objects.filter(user_id=user_id).exists()
+        ):
+            err = "All push subscriptions expired or invalid (404/410)"
+            _finish_attempt(
+                attempt, started_mono, "permanent_failure", kind=PERMANENT, error=err
+            )
+            _fail_for_good(delivery, PERMANENT, err, delivery.payload)
+        elif transient_errors:
+            err_msg = "; ".join(transient_errors)
+            delivery.retry_count += 1
+            _finish_attempt(
+                attempt,
+                started_mono,
+                "transient_failure",
+                kind=TRANSIENT,
+                error=err_msg,
+            )
+            if delivery.retry_count >= max_attempts():
+                _fail_for_good(delivery, TRANSIENT, err_msg, delivery.payload)
+            else:
+                delay = backoff_seconds(delivery.retry_count)
+                delivery.status = "pending"
+                delivery.error_class = TRANSIENT
+                delivery.error_message = truncate(err_msg, MAX_ERROR_CHARS)
+                delivery.next_retry_at = timezone.now() + timedelta(seconds=delay)
+                delivery.claimed_at = None
+                delivery.save()
+
+    return None
 
 
 try:
@@ -77,9 +353,8 @@ except ImportError:
 @shared_task(name="notifications.send_bulk_email")
 def send_bulk_email(payload):
     """
-    Sends bulk emails based on payload data.
-    Supports weekly_progress_summary, badge_earned_email, comment_posted_email,
-    and notification_digest templates.
+    Sends bulk emails based on payload data with durable outbox delivery records,
+    per-user opt-out enforcement, idempotency, and retry backoff.
     """
     if not isinstance(payload, dict):
         return
@@ -90,6 +365,10 @@ def send_bulk_email(payload):
 
     if not recipients:
         return
+
+    from django.contrib.auth import get_user_model
+
+    User = get_user_model()
 
     subject = "Open Source Contribution Atelier Update"
     message = "You have an update from OSCA."
@@ -109,11 +388,8 @@ def send_bulk_email(payload):
                 f"Don't lose your {data['current_streak']}-day streak, {username}! 🔥"
             )
 
-        from django.contrib.auth import get_user_model
-
         from apps.progress.services.pdf_report_service import PDFReportGenerator
 
-        User = get_user_model()
         user_email = recipients[0] if recipients else None
 
         try:
@@ -191,9 +467,60 @@ def send_bulk_email(payload):
         except Exception as exc:
             logger.warning("Could not render digest.html: %s", exc)
 
+    active_recipients = []
+    recipient_deliveries = {}
+
+    for recipient_email in recipients:
+        user = User.objects.filter(email=recipient_email).first()
+        if user:
+            pref = NotificationPreference.objects.filter(user=user).first()
+            if pref and not pref.is_channel_enabled("email", template_id or "default"):
+                logger.info(
+                    "Email disabled for user %s, skipping outbox send.", user.id
+                )
+                continue
+
+            dedupe = payload.get("dedupe_key") or make_dedupe_key(
+                "email", user.id, template_id or "generic", subject
+            )
+            existing = NotificationDelivery.objects.filter(
+                recipient=user, channel="email", dedupe_key=dedupe
+            ).first()
+            if existing and existing.status in FINISHED_STATUSES:
+                logger.info(
+                    "Email delivery for user %s already sent (%s), skipping duplicate.",
+                    user.id,
+                    existing.status,
+                )
+                continue
+
+            try:
+                delivery = existing or NotificationDelivery.objects.create(
+                    recipient=user,
+                    channel="email",
+                    status="pending",
+                    dedupe_key=dedupe,
+                    payload=_json_safe(payload),
+                )
+            except IntegrityError:
+                delivery = NotificationDelivery.objects.filter(
+                    recipient=user, channel="email", dedupe_key=dedupe
+                ).first()
+                if delivery and delivery.status in FINISHED_STATUSES:
+                    continue
+
+            recipient_deliveries[recipient_email] = (user, delivery)
+            active_recipients.append(recipient_email)
+        else:
+            active_recipients.append(recipient_email)
+
+    if not active_recipients:
+        logger.info("No active recipients to send bulk email to.")
+        return
+
     from_email = getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@atelier.dev")
     email = EmailMultiAlternatives(
-        subject=subject, body=message, from_email=from_email, to=recipients
+        subject=subject, body=message, from_email=from_email, to=active_recipients
     )
     if html_message:
         email.attach_alternative(html_message, "text/html")
@@ -201,7 +528,71 @@ def send_bulk_email(payload):
     if pdf_attachment:
         email.attach("OSCA_Progress_Report.pdf", pdf_attachment, "application/pdf")
 
-    email.send(fail_silently=False)
+    started_mono = time.monotonic()
+    now = timezone.now()
+    attempts = {}
+    for email_addr, (u, deliv) in recipient_deliveries.items():
+        if deliv:
+            attempts[deliv.id] = NotificationAttempt.objects.create(
+                delivery=deliv,
+                attempt_number=deliv.attempts.count() + 1,
+                started_at=now,
+            )
+            deliv.last_attempt_at = now
+
+    try:
+        email.send(fail_silently=False)
+        for email_addr, (u, deliv) in recipient_deliveries.items():
+            if deliv:
+                deliv.status = "sent"
+                deliv.sent_at = timezone.now()
+                deliv.error_message = ""
+                deliv.error_class = ""
+                deliv.next_retry_at = None
+                deliv.claimed_at = None
+                deliv.provider = "email"
+                deliv.save()
+                att = attempts.get(deliv.id)
+                if att:
+                    _finish_attempt(
+                        att,
+                        started_mono,
+                        "sent",
+                        result=DeliveryResult.sent(
+                            provider="email", response={"recipient": email_addr}
+                        ),
+                    )
+    except Exception as exc:
+        failure_kind = classify_failure(exc)
+        err_msg = str(exc)
+        for email_addr, (u, deliv) in recipient_deliveries.items():
+            if deliv:
+                deliv.retry_count += 1
+                att = attempts.get(deliv.id)
+                if att:
+                    outcome = (
+                        "permanent_failure"
+                        if failure_kind == PERMANENT
+                        else "transient_failure"
+                    )
+                    _finish_attempt(
+                        att,
+                        started_mono,
+                        outcome,
+                        kind=failure_kind,
+                        error=err_msg,
+                    )
+                if failure_kind == PERMANENT or deliv.retry_count >= max_attempts():
+                    _fail_for_good(deliv, failure_kind, err_msg, deliv.payload)
+                else:
+                    delay = backoff_seconds(deliv.retry_count)
+                    deliv.status = "pending"
+                    deliv.error_class = failure_kind
+                    deliv.error_message = truncate(err_msg, MAX_ERROR_CHARS)
+                    deliv.next_retry_at = timezone.now() + timedelta(seconds=delay)
+                    deliv.claimed_at = None
+                    deliv.save()
+        raise
 
 
 @shared_task
@@ -269,7 +660,11 @@ def send_notification_digests():
                 {
                     "title": notif.title,
                     "message": notif.message,
-                    "created_at": notif.created_at,
+                    "created_at": (
+                        notif.created_at.isoformat()
+                        if hasattr(notif.created_at, "isoformat")
+                        else str(notif.created_at)
+                    ),
                 }
             )
 
@@ -317,171 +712,6 @@ def send_notification_digests():
                 len(batch),
                 exc,
             )
-
-
-import time
-from datetime import timedelta
-
-from django.db import IntegrityError, transaction
-from django.db.models import F, Q
-from django.utils import timezone
-
-from apps.notifications.channels import get_channel_instance, get_registered_channels
-from apps.notifications.delivery import (
-    MAX_ERROR_CHARS,
-    MAX_RESPONSE_CHARS,
-    PERMANENT,
-    RATE_LIMITED,
-    TRANSIENT,
-    DeliveryResult,
-    _status_of,
-    backoff_seconds,
-    classify_failure,
-    normalize_result,
-    truncate,
-)
-from apps.notifications.models import (
-    Notification,
-    NotificationAttempt,
-    NotificationDeadLetter,
-    NotificationDelivery,
-    NotificationPreference,
-)
-from apps.notifications.rate_limiter import ChannelRateLimiter
-
-# A delivery that was already handed to the provider must not be sent again.
-FINISHED_STATUSES = ("sent", "opened", "clicked", "bounced")
-
-
-def _setting(name, default):
-    return getattr(settings, name, default)
-
-
-def max_attempts() -> int:
-    """Tries a delivery gets before it is given up on and moved to the dead letters."""
-    return max(1, int(_setting("NOTIFICATION_MAX_ATTEMPTS", 3)))
-
-
-def _claim_lease() -> timedelta:
-    return timedelta(seconds=int(_setting("NOTIFICATION_CLAIM_LEASE_SECONDS", 120)))
-
-
-def _claim_delivery(delivery_id: int):
-    """
-    Take the delivery for this worker, or return None.
-
-    The claim is one conditional UPDATE, so two workers handed the same delivery (a re-delivered
-    task, a retry racing the recovery sweep) cannot both send it. A claim older than the lease is
-    treated as left behind by a worker that died.
-    """
-    now = timezone.now()
-    taken = (
-        NotificationDelivery.objects.filter(id=delivery_id, status="pending")
-        .filter(Q(claimed_at__isnull=True) | Q(claimed_at__lt=now - _claim_lease()))
-        .update(claimed_at=now)
-    )
-    if not taken:
-        return None
-    return NotificationDelivery.objects.select_related("recipient").get(id=delivery_id)
-
-
-def _can_schedule(task) -> bool:
-    """False when called as a plain function or eagerly; then the recovery sweep picks it up."""
-    request = getattr(task, "request", None)
-    if request is None or getattr(request, "called_directly", True):
-        return False
-    return not _setting("CELERY_TASK_ALWAYS_EAGER", False)
-
-
-def _enqueue(delivery_id: int, delay: int = 0) -> None:
-    try:
-        process_notification_delivery.apply_async(
-            args=(delivery_id, None), countdown=delay
-        )
-    except Exception as exc:
-        # Left pending with next_retry_at set: recover_stale_deliveries will queue it.
-        logger.warning("Could not queue delivery #%s: %s", delivery_id, exc)
-
-
-def _dead_letter(delivery, error: str, payload: dict) -> None:
-    NotificationDeadLetter.objects.create(
-        notification=delivery.notification,
-        recipient=delivery.recipient,
-        channel=delivery.channel,
-        retry_count=delivery.retry_count,
-        error_message=truncate(error, MAX_ERROR_CHARS),
-        payload=payload or {},
-    )
-
-
-def _finish_attempt(
-    attempt, started_mono, outcome, *, kind="", error="", result=None, status=None
-):
-    attempt.outcome = outcome
-    attempt.error_class = kind
-    attempt.error_message = truncate(error, MAX_ERROR_CHARS)
-    attempt.finished_at = timezone.now()
-    attempt.duration_ms = int((time.monotonic() - started_mono) * 1000)
-    if result is not None:
-        attempt.provider = result.provider
-        attempt.provider_message_id = truncate(result.message_id, 255)
-        attempt.status_code = result.status_code
-        attempt.provider_response = _clip_response(result.response)
-    if status is not None and attempt.status_code is None:
-        attempt.status_code = status
-    attempt.save()
-
-
-def _clip_response(response) -> dict:
-    """Keep provider metadata small: long strings are cut, the rest is passed through."""
-    if not isinstance(response, dict):
-        return {}
-    clipped = {}
-    for key, value in list(response.items())[:20]:
-        if isinstance(value, (bool, int, float, type(None))):
-            clipped[str(key)[:60]] = value
-        else:
-            # strings are cut, and anything that is not plain JSON is stored as text
-            clipped[str(key)[:60]] = truncate(value, MAX_RESPONSE_CHARS)
-    return clipped
-
-
-def _skip_finished(delivery_id: int):
-    """A task for a delivery that is not claimable: report what is already true about it."""
-    delivery = NotificationDelivery.objects.filter(id=delivery_id).first()
-    if delivery is None:
-        logger.error("NotificationDelivery #%s does not exist", delivery_id)
-        return False
-    if delivery.status in FINISHED_STATUSES:
-        NotificationAttempt.objects.create(
-            delivery=delivery,
-            attempt_number=delivery.attempts.count() + 1,
-            outcome="skipped",
-            error_message=f"Already {delivery.status}; not sent again",
-            started_at=timezone.now(),
-            finished_at=timezone.now(),
-            duration_ms=0,
-        )
-        logger.info(
-            "Delivery #%s is already %s, skipping.", delivery_id, delivery.status
-        )
-        return True
-    logger.info(
-        "Delivery #%s is %s or being handled by another worker, skipping.",
-        delivery_id,
-        delivery.status,
-    )
-    return False
-
-
-def _fail_for_good(delivery, kind: str, error: str, payload: dict) -> None:
-    delivery.status = "failed"
-    delivery.error_class = kind
-    delivery.error_message = truncate(error, MAX_ERROR_CHARS)
-    delivery.next_retry_at = None
-    delivery.claimed_at = None
-    delivery.save()
-    _dead_letter(delivery, error, payload)
 
 
 @shared_task(bind=True, max_retries=3)
