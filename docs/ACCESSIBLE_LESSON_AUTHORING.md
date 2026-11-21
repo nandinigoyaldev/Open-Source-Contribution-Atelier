@@ -192,6 +192,21 @@ A practice activity that requires learners to drag an answer into a box, with no
 
 **Remember:** Test the activity without using a mouse. Every essential action should have a usable keyboard interaction.
 
+### Interactive lesson authoring reference
+
+Follow the [content workflow](CONTENT_GUIDE.md) for Markdown lessons and curriculum entries. Interactive shortcode blocks are rendered by the [lesson block registry](frontend/LESSON_BLOCKS.md); check the live preview before submitting because an unknown shortcode displays “Unsupported interactive component” instead of an activity. If an activity needs a new control or behavior, update its React component as well as the lesson content.
+
+Use these project examples when authoring or reviewing an activity:
+
+| Concern | Pattern in this repository | Check in the lesson preview |
+| --- | --- | --- |
+| Labels | The lesson feedback form connects its visible “Feedback (Optional)” label to the textarea; its star buttons also have explicit “Rate N stars” names (`LessonFeedbackWidget.tsx`). | Every input and icon-only button has a name that describes its action, beyond placeholder text or color. |
+| Focus order | The lesson search dialog moves focus through its query, result controls, and “Clear query” button (`LessonSearchModal.tsx`). | Press `Tab` and `Shift+Tab` from the preceding lesson text through every control; the order follows the reading order and focus stays visible. |
+| Keyboard actions | Search results support keyboard selection; standard buttons respond to `Enter` and `Space`. | Complete, reset, and leave the activity without a mouse. If a dialog opens, focus enters it, `Escape` closes it, and focus returns to the opener. |
+| Errors and feedback | The lesson block renderer shows a text error with `role="alert"` when a block fails (`lessonBlocks/BlockBoundary.tsx`). | Explain what failed and what the learner can do next, such as “Check your answer before continuing.” Do not rely on a red border or an error icon alone. Use a live region for feedback that appears without moving focus. |
+
+Before submitting an interactive example, confirm its controls have clear labels, the focus order and keyboard actions work, and success or error text is understandable when read aloud. For new components, test the rendered activity with the existing accessibility checks in section 8.
+
 ---
 
 ## 6. Keep Instructions and Content Easy to Understand
@@ -256,6 +271,9 @@ Use this checklist when creating or updating a lesson.
 - [ ] The focus indicator is visible.
 - [ ] The focus order is logical.
 - [ ] Essential actions do not require a mouse or hover.
+- [ ] Inputs and icon-only controls have descriptive accessible names.
+- [ ] Dynamic feedback and errors include useful text and are announced appropriately.
+- [ ] Dialogs move focus inside when opened and return it to the opener when closed.
 
 ---
 

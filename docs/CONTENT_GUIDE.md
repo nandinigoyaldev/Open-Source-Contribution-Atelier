@@ -2,6 +2,8 @@
 
 Welcome to the **Open Source Contribution Atelier** content guide! 
 
+For interactive examples, keyboard behavior, labels, focus order, and error text, follow the [accessible lesson authoring guide](ACCESSIBLE_LESSON_AUTHORING.md#interactive-lesson-authoring-reference).
+
 This project is designed to be fully content-driven. You do **not** need to modify React code or database tables to create, modify, or extend the curriculum. All lessons, modules, and quizzes are parsed dynamically from static JSON and Markdown assets.
 
 ---
