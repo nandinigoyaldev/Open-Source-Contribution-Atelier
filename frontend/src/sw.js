@@ -72,7 +72,7 @@ self.addEventListener("activate", (event) => {
 self.addEventListener("sync", (event) => {
   console.log("[ServiceWorker] Sync event fired for tag:", event.tag);
   if (event.tag === "sync-progress") {
-    event.waitUntil(syncProgressQueue());
+    event.waitUntil(syncProgressQueueForSyncEvent());
   }
   if (event.tag === "sync-quiz-progress") {
     event.waitUntil(syncQuizQueue());
@@ -84,7 +84,8 @@ self.addEventListener("message", (event) => {
   if (event.data && event.data.type === "SKIP_WAITING") {
     self.skipWaiting();
   } else if (event.data && event.data.type === "TRIGGER_SYNC") {
-    event.waitUntil(syncProgressQueue());
+    // The page asked: it sees the outcome in the messages, nothing to reschedule
+    event.waitUntil(syncProgressQueue().catch(() => {}));
   } else if (event.data && event.data.type === "TRIGGER_QUIZ_SYNC") {
     event.waitUntil(syncQuizQueue());
   }
@@ -194,14 +195,117 @@ async function notifyClients(message) {
   });
 }
 
+// What the server answers for a request that will never succeed on a retry
+const PERMANENT_REJECTIONS = [400, 404, 410, 422];
+
+/**
+ * Reads the record with `id` and applies what `decide` returns ({ put } or
+ * { remove: true }) in one transaction, so a check on the stored revision
+ * cannot be overtaken by a write from the page. Resolves after the commit.
+ * Records from a newer build are never changed.
+ */
+function editStored(db, id, decide) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(STORE_NAME, "readwrite");
+    const store = tx.objectStore(STORE_NAME);
+    let changed = false;
+    let record;
+    tx.oncomplete = () => resolve({ changed, record });
+    tx.onerror = () => reject(tx.error || new Error("IndexedDB write failed"));
+    tx.onabort = () => reject(tx.error || new Error("IndexedDB write aborted"));
+    const read = store.get(id);
+    read.onerror = () => reject(read.error);
+    read.onsuccess = () => {
+      record = read.result;
+      if (record && (record.schemaVersion || 1) > QUEUE_SCHEMA_VERSION) return;
+      const edit = decide(record);
+      if (!edit) return;
+      changed = true;
+      if (edit.put) {
+        record = edit.put;
+        store.put(edit.put);
+      } else {
+        record = undefined;
+        store.delete(id);
+      }
+    };
+  });
+}
+
+const sameRevision = (stored, action) =>
+  !!stored && stored.idempotencyKey === action.idempotencyKey;
+
+function kindFromUrl(url) {
+  if (url.includes("/progress/me/")) return "progress";
+  if (url.includes("/progress/bookmarks/")) return "bookmark";
+  if (url.includes("/progress/quiz-attempts/")) return "quiz";
+  if (url.includes("/progress/code-submissions/")) return "code_submission";
+  return "other";
+}
+
+function tokenOwner(authorization) {
+  const payload = String(authorization || "")
+    .replace(/^Bearer\s+/i, "")
+    .split(".")[1];
+  if (!payload) return undefined;
+  try {
+    const base64 = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const claims = JSON.parse(
+      atob(base64.padEnd(Math.ceil(base64.length / 4) * 4, "=")),
+    );
+    const id = claims && (claims.user_id ?? claims.sub);
+    return id === undefined || id === null ? undefined : String(id);
+  } catch (e) {
+    return undefined;
+  }
+}
+
+/**
+ * A record from before idempotency keys has none. The page and this worker may
+ * both find it, so the key is committed in one transaction and whoever comes
+ * second uses the stored one. Resolves the committed record (null when it is
+ * gone). Mirrors upgradeQueuedAction() in src/lib/offlineQueue.ts.
+ */
+async function commitLegacyKey(db, action) {
+  const key = crypto.randomUUID();
+  const headers = {};
+  for (const [name, value] of Object.entries(action.headers || {})) {
+    if (name.toLowerCase() !== "idempotency-key") headers[name] = value;
+  }
+  headers["Idempotency-Key"] = key;
+  const authorization = Object.entries(action.headers || {}).find(
+    ([name]) => name.toLowerCase() === "authorization",
+  );
+  const upgraded = {
+    ...action,
+    headers,
+    schemaVersion: QUEUE_SCHEMA_VERSION,
+    seq: 0,
+    idempotencyKey: key,
+    kind: kindFromUrl(action.url),
+    owner: tokenOwner(authorization && authorization[1]),
+  };
+  const { record } = await editStored(db, action.id, (stored) =>
+    stored && (stored.schemaVersion || 1) < QUEUE_SCHEMA_VERSION
+      ? { put: upgraded }
+      : null,
+  );
+  return record || null;
+}
+
+// Resolves { retry } : true when something was left queued because of a
+// temporary problem (offline, 5xx, a key still being processed). The sync
+// event turns that into a rejected promise so the browser schedules another
+// attempt; the page replaying the queue is the fallback.
 async function syncProgressQueue() {
   console.log("[ServiceWorker] Starting background queue sync...");
+  let retry = false;
   let db;
   try {
     db = await openDB();
   } catch (err) {
     console.error("[ServiceWorker] Failed to open IndexedDB:", err);
-    return;
+    return { retry: true };
   }
 
   let actions;
@@ -209,7 +313,8 @@ async function syncProgressQueue() {
     actions = await getAllFromStore(db, STORE_NAME);
   } catch (err) {
     console.error("[ServiceWorker] Failed to read IndexedDB store:", err);
-    return;
+    db.close();
+    return { retry: true };
   }
 
   // getAll() is key order; replay in the order things were queued (seq, set
@@ -225,7 +330,8 @@ async function syncProgressQueue() {
 
   if (actions.length === 0) {
     console.log("[ServiceWorker] Queue is empty. Nothing to sync.");
-    return;
+    db.close();
+    return { retry };
   }
 
   console.log(
@@ -247,7 +353,7 @@ async function syncProgressQueue() {
       : action.id;
   };
 
-  for (const action of actions) {
+  for (let action of actions) {
     const entity = entityOf(action);
     // The page already got the 409 for this one and is waiting on the user
     if (action.state === "conflict") {
@@ -255,6 +361,36 @@ async function syncProgressQueue() {
       continue;
     }
     if (blocked.has(entity)) continue;
+    try {
+      if (!action.idempotencyKey) {
+        const committed = await commitLegacyKey(db, action);
+        if (!committed) continue; // removed meanwhile
+        action = committed;
+      }
+      // Marked as sent before it goes out: if the answer is lost the server may
+      // still have applied it, and the page must not treat it as never sent.
+      // Not sent if it was replaced since.
+      const marked = await editStored(db, action.id, (stored) =>
+        sameRevision(stored, action)
+          ? {
+              put: {
+                ...stored,
+                dispatchedAt: stored.dispatchedAt || Date.now(),
+              },
+            }
+          : null,
+      );
+      if (!marked.changed) continue;
+    } catch (err) {
+      // Left queued and not sent; the page can try again
+      console.error(
+        `[ServiceWorker] Could not prepare action ${action.id}:`,
+        err,
+      );
+      blocked.add(entity);
+      retry = true;
+      continue;
+    }
     try {
       console.log(
         `[ServiceWorker] Replaying action: ${action.id} to ${action.url}`,
@@ -272,7 +408,18 @@ async function syncProgressQueue() {
       } else if (action.id && action.id.startsWith("bookmark-")) {
         lesson_slug = action.id.replace("bookmark-", "");
       }
-      const meta = { kind: action.kind, method: action.method };
+      // idempotencyKey names the revision that was sent, so the page can tell
+      // an answer for a replaced action from one for the queued action
+      const meta = {
+        kind: action.kind,
+        method: action.method,
+        idempotencyKey: action.idempotencyKey,
+      };
+      // Only this revision is removed: a newer write for the same id stays
+      const removeSent = () =>
+        editStored(db, action.id, (stored) =>
+          sameRevision(stored, action) ? { remove: true } : null,
+        );
       const conflictBody =
         response.status === 409
           ? await response
@@ -298,7 +445,7 @@ async function syncProgressQueue() {
         );
 
         // Delete from IndexedDB
-        await deleteFromStore(db, STORE_NAME, action.id);
+        await removeSent();
 
         // Notify clients
         await notifyClients({
@@ -311,20 +458,28 @@ async function syncProgressQueue() {
           ...meta,
         });
       } else if (keyRejection) {
-        blocked.add(entity);
+        const inFlight = /being processed/i.test(
+          String(conflictBody.error || ""),
+        );
+        if (inFlight) {
+          blocked.add(entity);
+          retry = true;
+        } else {
+          // This key will never be accepted: same as the page, drop it
+          await removeSent();
+        }
         await notifyClients({
           type: "SYNC_FAILED",
           id: action.id,
           status: response.status,
           lesson_slug: lesson_slug,
-          retryable: /being processed/i.test(String(conflictBody.error || "")),
+          retryable: inFlight,
           ...meta,
         });
       } else if (response.status === 409) {
         console.warn(
           `[ServiceWorker] Conflict detected on server for action ${action.id}`,
         );
-        // On 409 Conflict, notify client of the conflict to open resolution UI, do not delete from store yet
         blocked.add(entity);
         const serverData = conflictBody || {};
         let localData = {};
@@ -335,6 +490,15 @@ async function syncProgressQueue() {
           localData = { lesson_slug, bookmarked: action.method === "POST" };
         }
 
+        // Kept in the queue with the server's answer before any page is told:
+        // with every tab closed nobody receives the message, and the page that
+        // opens next shows the conflict from the queue instead of sending the
+        // request again.
+        await editStored(db, action.id, (stored) =>
+          sameRevision(stored, action)
+            ? { put: { ...stored, state: "conflict", serverData } }
+            : null,
+        );
         await notifyClients({
           type: "SYNC_CONFLICT",
           id: action.id,
@@ -343,12 +507,29 @@ async function syncProgressQueue() {
           localData,
           ...meta,
         });
+      } else if (PERMANENT_REJECTIONS.includes(response.status)) {
+        console.warn(
+          `[ServiceWorker] Action ${action.id} was rejected for good (Status: ${response.status}). Dropping.`,
+        );
+        // Same policy as the page: replaying it would only be rejected again,
+        // and it must not hold up the next write for the same lesson
+        await removeSent();
+        await notifyClients({
+          type: "SYNC_FAILED",
+          id: action.id,
+          status: response.status,
+          lesson_slug: lesson_slug,
+          retryable: false,
+          ...meta,
+        });
       } else {
         console.warn(
           `[ServiceWorker] Action ${action.id} sync failed (Status: ${response.status}). Retrying later.`,
         );
         // Stays queued, but tell the page so the status UI can offer Retry
         blocked.add(entity);
+        // A dead or refused token is for the page to sort out
+        if (response.status !== 401 && response.status !== 403) retry = true;
         await notifyClients({
           type: "SYNC_FAILED",
           id: action.id,
@@ -364,11 +545,19 @@ async function syncProgressQueue() {
         `[ServiceWorker] Fetch error for action ${action.id}:`,
         err,
       );
-      // Keep in queue and resolve to try again later on network error
+      // Keep in queue and try again later on network error
+      retry = true;
       break;
     }
   }
   db.close();
+  return { retry };
+}
+
+// Background sync only retries when the event's promise rejects
+async function syncProgressQueueForSyncEvent() {
+  const { retry } = await syncProgressQueue();
+  if (retry) throw new Error("Offline queue still has actions to replay");
 }
 
 // Overlapping triggers (page message + Background Sync event after a
