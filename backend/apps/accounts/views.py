@@ -105,6 +105,7 @@ from .throttles import (
     StrictIdentityPasswordResetThrottle,
     StrictIdentityResendVerificationThrottle,
     TokenRefreshThrottle,
+    body_field,
 )
 
 
@@ -1066,7 +1067,9 @@ class PasswordResetRequestView(APIView):
 
     def throttled(self, request, wait):
         record_password_reset_rate_limited(
-            "request", password_reset_client(request), request.data.get("email")
+            "request",
+            password_reset_client(request),
+            body_field(request.data, "email"),
         )
         super().throttled(request, wait)
 
