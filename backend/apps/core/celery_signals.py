@@ -1,6 +1,12 @@
 import logging
 
-from celery.signals import before_task_publish, task_postrun, task_prerun
+from celery.signals import (
+    before_task_publish,
+    task_postrun,
+    task_prerun,
+    worker_init,
+    worker_process_init,
+)
 
 from apps.core.middleware.request_id import (
     _thread_locals,
@@ -18,19 +24,18 @@ def add_request_id_to_task(headers=None, **kwargs):
         headers["x-request-id"] = req_id
         headers["x-correlation-id"] = req_id
         headers["correlation_id"] = req_id
+    # The W3C traceparent header is added by CeleryInstrumentor (see config.opentelemetry),
+    # which also reads it back in the worker so the task span continues the request's trace.
 
-    # Propagate trace context if OpenTelemetry is enabled
-    try:
-        from opentelemetry import trace
 
-        span = trace.get_current_span()
-        if span and span.get_span_context().is_valid and headers is not None:
-            ctx = span.get_span_context()
-            trace_id = format(ctx.trace_id, "032x")
-            span_id = format(ctx.span_id, "016x")
-            headers["traceparent"] = f"00-{trace_id}-{span_id}-01"
-    except Exception:
-        pass
+@worker_init.connect
+@worker_process_init.connect
+def setup_tracing_in_worker(**kwargs):
+    # Workers do not load wsgi.py/asgi.py; this is a no-op unless OTEL_ENABLED is true.
+    # worker_process_init covers prefork children when Django is set up after worker_init.
+    from config.opentelemetry import setup_opentelemetry
+
+    setup_opentelemetry()
 
 
 @task_prerun.connect

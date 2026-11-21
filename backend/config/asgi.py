@@ -11,9 +11,9 @@ from django.core.asgi import get_asgi_application
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "config.settings")
 
-from config.telemetry import setup_telemetry
+from config.opentelemetry import setup_opentelemetry
 
-setup_telemetry()
+setup_opentelemetry()
 
 django_asgi_app = get_asgi_application()
 

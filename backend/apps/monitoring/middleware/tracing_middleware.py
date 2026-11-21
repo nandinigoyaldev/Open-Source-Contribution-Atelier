@@ -1,9 +1,12 @@
 """
 Django middleware for W3C Trace Context propagation and request span recording.
 
-Reads ``traceparent`` / ``tracestate`` from incoming headers, creates or continues
-a span context (OpenTelemetry when available, UUID-based fallback otherwise),
-sets ``traceparent`` on the response, and records HTTP metrics.
+Reads ``traceparent`` / ``tracestate`` from incoming headers, starts the request's server
+span as the current span (so DB, cache, outbound HTTP and Celery publish spans become its
+children), sets ``traceparent`` on the response, and records HTTP metrics.
+
+With tracing off (the default) the OpenTelemetry API is a no-op and the response still gets
+a ``traceparent``, continuing the caller's trace id or a fresh UUID-based one.
 """
 
 from __future__ import annotations
@@ -16,6 +19,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from apps.monitoring.exporters.prometheus_exporter import record_http_request
+from config.otel_privacy import scrub_path
 
 logger = logging.getLogger(__name__)
 
@@ -28,30 +32,20 @@ _TRACEPARENT_RE = re.compile(
 _OTEL_AVAILABLE = False
 _trace: Any = None
 
+_propagate: Any = None
+
 try:
-    from opentelemetry import context as otel_context
+    from opentelemetry import propagate as _otel_propagate
     from opentelemetry import trace as _otel_trace
-    from opentelemetry.trace import (
-        NonRecordingSpan,
-        SpanContext,
-        SpanKind,
-        Status,
-        StatusCode,
-        TraceFlags,
-        set_span_in_context,
-    )
 
     _trace = _otel_trace
+    _propagate = _otel_propagate
     _OTEL_AVAILABLE = True
 except ImportError:
-    otel_context = None  # type: ignore[assignment]
-    NonRecordingSpan = None  # type: ignore[misc, assignment]
-    SpanContext = None  # type: ignore[misc, assignment]
-    Status = None  # type: ignore[misc, assignment]
-    StatusCode = None  # type: ignore[misc, assignment]
-    SpanKind = None  # type: ignore[misc, assignment]
-    TraceFlags = None  # type: ignore[misc, assignment]
-    set_span_in_context = None  # type: ignore[misc, assignment]
+    pass
+
+# Same attribute name as config.otel_pipeline.DEBUG_TRACE_ATTRIBUTE (the sampler keeps these).
+DEBUG_TRACE_ATTRIBUTE = "http.debug_trace"
 
 
 @dataclass
@@ -109,23 +103,56 @@ def _format_traceparent(trace_id: str, span_id: str, flags: str = "01") -> str:
     return f"00-{trace_id}-{span_id}-{flags}"
 
 
-def _start_otel_span(
-    trace_id: str, parent_span_id: str, name: str, method: str, path: str
-) -> tuple[Any, Any]:
-    """Start an OpenTelemetry server span linked to the incoming trace context."""
+def _incoming_context(request) -> Any:
+    """Context carrying the caller's span when ``traceparent`` is well formed, else ``None``."""
+    header = (request.headers.get("traceparent") or "").strip()
+    if not _TRACEPARENT_RE.match(header):
+        return None
+    carrier = {"traceparent": header}
+    tracestate = request.headers.get("tracestate")
+    if tracestate:
+        carrier["tracestate"] = tracestate
+    return _propagate.extract(carrier)
+
+
+def _wants_debug_trace(request) -> bool:
+    return request.headers.get("X-Debug-Trace", "").strip() == "1"
+
+
+def _start_otel_span(request) -> Any:
+    """Start the server span for ``request`` (not yet current)."""
+    attributes: dict[str, Any] = {
+        "http.request.method": request.method,
+        "url.path": scrub_path(request.path),
+    }
+    if _wants_debug_trace(request):
+        attributes[DEBUG_TRACE_ATTRIBUTE] = True
     tracer = _trace.get_tracer(__name__)
-    remote_ctx = SpanContext(
-        trace_id=int(trace_id, 16),
-        span_id=int(parent_span_id, 16),
-        is_remote=True,
-        trace_flags=TraceFlags(0x01),
+    # Renamed to "<METHOD> <route>" once the URL is resolved; the raw path is never the name.
+    return tracer.start_span(
+        request.method,
+        context=_incoming_context(request),
+        kind=_trace.SpanKind.SERVER,
+        attributes=attributes,
     )
-    parent_ctx = set_span_in_context(NonRecordingSpan(remote_ctx))
-    token = otel_context.attach(parent_ctx)
-    span = tracer.start_span(name, kind=SpanKind.SERVER)
-    span.set_attribute("http.method", method)
-    span.set_attribute("http.route", path)
-    return span, token
+
+
+def _finish_otel_span(span: Any, request, status_code: int, error: Any) -> None:
+    if not span.is_recording():
+        return
+    route = getattr(getattr(request, "resolver_match", None), "route", None)
+    if route:
+        span.update_name(f"{request.method} {route}")
+        span.set_attribute("http.route", route)
+    correlation_id = getattr(request, "correlation_id", None)
+    if correlation_id:
+        span.set_attribute("app.correlation_id", correlation_id)
+    span.set_attribute("http.response.status_code", status_code)
+    if error is not None:
+        span.set_attribute("error.type", type(error).__name__)
+        span.set_status(_trace.Status(_trace.StatusCode.ERROR, type(error).__name__))
+    elif status_code >= 500:
+        span.set_status(_trace.Status(_trace.StatusCode.ERROR))
 
 
 class TracingMiddleware:
@@ -146,18 +173,22 @@ class TracingMiddleware:
         )
 
         span_name = f"{request.method} {request.path}"
-        span: Any
-        otel_token: Any = None
+        span: Any = None
         current_span_id = uuid.uuid4().hex[:16]
 
         if _OTEL_AVAILABLE:
-            span, otel_token = _start_otel_span(
-                trace_id, parent_span_id, span_name, request.method, request.path
-            )
+            try:
+                span = _start_otel_span(request)
+            except Exception as exc:  # tracing must never fail the request
+                logger.debug("Could not start request span: %s", exc)
+                span = _trace.INVALID_SPAN
             otel_span_ctx = span.get_span_context()
-            if otel_span_ctx and otel_span_ctx.is_valid:
+            if otel_span_ctx.is_valid:
                 trace_id = format(otel_span_ctx.trace_id, "032x")
-                current_span_id = format(otel_span_ctx.span_id, "016x")
+                flags = format(otel_span_ctx.trace_flags, "02x")
+                # The no-op tracer (tracing off) hands back the caller's span itself.
+                if format(otel_span_ctx.span_id, "016x") != parent_span_id:
+                    current_span_id = format(otel_span_ctx.span_id, "016x")
         else:
             span = FallbackSpan(
                 trace_id=trace_id,
@@ -172,29 +203,37 @@ class TracingMiddleware:
 
         response = None
         status_code = 500
+        error = None
         try:
-            response = self.get_response(request)
+            if _OTEL_AVAILABLE:
+                with _trace.use_span(
+                    span,
+                    end_on_exit=False,
+                    record_exception=False,
+                    set_status_on_exception=False,
+                ):
+                    response = self.get_response(request)
+            else:
+                response = self.get_response(request)
             status_code = response.status_code
             return response
-        except Exception:
-            if _OTEL_AVAILABLE and Status is not None:
-                span.set_status(Status(StatusCode.ERROR))
-            elif hasattr(span, "set_status"):
+        except Exception as exc:
+            error = exc
+            if not _OTEL_AVAILABLE:
                 span.set_status("error")
             raise
         finally:
             duration = time.monotonic() - start
 
             if _OTEL_AVAILABLE:
-                span.set_attribute("http.status_code", status_code)
-                if status_code >= 500 and Status is not None:
-                    span.set_status(Status(StatusCode.ERROR))
+                try:
+                    _finish_otel_span(span, request, status_code, error)
+                    span.end()
+                except Exception as exc:
+                    logger.debug("Could not finish request span: %s", exc)
             else:
                 span.set_attribute("http.status_code", status_code)
-
-            span.end()
-            if otel_token is not None:
-                otel_context.detach(otel_token)
+                span.end()
 
             record_http_request(
                 method=request.method,
