@@ -21,6 +21,7 @@ import {
   BarChart3,
   Settings,
   Zap,
+  Flag,
 } from "lucide-react";
 
 interface NavItem {
@@ -82,6 +83,7 @@ const ADMIN_ITEMS: NavItem[] = [
   { to: "/admin/backups", label: "Backups", icon: Box },
   { to: "/admin/celery", label: "Celery Tasks", icon: Settings },
   { to: "/admin/oauth-clients", label: "OAuth Clients", icon: Puzzle },
+  { to: "/admin/feature-flags", label: "Feature Flags", icon: Flag },
   { to: "/admin/usage-analytics", label: "Usage Analytics", icon: BarChart3 },
 ];
 
