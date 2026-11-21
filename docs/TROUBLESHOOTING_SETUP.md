@@ -38,7 +38,7 @@ See [seed verification](SEED_VERIFICATION.md) for scopes, exit codes and recover
 
 ## Redis Fallback Behavior for Local Development
 
-Redis is **not required** for local development. By default, the backend automatically detects whether Redis is available and falls back to in-memory handling for channels, caching, and rate limiting.
+Redis is **not required** for local development. By default, the backend automatically detects whether Redis is available and falls back to in-memory handling for channels, caching, and rate limiting. For a comprehensive guide covering configuration, runtime failover, and WebSocket constraints, see [`docs/backend/REDIS_FALLBACK.md`](backend/REDIS_FALLBACK.md).
 
 ### Default Local Behavior
 
