@@ -22,7 +22,7 @@ Welcome to the permanent **Hall of Fame & Contributor Legacy** for **Open-Source
 
 | 1 | @ankitkr104 | 🥉 Bronze Contributor ⚡ | 2 | 50 | 2026-11-07 |
 
-| 1 | @Trunal2005 | 🥈 Silver Contributor ⚡ | 4 | 100 | 2026-11-16 |
+| 1 | @Trunal2005 | 🥇 Gold Contributor ⚡ | 7 | 175 | 2026-11-21 |
 
 | 1 | @Mr-Neutr0n | 🥈 Silver Contributor  | 3 | 75 | 2026-11-12 |
 
