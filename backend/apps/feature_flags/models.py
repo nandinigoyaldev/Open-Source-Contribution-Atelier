@@ -33,6 +33,18 @@ class FeatureFlag(models.Model):
         blank=True,
         help_text="List of user IDs or usernames allowed for this flag.",
     )
+    environments = models.JSONField(
+        default=list,
+        blank=True,
+        help_text=(
+            "Environments the flag may turn on in (e.g. 'staging'). "
+            "Empty means every environment."
+        ),
+    )
+    kill_switch = models.BooleanField(
+        default=False,  # pyright: ignore[reportArgumentType]
+        help_text="Emergency off: the flag evaluates to False everywhere while set.",
+    )
     requires_approval = models.BooleanField(default=False)
     approved_by = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -44,12 +56,16 @@ class FeatureFlag(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    objects = models.Manager()
+
     class Meta:
         ordering = ["name"]
         verbose_name = "Feature Flag"
         verbose_name_plural = "Feature Flags"
 
     def __str__(self):
+        if self.kill_switch:
+            return f"{self.name} (KILLED)"
         return f"{self.name} ({'ACTIVE' if self.is_active else 'INACTIVE'})"
 
 
@@ -59,6 +75,8 @@ class FeatureFlagAuditLog(models.Model):
         ("updated", "Updated"),
         ("rolled_back", "Rolled Back"),
         ("approved", "Approved"),
+        ("kill_switch_engaged", "Kill Switch Engaged"),
+        ("kill_switch_released", "Kill Switch Released"),
     ]
 
     flag = models.ForeignKey(
@@ -81,6 +99,8 @@ class FeatureFlagAuditLog(models.Model):
     new_values = models.JSONField(default=dict, blank=True)
     reason = models.TextField(blank=True, default="")
     timestamp = models.DateTimeField(auto_now_add=True)
+
+    objects = models.Manager()
 
     class Meta:
         ordering = ["-timestamp"]
