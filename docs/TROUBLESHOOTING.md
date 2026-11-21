@@ -147,6 +147,8 @@ Postgres may take a moment to initialize (especially on first run or after clear
 
 ## 4b) Redis down / Channels WebSocket crashes
 
+For a complete architectural reference, runtime failover mechanics, and in-depth WebSocket constraints, see [`docs/backend/REDIS_FALLBACK.md`](backend/REDIS_FALLBACK.md).
+
 ### Symptoms
 - Backend logs show Redis connection errors during WebSocket connect
 - Realtime notifications / leaderboard fail hard when Redis is stopped
