@@ -139,14 +139,14 @@ api_v1_patterns = [
 
 urlpatterns = [
     path("api/versions/", api_versions_view, name="root-api-versions"),
+    # Feature flags are read by FeatureFlagsMiddleware in every environment, so
+    # their admin API has to be routed outside the DEBUG block as well.
+    path("api/v1/feature-flags/", include("apps.feature_flags.urls")),
+    path("api/feature-flags/", include("apps.feature_flags.urls")),
     path("api/v1/", include(api_v1_patterns)),
     path("", include(api_v1_patterns)),
 ]
 if settings.DEBUG:
-    from apps.feature_flags.debug_view import feature_flags_debug_view
-
     urlpatterns += [
-        path("api/v1/feature-flags/", include("apps.feature_flags.urls")),
-        path("api/feature-flags/", include("apps.feature_flags.urls")),
         path("graphql/", csrf_exempt(GraphQLView.as_view(graphiql=True))),
     ]

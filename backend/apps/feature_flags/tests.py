@@ -1,6 +1,8 @@
 import waffle
 from django.contrib.auth.models import AnonymousUser, User
-from django.test import RequestFactory, TestCase
+from django.core.management import call_command
+from django.test import RequestFactory, TestCase, override_settings
+from django.urls import resolve
 from waffle.models import Flag, Switch
 
 from .context_processors import feature_flags
@@ -275,3 +277,33 @@ class DatabaseBackedFeatureFlagTests(TestCase):
         self.assertEqual(res.status_code, 200)
         self.assertTrue(res.data["is_enabled"])
         self.assertIn("organization_targeted", res.data["reason"])
+
+
+class FeatureFlagMigrationAndRoutingTests(TestCase):
+    """The DB-backed flags need a migration and a route outside ``DEBUG`` (#3325)."""
+
+    @override_settings(MIGRATION_MODULES={})
+    def test_feature_flag_models_have_migrations(self):
+        # --no-migrations swaps MIGRATION_MODULES out; read the real files again.
+        try:
+            call_command(
+                "makemigrations",
+                "feature_flags",
+                check=True,
+                dry_run=True,
+                verbosity=0,
+            )
+        except SystemExit:
+            self.fail("apps.feature_flags has model changes without a migration")
+
+    def test_api_is_routed_when_debug_is_off(self):
+        from django.conf import settings
+
+        self.assertFalse(settings.DEBUG)
+        self.assertEqual(
+            resolve("/api/feature-flags/").func.cls.__name__, "FeatureFlagViewSet"
+        )
+        self.assertEqual(
+            resolve("/api/v1/feature-flags/dry-run/").func.cls.__name__,
+            "FeatureFlagViewSet",
+        )
