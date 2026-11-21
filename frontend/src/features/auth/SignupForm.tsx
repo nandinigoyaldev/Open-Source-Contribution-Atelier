@@ -1,11 +1,27 @@
-import React, { useState } from "react";
+import React, { useState, useRef, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { fetchApi } from "../../lib/api";
 import { ApiError } from "../../lib/apiErrors";
+import {
+  ValidationSummary,
+  ValidationErrorItem,
+} from "../../components/ui/ValidationSummary";
 
 type FieldName = "username" | "email" | "password";
 
 const FIELD_ERROR_CLASS = "mt-1 ml-2 text-sm font-bold text-red-700";
+
+const SIGNUP_FIELD_LABELS: Record<FieldName, string> = {
+  username: "Username",
+  email: "Email Address",
+  password: "Password",
+};
+
+const SIGNUP_FIELD_DOM_IDS: Record<FieldName, string> = {
+  username: "signup-username",
+  email: "signup-email",
+  password: "signup-password",
+};
 
 export function SignupForm() {
   const navigate = useNavigate();
@@ -17,6 +33,35 @@ export function SignupForm() {
     Partial<Record<FieldName, string[]>>
   >({});
   const [loading, setLoading] = useState(false);
+  const [submitAttempt, setSubmitAttempt] = useState(0);
+  const summaryRef = useRef<HTMLDivElement>(null);
+  const prevSubmitAttemptRef = useRef(0);
+
+  const summaryErrors = useMemo(() => {
+    const list: ValidationErrorItem[] = [];
+    (Object.keys(fieldErrors) as FieldName[]).forEach((field) => {
+      const messages = fieldErrors[field];
+      if (messages && messages.length > 0) {
+        messages.forEach((msg) => {
+          list.push({
+            fieldId: SIGNUP_FIELD_DOM_IDS[field],
+            label: SIGNUP_FIELD_LABELS[field],
+            message: msg,
+          });
+        });
+      }
+    });
+    return list;
+  }, [fieldErrors]);
+
+  useEffect(() => {
+    if (submitAttempt > prevSubmitAttemptRef.current) {
+      prevSubmitAttemptRef.current = submitAttempt;
+      if (summaryErrors.length > 0) {
+        summaryRef.current?.focus();
+      }
+    }
+  }, [submitAttempt, summaryErrors.length]);
 
   // Forget a field's server message as soon as the person edits that field.
   const clearFieldError = (field: FieldName) =>
@@ -84,8 +129,9 @@ export function SignupForm() {
         }
       }
       if (Object.keys(fields).length > 0) {
-        // Show each message next to its field instead of one line at the top.
+        // Show each message next to its field and in the accessible validation summary.
         setFieldErrors(fields);
+        setSubmitAttempt((prev) => prev + 1);
       } else {
         setError(
           err instanceof Error ? err.message : "Failed to create account.",
@@ -103,17 +149,28 @@ export function SignupForm() {
       {error && (
         <div
           role="alert"
+          data-testid="general-error-banner"
           className="text-black font-bold text-sm bg-primary p-4 rounded-lg border-4 border-black shadow-card-sm"
         >
           {error}
         </div>
       )}
 
+      <ValidationSummary
+        ref={summaryRef}
+        id="signup-validation-summary"
+        errors={summaryErrors}
+      />
+
       <div className="space-y-2">
-        <label className="font-bold text-black ml-2 uppercase tracking-wide text-sm">
+        <label
+          htmlFor="signup-username"
+          className="font-bold text-black ml-2 uppercase tracking-wide text-sm"
+        >
           Username
         </label>
         <input
+          id="signup-username"
           className="w-full rounded-2xl border-4 border-black bg-white px-5 py-4 text-black font-bold outline-none placeholder:text-muted/60 focus:bg-[#ffb5e8] shadow-card-sm transition-all focus:-translate-y-1 focus:shadow-card"
           placeholder="study_master_99"
           value={username}
@@ -138,10 +195,14 @@ export function SignupForm() {
       </div>
 
       <div className="space-y-2">
-        <label className="font-bold text-black ml-2 uppercase tracking-wide text-sm">
+        <label
+          htmlFor="signup-email"
+          className="font-bold text-black ml-2 uppercase tracking-wide text-sm"
+        >
           Email Address
         </label>
         <input
+          id="signup-email"
           className="w-full rounded-2xl border-4 border-black bg-white px-5 py-4 text-black font-bold outline-none placeholder:text-muted/60 focus:bg-accent shadow-card-sm transition-all focus:-translate-y-1 focus:shadow-card"
           type="email"
           placeholder="nerd@homework.com"
@@ -167,10 +228,14 @@ export function SignupForm() {
       </div>
 
       <div className="space-y-2">
-        <label className="font-bold text-black ml-2 uppercase tracking-wide text-sm">
+        <label
+          htmlFor="signup-password"
+          className="font-bold text-black ml-2 uppercase tracking-wide text-sm"
+        >
           Password
         </label>
         <input
+          id="signup-password"
           className="w-full rounded-2xl border-4 border-black bg-white px-5 py-4 text-black font-bold outline-none placeholder:text-muted/60 focus:bg-tertiary shadow-card-sm transition-all focus:-translate-y-1 focus:shadow-card"
           type="password"
           placeholder="••••••••"

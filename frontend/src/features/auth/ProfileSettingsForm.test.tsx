@@ -200,4 +200,65 @@ describe("ProfileSettingsForm Edge Cases", () => {
       ).toBeInTheDocument();
     });
   });
+
+  describe("accessibility validation summary", () => {
+    it("renders validation summary, shifts focus to it on failed submit, and links move focus to fields", async () => {
+      const user = userEvent.setup();
+
+      render(
+        <ToastProvider>
+          <ProfileSettingsForm />
+        </ToastProvider>,
+      );
+
+      const emailInput = screen.getByLabelText(/Email Address/i) as HTMLInputElement;
+      const passwordInput = screen.getByLabelText(/New Password/i) as HTMLInputElement;
+
+      fireEvent.change(emailInput, { target: { value: "invalid-email-format" } });
+      fireEvent.change(passwordInput, { target: { value: "short" } });
+
+      const saveButton = screen.getByRole("button", { name: /Save Settings/i });
+      await user.click(saveButton);
+
+      // Summary is rendered with role="alert"
+      const summary = await screen.findByRole("alert");
+      expect(summary).toBeInTheDocument();
+      expect(summary).toHaveAttribute("id", "profile-validation-summary");
+      expect(summary).toHaveAttribute("tabindex", "-1");
+
+      // Focus moved to summary upon failed submission
+      await waitFor(() => {
+        expect(document.activeElement).toBe(summary);
+      });
+
+      // Links to each invalid field exist
+      const emailLink = screen.getByRole("link", {
+        name: /Email Address: Please enter a valid email address/i,
+      });
+      const passwordLink = screen.getByRole("link", {
+        name: /New Password: Password must be at least 8 characters long/i,
+      });
+
+      expect(emailLink).toHaveAttribute("href", "#email");
+      expect(passwordLink).toHaveAttribute("href", "#password");
+
+      // Preserves existing localized inline errors
+      expect(emailInput).toHaveAttribute("aria-invalid", "true");
+      expect(emailInput).toHaveAttribute("aria-describedby", "email-error");
+      expect(screen.getByText("Please enter a valid email address")).toBeInTheDocument();
+
+      expect(passwordInput).toHaveAttribute("aria-invalid", "true");
+      expect(passwordInput).toHaveAttribute("aria-describedby", "password-error");
+      expect(
+        screen.getByText("Password must be at least 8 characters long if provided"),
+      ).toBeInTheDocument();
+
+      // Clicking link moves focus to the relevant field
+      await user.click(emailLink);
+      expect(document.activeElement).toBe(emailInput);
+
+      await user.click(passwordLink);
+      expect(document.activeElement).toBe(passwordInput);
+    });
+  });
 });
