@@ -1,10 +1,12 @@
 from io import BytesIO
+from typing import Any, Dict
 
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.postgres.search import SearchQuery, SearchRank, TrigramSimilarity
 from django.core.cache import cache
 from django.db.models import Q
 from django.http import HttpResponse
+from django.shortcuts import get_object_or_404
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer
 from rest_framework import (
@@ -32,19 +34,23 @@ from .models import (
     LearningPath,
     Lesson,
     LessonDraft,
+    LessonVersion,
     ModuleDraft,
     Organization,
     QuizDraft,
 )
 from .serializers import (
     LearningPathSerializer,
+    LessonDraftRevisionSerializer,
     LessonDraftSerializer,
     LessonSearchSerializer,
     LessonSerializer,
+    LessonVersionSerializer,
     ModuleDraftSerializer,
     OrganizationSerializer,
     QuizDraftSerializer,
 )
+from .services import lesson_revisions
 
 
 # --- Helper Functions ---
@@ -73,27 +79,149 @@ class LessonViewSet(viewsets.ModelViewSet):
     serializer_class = LessonSerializer
     pagination_class = SecureCursorPagination
 
+    # Revision workflow permissions (#3323). Writing and reviewing drafts needs
+    # edit_content; anything that changes what learners see needs publish_content.
+    REVISION_PERMISSIONS = {
+        "submit_version": "edit_content",
+        "archive_version": "edit_content",
+        "publish_version": "publish_content",
+        "rollback": "publish_content",
+    }
+
     def get_permissions(self):
         from apps.core.permissions import HasPermission
 
         if self.action in ["create", "bulk_import"]:
             return [permissions.IsAuthenticated(), HasPermission("create_content")]
         elif self.action in ["update", "partial_update"]:
-            return [permissions.IsAuthenticated(), HasPermission("edit_content")]
+            # A direct edit is live right away, the same as publishing a revision.
+            return [
+                permissions.IsAuthenticated(),
+                HasPermission("edit_content"),
+                HasPermission("publish_content"),
+            ]
         elif self.action in ["destroy"]:
             return [permissions.IsAuthenticated(), HasPermission("delete_content")]
+        elif self.action == "versions" and self.request.method == "POST":
+            return [permissions.IsAuthenticated(), HasPermission("edit_content")]
+        elif self.action in self.REVISION_PERMISSIONS:
+            return [
+                permissions.IsAuthenticated(),
+                HasPermission(self.REVISION_PERMISSIONS[self.action]),
+            ]
         return [permissions.AllowAny()]
+
+    def get_object(self):
+        # The lesson page knows lessons by curriculum slug, not by database id,
+        # so detail routes (the version history included) accept either.
+        lookup = str(self.kwargs.get(self.lookup_url_kwarg or self.lookup_field, ""))
+        if lookup and not lookup.isdigit():
+            lesson = get_object_or_404(
+                self.filter_queryset(self.get_queryset()), slug=lookup
+            )
+            self.check_object_permissions(self.request, lesson)
+            return lesson
+        return super().get_object()
+
+    def perform_create(self, serializer):
+        with lesson_revisions.revision_author(self.request.user):
+            serializer.save()
+
+    def perform_update(self, serializer):
+        with lesson_revisions.revision_author(self.request.user):
+            serializer.save()
 
     from rest_framework.decorators import action
 
-    @action(detail=True, methods=["get"])
+    def _revision(self, number):
+        return get_object_or_404(
+            LessonVersion.objects.select_related("lesson"),
+            lesson=self.get_object(),
+            number=number,
+        )
+
+    def _revision_response(self, run, ok_status=status.HTTP_200_OK):
+        try:
+            revision = run()
+        except lesson_revisions.RevisionError as exc:
+            return response.Response(
+                {"detail": str(exc)}, status=status.HTTP_409_CONFLICT
+            )
+        return response.Response(
+            LessonVersionSerializer(revision).data, status=ok_status
+        )
+
+    @action(detail=True, methods=["get", "post"])
     def versions(self, request, pk=None):
-        from .serializers import LessonVersionSerializer
+        """
+        GET: revisions, newest first. People without edit_content only see
+        revisions that were published, never drafts or reviews.
+        POST: save a new draft revision (edit_content).
+        """
+        from apps.core.permissions import HasPermission
 
         lesson = self.get_object()
-        versions = lesson.versions.all()
+        if request.method == "POST":
+            data = LessonDraftRevisionSerializer(data=request.data)
+            data.is_valid(raise_exception=True)
+            fields: Dict[str, Any] = dict(data.validated_data)
+            return self._revision_response(
+                lambda: lesson_revisions.create_draft(
+                    lesson, author=request.user, **fields
+                ),
+                status.HTTP_201_CREATED,
+            )
+
+        versions = lesson.versions.select_related(
+            "author", "published_by", "restored_from"
+        )
+        if not HasPermission("edit_content").has_permission(request, self):
+            versions = versions.filter(published_at__isnull=False)
         serializer = LessonVersionSerializer(versions, many=True)
         return response.Response(serializer.data)
+
+    @action(
+        detail=True, methods=["post"], url_path=r"versions/(?P<number>[0-9]+)/submit"
+    )
+    def submit_version(self, request, pk=None, number=None):
+        revision = self._revision(number)
+        return self._revision_response(
+            lambda: lesson_revisions.submit_for_review(revision)
+        )
+
+    @action(
+        detail=True, methods=["post"], url_path=r"versions/(?P<number>[0-9]+)/publish"
+    )
+    def publish_version(self, request, pk=None, number=None):
+        revision = self._revision(number)
+        return self._revision_response(
+            lambda: lesson_revisions.publish(revision, actor=request.user)
+        )
+
+    @action(
+        detail=True, methods=["post"], url_path=r"versions/(?P<number>[0-9]+)/archive"
+    )
+    def archive_version(self, request, pk=None, number=None):
+        revision = self._revision(number)
+        return self._revision_response(lambda: lesson_revisions.archive(revision))
+
+    @action(detail=True, methods=["post"])
+    def rollback(self, request, pk=None):
+        """Publish a copy of an earlier published revision (``{"version": 3}``)."""
+        number = request.data.get("version")
+        if not str(number or "").isdigit():
+            return response.Response(
+                {"version": ["A revision number is required."]},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        target = self._revision(int(number))
+        note = str(request.data.get("note", "") or "")[:255]
+        return self._revision_response(
+            lambda: lesson_revisions.rollback(
+                target.lesson, target, actor=request.user, note=note
+            ),
+            status.HTTP_201_CREATED,
+        )
 
     @action(detail=False, methods=["post"], url_path="bulk-import")
     def bulk_import(self, request):
