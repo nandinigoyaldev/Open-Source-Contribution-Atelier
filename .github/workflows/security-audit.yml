@@ -14,6 +14,10 @@ on:
     - cron: "30 2 * * 1"
   workflow_dispatch:
 
+concurrency:
+  group: security-audit-${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 permissions:
   contents: read
 

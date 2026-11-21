@@ -8,6 +8,10 @@ on:
       - ".github/workflows/accessibility.yml"
   workflow_dispatch:
 
+concurrency:
+  group: accessibility-${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 permissions:
   contents: read
 
