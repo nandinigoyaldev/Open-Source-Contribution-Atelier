@@ -90,6 +90,8 @@ If your non-code contribution involves editing markdown files, documentation, or
 
 ### Playwright E2E Tests
 
+For progress and celebration components, follow the [reduced-motion pattern](frontend/REDUCED_MOTION.md) and verify the final state remains understandable when the preference is enabled.
+
 Run the Playwright end-to-end suite locally from the `frontend/` directory:
 
 ```bash

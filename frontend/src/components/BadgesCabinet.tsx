@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import {
   Search,
   X,
@@ -43,6 +43,7 @@ const BadgesCabinet: React.FC<BadgesCabinetProps> = ({
   pageSize = 12,
   initialGroupByModule = false,
 }) => {
+  const reduceMotion = useReducedMotion() === true;
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedFilter, setSelectedFilter] = useState<
     "all" | "earned" | "locked"
@@ -312,13 +313,13 @@ const BadgesCabinet: React.FC<BadgesCabinetProps> = ({
       </div>
 
       {/* Badges Content (Grouped vs Flat Grid) */}
-      <AnimatePresence mode="wait">
+      <AnimatePresence mode="wait" initial={!reduceMotion}>
         <motion.div
           key={`${selectedFilter}-${selectedModule}-${groupByModule}-${currentPage}-${searchQuery}`}
-          initial={{ opacity: 0, y: 8 }}
+          initial={reduceMotion ? false : { opacity: 0, y: 8 }}
           animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -8 }}
-          transition={{ duration: 0.2 }}
+          exit={reduceMotion ? { opacity: 1, y: 0 } : { opacity: 0, y: -8 }}
+          transition={{ duration: reduceMotion ? 0 : 0.2 }}
         >
           {groupByModule && groupedCurrentBadges ? (
             /* Grouped View */
@@ -346,6 +347,7 @@ const BadgesCabinet: React.FC<BadgesCabinetProps> = ({
                           <BadgeCard
                             key={badge.id}
                             badge={badge}
+                            reduceMotion={reduceMotion}
                             onSelect={(b) => setActiveModalBadge(b)}
                           />
                         ))}
@@ -359,9 +361,10 @@ const BadgesCabinet: React.FC<BadgesCabinetProps> = ({
             /* Flat Grid View */
             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4">
               {currentBadges.map((badge) => (
-                <BadgeCard
+                  <BadgeCard
                   key={badge.id}
                   badge={badge}
+                    reduceMotion={reduceMotion}
                   onSelect={(b) => setActiveModalBadge(b)}
                 />
               ))}
@@ -489,12 +492,13 @@ const BadgesCabinet: React.FC<BadgesCabinetProps> = ({
 // Helper Badge Item Card
 const BadgeCard: React.FC<{
   badge: Badge;
+  reduceMotion: boolean;
   onSelect?: (badge: Badge) => void;
-}> = ({ badge, onSelect }) => (
+}> = ({ badge, reduceMotion, onSelect }) => (
   <motion.div
-    initial={{ scale: 0.9, opacity: 0 }}
+    initial={reduceMotion ? false : { scale: 0.9, opacity: 0 }}
     animate={{ scale: 1, opacity: 1 }}
-    transition={{ delay: 0.03 }}
+    transition={{ delay: reduceMotion ? 0 : 0.03, duration: reduceMotion ? 0 : undefined }}
     className="relative group"
     onClick={() => onSelect?.(badge)}
   >

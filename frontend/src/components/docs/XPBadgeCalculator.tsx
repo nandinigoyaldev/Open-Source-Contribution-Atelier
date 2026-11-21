@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from "react";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 
 interface Module {
   id: string;
@@ -27,6 +27,7 @@ const BADGES = [
 const MAX_XP = MODULES.reduce((sum, m) => sum + m.xp, 0);
 
 const XPBadgeCalculator: React.FC = () => {
+  const reduceMotion = useReducedMotion() === true;
   const [selectedModules, setSelectedModules] = useState<Set<string>>(
     new Set(),
   );
@@ -110,9 +111,9 @@ const XPBadgeCalculator: React.FC = () => {
             <div className="relative h-4 bg-slate-200 dark:bg-slate-700 rounded-full overflow-hidden mb-10">
               <motion.div
                 className="absolute top-0 left-0 h-full bg-gradient-to-r from-indigo-500 to-purple-500"
-                initial={{ width: 0 }}
+                initial={reduceMotion ? false : { width: 0 }}
                 animate={{ width: `${progressPercentage}%` }}
-                transition={{ type: "spring", stiffness: 50, damping: 15 }}
+                transition={reduceMotion ? { duration: 0 } : { type: "spring", stiffness: 50, damping: 15 }}
               />
             </div>
 
@@ -136,17 +137,18 @@ const XPBadgeCalculator: React.FC = () => {
                         }
                       `}
                       animate={
-                        isUnlocked
+                        isUnlocked && !reduceMotion
                           ? { scale: [1, 1.1, 1], rotate: [0, -5, 5, 0] }
-                          : { scale: 1 }
+                          : { scale: 1, rotate: 0 }
                       }
-                      transition={{ duration: 0.5 }}
+                      transition={{ duration: reduceMotion ? 0 : 0.5 }}
                     >
                       {badge.icon}
                       {isUnlocked && (
                         <motion.span
-                          initial={{ scale: 0 }}
+                          initial={reduceMotion ? false : { scale: 0 }}
                           animate={{ scale: 1 }}
+                          transition={reduceMotion ? { duration: 0 } : undefined}
                           className="absolute -top-2 -right-2 w-6 h-6 bg-emerald-500 rounded-full flex items-center justify-center text-xs text-white shadow-lg"
                         >
                           ✓
