@@ -35,7 +35,7 @@ def test_clean_file_is_published(settings, django_user_model, tmp_path):
 
 
 @pytest.mark.django_db
-def test_eicar_detection_deletes_quarantined_file(
+def test_eicar_detection_retains_quarantined_file(
     settings, django_user_model, tmp_path
 ):
     settings.MEDIA_ROOT = tmp_path / "media"
@@ -60,7 +60,10 @@ def test_eicar_detection_deletes_quarantined_file(
 
     upload.refresh_from_db()
     assert upload.status == UploadSession.Status.INFECTED
-    assert not quarantined.exists()
+    # Infected files are retained ONLY in quarantine; not publicly accessible
+    assert quarantined.exists()
+    assert not upload.file_path
+    assert not upload.is_accessible
     assert upload.scan_history.filter(signature="Eicar-Signature").exists()
 
 

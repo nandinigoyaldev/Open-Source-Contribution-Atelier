@@ -21,6 +21,7 @@ class UploadSession(models.Model):
         REJECTED = "rejected", "Rejected"
         RELEASED = "released", "Released by administrator"
         FAILED = "failed", "Failed"
+        SCAN_FAILED = "scan_failed", "Scan failed"
 
     objects = models.Manager()
     session_id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -70,6 +71,7 @@ class UploadScanHistory(models.Model):
         CLEAN = "clean", "Clean"
         INFECTED = "infected", "Infected"
         ERROR = "error", "Scanner error"
+        TIMEOUT = "timeout", "Scanner timeout"
         RELEASED = "released", "Released by administrator"
 
     upload = models.ForeignKey(
