@@ -45,6 +45,22 @@ def dispatch_event(event_type, payload, dedupe_key=None):
     endpoints = WebhookEndpoint.objects.filter(is_active=True)
     for endpoint in endpoints:
         if event_type in endpoint.events or "*" in endpoint.events:
+            if endpoint.is_circuit_open() and not endpoint.is_half_open():
+                logger.warning(
+                    "dispatch_event: circuit open for endpoint %s (%s), fast-failing delivery.",
+                    endpoint.id,
+                    endpoint.health_status,
+                )
+                WebhookDelivery.objects.create(
+                    endpoint=endpoint,
+                    event_type=event_type,
+                    payload=payload,
+                    status="failed",
+                    response_body=f"Circuit open ({endpoint.health_status}) until {endpoint.circuit_broken_until}",
+                    attempt_count=0,
+                )
+                continue
+
             if dedupe_key:
                 delivery, created = WebhookDelivery.objects.get_or_create(
                     endpoint=endpoint,
@@ -82,7 +98,7 @@ def dispatch_event(event_type, payload, dedupe_key=None):
 
 def _move_to_dlq(delivery: WebhookDelivery, reason: str) -> None:
     """Move a permanently failed delivery to the Dead Letter Queue."""
-    delivery.status = "dead"
+    setattr(delivery, "status", "dead")
     delivery.save(update_fields=["status", "updated_at"])
     DeadLetterWebhook.objects.get_or_create(
         delivery=delivery,
@@ -125,6 +141,20 @@ def deliver_webhook(delivery_id, attempt=1):
         return
 
     endpoint = delivery.endpoint
+    if endpoint.is_circuit_open() and not endpoint.is_half_open():
+        logger.warning(
+            "deliver_webhook: circuit open for endpoint %s (%s), fast-failing delivery %s.",
+            endpoint.id,
+            endpoint.health_status,
+            delivery.id,
+        )
+        delivery.status = "failed"
+        delivery.response_body = f"Circuit open ({endpoint.health_status}) until {endpoint.circuit_broken_until}"
+        delivery.save(update_fields=["status", "response_body", "updated_at"])
+        return
+
+    is_half_open_probe = endpoint.is_half_open()
+
     # Sign the exact bytes that go on the wire. The timestamp is taken now, so
     # every retry carries a fresh one and stays inside the receiver's window.
     body = serialize_payload(delivery.payload)
@@ -180,10 +210,14 @@ def deliver_webhook(delivery_id, attempt=1):
                 delivery.status = "success"
                 delivery.next_retry_at = None
                 delivery.save()
+                endpoint.refresh_from_db()
+                endpoint.record_success()
                 return
 
             # Retryable: rate-limited or server-side errors
-            is_retryable = response.status_code == 429 or response.status_code >= 500
+            is_retryable = (
+                response.status_code == 429 or response.status_code >= 500
+            ) and not is_half_open_probe
             failure_reason = f"HTTP {response.status_code}: {response.text[:500]}"
 
     except CircuitOpenError as exc:
@@ -233,6 +267,15 @@ def deliver_webhook(delivery_id, attempt=1):
     else:
         delivery.save()
         _move_to_dlq(delivery, failure_reason)
+        try:
+            endpoint.refresh_from_db()
+            endpoint.record_failure(failure_reason)
+        except Exception as exc:
+            logger.warning(
+                "deliver_webhook: failed to record failure on endpoint %s: %s",
+                endpoint.id,
+                exc,
+            )
 
 
 def replay_delivery(dlq_entry_id: int) -> None:

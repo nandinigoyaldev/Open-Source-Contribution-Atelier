@@ -60,6 +60,24 @@ class WebhookEndpointViewSet(viewsets.ModelViewSet):
             status=status.HTTP_200_OK,
         )
 
+    @action(detail=True, methods=["post"], url_path="reset-circuit")
+    def reset_circuit(self, request, pk=None):
+        """
+        Manually resets the endpoint circuit breaker back to healthy state.
+        """
+        endpoint = self.get_object()
+        endpoint.reset_circuit()
+        return Response(
+            {
+                "status": "success",
+                "message": "Webhook endpoint circuit breaker has been reset to healthy.",
+                "health_status": endpoint.health_status,
+                "consecutive_failure_count": endpoint.consecutive_failure_count,
+                "circuit_broken_until": endpoint.circuit_broken_until,
+            },
+            status=status.HTTP_200_OK,
+        )
+
     @action(detail=True, methods=["post"], url_path="test")
     def test_endpoint(self, request, pk=None):
         """

@@ -5,6 +5,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 from django.contrib.auth import get_user_model
+from django.utils import timezone
 from rest_framework.test import APIClient
 
 from apps.webhooks.models import DeadLetterWebhook, WebhookDelivery, WebhookEndpoint
@@ -479,3 +480,151 @@ class TestWebhookDirectTestAndSignals:
         webhook_on_xp_milestone(XPEvent, xp_instance, created=True)
         mock_dispatch.assert_called_once()
         assert mock_dispatch.call_args[0][0] == "xp.milestone"
+
+
+@pytest.mark.django_db
+class TestWebhookCircuitBreaker:
+    def test_record_failure_and_trip_circuit(self, endpoint):
+        assert endpoint.health_status == "healthy"
+        assert endpoint.is_circuit_open() is False
+
+        # Record failures below threshold (threshold=5)
+        for i in range(4):
+            endpoint.record_failure(f"Error {i}")
+            assert endpoint.consecutive_failure_count == i + 1
+            assert endpoint.health_status == "healthy"
+            assert endpoint.is_circuit_open() is False
+
+        # 5th failure trips the circuit
+        endpoint.record_failure("Threshold error")
+        assert endpoint.consecutive_failure_count == 5
+        assert endpoint.health_status == "degraded"
+        assert endpoint.is_circuit_open() is True
+        assert endpoint.circuit_broken_until is not None
+        assert endpoint.is_half_open() is False
+        assert endpoint.circuit_state == "OPEN"
+
+    def test_record_failure_escalation_to_suspended(self, endpoint):
+        endpoint.failure_threshold = 3
+        endpoint.save()
+
+        # 3 failures -> degraded
+        for _ in range(3):
+            endpoint.record_failure("Err")
+        assert endpoint.health_status == "degraded"
+
+        # 3 * 3 = 9 failures -> suspended
+        for _ in range(6):
+            endpoint.record_failure("Err")
+        assert endpoint.consecutive_failure_count == 9
+        assert endpoint.health_status == "suspended"
+        assert endpoint.is_circuit_open() is True
+        assert endpoint.circuit_state == "SUSPENDED"
+
+    def test_record_success_resets_circuit(self, endpoint):
+        endpoint.record_failure("Err 1")
+        endpoint.record_failure("Err 2")
+        endpoint.health_status = "degraded"
+        endpoint.circuit_broken_until = timezone.now() + timezone.timedelta(minutes=15)
+        endpoint.save()
+
+        endpoint.record_success()
+        assert endpoint.health_status == "healthy"
+        assert endpoint.consecutive_failure_count == 0
+        assert endpoint.circuit_broken_until is None
+        assert endpoint.last_failure_reason == ""
+        assert endpoint.is_circuit_open() is False
+        assert endpoint.circuit_state == "CLOSED"
+
+    def test_half_open_probe_transition(self, endpoint):
+        endpoint.health_status = "degraded"
+        endpoint.consecutive_failure_count = 5
+        # Set cooldown in the past
+        endpoint.circuit_broken_until = timezone.now() - timezone.timedelta(seconds=10)
+        endpoint.save()
+
+        assert endpoint.is_half_open() is True
+        assert endpoint.circuit_state == "HALF_OPEN"
+        # While half-open, is_circuit_open allows trial probe
+        assert endpoint.is_circuit_open() is False
+
+    @patch("apps.webhooks.tasks.async_task")
+    def test_dispatch_event_fast_fails_open_circuit(self, mock_async, endpoint):
+        endpoint.health_status = "degraded"
+        endpoint.circuit_broken_until = timezone.now() + timezone.timedelta(minutes=10)
+        endpoint.save()
+
+        from apps.webhooks.tasks import dispatch_event
+
+        dispatch_event("test.event", {"test": 123})
+
+        # async_task should NOT be called (worker bypassed)
+        mock_async.assert_not_called()
+
+        delivery = WebhookDelivery.objects.filter(endpoint=endpoint).first()
+        assert delivery is not None
+        assert delivery.status == "failed"
+        assert "Circuit open" in delivery.response_body
+
+    @patch("requests.post")
+    def test_deliver_webhook_half_open_success_recovers_circuit(
+        self, mock_post, endpoint
+    ):
+        endpoint.health_status = "degraded"
+        endpoint.consecutive_failure_count = 5
+        endpoint.circuit_broken_until = timezone.now() - timezone.timedelta(seconds=1)
+        endpoint.save()
+
+        delivery = WebhookDelivery.objects.create(
+            endpoint=endpoint,
+            event_type="test.event",
+            payload={"msg": "probe"},
+            status="pending",
+        )
+
+        mock_resp = MagicMock()
+        mock_resp.status_code = 200
+        mock_resp.text = '{"status": "ok"}'
+        mock_post.return_value = mock_resp
+
+        deliver_webhook(delivery.id, attempt=1)
+
+        delivery.refresh_from_db()
+        endpoint.refresh_from_db()
+
+        assert delivery.status == "success"
+        assert endpoint.health_status == "healthy"
+        assert endpoint.consecutive_failure_count == 0
+        assert endpoint.circuit_broken_until is None
+
+    def test_reset_circuit_api_action(self, api_client, user, endpoint):
+        api_client.force_authenticate(user=user)
+        endpoint.health_status = "degraded"
+        endpoint.consecutive_failure_count = 5
+        endpoint.circuit_broken_until = timezone.now() + timezone.timedelta(minutes=15)
+        endpoint.save()
+
+        res = api_client.post(f"/api/webhooks/endpoints/{endpoint.id}/reset-circuit/")
+        assert res.status_code == 200
+        assert res.data["status"] == "success"
+        assert res.data["health_status"] == "healthy"
+        assert res.data["consecutive_failure_count"] == 0
+
+        endpoint.refresh_from_db()
+        assert endpoint.health_status == "healthy"
+        assert endpoint.consecutive_failure_count == 0
+        assert endpoint.circuit_broken_until is None
+
+    def test_serializer_exposes_circuit_fields(self, api_client, user, endpoint):
+        api_client.force_authenticate(user=user)
+        res = api_client.get(f"/api/webhooks/endpoints/{endpoint.id}/")
+        assert res.status_code == 200
+        data = res.data
+        assert "health_status" in data
+        assert "consecutive_failure_count" in data
+        assert "circuit_broken_until" in data
+        assert "is_circuit_open" in data
+        assert "circuit_state" in data
+        assert data["health_status"] == "healthy"
+        assert data["circuit_state"] == "CLOSED"
+        assert data["is_circuit_open"] is False

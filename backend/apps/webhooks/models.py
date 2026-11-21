@@ -11,6 +11,15 @@ def generate_secret():
 
 
 class WebhookEndpoint(models.Model):
+    HEALTH_STATUS_HEALTHY = "healthy"
+    HEALTH_STATUS_DEGRADED = "degraded"
+    HEALTH_STATUS_SUSPENDED = "suspended"
+    HEALTH_STATUS_CHOICES = [
+        (HEALTH_STATUS_HEALTHY, "Healthy"),
+        (HEALTH_STATUS_DEGRADED, "Degraded"),
+        (HEALTH_STATUS_SUSPENDED, "Suspended"),
+    ]
+
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
@@ -42,8 +51,129 @@ class WebhookEndpoint(models.Model):
         blank=True,
         help_text="Expiration timestamp for the old secret.",
     )
+    health_status = models.CharField(
+        max_length=32,
+        choices=HEALTH_STATUS_CHOICES,
+        default=HEALTH_STATUS_HEALTHY,
+        help_text="Health status: healthy, degraded, or suspended.",
+    )
+    consecutive_failure_count = models.PositiveIntegerField(
+        default=0,
+        help_text="Consecutive delivery failures across all events.",
+    )
+    circuit_broken_until = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Timestamp until which the circuit breaker is tripped.",
+    )
+    last_failure_reason = models.TextField(
+        blank=True,
+        default="",
+        help_text="Reason for the most recent delivery failure.",
+    )
+    failure_threshold = models.PositiveIntegerField(
+        default=5,
+        help_text="Consecutive delivery failures before tripping the circuit breaker.",
+    )
+    cooldown_seconds = models.PositiveIntegerField(
+        default=900,
+        help_text="Duration in seconds before allowing probe delivery in half-open state.",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    def is_circuit_open(self) -> bool:
+        """Returns True if circuit is open (deliveries should fast-fail)."""
+        if not self.is_active:
+            return True
+        if self.health_status == self.HEALTH_STATUS_SUSPENDED:
+            return True
+        if self.circuit_broken_until and timezone.now() < self.circuit_broken_until:
+            return True
+        return False
+
+    def is_half_open(self) -> bool:
+        """Returns True if cooldown has elapsed and a canary probe is permitted."""
+        if (
+            self.health_status == self.HEALTH_STATUS_DEGRADED
+            and self.circuit_broken_until
+        ):
+            return timezone.now() >= self.circuit_broken_until
+        return False
+
+    @property
+    def circuit_state(self) -> str:
+        """Returns standard circuit-breaker state representation: CLOSED, OPEN, HALF_OPEN, or SUSPENDED."""
+        if not self.is_active or self.health_status == self.HEALTH_STATUS_SUSPENDED:
+            return "SUSPENDED"
+        if self.health_status == self.HEALTH_STATUS_DEGRADED:
+            return "HALF_OPEN" if self.is_half_open() else "OPEN"
+        return "CLOSED"
+
+    def record_success(self) -> None:
+        """Resets failure counts and restores healthy state on successful delivery."""
+        if (
+            self.consecutive_failure_count > 0
+            or self.health_status != self.HEALTH_STATUS_HEALTHY
+            or self.circuit_broken_until is not None
+        ):
+            self.consecutive_failure_count = 0
+            self.circuit_broken_until = None
+            self.health_status = self.HEALTH_STATUS_HEALTHY
+            self.last_failure_reason = ""
+            self.save(
+                update_fields=[
+                    "consecutive_failure_count",
+                    "circuit_broken_until",
+                    "health_status",
+                    "last_failure_reason",
+                    "updated_at",
+                ]
+            )
+
+    def record_failure(self, reason: str) -> None:
+        """Increments consecutive failures and trips circuit if threshold exceeded."""
+        self.consecutive_failure_count += 1
+        self.last_failure_reason = str(reason)[:1000]
+        now = timezone.now()
+
+        if self.consecutive_failure_count >= self.failure_threshold:
+            multiplier = max(
+                1, self.consecutive_failure_count - self.failure_threshold + 1
+            )
+            cooldown = self.cooldown_seconds * multiplier
+            if self.consecutive_failure_count >= self.failure_threshold * 3:
+                self.health_status = self.HEALTH_STATUS_SUSPENDED
+                self.circuit_broken_until = now + timezone.timedelta(days=7)
+            else:
+                self.health_status = self.HEALTH_STATUS_DEGRADED
+                self.circuit_broken_until = now + timezone.timedelta(seconds=cooldown)
+
+        self.save(
+            update_fields=[
+                "consecutive_failure_count",
+                "circuit_broken_until",
+                "health_status",
+                "last_failure_reason",
+                "updated_at",
+            ]
+        )
+
+    def reset_circuit(self) -> None:
+        """Manually resets circuit breaker to healthy state."""
+        self.consecutive_failure_count = 0
+        self.circuit_broken_until = None
+        self.health_status = self.HEALTH_STATUS_HEALTHY
+        self.last_failure_reason = ""
+        self.save(
+            update_fields=[
+                "consecutive_failure_count",
+                "circuit_broken_until",
+                "health_status",
+                "last_failure_reason",
+                "updated_at",
+            ]
+        )
 
     @property
     def secret(self):
@@ -143,6 +273,8 @@ class WebhookEndpoint(models.Model):
     def __str__(self):
         return f"{self.target_url} ({self.user.username})"
 
+    objects = models.Manager()
+
 
 class WebhookDelivery(models.Model):
     endpoint = models.ForeignKey(
@@ -196,6 +328,8 @@ class WebhookDelivery(models.Model):
     def __str__(self):
         return f"Delivery {self.id} for {self.endpoint.target_url}"
 
+    objects = models.Manager()
+
 
 class DeadLetterWebhook(models.Model):
     """
@@ -227,6 +361,8 @@ class DeadLetterWebhook(models.Model):
     def __str__(self):
         return f"DLQ entry for delivery {self.delivery_id}"
 
+    objects = models.Manager()
+
 
 class WebhookDeliveryLog(models.Model):
     """
@@ -255,6 +391,8 @@ class WebhookDeliveryLog(models.Model):
 
     def __str__(self):
         return f"Log for Delivery {self.delivery_id} - Status {self.status_code}"
+
+    objects = models.Manager()
 
 
 class InboundWebhookEvent(models.Model):
