@@ -73,6 +73,12 @@ const VerificationPage = lazy(() =>
   })),
 );
 
+const ResetPasswordPage = lazy(() =>
+  import("../pages/ResetPasswordPage").then((module) => ({
+    default: module.ResetPasswordPage,
+  })),
+);
+
 const VerifyNoticePage = lazy(() => import("../pages/VerifyNoticePage"));
 
 const LessonPage = lazy(() =>
@@ -505,6 +511,14 @@ export function AppRouter() {
           element={
             <RouteSuspenseWrapper>
               <SignupPage />
+            </RouteSuspenseWrapper>
+          }
+        />
+        <Route
+          path="/reset-password"
+          element={
+            <RouteSuspenseWrapper>
+              <ResetPasswordPage />
             </RouteSuspenseWrapper>
           }
         />
