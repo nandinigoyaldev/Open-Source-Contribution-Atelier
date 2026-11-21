@@ -13,12 +13,25 @@ class LessonService:
     @staticmethod
     def get_lesson_by_slug(slug: str, organization=None) -> Lesson:
         """
-        Retrieves a lesson by slug and organization.
-        Raises Lesson.DoesNotExist if not found.
+        Retrieves a lesson by slug, scoped to the caller's organization.
+        Raises Lesson.DoesNotExist if not found or not visible to that organization.
+
+        ``organization`` is the caller's ``organizations.Organization``
+        (``user.organization``). ``Lesson.organization`` points at a different
+        model, ``content.Organization``, so the two cannot be compared with a
+        queryset filter. They are matched by name instead, the same way the
+        recommendation engine does. Slugs are unique, so the lesson is looked
+        up by slug alone and then checked: lessons with no organization are
+        public, and an organization's lessons are only visible to its members.
         """
-        if organization:
-            return Lesson.objects.get(slug=slug, organization=organization)
-        return Lesson.objects.get(slug=slug)
+        lesson = Lesson.objects.select_related("organization").get(slug=slug)
+        if (
+            organization
+            and lesson.organization is not None
+            and lesson.organization.name != organization.name
+        ):
+            raise Lesson.DoesNotExist
+        return lesson
 
     @staticmethod
     def get_or_create_dynamic_lesson(slug: str) -> Lesson:

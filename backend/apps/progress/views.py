@@ -386,6 +386,7 @@ class MyProgressView(APIView):
     @idempotent
     def post(self, request):
         from apps.content.models import Lesson
+        from apps.content.services.lesson_service import LessonService
         from apps.progress.services.progress_tracking_service import (
             ProgressTrackingService,
         )
@@ -401,11 +402,12 @@ class MyProgressView(APIView):
         completed = request.data.get("completed", True)
         expected_version = parse_expected_version(request.data.get("expected_version"))
 
+        organization = request.user.organization
         try:
-            Lesson.objects.get(
-                slug=lesson_slug,
-                organization=request.user.organization,
-            )
+            lesson = LessonService.get_lesson_by_slug(lesson_slug, organization)
+            # Someone outside any organization only reaches public lessons.
+            if organization is None and lesson.organization is not None:
+                raise Lesson.DoesNotExist
         except Lesson.DoesNotExist:
             return Response(
                 {"error": "Lesson not found"},
