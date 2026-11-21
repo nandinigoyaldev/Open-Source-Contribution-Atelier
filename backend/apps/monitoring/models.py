@@ -29,6 +29,8 @@ class TaskRun(models.Model):
         ("SUCCESS", "Success"),
         ("FAILURE", "Failure"),
         ("RETRY", "Retry"),
+        ("STUCK", "Stuck"),
+        ("CANCELLED", "Cancelled"),
     ]
 
     task_id = models.CharField(max_length=255, unique=True, db_index=True)
@@ -45,6 +47,22 @@ class TaskRun(models.Model):
     error_message = models.TextField(blank=True, default="")
     args_summary = models.TextField(blank=True, default="")
     retry_count = models.IntegerField(default=0)
+    queued_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="When the message was published to the broker. Basis for queue age.",
+    )
+    heartbeat_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        help_text="Last sign of life from the worker that is running the task.",
+    )
+    lease_expires_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        db_index=True,
+        help_text="A STARTED run still unfinished after this is marked STUCK by the reaper.",
+    )
 
     class Meta:
         ordering = ["-started_at"]
