@@ -91,9 +91,19 @@ describe("SignupForm server validation errors", () => {
         .getByPlaceholderText("study_master_99")
         .getAttribute("aria-invalid"),
     ).toBeNull();
-    // the top banner is only for errors that belong to no field
-    expect(screen.queryByRole("alert")).toBeNull();
+    // the top general error banner is only for errors that belong to no field
+    expect(screen.queryByTestId("general-error-banner")).toBeNull();
     expect(navigate).not.toHaveBeenCalled();
+
+    // Validation summary is present and links to invalid fields
+    const summary = screen.getByRole("alert");
+    expect(summary).toBeInTheDocument();
+    expect(summary).toHaveAttribute("id", "signup-validation-summary");
+    expect(
+      screen.getByRole("link", {
+        name: /Email Address: An account with this email address already exists/i,
+      }),
+    ).toHaveAttribute("href", "#signup-email");
   });
 
   it("clears a field's message when that field is edited", async () => {
@@ -149,5 +159,50 @@ describe("SignupForm server validation errors", () => {
     await waitFor(() =>
       expect(navigate).toHaveBeenCalledWith("/verify-notice"),
     );
+  });
+
+  describe("accessibility validation summary", () => {
+    it("shifts focus to validation summary on failed submit and clicking links moves focus to fields", async () => {
+      vi.mocked(fetchApi).mockRejectedValueOnce(
+        validationError(
+          {
+            email: ["Email already registered."],
+            password: ["Password too short."],
+          },
+          {
+            email: ["email_taken"],
+            password: ["password_too_short"],
+          },
+        ),
+      );
+      const user = await fillAndSubmit();
+
+      const summary = await screen.findByRole("alert");
+      expect(summary).toHaveAttribute("id", "signup-validation-summary");
+      await waitFor(() => {
+        expect(document.activeElement).toBe(summary);
+      });
+
+      const emailInput = screen.getByPlaceholderText("nerd@homework.com");
+      const passwordInput = screen.getByPlaceholderText("••••••••");
+
+      const emailLink = screen.getByRole("link", {
+        name: /Email Address: Email already registered/i,
+      });
+      const passwordLink = screen.getByRole("link", {
+        name: /Password: Password too short/i,
+      });
+
+      await user.click(emailLink);
+      expect(document.activeElement).toBe(emailInput);
+
+      await user.click(passwordLink);
+      expect(document.activeElement).toBe(passwordInput);
+
+      // Localized inline errors remain intact
+      expect(emailInput).toHaveAttribute("aria-invalid", "true");
+      expect(emailInput).toHaveAttribute("aria-describedby", "signup-email-error");
+      expect(screen.getByText("Email already registered.")).toBeInTheDocument();
+    });
   });
 });
