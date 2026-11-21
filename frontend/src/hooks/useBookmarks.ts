@@ -7,7 +7,12 @@ import {
 } from "@tanstack/react-query";
 import { fetchApi } from "../lib/api";
 import { ApiError } from "../lib/apiErrors";
-import { dropQueuedBookmark, queueBookmarkChange } from "../lib/offlineQueue";
+import {
+  dropQueuedBookmark,
+  getPendingBookmarkChanges,
+  queueBookmarkChange,
+  restoreQueuedBookmark,
+} from "../lib/offlineQueue";
 import { useToast } from "../features/ui/ToastContext";
 
 export interface BookmarkEntry {
@@ -61,6 +66,28 @@ interface ToggleBookmarkResult {
   offline?: boolean;
   /** Waiting in the offline queue. */
   queued?: boolean;
+  /** A queued removal was undone: the server id of the bookmark that is still there. */
+  restoredId?: number;
+}
+
+/**
+ * The server list with the changes still waiting in the offline queue put back
+ * on top: a save that has not reached the server yet stays in the list (taken
+ * from `current`, where it was added optimistically), a removal stays out.
+ */
+function withPendingChanges(
+  fromServer: BookmarkEntry[],
+  current: BookmarkEntry[],
+): BookmarkEntry[] {
+  const pending = getPendingBookmarkChanges();
+  if (pending.size === 0) return fromServer;
+  const merged = fromServer.filter((b) => pending.get(b.lesson_slug) !== false);
+  for (const [slug, bookmarked] of pending) {
+    if (!bookmarked || merged.some((b) => b.lesson_slug === slug)) continue;
+    const local = current.find((b) => b.lesson_slug === slug);
+    if (local) merged.push(local);
+  }
+  return merged;
 }
 
 /** Same rule as fetchApi uses to queue progress writes. */
@@ -139,10 +166,14 @@ export function useBookmarks() {
       const data = await fetchApi<BookmarkEntry[]>("/progress/bookmarks/", {
         suppressErrorToast: true,
       });
-      if (Array.isArray(data)) {
-        persistBookmarks(data);
-      }
-      return data;
+      if (!Array.isArray(data)) return data;
+      // A refetch must not drop a change that is still queued
+      const merged = withPendingChanges(
+        data,
+        queryClient.getQueryData<BookmarkEntry[]>(["bookmarks"]) ?? [],
+      );
+      persistBookmarks(merged);
+      return merged;
     },
     initialData: () => {
       const cached = getCachedBookmarks();
@@ -230,30 +261,39 @@ export function useBookmarks() {
       const action = isBookmarked ? "removed" : "added";
       const prior = priorEntries.current.get(slug);
       const queueIt = async (): Promise<ToggleBookmarkResult> => {
-        const outcome = await queueBookmarkChange(
+        const { outcome, restoredId } = await queueBookmarkChange(
           slug,
           !isBookmarked,
           prior && !prior.optimistic ? prior.id : undefined,
         );
-        return { action, slug, offline: true, queued: outcome === "queued" };
+        return {
+          action,
+          slug,
+          offline: true,
+          queued: outcome === "queued",
+          restoredId,
+        };
       };
 
       if (!navigator.onLine) return queueIt();
 
       // Anything still queued from offline for this lesson is older than this
-      // click, and replaying it later would undo it.
-      await dropQueuedBookmark(slug);
+      // click, and replaying it later would undo it. It is only taken out of
+      // the queue while the request runs: if that does not go through, it goes
+      // back, or the change would be lost with nothing left to replay.
+      const dropped = await dropQueuedBookmark(slug);
       try {
         await fetchApi(`/progress/bookmarks/${slug}/`, {
           method: isBookmarked ? "DELETE" : "POST",
           suppressErrorToast: true,
         });
       } catch (err) {
-        if (isOfflineError(err)) return queueIt();
         // Already gone on the server (a queued add that never got there)
         if (isBookmarked && err instanceof ApiError && err.status === 404) {
           return { action, slug };
         }
+        await restoreQueuedBookmark(dropped);
+        if (isOfflineError(err)) return queueIt();
         throw err;
       }
       return { action, slug };
@@ -325,6 +365,18 @@ export function useBookmarks() {
         message: successMsg,
       });
       addToast(successMsg, "success");
+
+      if (data.restoredId !== undefined) {
+        // The removal that was still queued is undone, so this is the bookmark
+        // the server has, not a new one: keep its id for the next removal
+        queryClient.setQueryData<BookmarkEntry[]>(["bookmarks"], (list = []) =>
+          list.map((b) =>
+            b.lesson_slug === data.slug
+              ? { ...b, id: data.restoredId as number, optimistic: false }
+              : b,
+          ),
+        );
+      }
 
       // Persist confirmed cache to localStorage
       const confirmed = queryClient.getQueryData<BookmarkEntry[]>([

@@ -35,6 +35,14 @@ export interface QueuedAction {
   owner?: string;
   /** Set once a replay hit a server conflict; such items are not replayed again. */
   state?: "conflict";
+  /** What the server answered with when it flagged the conflict, so a reload can show it again. */
+  serverData?: unknown;
+  /**
+   * Set right before the first send. From then on the server may have applied
+   * the action without the answer reaching us, so it can no longer be treated
+   * as "never sent".
+   */
+  dispatchedAt?: number;
 }
 
 /** Result of replaying one queued item. "failed" is the only retryable state. */
@@ -52,7 +60,7 @@ export interface SyncItemResult {
   serverData?: unknown;
 }
 
-interface PendingSyncItem {
+export interface PendingSyncItem {
   id?: string;
   kind?: QueueKind;
   lesson_slug: string;
@@ -142,6 +150,71 @@ function readList<T>(key: string): T[] {
   }
 }
 
+/** A stored record that a newer build wrote: this build must leave it alone. */
+export class QueueRecordLockedError extends Error {
+  constructor(id: string) {
+    super(`Queued item ${id} was written by a newer version of the app`);
+    this.name = "QueueRecordLockedError";
+  }
+}
+
+type QueueEdit = { put: QueuedAction } | { remove: true } | null;
+
+/**
+ * Reads the record with `id`, lets `decide` look at it and applies what it
+ * returns, all in one IndexedDB transaction, so a check on the stored
+ * revision cannot be overtaken by another write. Resolves once the transaction
+ * has committed: `changed` says whether `decide` asked for a write, `record`
+ * is what is stored now (undefined when absent or removed).
+ */
+function editQueued(
+  db: IDBDatabase,
+  id: string,
+  decide: (stored: QueuedAction | undefined) => QueueEdit,
+): Promise<{ changed: boolean; record: QueuedAction | undefined }> {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction("sync-queue", "readwrite");
+    const store = tx.objectStore("sync-queue");
+    let changed = false;
+    let record: QueuedAction | undefined;
+    tx.oncomplete = () => resolve({ changed, record });
+    tx.onerror = () => reject(tx.error ?? new Error("IndexedDB write failed"));
+    tx.onabort = () => reject(tx.error ?? new Error("IndexedDB write aborted"));
+    const read = store.get(id);
+    read.onerror = () => reject(read.error);
+    read.onsuccess = () => {
+      const stored = read.result as QueuedAction | undefined;
+      record = stored;
+      try {
+        if (stored && (stored.schemaVersion ?? 1) > QUEUE_SCHEMA_VERSION) {
+          throw new QueueRecordLockedError(id);
+        }
+        const edit = decide(stored);
+        if (!edit) return;
+        changed = true;
+        if ("put" in edit) {
+          record = edit.put;
+          store.put(edit.put);
+        } else {
+          record = undefined;
+          store.delete(id);
+        }
+      } catch (err) {
+        reject(err);
+        try {
+          tx.abort();
+        } catch {
+          // already finished
+        }
+      }
+    };
+  });
+}
+
+/** True when `stored` is the same revision (same idempotency key) as `action`. */
+const sameRevision = (stored: QueuedAction | undefined, action: QueuedAction) =>
+  !!stored && stored.idempotencyKey === action.idempotencyKey;
+
 function updatePendingMirror(
   matches: (p: PendingSyncItem) => boolean,
   patch: Partial<PendingSyncItem> | null,
@@ -161,7 +234,14 @@ function updatePendingMirror(
 function replacePendingEntry(entry: PendingSyncItem) {
   try {
     const pending = readList<PendingSyncItem>(PENDING_KEY).filter(
-      (p) => p.id !== entry.id,
+      (p) =>
+        p.id !== entry.id &&
+        !(
+          p.id === undefined &&
+          p.kind !== "bookmark" &&
+          entry.kind !== "bookmark" &&
+          p.lesson_slug === entry.lesson_slug
+        ),
     );
     pending.push(entry);
     localStorage.setItem(PENDING_KEY, JSON.stringify(pending));
@@ -358,12 +438,24 @@ async function loadQueue(db: IDBDatabase): Promise<QueuedAction[]> {
       continue;
     }
     if (action !== record) {
-      // Stored right away so the new idempotency key stays the same on retries
+      // Committed before anything is sent, and only if nobody else upgraded the
+      // record first (a second tab, the service worker): everyone then sends
+      // the one key that is stored. If it cannot be stored the action stays
+      // queued and is not sent now, a retry with another key could double-apply.
       try {
-        await writeQueuedAction(db, action);
+        const { record: committed } = await editQueued(
+          db,
+          action.id,
+          (stored) =>
+            stored && (stored.schemaVersion ?? 1) < QUEUE_SCHEMA_VERSION
+              ? { put: action }
+              : null,
+        );
+        if (committed) actions.push(committed);
       } catch (err) {
         console.error(`[OfflineQueue] Failed to upgrade ${action.id}:`, err);
       }
+      continue;
     }
     actions.push(action);
   }
@@ -397,7 +489,12 @@ function newQueuedAction(
   };
 }
 
-/** Stores the action at the end of the queue, replacing an older one with the same id. */
+/**
+ * Stores the action at the end of the queue, replacing an older one with the
+ * same id. Rejects when it could not be stored (IndexedDB failed, or a newer
+ * build's record sits under the same id): callers must not report the action
+ * as queued then.
+ */
 async function saveQueuedAction(action: QueuedAction) {
   try {
     const db = await openDB();
@@ -408,6 +505,7 @@ async function saveQueuedAction(action: QueuedAction) {
     console.log(`[OfflineQueue] Queued action ${action.id} (#${action.seq})`);
   } catch (err) {
     console.error("[OfflineQueue] Failed to save action to IndexedDB:", err);
+    throw err;
   }
 }
 
@@ -497,24 +595,17 @@ export async function queueProgressSync(data: {
   // 1. Save to IndexedDB
   await saveQueuedAction(action);
 
-  // 2. Save/mirror to localStorage for synchronous UI queries
-  try {
-    const pending = readList<PendingSyncItem>(PENDING_KEY);
-    const exists = pending.some((p) => p.lesson_slug === data.lesson_slug);
-    if (!exists) {
-      pending.push({
-        id,
-        kind: "progress",
-        lesson_slug: data.lesson_slug,
-        score: data.score ?? 100,
-        completed: data.completed ?? true,
-        timestamp: action.timestamp,
-      });
-      localStorage.setItem(PENDING_KEY, JSON.stringify(pending));
-    }
-  } catch (err) {
-    console.error("[OfflineQueue] Failed to mirror to localStorage:", err);
-  }
+  // 2. Mirror to localStorage for synchronous UI queries. By action id, so a
+  // bookmark entry for the same lesson does not hide it; an old entry saved
+  // without an id for this lesson is replaced rather than shown twice.
+  replacePendingEntry({
+    id,
+    kind: "progress",
+    lesson_slug: data.lesson_slug,
+    score: data.score ?? 100,
+    completed: data.completed ?? true,
+    timestamp: action.timestamp,
+  });
 
   // 3. Trigger Service Worker background sync
   await triggerBackgroundSync();
@@ -522,28 +613,60 @@ export async function queueProgressSync(data: {
 
 export const bookmarkActionId = (slug: string) => `bookmark-${slug}`;
 
+export interface BookmarkQueueResult {
+  /** "queued": waiting for the replay. "cancelled": it undid a queued change that was never sent. */
+  outcome: "queued" | "cancelled";
+  /** On "cancelled": the server id the undone removal carried, so the caller can restore that bookmark. */
+  restoredId?: number;
+}
+
+function expectedIdOf(action: QueuedAction): number | undefined {
+  const match = /[?&]expected_id=(\d+)(?:&|$)/.exec(action.url);
+  return match ? Number(match[1]) : undefined;
+}
+
 /**
  * Queues a bookmark change made offline: `bookmarked` true saves the lesson,
  * false removes it. Flipping the same lesson back before the queue ran drops
  * the queued change instead, the server never saw it, so nothing is left to send.
+ * If a replay already started sending the queued change its outcome is not
+ * known (the server may have applied it and the answer got lost), so it is
+ * replaced by the opposite change instead of cancelled: the replay then ends
+ * with the state the user asked for either way.
  * `bookmarkId` is the server id of the bookmark being removed, when known.
+ * Rejects when the change could not be stored.
  */
 export async function queueBookmarkChange(
   slug: string,
   bookmarked: boolean,
   bookmarkId?: number,
-): Promise<"queued" | "cancelled"> {
+): Promise<BookmarkQueueResult> {
   const id = bookmarkActionId(slug);
+  let queued: QueuedAction | undefined;
   try {
     const db = await openDB();
-    const queued = (await loadQueue(db)).find((a) => a.id === id);
-    if (queued && (queued.method.toUpperCase() === "POST") !== bookmarked) {
-      await deleteQueuedAction(db, id);
-      updatePendingMirror((p) => p.id === id, null);
-      return "cancelled";
-    }
+    queued = (await loadQueue(db)).find((a) => a.id === id);
   } catch (err) {
     console.error("[OfflineQueue] Failed to read queued bookmark:", err);
+  }
+
+  if (
+    queued &&
+    !queued.dispatchedAt &&
+    (queued.method.toUpperCase() === "POST") !== bookmarked
+  ) {
+    const db = await openDB();
+    const target = queued;
+    const { changed } = await editQueued(db, id, (stored) =>
+      sameRevision(stored, target) && !stored?.dispatchedAt
+        ? { remove: true }
+        : null,
+    );
+    if (changed) {
+      updatePendingMirror((p) => p.id === id, null);
+      return { outcome: "cancelled", restoredId: expectedIdOf(target) };
+    }
+    // Sent or replaced in the meantime: queue the new change after it
   }
 
   const token = getAccessToken();
@@ -571,19 +694,74 @@ export async function queueBookmarkChange(
     timestamp: action.timestamp,
   });
   await triggerBackgroundSync();
-  return "queued";
+  return { outcome: "queued" };
 }
 
-/** Drops a queued bookmark change, for when the same lesson is toggled online. */
-export async function dropQueuedBookmark(slug: string) {
+/** A queued bookmark change taken out of the queue, kept so it can be put back. */
+export interface DroppedBookmark {
+  action: QueuedAction;
+  mirror?: PendingSyncItem;
+}
+
+/**
+ * Takes a queued bookmark change out of the queue, for when the same lesson is
+ * toggled online. Hand the result to restoreQueuedBookmark() if that online
+ * request does not go through, or the queued change is lost.
+ */
+export async function dropQueuedBookmark(
+  slug: string,
+): Promise<DroppedBookmark | undefined> {
   const id = bookmarkActionId(slug);
+  let dropped: DroppedBookmark | undefined;
   try {
     const db = await openDB();
-    await deleteQueuedAction(db, id);
+    const action = (await loadQueue(db)).find((a) => a.id === id);
+    if (action && (await deleteQueuedAction(db, id, action))) {
+      dropped = {
+        action,
+        mirror: readList<PendingSyncItem>(PENDING_KEY).find((p) => p.id === id),
+      };
+    }
   } catch (err) {
+    // Includes a record from a newer build: it stays where it is
     console.error("[OfflineQueue] Failed to drop queued bookmark:", err);
+    return undefined;
   }
   updatePendingMirror((p) => p.id === id, null);
+  return dropped;
+}
+
+/** Puts back what dropQueuedBookmark() took out, unless a newer change was queued since. */
+export async function restoreQueuedBookmark(dropped?: DroppedBookmark) {
+  if (!dropped) return;
+  try {
+    const db = await openDB();
+    const { changed } = await editQueued(db, dropped.action.id, (stored) =>
+      stored ? null : { put: dropped.action },
+    );
+    if (changed && dropped.mirror) replacePendingEntry(dropped.mirror);
+  } catch (err) {
+    console.error("[OfflineQueue] Failed to restore queued bookmark:", err);
+  }
+}
+
+/**
+ * Bookmark changes still waiting in the queue, by lesson slug: true for a save,
+ * false for a removal. A change that hit a conflict is left out, the server's
+ * answer decides that one.
+ */
+export function getPendingBookmarkChanges(): Map<string, boolean> {
+  const changes = new Map<string, boolean>();
+  for (const p of readList<PendingSyncItem>(PENDING_KEY)) {
+    if (
+      p.kind === "bookmark" &&
+      p.state !== "conflict" &&
+      typeof p.bookmarked === "boolean"
+    ) {
+      changes.set(p.lesson_slug, p.bookmarked);
+    }
+  }
+  return changes;
 }
 
 let syncInFlight: Promise<SyncItemResult[]> | null = null;
@@ -597,16 +775,74 @@ function parseBody(body: string): Record<string, any> {
   }
 }
 
+/** Conflicts the user has already been shown in this page, by action id. */
+const announcedConflicts = new Set<string>();
+
+/**
+ * A conflict the service worker stored while no page was open is in the queue
+ * with the server's answer. Shows it again when a page opens, without sending
+ * the request again.
+ */
+function restoreStoredConflicts(actions: QueuedAction[]) {
+  for (const action of actions) {
+    if (
+      action.state !== "conflict" ||
+      action.serverData === undefined ||
+      announcedConflicts.has(action.id)
+    ) {
+      continue;
+    }
+    announcedConflicts.add(action.id);
+    const bodyObj = parseBody(action.body);
+    const lesson_slug = actionSlug(action, bodyObj);
+    const localData =
+      action.kind === "bookmark"
+        ? { lesson_slug, bookmarked: action.method.toUpperCase() === "POST" }
+        : bodyObj;
+    const patch = { state: "conflict" as const, serverData: action.serverData };
+    if (
+      readList<PendingSyncItem>(PENDING_KEY).some((p) => p.id === action.id)
+    ) {
+      updatePendingMirror((p) => p.id === action.id, patch);
+    } else {
+      replacePendingEntry({
+        id: action.id,
+        kind: action.kind,
+        lesson_slug,
+        ...(action.kind === "bookmark"
+          ? { bookmarked: action.method.toUpperCase() === "POST" }
+          : { score: bodyObj.score, completed: bodyObj.completed }),
+        timestamp: action.timestamp,
+        ...patch,
+      });
+    }
+    eventBus.emit("sync:conflict", {
+      id: action.id,
+      kind: action.kind,
+      lesson_slug,
+      serverData: action.serverData,
+      localData,
+    });
+  }
+}
+
 /** Applies one replay result to the local mirror, the results list and the event bus. */
-function settleResult(result: SyncItemResult, localData?: unknown) {
-  // By id; only old entries saved without one fall back to the lesson slug
+function settleResult(
+  result: SyncItemResult,
+  localData?: unknown,
+  /** The sent revision was replaced by a newer one: that one's entry stays. */
+  superseded = false,
+) {
+  // By id; only old progress entries saved without one fall back to the lesson slug
   const matches = (p: PendingSyncItem) =>
     p.id !== undefined
       ? p.id === result.id
-      : result.kind !== "bookmark" && p.lesson_slug === result.lesson_slug;
+      : result.kind !== "bookmark" &&
+        p.kind !== "bookmark" &&
+        p.lesson_slug === result.lesson_slug;
 
   if (result.status === "synced" || result.status === "duplicate") {
-    updatePendingMirror(matches, null);
+    if (!superseded) updatePendingMirror(matches, null);
     recordSettledResult(result);
     // Emit sync success event instead of directly importing queryClient
     eventBus.emit("sync:success", {
@@ -615,6 +851,7 @@ function settleResult(result: SyncItemResult, localData?: unknown) {
       kind: result.kind,
     });
   } else if (result.status === "conflict") {
+    announcedConflicts.add(result.id);
     updatePendingMirror(matches, {
       state: "conflict",
       serverData: result.serverData,
@@ -673,38 +910,42 @@ export function reportProgressConflict(
   });
 }
 
+/** Stores `action` under its id. Refuses to overwrite a record a newer build wrote. */
 async function writeQueuedAction(db: IDBDatabase, action: QueuedAction) {
-  const store = db
-    .transaction("sync-queue", "readwrite")
-    .objectStore("sync-queue");
-  await new Promise<void>((resolve, reject) => {
-    const req = store.put(action);
-    req.onsuccess = () => resolve();
-    req.onerror = () => reject(req.error);
-  });
+  await editQueued(db, action.id, () => ({ put: action }));
 }
 
-async function deleteQueuedAction(db: IDBDatabase, id: string) {
-  const store = db
-    .transaction("sync-queue", "readwrite")
-    .objectStore("sync-queue");
-  await new Promise<void>((resolve, reject) => {
-    const req = store.delete(id);
-    req.onsuccess = () => resolve();
-    req.onerror = () => reject(req.error);
-  });
+/**
+ * Removes the record with `id`. With `revision` (the action that was sent) it
+ * only removes that revision: a newer write for the same id stays. Resolves
+ * false when nothing was removed because the stored record is another revision.
+ */
+async function deleteQueuedAction(
+  db: IDBDatabase,
+  id: string,
+  revision?: QueuedAction,
+): Promise<boolean> {
+  const { changed } = await editQueued(db, id, (stored) =>
+    stored && (!revision || sameRevision(stored, revision))
+      ? { remove: true }
+      : null,
+  );
+  return changed;
 }
 
 /**
  * Headers for a replay. The Authorization saved at enqueue time may belong to
- * a token that was refreshed or revoked since, so the current one is sent.
+ * a token that was refreshed or revoked since, so the current one is sent: the
+ * very `token` whose owner was checked for this dispatch.
  */
-function replayHeaders(action: QueuedAction): Record<string, string> {
+function replayHeaders(
+  action: QueuedAction,
+  token: string | null | undefined,
+): Record<string, string> {
   const headers = withoutHeaders(action.headers, [
     "Authorization",
     "Idempotency-Key",
   ]);
-  const token = getAccessToken();
   if (token) headers.Authorization = `Bearer ${token}`;
   if (action.idempotencyKey) headers["Idempotency-Key"] = action.idempotencyKey;
   return headers;
@@ -730,13 +971,13 @@ async function replayQueue(): Promise<SyncItemResult[]> {
   const actions = await loadQueue(db);
 
   const results: SyncItemResult[] = [];
+  restoreStoredConflicts(actions);
   if (actions.length === 0) return results;
 
   console.log(
     `[OfflineQueue] Found ${actions.length} pending actions, starting sync...`,
   );
 
-  const currentOwner = tokenOwner(getAccessToken());
   // Rows with an older action still waiting: a newer one must not overtake it.
   const blocked = new Set<string>();
 
@@ -755,8 +996,33 @@ async function replayQueue(): Promise<SyncItemResult[]> {
       continue;
     }
     if (blocked.has(entity)) continue;
-    // Queued by another account on this browser: never send it as this one.
-    if (action.owner && currentOwner && action.owner !== currentOwner) {
+    // Read once per dispatch: the active account can change while an earlier
+    // fetch is pending, and the owner check has to be about the token that is
+    // actually sent. An action of a known owner is held when the owner of this
+    // token cannot be told, and when it is another account: never send it as that one.
+    const token = getAccessToken();
+    if (action.owner && tokenOwner(token) !== action.owner) {
+      blocked.add(entity);
+      continue;
+    }
+
+    // Marked as sent before it goes out. If the answer is lost the server may
+    // still have applied it, which a later opposite change has to know about.
+    // Not sent at all when it was replaced since, or the mark cannot be stored.
+    try {
+      const { changed } = await editQueued(db, action.id, (stored) =>
+        stored && sameRevision(stored, action)
+          ? {
+              put: {
+                ...stored,
+                dispatchedAt: stored.dispatchedAt ?? Date.now(),
+              },
+            }
+          : null,
+      );
+      if (!changed) continue;
+    } catch (err) {
+      console.error(`[OfflineQueue] Failed to mark ${action.id} as sent:`, err);
       blocked.add(entity);
       continue;
     }
@@ -765,7 +1031,7 @@ async function replayQueue(): Promise<SyncItemResult[]> {
     try {
       response = await fetch(action.url, {
         method: action.method,
-        headers: replayHeaders(action),
+        headers: replayHeaders(action, token),
         body: action.body || undefined,
       });
     } catch (err) {
@@ -806,11 +1072,28 @@ async function replayQueue(): Promise<SyncItemResult[]> {
     }
     if (status === "conflict") result.serverData = responseBody;
 
+    // Only the revision that was sent is settled. If a newer write for the same
+    // id replaced it while the request was out, that one stays queued and keeps
+    // its own pending entry.
+    let superseded = false;
     try {
       if (status === "conflict") {
-        await writeQueuedAction(db, { ...action, state: "conflict" });
+        const { record } = await editQueued(db, action.id, (stored) =>
+          stored && sameRevision(stored, action)
+            ? {
+                put: { ...stored, state: "conflict", serverData: responseBody },
+              }
+            : null,
+        );
+        superseded = !sameRevision(record, action);
       } else if (status !== "failed" || !retryable) {
-        await deleteQueuedAction(db, action.id);
+        const { record } = await editQueued(db, action.id, (stored) =>
+          sameRevision(stored, action) ? { remove: true } : null,
+        );
+        superseded = !!record && !sameRevision(record, action);
+      } else {
+        const { record } = await editQueued(db, action.id, () => null);
+        superseded = !!record && !sameRevision(record, action);
       }
     } catch (err) {
       console.error(
@@ -819,8 +1102,12 @@ async function replayQueue(): Promise<SyncItemResult[]> {
       );
     }
 
+    if (superseded && (status === "conflict" || status === "failed")) {
+      // Says nothing about the newer write: it is sent on the next run
+      continue;
+    }
     results.push(result);
-    settleResult(result, localData);
+    settleResult(result, localData, superseded);
     if (status === "failed" && retryable) blocked.add(entity);
     // Signed out or the token is dead: everything after it would get a 401 too.
     if (response.status === 401) break;
@@ -890,81 +1177,121 @@ if (typeof window !== "undefined") {
 
   if ("serviceWorker" in navigator) {
     navigator.serviceWorker.addEventListener("message", (event) => {
-      if (event.data && event.data.type === "SYNC_SUCCESS") {
-        console.log(`[OfflineQueue] SW synced ${event.data.id}`);
-        try {
-          const result = swResult(event.data, false);
-          settleResult(result);
-          eventBus.emit("sync:results", [result]);
-        } catch (e) {
-          console.error(
-            "[OfflineQueue] Error clearing sync'd item from localStorage",
-            e,
-          );
-        }
-      } else if (event.data && event.data.type === "SYNC_CONFLICT") {
-        const { id, serverData, localData } = event.data;
+      const data = event.data;
+      if (!data) return;
+      const handle = (apply: (superseded: boolean) => void) => {
+        // Without a revision to compare there is nothing to look up, apply it now
+        if (typeof data.idempotencyKey !== "string") return apply(false);
+        isSupersededRevision(data.id, data.idempotencyKey).then(apply);
+      };
+      if (data.type === "SYNC_SUCCESS") {
+        console.log(`[OfflineQueue] SW synced ${data.id}`);
+        handle((superseded) => {
+          try {
+            const result = swResult(data, false);
+            settleResult(result, undefined, superseded);
+            eventBus.emit("sync:results", [result]);
+          } catch (e) {
+            console.error(
+              "[OfflineQueue] Error clearing sync'd item from localStorage",
+              e,
+            );
+          }
+        });
+      } else if (data.type === "SYNC_CONFLICT") {
+        const { id, serverData, localData } = data;
         // The SW only knows the slug for progress-sync-* ids
         const lesson_slug: string =
-          event.data.lesson_slug ??
-          localData?.lesson_slug ??
-          serverData?.lesson_slug;
-        console.warn(
-          `[OfflineQueue] Sync conflict detected for ${lesson_slug}`,
-        );
-        settleResult(
-          {
-            id,
-            lesson_slug,
-            kind: event.data.kind ?? kindFromId(id),
-            status: "conflict",
-            httpStatus: 409,
-            serverData,
-          },
-          localData,
-        );
-        flagQueuedConflict(id);
-      } else if (event.data && event.data.type === "SYNC_FAILED") {
-        const result = swResult(event.data, true);
-        settleResult(result);
-        eventBus.emit("sync:results", [result]);
+          data.lesson_slug ?? localData?.lesson_slug ?? serverData?.lesson_slug;
+        handle((superseded) => {
+          // Says nothing about the newer write that replaced it
+          if (superseded) return;
+          console.warn(
+            `[OfflineQueue] Sync conflict detected for ${lesson_slug}`,
+          );
+          settleResult(
+            {
+              id,
+              lesson_slug,
+              kind: data.kind ?? kindFromId(id),
+              status: "conflict",
+              httpStatus: 409,
+              serverData,
+            },
+            localData,
+          );
+          flagQueuedConflict(id, data.idempotencyKey, serverData);
+        });
+      } else if (data.type === "SYNC_FAILED") {
+        handle((superseded) => {
+          if (superseded) return;
+          const result = swResult(data, true);
+          settleResult(result);
+          eventBus.emit("sync:results", [result]);
+        });
       }
     });
   }
 }
 
-/** Keeps a conflicting item out of later replays until the user resolves it. */
-async function flagQueuedConflict(id: string) {
+/** True when the queue holds another revision than the one a worker message is about. */
+async function isSupersededRevision(
+  id: unknown,
+  key: string,
+): Promise<boolean> {
+  if (typeof id !== "string") return false;
   try {
     const db = await openDB();
-    const store = db
-      .transaction("sync-queue", "readwrite")
-      .objectStore("sync-queue");
-    const action: QueuedAction | undefined = await new Promise(
-      (resolve, reject) => {
-        const req = store.get(id);
-        req.onsuccess = () => resolve(req.result);
-        req.onerror = () => reject(req.error);
-      },
+    const { record } = await editQueued(db, id, () => null);
+    return !!record && record.idempotencyKey !== key;
+  } catch {
+    return false;
+  }
+}
+
+/** Keeps a conflicting item out of later replays until the user resolves it. */
+async function flagQueuedConflict(
+  id: string,
+  key?: string,
+  serverData?: unknown,
+) {
+  try {
+    const db = await openDB();
+    await editQueued(db, id, (stored) =>
+      stored && (key === undefined || stored.idempotencyKey === key)
+        ? { put: { ...stored, state: "conflict", serverData } }
+        : null,
     );
-    if (action) await writeQueuedAction(db, { ...action, state: "conflict" });
   } catch (err) {
     console.error("[OfflineQueue] Failed to flag conflicting item:", err);
   }
 }
 
+/**
+ * Removes a queued action once the user has resolved it. Rejects when the
+ * record could not be removed: it is then still queued, so the caller must not
+ * tell the user it is settled.
+ */
 export async function removeQueuedAction(id: string, lessonSlug: string) {
   try {
     const db = await openDB();
     await deleteQueuedAction(db, id);
-    // By id, so resolving a bookmark does not drop queued progress for the
-    // same lesson (or the other way round); old entries without one by slug
-    updatePendingMirror(
-      (p) => (p.id !== undefined ? p.id === id : p.lesson_slug === lessonSlug),
-      null,
-    );
-    console.log(`[OfflineQueue] Successfully removed queued action ${id}`);
   } catch (err) {
     console.error("[OfflineQueue] Error removing queued action:", err);
+    throw err;
   }
+  announcedConflicts.delete(id);
+  // By id, so resolving a bookmark does not drop queued progress for the same
+  // lesson (or the other way round); old progress entries without one go by
+  // slug, but a bookmark resolution never takes those
+  updatePendingMirror(
+    (p) =>
+      p.id !== undefined
+        ? p.id === id
+        : kindFromId(id) !== "bookmark" &&
+          p.kind !== "bookmark" &&
+          p.lesson_slug === lessonSlug,
+    null,
+  );
+  console.log(`[OfflineQueue] Successfully removed queued action ${id}`);
 }

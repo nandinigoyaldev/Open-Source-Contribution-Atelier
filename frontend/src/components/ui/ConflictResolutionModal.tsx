@@ -24,9 +24,11 @@ export function ConflictResolutionModal() {
   const queryClient = useQueryClient();
   const [conflict, setConflict] = useState<ConflictData | null>(null);
   const [isResolving, setIsResolving] = useState(false);
+  const [resolveError, setResolveError] = useState<string | null>(null);
 
   useEffect(() => {
     const handleConflict = (payload: any) => {
+      setResolveError(null);
       setConflict(payload);
     };
 
@@ -44,14 +46,27 @@ export function ConflictResolutionModal() {
     `${isBookmark ? "bookmark" : "progress-sync"}-${conflict.lesson_slug}`;
   const queryKey = isBookmark ? ["bookmarks"] : ["userProgress"];
 
-  const settle = async () => {
-    await removeQueuedAction(queuedId, conflict.lesson_slug);
+  // Closes the prompt only once the queued item is really gone. If it could not
+  // be removed it would be replayed (and conflict) again, so the choice is not
+  // saved yet: the prompt stays and the user can try again.
+  const settle = async (): Promise<boolean> => {
+    try {
+      await removeQueuedAction(queuedId, conflict.lesson_slug);
+    } catch (e) {
+      console.error("Failed to clear the queued change:", e);
+      setResolveError(
+        "Could not clear the saved change on this device. Please try again.",
+      );
+      return false;
+    }
     queryClient.invalidateQueries({ queryKey });
     setConflict(null);
+    return true;
   };
 
   const handleKeepServer = async () => {
     setIsResolving(true);
+    setResolveError(null);
     try {
       await settle();
     } finally {
@@ -87,6 +102,7 @@ export function ConflictResolutionModal() {
 
   const handleOverwriteServer = async () => {
     setIsResolving(true);
+    setResolveError(null);
     try {
       try {
         await overwrite();
@@ -187,6 +203,15 @@ export function ConflictResolutionModal() {
             )}
           </div>
         </div>
+
+        {resolveError && (
+          <p
+            role="alert"
+            className="text-xs font-bold text-red-600 mb-4 leading-relaxed"
+          >
+            {resolveError}
+          </p>
+        )}
 
         <div className="flex flex-col gap-2">
           <button

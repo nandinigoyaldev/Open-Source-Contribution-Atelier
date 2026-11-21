@@ -188,6 +188,24 @@ describe("ConflictResolutionModal", () => {
       expect(screen.getByText("Bookmark Conflict")).toBeTruthy();
     });
 
+    it("keeps the prompt open when the queued removal could not be cleared", async () => {
+      vi.mocked(removeQueuedAction).mockRejectedValueOnce(
+        new Error("IndexedDB unavailable"),
+      );
+      showConflict(bookmarkConflict);
+
+      await click("Keep Bookmark");
+
+      // The removal is still queued, so the choice is not saved yet
+      expect(screen.getByText("Bookmark Conflict")).toBeTruthy();
+      expect(screen.getByRole("alert").textContent).toMatch(/try again/i);
+
+      await click("Keep Bookmark");
+
+      expect(removeQueuedAction).toHaveBeenCalledTimes(2);
+      expect(screen.queryByText("Bookmark Conflict")).toBeNull();
+    });
+
     it("keeps the bookmark without calling the server", async () => {
       showConflict(bookmarkConflict);
 

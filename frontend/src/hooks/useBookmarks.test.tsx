@@ -8,7 +8,12 @@ import {
 } from "@tanstack/react-query";
 import { fetchApi } from "../lib/api";
 import { createApiError } from "../lib/apiErrors";
-import { dropQueuedBookmark, queueBookmarkChange } from "../lib/offlineQueue";
+import {
+  dropQueuedBookmark,
+  getPendingBookmarkChanges,
+  queueBookmarkChange,
+  restoreQueuedBookmark,
+} from "../lib/offlineQueue";
 import React from "react";
 
 vi.mock("../lib/api", () => ({
@@ -16,8 +21,10 @@ vi.mock("../lib/api", () => ({
 }));
 
 vi.mock("../lib/offlineQueue", () => ({
-  queueBookmarkChange: vi.fn().mockResolvedValue("queued"),
+  queueBookmarkChange: vi.fn().mockResolvedValue({ outcome: "queued" }),
   dropQueuedBookmark: vi.fn().mockResolvedValue(undefined),
+  restoreQueuedBookmark: vi.fn().mockResolvedValue(undefined),
+  getPendingBookmarkChanges: vi.fn().mockReturnValue(new Map()),
 }));
 
 const mockAddToast = vi.fn();
@@ -79,8 +86,10 @@ describe("useBookmarks", () => {
       writable: true,
     });
     // restoreAllMocks() in afterEach drops the factory implementations
-    vi.mocked(queueBookmarkChange).mockResolvedValue("queued");
+    vi.mocked(queueBookmarkChange).mockResolvedValue({ outcome: "queued" });
     vi.mocked(dropQueuedBookmark).mockResolvedValue(undefined);
+    vi.mocked(restoreQueuedBookmark).mockResolvedValue(undefined);
+    vi.mocked(getPendingBookmarkChanges).mockReturnValue(new Map());
   });
 
   afterEach(() => {
@@ -519,6 +528,126 @@ describe("useBookmarks", () => {
           message: "Removed from Read Later",
         }),
       );
+    });
+
+    it("puts the queued change back when the online request fails for good", async () => {
+      const dropped = {
+        action: { id: "bookmark-git-basics" },
+      } as unknown as Awaited<ReturnType<typeof dropQueuedBookmark>>;
+      vi.mocked(dropQueuedBookmark).mockResolvedValue(dropped);
+      vi.mocked(fetchApi).mockImplementation(async (url: string) => {
+        if (url === "/progress/bookmarks/") return [sampleBookmark];
+        throw createApiError({ status: 500 });
+      });
+      const { result } = renderHook(() => useBookmarks(), {
+        wrapper: createWrapper(),
+      });
+      await waitFor(() => expect(result.current.bookmarks).toHaveLength(1));
+
+      act(() => {
+        result.current.toggleBookmark.mutate({
+          slug: "git-basics",
+          isBookmarked: true,
+        });
+      });
+
+      await waitFor(() =>
+        expect(mockAddToast).toHaveBeenCalledWith(
+          "Failed to update bookmark.",
+          "error",
+        ),
+      );
+      expect(restoreQueuedBookmark).toHaveBeenCalledWith(dropped);
+      expect(result.current.isBookmarked("git-basics")).toBe(true);
+    });
+
+    it("does not bring the queued change back when the removal went through", async () => {
+      vi.mocked(dropQueuedBookmark).mockResolvedValue({
+        action: { id: "bookmark-git-basics" },
+      } as unknown as Awaited<ReturnType<typeof dropQueuedBookmark>>);
+      vi.mocked(fetchApi).mockImplementation(async (url: string) =>
+        url === "/progress/bookmarks/" ? [sampleBookmark] : {},
+      );
+      const { result } = renderHook(() => useBookmarks(), {
+        wrapper: createWrapper(),
+      });
+      await waitFor(() => expect(result.current.bookmarks).toHaveLength(1));
+
+      act(() => {
+        result.current.toggleBookmark.mutate({
+          slug: "git-basics",
+          isBookmarked: true,
+        });
+      });
+
+      await waitFor(() =>
+        expect(result.current.announcement?.type).toBe("success"),
+      );
+      expect(restoreQueuedBookmark).not.toHaveBeenCalled();
+    });
+
+    it("keeps the server id of a bookmark whose queued removal was undone", async () => {
+      serverList([]);
+      vi.mocked(queueBookmarkChange).mockResolvedValue({
+        outcome: "cancelled",
+        restoredId: 5,
+      });
+      const { result } = renderHook(() => useBookmarks(), {
+        wrapper: createWrapper(),
+      });
+      await waitFor(() => expect(result.current.isLoading).toBe(false));
+      onlineManager.setOnline(false);
+      Object.defineProperty(navigator, "onLine", { value: false });
+
+      act(() => {
+        result.current.toggleBookmark.mutate({
+          slug: "git-basics",
+          isBookmarked: false,
+        });
+      });
+
+      await waitFor(() =>
+        expect(result.current.announcement?.type).toBe("success"),
+      );
+      // A later removal sends this id, so it cannot delete a replacement
+      // bookmark saved from another device
+      const entry = result.current.bookmarks.find(
+        (b) => b.lesson_slug === "git-basics",
+      );
+      expect(entry).toEqual(
+        expect.objectContaining({ id: 5, optimistic: false }),
+      );
+    });
+
+    it("keeps a queued add in the list when the list is fetched again", async () => {
+      vi.mocked(getPendingBookmarkChanges).mockReturnValue(
+        new Map([
+          ["git-basics", true],
+          ["docker-guide", false],
+        ]),
+      );
+      localStorage.setItem(
+        "atelier_bookmarks",
+        JSON.stringify([{ ...sampleBookmark, optimistic: true }]),
+      );
+      serverList([sampleBookmark2]);
+
+      const { result } = renderHook(() => useBookmarks(), {
+        wrapper: createWrapper(),
+      });
+
+      await waitFor(() => expect(result.current.isLoading).toBe(false));
+      await waitFor(() =>
+        expect(result.current.bookmarks.map((b) => b.lesson_slug)).toEqual([
+          "git-basics",
+        ]),
+      );
+      // what is saved for the next visit has the queued changes in it too
+      expect(
+        JSON.parse(localStorage.getItem("atelier_bookmarks") || "[]").map(
+          (b: BookmarkEntry) => b.lesson_slug,
+        ),
+      ).toEqual(["git-basics"]);
     });
   });
 });
