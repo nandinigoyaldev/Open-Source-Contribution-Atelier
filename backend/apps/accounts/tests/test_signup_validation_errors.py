@@ -46,8 +46,12 @@ class SignupValidationErrorSchemaTests(TestCase):
         # messages and codes line up one to one
         for name, texts in data["errors"].items():
             self.assertEqual(len(texts), len(data["error_codes"][name]))
+        # The handler also adds the request's correlation_id and trace_id for support lookups.
+        self.assertEqual(data["correlation_id"], response["X-Correlation-ID"])
+        self.assertEqual(data["trace_id"], response["traceparent"].split("-")[1])
         self.assertEqual(
-            set(data), {"error", "code", "message", "errors", "error_codes"}
+            set(data) - {"correlation_id", "trace_id"},
+            {"error", "code", "message", "errors", "error_codes"},
         )
         return data
 
