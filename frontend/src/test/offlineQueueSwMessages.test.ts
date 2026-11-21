@@ -116,4 +116,62 @@ describe("offlineQueue service worker messages", () => {
       expect.objectContaining({ lesson_slug: "git-basics" }),
     );
   });
+
+  it("counts a bookmark removal the SW got a 404 for as already removed", () => {
+    localStorage.setItem(
+      "atelier_pending_sync",
+      JSON.stringify([
+        {
+          id: "bookmark-git-basics",
+          kind: "bookmark",
+          lesson_slug: "git-basics",
+          bookmarked: false,
+          timestamp: 1,
+        },
+        { id: "lesson-git-basics", lesson_slug: "git-basics", timestamp: 2 },
+      ]),
+    );
+
+    send({
+      type: "SYNC_SUCCESS",
+      id: "bookmark-git-basics",
+      lesson_slug: "git-basics",
+      status: 404,
+      kind: "bookmark",
+      method: "DELETE",
+    });
+
+    // the queued progress for the same lesson is still waiting
+    expect(pending()).toEqual([
+      expect.objectContaining({ id: "lesson-git-basics" }),
+    ]);
+    expect(queue.getSyncResults()).toEqual([
+      expect.objectContaining({
+        lesson_slug: "git-basics",
+        kind: "bookmark",
+        status: "duplicate",
+      }),
+    ]);
+  });
+
+  it("keeps an item queued when the SW hit a key that was still being processed", () => {
+    localStorage.setItem(
+      "atelier_pending_sync",
+      JSON.stringify([
+        { id: "lesson-git-basics", lesson_slug: "git-basics", timestamp: 1 },
+      ]),
+    );
+
+    send({
+      type: "SYNC_FAILED",
+      id: "lesson-git-basics",
+      status: 409,
+      retryable: true,
+    });
+
+    expect(pending()).toEqual([
+      expect.objectContaining({ id: "lesson-git-basics", state: "failed" }),
+    ]);
+    expect(queue.getSyncResults()).toEqual([]);
+  });
 });

@@ -1,10 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import {
+  classifyQueuedReplay,
   classifyReplayStatus,
   enqueueOfflineAction,
   getSyncResults,
+  QUEUE_SCHEMA_VERSION,
+  queueBookmarkChange,
+  removeQueuedAction,
   reportProgressConflict,
   syncOfflineQueue,
+  tokenOwner,
 } from "../lib/offlineQueue";
 import { queryClient } from "../lib/queryClient";
 import { eventBus } from "../core/events";
@@ -35,7 +40,10 @@ const mockIDBDatabase = {
         return req;
       }),
       getAll: vi.fn().mockImplementation(() => {
-        const resultVal = Array.from(mockStore.values());
+        // Like a real object store: records come back in key order
+        const resultVal = Array.from(mockStore.keys())
+          .sort()
+          .map((key) => mockStore.get(key));
         const req: MockIDBRequest = {
           onsuccess: null,
           onerror: null,
@@ -279,6 +287,7 @@ describe("Offline Progress Queue", () => {
       expect(onSuccess).toHaveBeenCalledWith({
         lesson_slug: "git-basics",
         status: "duplicate",
+        kind: "progress",
       });
     });
 
@@ -452,6 +461,376 @@ describe("Offline Progress Queue", () => {
           retryable: false,
         });
       }
+    });
+  });
+
+  describe("order, idempotency keys and schema upgrades (#3328)", () => {
+    const API = "http://localhost:8000/api";
+    const reply = (status: number, body: unknown = {}) => ({
+      ok: status >= 200 && status < 300,
+      status,
+      json: () => Promise.resolve(body),
+    });
+    const mockFetch = () => globalThis.fetch as ReturnType<typeof vi.fn>;
+    const sentSlugs = () =>
+      mockFetch().mock.calls.map(
+        ([, init]) => JSON.parse(init.body as string).lesson_slug,
+      );
+    const sentHeaders = (call = 0) =>
+      mockFetch().mock.calls[call][1].headers as Record<string, string>;
+    const queueLesson = (
+      slug: string,
+      type = "lesson",
+      headers: Record<string, string> = { Authorization: "Bearer test-token" },
+    ) =>
+      enqueueOfflineAction(
+        "/progress/me/",
+        "POST",
+        headers,
+        { lesson_slug: slug, score: 20, completed: true },
+        type,
+        slug,
+      );
+    // Unsigned, only the payload matters to the queue
+    const jwt = (claims: object) =>
+      `x.${btoa(JSON.stringify(claims)).replace(/=+$/, "")}.y`;
+    const v1Record = (id: string, slug: string, timestamp: number) => ({
+      id,
+      url: `${API}/progress/me/`,
+      method: "POST",
+      headers: { Authorization: "Bearer test-token" },
+      body: JSON.stringify({ lesson_slug: slug, score: 10, completed: true }),
+      timestamp,
+    });
+
+    it("replays in enqueue order, not in IndexedDB key order", async () => {
+      await queueLesson("zeta");
+      await queueLesson("alpha");
+      await queueLesson("mid");
+      mockFetch().mockResolvedValue(reply(201));
+
+      await syncOfflineQueue();
+
+      // getAll() alone would have sent alpha, mid, zeta
+      expect(sentSlugs()).toEqual(["zeta", "alpha", "mid"]);
+      expect(mockStore.size).toBe(0);
+    });
+
+    it("keeps counting from the stored cursor after the queue empties", async () => {
+      await queueLesson("first");
+      await queueLesson("second");
+      expect(mockStore.get("lesson-second").seq).toBe(2);
+      mockFetch().mockResolvedValue(reply(201));
+      await syncOfflineQueue();
+
+      await queueLesson("third");
+
+      expect(mockStore.get("lesson-third").seq).toBe(3);
+      expect(
+        JSON.parse(localStorage.getItem("atelier_sync_cursor") || "{}"),
+      ).toEqual({ version: QUEUE_SCHEMA_VERSION, nextSeq: 4 });
+    });
+
+    it("never hands out a position behind a queued action when the cursor is lost", async () => {
+      await queueLesson("first");
+      await queueLesson("second");
+      localStorage.removeItem("atelier_sync_cursor");
+
+      await queueLesson("third");
+
+      expect(mockStore.get("lesson-third").seq).toBe(3);
+    });
+
+    it("sends one Idempotency-Key per action and the same one on every retry", async () => {
+      await queueLesson("flaky");
+      await queueLesson("other");
+      mockFetch().mockResolvedValue(reply(503));
+      await syncOfflineQueue();
+      mockFetch().mockResolvedValue(reply(201));
+      await syncOfflineQueue();
+
+      const keys = mockFetch().mock.calls.map(
+        ([, init]) =>
+          (init.headers as Record<string, string>)["Idempotency-Key"],
+      );
+      expect(keys).toHaveLength(4);
+      expect(keys[0]).toBeTruthy();
+      expect(keys[0]).not.toBe(keys[1]);
+      // the retry sent the same keys again
+      expect(keys.slice(2)).toEqual(keys.slice(0, 2));
+    });
+
+    it("sends the current access token, not the one saved at enqueue time", async () => {
+      await queueLesson("git-basics", "lesson", {
+        authorization: "Bearer old-token",
+        "content-type": "application/json",
+      });
+      localStorage.setItem("accessToken", "new-token");
+      mockFetch().mockResolvedValue(reply(201));
+
+      await syncOfflineQueue();
+
+      const headers = sentHeaders();
+      expect(headers.Authorization).toBe("Bearer new-token");
+      expect(headers.authorization).toBeUndefined();
+      expect(headers["content-type"]).toBe("application/json");
+    });
+
+    it("stops at a 401 instead of sending the rest with no valid token", async () => {
+      await queueLesson("one");
+      await queueLesson("two");
+      mockFetch().mockResolvedValue(reply(401));
+
+      const results = await syncOfflineQueue();
+
+      expect(mockFetch()).toHaveBeenCalledTimes(1);
+      expect(sentHeaders().Authorization).toBeUndefined();
+      expect(results).toEqual([
+        expect.objectContaining({ status: "failed", retryable: true }),
+      ]);
+      expect(mockStore.size).toBe(2);
+    });
+
+    it("holds an action queued by another account on this browser", async () => {
+      await queueLesson("git-basics", "lesson", {
+        Authorization: `Bearer ${jwt({ user_id: 1 })}`,
+      });
+      localStorage.setItem("accessToken", jwt({ user_id: 2 }));
+      mockFetch().mockResolvedValue(reply(201));
+
+      const results = await syncOfflineQueue();
+
+      expect(results).toEqual([]);
+      expect(mockFetch()).not.toHaveBeenCalled();
+      expect(mockStore.has("lesson-git-basics")).toBe(true);
+    });
+
+    it("does not let a newer write for a lesson overtake an older one still waiting", async () => {
+      // progress-x sorts after lesson-x by key, but was queued first
+      await queueLesson("x", "progress");
+      await queueLesson("x", "lesson");
+      await queueLesson("y", "lesson");
+      mockFetch().mockImplementation(async (_url: string, init: RequestInit) =>
+        JSON.parse(init.body as string).lesson_slug === "x"
+          ? reply(503)
+          : reply(201),
+      );
+
+      const first = await syncOfflineQueue();
+
+      expect(first.map((r) => [r.id, r.status])).toEqual([
+        ["progress-x", "failed"],
+        ["lesson-y", "synced"],
+      ]);
+      expect(mockStore.has("lesson-x")).toBe(true);
+
+      mockFetch().mockClear();
+      mockFetch().mockResolvedValue(reply(201));
+      const retry = await syncOfflineQueue();
+      expect(retry.map((r) => r.id)).toEqual(["progress-x", "lesson-x"]);
+    });
+
+    it("treats a 409 about the key itself as a retry, not a conflict", async () => {
+      await queueLesson("git-basics");
+      mockFetch().mockResolvedValue(
+        reply(409, {
+          error:
+            "A request with this idempotency key is currently being processed",
+          idempotency_key: "k",
+        }),
+      );
+      const onConflict = vi.fn();
+      eventBus.on("sync:conflict", onConflict);
+
+      const results = await syncOfflineQueue();
+      eventBus.off("sync:conflict", onConflict);
+
+      expect(results).toEqual([
+        expect.objectContaining({ status: "failed", retryable: true }),
+      ]);
+      expect(onConflict).not.toHaveBeenCalled();
+      expect(mockStore.get("lesson-git-basics").state).toBeUndefined();
+    });
+
+    it("upgrades a record queued before the schema version existed and replays it first", async () => {
+      await queueLesson("new");
+      mockStore.set("lesson-old", v1Record("lesson-old", "old", 5));
+      mockFetch().mockResolvedValue(reply(503));
+
+      await syncOfflineQueue();
+
+      const upgraded = mockStore.get("lesson-old");
+      expect(upgraded).toEqual(
+        expect.objectContaining({
+          schemaVersion: QUEUE_SCHEMA_VERSION,
+          seq: 0,
+          kind: "progress",
+          idempotencyKey: expect.any(String),
+        }),
+      );
+      expect(sentSlugs()[0]).toBe("old");
+      expect(sentHeaders()["Idempotency-Key"]).toBe(upgraded.idempotencyKey);
+
+      // The key was stored with the upgrade, so the retry sends the same one
+      mockFetch().mockClear();
+      mockFetch().mockResolvedValue(reply(201));
+      await syncOfflineQueue();
+      expect(sentSlugs()).toEqual(["old", "new"]);
+      expect(sentHeaders()["Idempotency-Key"]).toBe(upgraded.idempotencyKey);
+    });
+
+    it("leaves a record from a newer queue version alone", async () => {
+      mockStore.set("lesson-future", {
+        ...v1Record("lesson-future", "future", 1),
+        schemaVersion: QUEUE_SCHEMA_VERSION + 1,
+      });
+      mockFetch().mockResolvedValue(reply(201));
+
+      const results = await syncOfflineQueue();
+
+      expect(results).toEqual([]);
+      expect(mockFetch()).not.toHaveBeenCalled();
+      expect(mockStore.get("lesson-future").schemaVersion).toBe(
+        QUEUE_SCHEMA_VERSION + 1,
+      );
+    });
+
+    it("reads the user id out of a token", () => {
+      expect(tokenOwner(`Bearer ${jwt({ user_id: 42 })}`)).toBe("42");
+      expect(tokenOwner("test-token")).toBeUndefined();
+      expect(tokenOwner(null)).toBeUndefined();
+    });
+  });
+
+  describe("bookmarks in the queue (#3328)", () => {
+    const reply = (status: number, body: unknown = {}) => ({
+      ok: status >= 200 && status < 300,
+      status,
+      json: () => Promise.resolve(body),
+    });
+    const mockFetch = () => globalThis.fetch as ReturnType<typeof vi.fn>;
+    const pending = () =>
+      JSON.parse(localStorage.getItem("atelier_pending_sync") || "[]");
+
+    it("queues a removal of the bookmark it saw and replays it once", async () => {
+      localStorage.setItem("accessToken", "token");
+      await queueBookmarkChange("git-basics", false, 5);
+
+      const queued = mockStore.get("bookmark-git-basics");
+      expect(queued.method).toBe("DELETE");
+      expect(queued.url).toBe(
+        "http://localhost:8000/api/progress/bookmarks/git-basics/?expected_id=5",
+      );
+      expect(pending()).toEqual([
+        expect.objectContaining({
+          id: "bookmark-git-basics",
+          kind: "bookmark",
+          bookmarked: false,
+        }),
+      ]);
+
+      mockFetch().mockResolvedValue(reply(204));
+      const onSuccess = vi.fn();
+      eventBus.on("sync:success", onSuccess);
+      const results = await syncOfflineQueue();
+      eventBus.off("sync:success", onSuccess);
+
+      expect(mockFetch()).toHaveBeenCalledTimes(1);
+      const [, init] = mockFetch().mock.calls[0];
+      expect(init.body).toBeUndefined();
+      expect(init.headers["Idempotency-Key"]).toBe(queued.idempotencyKey);
+      expect(results).toEqual([
+        expect.objectContaining({
+          lesson_slug: "git-basics",
+          kind: "bookmark",
+          status: "synced",
+        }),
+      ]);
+      expect(onSuccess).toHaveBeenCalledWith(
+        expect.objectContaining({ kind: "bookmark" }),
+      );
+      expect(mockStore.size).toBe(0);
+      expect(pending()).toEqual([]);
+    });
+
+    it("drops the queued change when the lesson is toggled back before the replay", async () => {
+      await queueBookmarkChange("git-basics", true);
+
+      expect(await queueBookmarkChange("git-basics", false)).toBe("cancelled");
+
+      expect(mockStore.size).toBe(0);
+      expect(pending()).toEqual([]);
+      await syncOfflineQueue();
+      expect(mockFetch()).not.toHaveBeenCalled();
+    });
+
+    it("counts a removal that 404s as already removed, not rejected", async () => {
+      await queueBookmarkChange("git-basics", false);
+      mockFetch().mockResolvedValue(reply(404));
+
+      const results = await syncOfflineQueue();
+
+      expect(results.map((r) => r.status)).toEqual(["duplicate"]);
+      expect(mockStore.size).toBe(0);
+    });
+
+    it("sends a refused removal to the conflict prompt and keeps it queued", async () => {
+      await queueBookmarkChange("git-basics", false, 5);
+      const serverData = {
+        code: "bookmark_conflict",
+        lesson_slug: "git-basics",
+        bookmarked: true,
+        id: 7,
+        created_at: "2026-11-20T10:00:00Z",
+      };
+      mockFetch().mockResolvedValue(reply(409, serverData));
+      const onConflict = vi.fn();
+      eventBus.on("sync:conflict", onConflict);
+
+      await syncOfflineQueue();
+      eventBus.off("sync:conflict", onConflict);
+
+      expect(onConflict).toHaveBeenCalledWith({
+        id: "bookmark-git-basics",
+        kind: "bookmark",
+        lesson_slug: "git-basics",
+        serverData,
+        localData: { lesson_slug: "git-basics", bookmarked: false },
+      });
+      expect(mockStore.get("bookmark-git-basics").state).toBe("conflict");
+      expect(pending()[0].state).toBe("conflict");
+    });
+
+    it("resolving a bookmark leaves queued progress for the same lesson alone", async () => {
+      await queueBookmarkChange("git-basics", false);
+      await enqueueOfflineAction(
+        "/progress/me/",
+        "POST",
+        {},
+        { lesson_slug: "git-basics", score: 20, completed: true },
+        "lesson",
+        "git-basics",
+      );
+
+      await removeQueuedAction("bookmark-git-basics", "git-basics");
+
+      expect(pending().map((p: { id: string }) => p.id)).toEqual([
+        "lesson-git-basics",
+      ]);
+      expect(mockStore.has("lesson-git-basics")).toBe(true);
+    });
+
+    it("classifies bookmark replies by method", () => {
+      const add = { kind: "bookmark" as const, method: "POST" };
+      const remove = { kind: "bookmark" as const, method: "DELETE" };
+      expect(classifyQueuedReplay(add, 201).status).toBe("synced");
+      expect(classifyQueuedReplay(add, 200).status).toBe("duplicate");
+      expect(classifyQueuedReplay(add, 404)).toEqual({
+        status: "failed",
+        retryable: false,
+      });
+      expect(classifyQueuedReplay(remove, 204).status).toBe("synced");
+      expect(classifyQueuedReplay(remove, 404).status).toBe("duplicate");
     });
   });
 });

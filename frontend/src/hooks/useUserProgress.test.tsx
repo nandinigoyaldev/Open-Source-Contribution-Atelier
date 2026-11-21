@@ -348,6 +348,7 @@ describe("useUserProgress", () => {
         expect(onConflict).toHaveBeenCalledTimes(1);
         expect(onConflict).toHaveBeenCalledWith({
           id: "progress-sync-l1",
+          kind: "progress",
           lesson_slug: "l1",
           serverData: conflict,
           localData: expect.objectContaining({ score: 10, completed: true }),

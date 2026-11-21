@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 import {
   useQuery,
   useMutation,
@@ -6,6 +6,8 @@ import {
   useMutationState,
 } from "@tanstack/react-query";
 import { fetchApi } from "../lib/api";
+import { ApiError } from "../lib/apiErrors";
+import { dropQueuedBookmark, queueBookmarkChange } from "../lib/offlineQueue";
 import { useToast } from "../features/ui/ToastContext";
 
 export interface BookmarkEntry {
@@ -18,6 +20,8 @@ export interface BookmarkEntry {
   lesson_estimated_minutes: number;
   lesson_summary: string;
   created_at: string;
+  /** Added on this device and not read back from the server yet, so `id` is not a bookmark id. */
+  optimistic?: boolean;
 }
 
 export type BookmarkAnnouncement = {
@@ -49,6 +53,19 @@ export interface ToggleBookmarkArgs {
 }
 
 export const BOOKMARKS_STORAGE_KEY = "atelier_bookmarks";
+
+interface ToggleBookmarkResult {
+  action: "added" | "removed";
+  slug: string;
+  /** Handled without the network: queued for later, or it undid a queued change. */
+  offline?: boolean;
+  /** Waiting in the offline queue. */
+  queued?: boolean;
+}
+
+/** Same rule as fetchApi uses to queue progress writes. */
+const isOfflineError = (err: unknown) =>
+  !navigator.onLine || err instanceof TypeError;
 
 export function getCachedBookmarks(): BookmarkEntry[] {
   try {
@@ -83,6 +100,9 @@ export function useBookmarks() {
   const { addToast } = useToast();
 
   const [announcement, setAnnouncement] = useState<BookmarkAnnouncement>(null);
+  // Entry each in-flight toggle started from. onMutate has already taken it
+  // out of the cache by the time mutationFn runs.
+  const priorEntries = useRef(new Map<string, BookmarkEntry | undefined>());
 
   // Derive pending status from shared mutation state across all mounted controls
   const mutatingSlugs = useMutationState({
@@ -183,6 +203,7 @@ export function useBookmarks() {
             found?.description ??
             "",
           created_at: new Date().toISOString(),
+          optimistic: true,
         };
 
         nextBookmarks = [
@@ -199,20 +220,43 @@ export function useBookmarks() {
 
   const toggleBookmarkMutation = useMutation({
     mutationKey: ["bookmarks", "toggle"],
-    mutationFn: async ({ slug, isBookmarked }: ToggleBookmarkArgs) => {
-      if (isBookmarked) {
+    // Run while offline too, so the change goes into the offline queue (which
+    // survives a reload) instead of a paused in-memory mutation
+    networkMode: "always",
+    mutationFn: async ({
+      slug,
+      isBookmarked,
+    }: ToggleBookmarkArgs): Promise<ToggleBookmarkResult> => {
+      const action = isBookmarked ? "removed" : "added";
+      const prior = priorEntries.current.get(slug);
+      const queueIt = async (): Promise<ToggleBookmarkResult> => {
+        const outcome = await queueBookmarkChange(
+          slug,
+          !isBookmarked,
+          prior && !prior.optimistic ? prior.id : undefined,
+        );
+        return { action, slug, offline: true, queued: outcome === "queued" };
+      };
+
+      if (!navigator.onLine) return queueIt();
+
+      // Anything still queued from offline for this lesson is older than this
+      // click, and replaying it later would undo it.
+      await dropQueuedBookmark(slug);
+      try {
         await fetchApi(`/progress/bookmarks/${slug}/`, {
-          method: "DELETE",
+          method: isBookmarked ? "DELETE" : "POST",
           suppressErrorToast: true,
         });
-        return { action: "removed", slug };
-      } else {
-        await fetchApi(`/progress/bookmarks/${slug}/`, {
-          method: "POST",
-          suppressErrorToast: true,
-        });
-        return { action: "added", slug };
+      } catch (err) {
+        if (isOfflineError(err)) return queueIt();
+        // Already gone on the server (a queued add that never got there)
+        if (isBookmarked && err instanceof ApiError && err.status === 404) {
+          return { action, slug };
+        }
+        throw err;
       }
+      return { action, slug };
     },
     onMutate: async (vars: ToggleBookmarkArgs) => {
       setAnnouncement(null);
@@ -225,6 +269,7 @@ export function useBookmarks() {
         (b) => b.lesson_slug === vars.slug,
       );
       const wasBookmarked = Boolean(priorEntry);
+      priorEntries.current.set(vars.slug, priorEntry);
 
       const previousBookmarks = applyOptimisticUpdate(vars);
 
@@ -271,9 +316,10 @@ export function useBookmarks() {
     },
     onSuccess: (data) => {
       const successMsg =
-        data.action === "added"
+        (data.action === "added"
           ? "Saved to Read Later"
-          : "Removed from Read Later";
+          : "Removed from Read Later") +
+        (data.queued ? ". It will sync when you are back online." : "");
       setAnnouncement({
         type: "success",
         message: successMsg,
@@ -288,7 +334,11 @@ export function useBookmarks() {
         persistBookmarks(confirmed);
       }
     },
-    onSettled: () => {
+    onSettled: (data, _err, vars) => {
+      priorEntries.current.delete(vars.slug);
+      // A refetch now would drop a change that is still queued; the replay
+      // invalidates the list once the server has it.
+      if (data?.offline) return;
       queryClient.invalidateQueries({ queryKey: ["bookmarks"] });
     },
   });

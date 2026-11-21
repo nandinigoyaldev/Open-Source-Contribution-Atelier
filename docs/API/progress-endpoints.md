@@ -273,6 +273,39 @@ Bulk requests answer `200` and commit the items that were accepted. Each refused
 
 ---
 
+## Bookmarks
+
+`POST /api/progress/bookmarks/<slug>/` saves a lesson to Read Later: `201`, or `200` when it was already saved. `DELETE /api/progress/bookmarks/<slug>/` removes it: `204`, or `404` when there is nothing to remove.
+
+Both take an `Idempotency-Key` header. A request that repeats a key gets the first answer back with `Idempotency-Replay: true` instead of being applied again, so a removal that is replayed after it already went through answers `204`, not `404`. The frontend offline queue sends a new key per queued action.
+
+`DELETE` also takes an optional `expected_id` query parameter, the `id` of the bookmark being removed as `GET /api/progress/bookmarks/` returned it. If the lesson's bookmark has another id now, it was saved again after the client read it (another tab or device) and the server answers `409` without deleting anything:
+
+```json
+{
+  "code": "bookmark_conflict",
+  "detail": "This lesson was bookmarked again after the client read it.",
+  "lesson_slug": "git-basics",
+  "bookmarked": true,
+  "id": 42,
+  "created_at": "2026-11-20T10:00:00+00:00"
+}
+```
+
+To remove it on purpose, send the delete again with `expected_id` set to the `id` from this body. A value that is not a number is a `400`.
+
+## Offline replay (frontend)
+
+Writes made offline go into the `sync-queue` IndexedDB store (`frontend/src/lib/offlineQueue.ts`) and are replayed on reconnect, by the page and by the service worker:
+
+- Each action gets a `seq` from a cursor kept in `localStorage` (`atelier_sync_cursor`) and the queue replays in `seq` order, not in key order. A newer action for the same lesson waits while an older one failed or is in conflict.
+- Each action gets its own `Idempotency-Key` when it is queued and keeps it across retries.
+- The page sends the access token it has at replay time, not the one saved when the action was queued, and holds actions that were queued under another account.
+- Records carry `schemaVersion`. Older records are upgraded when the queue is read. Records from a newer version are left alone.
+- A `409` with a `code` is a conflict and goes to the conflict prompt. A `409` about the idempotency key (another replay is sending the same key) is retried later.
+
+---
+
 ## Authentication Header Summary (Quick Reference)
 ```http
 Authorization: Bearer <JWT_ACCESS_TOKEN>

@@ -1,12 +1,23 @@
 import { renderHook, waitFor, act, cleanup } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
 import { useBookmarks, BookmarkEntry } from "./useBookmarks";
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import {
+  QueryClient,
+  QueryClientProvider,
+  onlineManager,
+} from "@tanstack/react-query";
 import { fetchApi } from "../lib/api";
+import { createApiError } from "../lib/apiErrors";
+import { dropQueuedBookmark, queueBookmarkChange } from "../lib/offlineQueue";
 import React from "react";
 
 vi.mock("../lib/api", () => ({
   fetchApi: vi.fn(),
+}));
+
+vi.mock("../lib/offlineQueue", () => ({
+  queueBookmarkChange: vi.fn().mockResolvedValue("queued"),
+  dropQueuedBookmark: vi.fn().mockResolvedValue(undefined),
 }));
 
 const mockAddToast = vi.fn();
@@ -62,11 +73,20 @@ describe("useBookmarks", () => {
     vi.useRealTimers();
     vi.clearAllMocks();
     localStorage.clear();
+    Object.defineProperty(navigator, "onLine", {
+      configurable: true,
+      value: true,
+      writable: true,
+    });
+    // restoreAllMocks() in afterEach drops the factory implementations
+    vi.mocked(queueBookmarkChange).mockResolvedValue("queued");
+    vi.mocked(dropQueuedBookmark).mockResolvedValue(undefined);
   });
 
   afterEach(() => {
     cleanup();
     vi.restoreAllMocks();
+    onlineManager.setOnline(true);
   });
 
   it("loads cached bookmarks from localStorage on initial render / refresh", async () => {
@@ -373,5 +393,132 @@ describe("useBookmarks", () => {
 
     // Only one network call was triggered for the slug
     expect(callsCount).toBe(1);
+  });
+
+  describe("offline (#3328)", () => {
+    const serverList = (list: BookmarkEntry[]) =>
+      vi.mocked(fetchApi).mockImplementation(async (url: string) => {
+        if (url === "/progress/bookmarks/") return list;
+        throw new TypeError("Failed to fetch");
+      });
+
+    it("queues an add made offline and keeps it on screen", async () => {
+      serverList([]);
+      const { result } = renderHook(() => useBookmarks(), {
+        wrapper: createWrapper(),
+      });
+      await waitFor(() => expect(result.current.isLoading).toBe(false));
+      // What the browser's offline event does: a default mutation would now
+      // sit paused in memory and be lost on reload
+      onlineManager.setOnline(false);
+      Object.defineProperty(navigator, "onLine", { value: false });
+
+      act(() => {
+        result.current.toggleBookmark.mutate({
+          slug: "git-basics",
+          isBookmarked: false,
+        });
+      });
+
+      await waitFor(() => {
+        expect(result.current.announcement).toEqual({
+          type: "success",
+          message:
+            "Saved to Read Later. It will sync when you are back online.",
+        });
+      });
+      expect(queueBookmarkChange).toHaveBeenCalledWith(
+        "git-basics",
+        true,
+        undefined,
+      );
+      expect(fetchApi).not.toHaveBeenCalledWith(
+        "/progress/bookmarks/git-basics/",
+        expect.anything(),
+      );
+      expect(result.current.isBookmarked("git-basics")).toBe(true);
+      expect(mockAddToast).not.toHaveBeenCalledWith(
+        "Failed to update bookmark.",
+        "error",
+      );
+    });
+
+    it("queues a removal when the request dies on the network instead of restoring it", async () => {
+      serverList([sampleBookmark]);
+      const { result } = renderHook(() => useBookmarks(), {
+        wrapper: createWrapper(),
+      });
+      await waitFor(() => expect(result.current.bookmarks).toHaveLength(1));
+
+      act(() => {
+        result.current.toggleBookmark.mutate({
+          slug: "git-basics",
+          isBookmarked: true,
+        });
+      });
+
+      // with the id the server gave that bookmark, for the conflict check
+      await waitFor(() => {
+        expect(queueBookmarkChange).toHaveBeenCalledWith(
+          "git-basics",
+          false,
+          sampleBookmark.id,
+        );
+      });
+      await waitFor(() => {
+        expect(result.current.announcement?.type).toBe("success");
+      });
+      expect(result.current.isBookmarked("git-basics")).toBe(false);
+    });
+
+    it("drops a change still queued from offline before toggling online", async () => {
+      vi.mocked(fetchApi).mockImplementation(async (url: string) =>
+        url === "/progress/bookmarks/" ? [] : {},
+      );
+      const { result } = renderHook(() => useBookmarks(), {
+        wrapper: createWrapper(),
+      });
+      await waitFor(() => expect(result.current.isLoading).toBe(false));
+
+      await act(async () => {
+        result.current.toggleBookmark.mutate({
+          slug: "git-basics",
+          isBookmarked: false,
+        });
+      });
+
+      await waitFor(() =>
+        expect(result.current.announcement?.message).toBe(
+          "Saved to Read Later",
+        ),
+      );
+      expect(dropQueuedBookmark).toHaveBeenCalledWith("git-basics");
+      expect(queueBookmarkChange).not.toHaveBeenCalled();
+    });
+
+    it("counts a 404 on removal as removed", async () => {
+      vi.mocked(fetchApi).mockImplementation(async (url: string) => {
+        if (url === "/progress/bookmarks/") return [sampleBookmark];
+        throw createApiError({ status: 404 });
+      });
+      const { result } = renderHook(() => useBookmarks(), {
+        wrapper: createWrapper(),
+      });
+      await waitFor(() => expect(result.current.bookmarks).toHaveLength(1));
+
+      act(() => {
+        result.current.toggleBookmark.mutate({
+          slug: "git-basics",
+          isBookmarked: true,
+        });
+      });
+
+      await waitFor(() =>
+        expect(result.current.announcement).toEqual({
+          type: "success",
+          message: "Removed from Read Later",
+        }),
+      );
+    });
   });
 });

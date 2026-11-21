@@ -55,7 +55,9 @@ registerRoute(
 const DB_NAME = "atelier-offline-db";
 const STORE_NAME = "sync-queue";
 const QUIZ_STORE_NAME = "pending_quiz_sync";
-const DB_VERSION = 3;
+// Must match QUEUE_SCHEMA_VERSION in src/lib/offlineQueue.ts. Records written
+// by a newer build are left alone.
+const QUEUE_SCHEMA_VERSION = 2;
 
 self.addEventListener("install", (event) => {
   console.log("[ServiceWorker] Installed");
@@ -137,7 +139,10 @@ self.addEventListener("notificationclick", (event) => {
 
 function openDB() {
   return new Promise((resolve, reject) => {
-    const request = indexedDB.open(DB_NAME, DB_VERSION);
+    // No version: open whatever the page upgraded the database to. Asking for
+    // an older one than the page's (this used to say 3, the page is on 4)
+    // fails with a VersionError and nothing gets replayed.
+    const request = indexedDB.open(DB_NAME);
     request.onupgradeneeded = (event) => {
       const db = event.target.result;
       if (!db.objectStoreNames.contains(STORE_NAME)) {
@@ -151,7 +156,10 @@ function openDB() {
       }
     };
     request.onsuccess = (event) => {
-      resolve(event.target.result);
+      const db = event.target.result;
+      // Let the page upgrade the schema instead of blocking it
+      db.onversionchange = () => db.close();
+      resolve(db);
     };
     request.onerror = (event) => {
       reject(event.target.error);
@@ -204,7 +212,18 @@ async function syncProgressQueue() {
     return;
   }
 
-  if (!actions || actions.length === 0) {
+  // getAll() is key order; replay in the order things were queued (seq, set
+  // by the page from its stored cursor; records from before it have none)
+  actions = (actions || [])
+    .filter((a) => (a.schemaVersion || 1) <= QUEUE_SCHEMA_VERSION)
+    .sort(
+      (a, b) =>
+        (a.seq || 0) - (b.seq || 0) ||
+        (a.timestamp || 0) - (b.timestamp || 0) ||
+        String(a.id).localeCompare(String(b.id)),
+    );
+
+  if (actions.length === 0) {
     console.log("[ServiceWorker] Queue is empty. Nothing to sync.");
     return;
   }
@@ -213,9 +232,29 @@ async function syncProgressQueue() {
     `[ServiceWorker] Found ${actions.length} pending actions to sync.`,
   );
 
+  // Lessons/bookmarks with an older action still waiting: newer ones wait too
+  const blocked = new Set();
+  const entityOf = (action) => {
+    let slug = null;
+    try {
+      slug = JSON.parse(action.body || "{}").lesson_slug || null;
+    } catch (e) {}
+    if (action.kind === "bookmark") {
+      return `bookmark:${String(action.id).replace(/^bookmark-/, "")}`;
+    }
+    return slug && (action.kind === "progress" || !action.kind)
+      ? `progress:${slug}`
+      : action.id;
+  };
+
   for (const action of actions) {
+    const entity = entityOf(action);
     // The page already got the 409 for this one and is waiting on the user
-    if (action.state === "conflict") continue;
+    if (action.state === "conflict") {
+      blocked.add(entity);
+      continue;
+    }
+    if (blocked.has(entity)) continue;
     try {
       console.log(
         `[ServiceWorker] Replaying action: ${action.id} to ${action.url}`,
@@ -223,16 +262,37 @@ async function syncProgressQueue() {
       const response = await fetch(action.url, {
         method: action.method,
         headers: action.headers,
-        body: action.body,
+        body: action.body || undefined,
       });
 
-      // Extract lesson slug if id starts with 'progress-sync-'
+      // Extract lesson slug if id starts with 'progress-sync-' or 'bookmark-'
       let lesson_slug = null;
       if (action.id && action.id.startsWith("progress-sync-")) {
         lesson_slug = action.id.replace("progress-sync-", "");
+      } else if (action.id && action.id.startsWith("bookmark-")) {
+        lesson_slug = action.id.replace("bookmark-", "");
       }
+      const meta = { kind: action.kind, method: action.method };
+      const conflictBody =
+        response.status === 409
+          ? await response
+              .clone()
+              .json()
+              .catch(() => ({}))
+          : null;
+      // A 409 about the Idempotency-Key itself (the page is sending the same
+      // key right now), not newer data on the server
+      const keyRejection =
+        conflictBody &&
+        "idempotency_key" in conflictBody &&
+        !("code" in conflictBody);
+      // Removing a bookmark that is already gone is done, not failed
+      const alreadyRemoved =
+        action.kind === "bookmark" &&
+        action.method === "DELETE" &&
+        response.status === 404;
 
-      if (response.ok || response.status === 400) {
+      if (response.ok || response.status === 400 || alreadyRemoved) {
         console.log(
           `[ServiceWorker] Action ${action.id} synced successfully (Status: ${response.status})`,
         );
@@ -248,20 +308,32 @@ async function syncProgressQueue() {
           lesson_slug: lesson_slug,
           entity_type: action.entity_type,
           entity_id: action.entity_id,
+          ...meta,
+        });
+      } else if (keyRejection) {
+        blocked.add(entity);
+        await notifyClients({
+          type: "SYNC_FAILED",
+          id: action.id,
+          status: response.status,
+          lesson_slug: lesson_slug,
+          retryable: /being processed/i.test(String(conflictBody.error || "")),
+          ...meta,
         });
       } else if (response.status === 409) {
         console.warn(
           `[ServiceWorker] Conflict detected on server for action ${action.id}`,
         );
         // On 409 Conflict, notify client of the conflict to open resolution UI, do not delete from store yet
-        const serverData = await response
-          .clone()
-          .json()
-          .catch(() => ({}));
+        blocked.add(entity);
+        const serverData = conflictBody || {};
         let localData = {};
         try {
           localData = JSON.parse(action.body);
         } catch (e) {}
+        if (action.kind === "bookmark") {
+          localData = { lesson_slug, bookmarked: action.method === "POST" };
+        }
 
         await notifyClients({
           type: "SYNC_CONFLICT",
@@ -269,27 +341,34 @@ async function syncProgressQueue() {
           lesson_slug: lesson_slug,
           serverData,
           localData,
+          ...meta,
         });
       } else {
         console.warn(
           `[ServiceWorker] Action ${action.id} sync failed (Status: ${response.status}). Retrying later.`,
         );
         // Stays queued, but tell the page so the status UI can offer Retry
+        blocked.add(entity);
         await notifyClients({
           type: "SYNC_FAILED",
           id: action.id,
           status: response.status,
           lesson_slug: lesson_slug,
+          ...meta,
         });
       }
+      // Its stored token is dead; the page replays with a fresh one
+      if (response.status === 401) break;
     } catch (err) {
       console.error(
         `[ServiceWorker] Fetch error for action ${action.id}:`,
         err,
       );
       // Keep in queue and resolve to try again later on network error
+      break;
     }
   }
+  db.close();
 }
 
 // Overlapping triggers (page message + Background Sync event after a
