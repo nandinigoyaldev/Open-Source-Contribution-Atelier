@@ -40,11 +40,43 @@ class ExerciseSerializer(CamelCaseModelSerializer):
 
 
 class LessonVersionSerializer(CamelCaseModelSerializer):
+    author_name = serializers.CharField(
+        source="author.username", read_only=True, default=None
+    )
+    published_by_name = serializers.CharField(
+        source="published_by.username", read_only=True, default=None
+    )
+    restored_from_number = serializers.IntegerField(
+        source="restored_from.number", read_only=True, default=None
+    )
+
     class Meta:
         from .models import LessonVersion
 
         model = LessonVersion
-        fields = ["id", "content", "summary", "created_at"]
+        fields = [
+            "id",
+            "number",
+            "status",
+            "title",
+            "summary",
+            "content",
+            "note",
+            "author_name",
+            "restored_from_number",
+            "published_at",
+            "published_by_name",
+            "created_at",
+        ]
+
+
+class LessonDraftRevisionSerializer(serializers.Serializer):
+    """Input for a new draft revision; title and summary default to the lesson's."""
+
+    title = serializers.CharField(max_length=255, required=False, allow_blank=True)
+    summary = serializers.CharField(required=False, allow_blank=True)
+    content = serializers.CharField()
+    note = serializers.CharField(max_length=255, required=False, allow_blank=True)
 
 
 class LessonSerializer(CamelCaseModelSerializer):
