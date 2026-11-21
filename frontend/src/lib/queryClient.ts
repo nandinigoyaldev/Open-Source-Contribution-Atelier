@@ -32,6 +32,8 @@ export const queryClient = new QueryClient({
 });
 
 // Listen for offline queue background syncs to update the UI
-eventBus.on("sync:success", () => {
-  queryClient.invalidateQueries({ queryKey: ["userProgress"] });
+eventBus.on("sync:success", (payload?: { kind?: string }) => {
+  queryClient.invalidateQueries({
+    queryKey: payload?.kind === "bookmark" ? ["bookmarks"] : ["userProgress"],
+  });
 });
