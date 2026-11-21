@@ -1,13 +1,14 @@
 import uuid
+
 from django.test import RequestFactory, TestCase
-from rest_framework.exceptions import ValidationError, AuthenticationFailed
+from rest_framework.exceptions import AuthenticationFailed, ValidationError
 from rest_framework.response import Response
 
 from apps.accounts.exceptions import throttle_exception_handler
 from apps.core.celery_signals import (
     add_request_id_to_task,
-    set_request_id_in_task,
     cleanup_request_id_in_task,
+    set_request_id_in_task,
 )
 from apps.core.middleware.request_id import (
     RequestIdMiddleware,
@@ -96,3 +97,9 @@ class CorrelationIdTests(TestCase):
         self.assertEqual(get_correlation_id(), test_corr_id)
         cleanup_request_id_in_task("task-uuid-1", task)
         self.assertIsNone(get_correlation_id())
+        self.assertIsNone(get_request_id())
+
+        # A subsequent publish in this worker must not inherit the finished task.
+        next_headers = {}
+        add_request_id_to_task(headers=next_headers)
+        self.assertEqual(next_headers, {})

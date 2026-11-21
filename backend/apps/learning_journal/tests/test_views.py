@@ -107,9 +107,7 @@ class JournalEntryDetailViewTest(BaseJournalTest):
             "client_id": "journal-uuid-999",
         }
         res1 = self.client.post(url, payload, format="json")
-        self.assertIn(
-            res1.status_code, [status.HTTP_201_CREATED, status.HTTP_200_OK]
-        )
+        self.assertIn(res1.status_code, [status.HTTP_201_CREATED, status.HTTP_200_OK])
 
         res2 = self.client.post(url, payload, format="json")
         self.assertEqual(res2.status_code, status.HTTP_200_OK)

@@ -2,6 +2,7 @@ from django.urls import path
 
 from .secure_oauth import SecureGitHubOAuthCallbackView
 from .views import (
+    AccountDeletionCancelView,
     AvatarUploadView,
     ChangePasswordView,
     ExportDataView,
@@ -21,7 +22,6 @@ from .views import (
     PublicProfileView,
     RefreshView,
     ResendVerificationView,
-    AccountDeletionCancelView,
     SecureAccountDeleteView,
     ShopStreakFreezeView,
     SignupView,
@@ -45,8 +45,16 @@ urlpatterns = [
     path("refresh/", RefreshView.as_view(), name="refresh"),
     path("me/", MeView.as_view(), name="me"),
     path("me/delete/", SecureAccountDeleteView.as_view(), name="me-delete"),
-    path("me/delete/preview/", SecureAccountDeleteView.as_view(), name="me-delete-preview"),
-    path("me/delete/cancel/", AccountDeletionCancelView.as_view(), name="me-delete-cancel"),
+    path(
+        "me/delete/preview/",
+        SecureAccountDeleteView.as_view(),
+        name="me-delete-preview",
+    ),
+    path(
+        "me/delete/cancel/",
+        AccountDeletionCancelView.as_view(),
+        name="me-delete-cancel",
+    ),
     path("me/export/", ExportDataView.as_view(), name="me-export"),
     path("stats/", UserStatisticsView.as_view(), name="user-stats"),
     path("users/", UserListView.as_view(), name="user-list"),

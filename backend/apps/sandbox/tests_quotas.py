@@ -1,13 +1,13 @@
 import asyncio
 import os
 import unittest
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 import django
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
-from rest_framework.test import APIClient
 from rest_framework import status
+from rest_framework.test import APIClient
 
 from apps.sandbox.models import ExecutionViolationLog
 from apps.sandbox.resource_manager import (
@@ -39,17 +39,28 @@ class SandboxSessionQuotaTestCase(unittest.TestCase):
         status_data = ResourceManagementEngine.get_session_quota_status(self.session_id)
         self.assertEqual(status_data["session_id"], self.session_id)
         self.assertEqual(status_data["concurrent_executions"], 0)
-        self.assertEqual(status_data["max_concurrent_executions"], ResourceManagementEngine.MAX_CONCURRENT_EXECUTIONS)
+        self.assertEqual(
+            status_data["max_concurrent_executions"],
+            ResourceManagementEngine.MAX_CONCURRENT_EXECUTIONS,
+        )
         self.assertEqual(status_data["session_cpu_seconds_used"], 0.0)
-        self.assertEqual(status_data["max_session_cpu_seconds"], ResourceManagementEngine.MAX_SESSION_CPU_SECONDS)
+        self.assertEqual(
+            status_data["max_session_cpu_seconds"],
+            ResourceManagementEngine.MAX_SESSION_CPU_SECONDS,
+        )
         self.assertEqual(status_data["session_processes_used"], 0)
-        self.assertEqual(status_data["max_session_processes"], ResourceManagementEngine.MAX_SESSION_PROCESSES)
+        self.assertEqual(
+            status_data["max_session_processes"],
+            ResourceManagementEngine.MAX_SESSION_PROCESSES,
+        )
 
     def test_concurrent_execution_quota(self):
         """Verify exceeding max concurrent executions blocks additional execution."""
         # Acquire up to limit
         for _ in range(ResourceManagementEngine.MAX_CONCURRENT_EXECUTIONS):
-            allowed, reason = ResourceManagementEngine.check_and_acquire(self.session_id)
+            allowed, reason = ResourceManagementEngine.check_and_acquire(
+                self.session_id
+            )
             self.assertTrue(allowed)
             self.assertIsNone(reason)
 
@@ -66,7 +77,8 @@ class SandboxSessionQuotaTestCase(unittest.TestCase):
     def test_cpu_quota_exhaustion(self):
         """Verify exceeding cumulative CPU quota blocks execution."""
         ResourceManagementEngine.record_session_usage(
-            self.session_id, cpu_time=ResourceManagementEngine.MAX_SESSION_CPU_SECONDS + 1.0
+            self.session_id,
+            cpu_time=ResourceManagementEngine.MAX_SESSION_CPU_SECONDS + 1.0,
         )
         allowed, reason = ResourceManagementEngine.check_and_acquire(self.session_id)
         self.assertFalse(allowed)
@@ -75,7 +87,9 @@ class SandboxSessionQuotaTestCase(unittest.TestCase):
     def test_process_quota_exhaustion(self):
         """Verify exceeding cumulative process quota blocks execution."""
         proc_key = f"sandbox_session_processes_{self.session_id}"
-        cache.set(proc_key, ResourceManagementEngine.MAX_SESSION_PROCESSES, timeout=3600)
+        cache.set(
+            proc_key, ResourceManagementEngine.MAX_SESSION_PROCESSES, timeout=3600
+        )
 
         allowed, reason = ResourceManagementEngine.check_and_acquire(self.session_id)
         self.assertFalse(allowed)

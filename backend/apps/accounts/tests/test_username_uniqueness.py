@@ -153,7 +153,9 @@ def test_github_callback_allows_existing_email_owner(
             "GITHUB_CLIENT_SECRET": "client-secret",
         },
     ):
-        response = client.get("/api/auth/github/callback/?code=test-code&state=test-state")
+        response = client.get(
+            "/api/auth/github/callback/?code=test-code&state=test-state"
+        )
 
     assert response.status_code == status.HTTP_302_FOUND
     assert User.objects.filter(pk=user.pk).exists()

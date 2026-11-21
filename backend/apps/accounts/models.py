@@ -510,4 +510,3 @@ class AccountDeletionRequest(models.Model):
 
     def __str__(self):
         return f"AccountDeletionRequest(user={self.user_id}, status={self.status})"
-

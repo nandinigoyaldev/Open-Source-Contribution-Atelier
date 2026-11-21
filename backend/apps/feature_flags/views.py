@@ -76,11 +76,7 @@ class FeatureFlagViewSet(viewsets.ModelViewSet):
         scope = (
             "organization"
             if updated_flag.flag_type == "organization"
-            else (
-                "percentage"
-                if updated_flag.flag_type == "percentage"
-                else "global"
-            )
+            else ("percentage" if updated_flag.flag_type == "percentage" else "global")
         )
         record_flag_change(
             flag=updated_flag,
@@ -120,9 +116,7 @@ class FeatureFlagViewSet(viewsets.ModelViewSet):
                 status=status.HTTP_200_OK,
             )
         except ValueError as exc:
-            return Response(
-                {"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST
-            )
+            return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
 
     @action(detail=False, methods=["post"], url_path="dry-run")
     def dry_run(self, request):

@@ -135,9 +135,7 @@ class NoteAPITestCase(TestCase):
         }
         # First creation attempt
         res1 = self.client.post("/api/notes/", payload, format="json")
-        self.assertIn(
-            res1.status_code, [status.HTTP_201_CREATED, status.HTTP_200_OK]
-        )
+        self.assertIn(res1.status_code, [status.HTTP_201_CREATED, status.HTTP_200_OK])
         self.assertEqual(Note.objects.count(), 1)
 
         # Replay/Retry of offline queue with same client_id

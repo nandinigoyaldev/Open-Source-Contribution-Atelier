@@ -151,7 +151,9 @@ class ResourceManagementEngine:
 
         concurrency_key = f"sandbox_concurrent_executions_{session_id}"
         current = cache.get(concurrency_key, 0)
-        cache.set(concurrency_key, current + 1, timeout=cls.MAX_EXECUTION_TIME_SECONDS * 2)
+        cache.set(
+            concurrency_key, current + 1, timeout=cls.MAX_EXECUTION_TIME_SECONDS * 2
+        )
 
         proc_key = f"sandbox_session_processes_{session_id}"
         procs = int(cache.get(proc_key, 0))
@@ -166,11 +168,17 @@ class ResourceManagementEngine:
         return allowed
 
     @classmethod
-    def record_session_usage(cls, session_id: str, cpu_time: float, output_bytes: int = 0):
+    def record_session_usage(
+        cls, session_id: str, cpu_time: float, output_bytes: int = 0
+    ):
         """Record CPU usage and output bytes for the session."""
         cpu_key = f"sandbox_session_cpu_{session_id}"
         current_cpu = float(cache.get(cpu_key, 0.0))
-        cache.set(cpu_key, current_cpu + max(0.0, cpu_time), timeout=cls.SESSION_WINDOW_SECONDS)
+        cache.set(
+            cpu_key,
+            current_cpu + max(0.0, cpu_time),
+            timeout=cls.SESSION_WINDOW_SECONDS,
+        )
 
     @classmethod
     def release_execution_lock(cls, session_id: str):
@@ -178,7 +186,9 @@ class ResourceManagementEngine:
         concurrency_key = f"sandbox_concurrent_executions_{session_id}"
         current = cache.get(concurrency_key, 0)
         if current > 0:
-            cache.set(concurrency_key, current - 1, timeout=cls.MAX_EXECUTION_TIME_SECONDS * 2)
+            cache.set(
+                concurrency_key, current - 1, timeout=cls.MAX_EXECUTION_TIME_SECONDS * 2
+            )
 
     @classmethod
     def get_session_quota_status(cls, session_id: str) -> dict:

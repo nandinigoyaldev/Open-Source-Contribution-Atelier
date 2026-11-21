@@ -104,6 +104,7 @@ class FeatureFlagsMiddlewareTests(TestCase):
 class DatabaseBackedFeatureFlagTests(TestCase):
     def setUp(self):
         from rest_framework.test import APIClient
+
         from apps.feature_flags.models import FeatureFlag, FeatureFlagAuditLog
 
         self.client = APIClient()
@@ -238,16 +239,12 @@ class DatabaseBackedFeatureFlagTests(TestCase):
         flag = FeatureFlag.objects.create(name="secret_feature", is_active=False)
 
         # Unauthenticated -> 401
-        res = self.client.patch(
-            f"/api/feature-flags/{flag.id}/", {"is_active": True}
-        )
+        res = self.client.patch(f"/api/feature-flags/{flag.id}/", {"is_active": True})
         self.assertEqual(res.status_code, 401)
 
         # Authenticated non-admin user -> 403 Forbidden
         self.client.force_authenticate(user=self.normal_user)
-        res2 = self.client.patch(
-            f"/api/feature-flags/{flag.id}/", {"is_active": True}
-        )
+        res2 = self.client.patch(f"/api/feature-flags/{flag.id}/", {"is_active": True})
         self.assertEqual(res2.status_code, 403)
         flag.refresh_from_db()
         self.assertFalse(flag.is_active)
