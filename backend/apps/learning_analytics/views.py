@@ -70,6 +70,7 @@ class LearningSessionListCreateView(generics.ListCreateAPIView):
     """
 
     permission_classes = [permissions.IsAuthenticated]
+    serializer_class = LearningSessionSerializer
 
     def get_serializer_class(self):
         if self.request.method == "POST":
@@ -169,26 +170,80 @@ class UserSkillProfileListView(generics.ListAPIView):
 
 
 class SkillLevelRefreshView(views.APIView):
-    """Force a refresh of all skill levels for the authenticated user."""
+    """Force a refresh of all skill levels for the authenticated user using bulk operations."""
 
     permission_classes = [permissions.IsAuthenticated]
 
     def post(self, request):
         results = compute_all_skill_levels(request.user)
-        for data in results:
-            tag = data["skill_tag"]
-            UserSkillProfile.objects.update_or_create(
+        profiles = [
+            UserSkillProfile(
                 user=request.user,
-                skill_tag=tag,
-                defaults={
-                    "level": data["level"],
-                    "total_sessions": data["total_sessions"],
-                    "total_xp": data["total_xp"],
-                    "average_score": data["average_score"],
-                    "last_practiced": data["last_practiced"],
-                    "trend": data["trend"],
-                },
+                skill_tag=data["skill_tag"],
+                level=data["level"],
+                total_sessions=data["total_sessions"],
+                total_xp=data["total_xp"],
+                average_score=data["average_score"],
+                last_practiced=data["last_practiced"],
+                trend=data["trend"],
             )
+            for data in results
+        ]
+        if profiles:
+            try:
+                UserSkillProfile.objects.bulk_create(
+                    profiles,
+                    update_conflicts=True,
+                    unique_fields=["user", "skill_tag"],
+                    update_fields=[
+                        "level",
+                        "total_sessions",
+                        "total_xp",
+                        "average_score",
+                        "last_practiced",
+                        "trend",
+                        "updated_at",
+                    ],
+                )
+            except Exception:
+                existing = {
+                    usp.skill_tag_id: usp
+                    for usp in UserSkillProfile.objects.filter(
+                        user=request.user,
+                        skill_tag__in=[d["skill_tag"] for d in results],
+                    )
+                }
+                to_create = []
+                to_update = []
+                now = timezone.now()
+                for p in profiles:
+                    if p.skill_tag_id in existing:
+                        obj = existing[p.skill_tag_id]
+                        obj.level = p.level
+                        obj.total_sessions = p.total_sessions
+                        obj.total_xp = p.total_xp
+                        obj.average_score = p.average_score
+                        obj.last_practiced = p.last_practiced
+                        obj.trend = p.trend
+                        obj.updated_at = now
+                        to_update.append(obj)
+                    else:
+                        to_create.append(p)
+                if to_create:
+                    UserSkillProfile.objects.bulk_create(to_create)
+                if to_update:
+                    UserSkillProfile.objects.bulk_update(
+                        to_update,
+                        fields=[
+                            "level",
+                            "total_sessions",
+                            "total_xp",
+                            "average_score",
+                            "last_practiced",
+                            "trend",
+                            "updated_at",
+                        ],
+                    )
         return Response(
             {
                 "refreshed": len(results),
