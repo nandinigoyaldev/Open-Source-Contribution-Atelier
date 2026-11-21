@@ -277,7 +277,7 @@ Bulk requests answer `200` and commit the items that were accepted. Each refused
 
 `POST /api/progress/bookmarks/<slug>/` saves a lesson to Read Later: `201`, or `200` when it was already saved. `DELETE /api/progress/bookmarks/<slug>/` removes it: `204`, or `404` when there is nothing to remove.
 
-Both take an `Idempotency-Key` header. A request that repeats a key gets the first answer back with `Idempotency-Replay: true` instead of being applied again, so a removal that is replayed after it already went through answers `204`, not `404`. The frontend offline queue sends a new key per queued action.
+Both take an `Idempotency-Key` header. A request that repeats a key gets the first answer back with `Idempotency-Replay: true` instead of being applied again, so a removal that is replayed after it already went through answers `204`, not `404`. The first `404` of a keyed removal is stored too, so a retry of it answers `404` again even if the lesson was saved from another device in between, and does not remove that newer bookmark. The frontend offline queue sends a new key per queued action.
 
 `DELETE` also takes an optional `expected_id` query parameter, the `id` of the bookmark being removed as `GET /api/progress/bookmarks/` returned it. If the lesson's bookmark has another id now, it was saved again after the client read it (another tab or device) and the server answers `409` without deleting anything:
 
@@ -292,7 +292,7 @@ Both take an `Idempotency-Key` header. A request that repeats a key gets the fir
 }
 ```
 
-To remove it on purpose, send the delete again with `expected_id` set to the `id` from this body. A value that is not a number is a `400`.
+To remove it on purpose, send the delete again with `expected_id` set to the `id` from this body, and use a new `Idempotency-Key` for it. The conflict answer is stored under the old key and `expected_id` is not part of what the key is compared on, so the old key would just get the `409` back. Keep the new key only for retries of this new delete. A value that is not a number is a `400`.
 
 ## Offline replay (frontend)
 
@@ -300,7 +300,10 @@ Writes made offline go into the `sync-queue` IndexedDB store (`frontend/src/lib/
 
 - Each action gets a `seq` from a cursor kept in `localStorage` (`atelier_sync_cursor`) and the queue replays in `seq` order, not in key order. A newer action for the same lesson waits while an older one failed or is in conflict.
 - Each action gets its own `Idempotency-Key` when it is queued and keeps it across retries.
-- The page sends the access token it has at replay time, not the one saved when the action was queued, and holds actions that were queued under another account.
+- The page sends the access token it has at replay time, not the one saved when the action was queued. It reads that token once per request and checks its owner, and holds actions that were queued under another account (or when the owner of the token cannot be read).
+- A result only settles the revision that was sent, found by its idempotency key. If a newer write for the same lesson replaced it while the request was out, the newer one stays queued.
+- An action is marked as sent right before the request. A bookmark change that is reversed before that is cancelled; one that may already have reached the server is replaced by the opposite change instead.
+- The service worker also marks actions as sent and settles only the revision it sent. It drops writes the server rejected for good (`400`, `404`, `410`, `422`, or a key the server will not accept) so they do not hold up later writes, stores a `409` conflict in the queue before telling the pages, and fails the background sync on temporary errors so the browser tries again.
 - Records carry `schemaVersion`. Older records are upgraded when the queue is read. Records from a newer version are left alone.
 - A `409` with a `code` is a conflict and goes to the conflict prompt. A `409` about the idempotency key (another replay is sending the same key) is retried later.
 

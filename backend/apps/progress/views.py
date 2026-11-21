@@ -1459,9 +1459,16 @@ class LessonBookmarkView(APIView):
                     status=status.HTTP_400_BAD_REQUEST,
                 )
 
-        bookmark = get_object_or_404(
-            LessonBookmark, user=request.user, lesson__slug=slug
-        )
+        # Return the 404 instead of raising it: the idempotent decorator only
+        # stores responses, so a raised Http404 would leave the key free and a
+        # retry could delete a bookmark saved from another device in between.
+        bookmark = LessonBookmark.objects.filter(
+            user=request.user, lesson__slug=slug
+        ).first()
+        if bookmark is None:
+            return Response(
+                {"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND
+            )
 
         # expected_id is the bookmark the client saw (the offline queue sends it
         # for a removal made offline). Another id means the lesson was bookmarked

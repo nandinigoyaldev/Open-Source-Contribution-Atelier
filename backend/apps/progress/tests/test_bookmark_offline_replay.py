@@ -64,6 +64,17 @@ class BookmarkReplayTests(TestCase):
         self.assertEqual(response.status_code, 404)
         self.assertFalse(Records.exists())
 
+    def test_keyed_404_is_stored_and_replayed(self):
+        first = self.client.delete(self.url, HTTP_IDEMPOTENCY_KEY="remove-missing")
+        # Saved from another device after the first answer got lost
+        Bookmarks.create(user=self.user, lesson=self.lesson)
+        replay = self.client.delete(self.url, HTTP_IDEMPOTENCY_KEY="remove-missing")
+
+        self.assertEqual(first.status_code, 404)
+        self.assertEqual(replay.status_code, 404)
+        self.assertEqual(replay.headers.get("Idempotency-Replay"), "true")
+        self.assertTrue(Bookmarks.filter(user=self.user).exists())
+
     def test_removal_does_not_drop_a_bookmark_saved_again(self):
         old = Bookmarks.create(user=self.user, lesson=self.lesson)
         old_id = old.id
