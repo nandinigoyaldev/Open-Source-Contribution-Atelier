@@ -28,7 +28,7 @@ DEFAULT_ATTEMPT_DAYS = 30
 DEFAULT_DELIVERY_DAYS = 90
 DEFAULT_FAILED_DAYS = 180
 
-DELIVERED_STATUSES = ("sent", "opened", "clicked", "bounced")
+DELIVERED_STATUSES = ("sent", "opened", "clicked", "bounced", "batched", "cancelled")
 
 
 def retention_windows() -> dict:
