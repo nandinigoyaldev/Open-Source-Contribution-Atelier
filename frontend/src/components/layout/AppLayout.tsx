@@ -6,7 +6,6 @@ import { MobileBottomNav } from "./MobileBottomNav";
 import { BadgeToastNotifier } from "../ui/BadgeToastNotifier";
 import { SessionTracker } from "../ui/SessionTracker";
 import { useAuth } from "../../features/auth/AuthContext";
-import { SkipLink } from "../ui/SkipLink";
 
 export function AppLayout() {
   const location = useLocation();
@@ -25,8 +24,6 @@ export function AppLayout() {
 
   return (
     <>
-      <SkipLink />
-
       <div className="min-h-screen bg-surface text-text dark:bg-[#0a0a0f] dark:text-[#f0ebe2] overflow-x-hidden">
         {/* Top bar: always visible except on lesson pages */}
         {!isLessonPage && <Navigation />}
