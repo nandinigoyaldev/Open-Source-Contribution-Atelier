@@ -67,14 +67,20 @@ const customLesson = {
   id: 0,
   slug: "test-lesson-hint",
   title: "Hint Testing Lesson",
+  category: "test",
+  difficulty: "beginner",
   description: "Testing the hint gamification",
   explanation: "Some content",
   expected: 'git commit -m "fix"',
   hint: "Use git commit",
+  estimatedMinutes: 15,
+  learningObjectives: [],
+  tips: [],
+  order: 0,
   points: 40,
   exercises: [],
   quizzes: [],
-};
+} satisfies lessonsModule.Lesson & { points: number };
 
 function renderWithProviders(ui: React.ReactElement) {
   const queryClient = new QueryClient({
