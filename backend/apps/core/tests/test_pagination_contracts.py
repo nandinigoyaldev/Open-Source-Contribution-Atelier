@@ -13,6 +13,7 @@ from uuid import UUID
 
 import pytest
 from django.contrib.auth import get_user_model
+from django.http import HttpResponse
 from django.urls import reverse
 from django.utils.dateparse import parse_datetime
 from rest_framework.test import APIClient
@@ -46,8 +47,8 @@ def item_contract(item):
     return data
 
 
-def response_contract(response):
-    body = response.json()
+def response_contract(response: HttpResponse):
+    body = json.loads(response.content)
     if "correlation_id" in body:
         UUID(body["correlation_id"])
         body["correlation_id"] = "<uuid>"
@@ -64,25 +65,33 @@ def response_contract(response):
     return {"status": response.status_code, "body": body}
 
 
-def follow(client, link):
+def get_page(client: APIClient, url: str, params=None) -> HttpResponse:
+    response = client.get(url, params)
+    assert isinstance(response, HttpResponse)
+    return response
+
+
+def follow(client: APIClient, link: str):
     parts = urlsplit(link)
-    return client.get(f"{parts.path}?{parts.query}" if parts.query else parts.path)
+    return get_page(
+        client, f"{parts.path}?{parts.query}" if parts.query else parts.path
+    )
 
 
 def test_lesson_cursor_response_contract(monkeypatch):
     client = APIClient()
     url = reverse("lesson-list")
     monkeypatch.setattr(SecureCursorPagination, "page_size", 2)
-    empty = client.get(url)
+    empty = get_page(client, url)
     for slug, title in (
         ("intro", "Introduction"),
         ("commit", "Commit"),
         ("push", "Push"),
     ):
         Lesson.objects.create(slug=slug, title=title, content="Sample lesson")
-    first = client.get(url)
-    last = follow(client, first.json()["next"])
-    invalid = client.get(url, {"cursor": "invalid"})
+    first = get_page(client, url)
+    last = follow(client, json.loads(first.content)["next"])
+    invalid = get_page(client, url, {"cursor": "invalid"})
     actual = {
         key: response_contract(result)
         for key, result in (
@@ -100,12 +109,12 @@ def test_notification_page_response_contract():
     client = APIClient()
     client.force_authenticate(user)
     url = reverse("notification-list")
-    empty = client.get(url)
+    empty = get_page(client, url)
     for title in ("New badge", "Lesson completed", "New comment"):
         Notification.objects.create(recipient=user, notif_type="badge", title=title)
-    first = client.get(url, {"page_size": 2})
-    last = follow(client, first.json()["next"])
-    invalid = client.get(url, {"page": 99})
+    first = get_page(client, url, {"page_size": 2})
+    last = follow(client, json.loads(first.content)["next"])
+    invalid = get_page(client, url, {"page": 99})
     actual = {
         key: response_contract(result)
         for key, result in (
