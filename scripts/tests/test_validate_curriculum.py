@@ -47,6 +47,22 @@ class ValidateCurriculumTests(unittest.TestCase):
         with contextlib.redirect_stdout(io.StringIO()):
             self.assertEqual(main(["--content-dir", str(root)]), 0)
 
+    def test_completion_estimate_is_optional_and_supports_range_boundaries(self):
+        for minutes in (1, 8, 120):
+            with self.subTest(minutes=minutes):
+                self.assertEqual(
+                    validate(self.build([lesson(estimatedMinutes=minutes)])), []
+                )
+        self.assertEqual(validate(self.build([lesson()])), [])
+
+    def test_invalid_completion_estimates_are_reported_with_lesson_slug(self):
+        for minutes in (0, -1, 121, 2.5, "8", True, None):
+            with self.subTest(minutes=minutes):
+                self.assertIn(
+                    "curriculum.json: intro: estimatedMinutes must be an integer between 1 and 120",
+                    self.messages(self.build([lesson(estimatedMinutes=minutes)])),
+                )
+
     def test_missing_slug(self):
         root = self.build([lesson(slug="")], files={})
         self.assertTrue(any("missing slug" in m for m in self.messages(root)))

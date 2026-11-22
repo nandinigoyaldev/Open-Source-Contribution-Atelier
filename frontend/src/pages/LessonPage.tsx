@@ -134,6 +134,16 @@ function normalizeCommand(value: string) {
   return value.trim().replace(/\s+/g, " ").toLowerCase();
 }
 
+/** Match the bounds used by the backend curriculum importer. */
+function validCompletionMinutes(value: unknown): number | undefined {
+  return typeof value === "number" &&
+    Number.isInteger(value) &&
+    value >= 1 &&
+    value <= 120
+    ? value
+    : undefined;
+}
+
 export function LessonPage() {
   const { slug } = useParams<{ slug: string }>();
   const navigate = useNavigate();
@@ -166,10 +176,18 @@ export function LessonPage() {
         slug: string;
         title: string;
         difficulty?: string;
+        estimatedMinutes?: number;
         filePath?: string;
       }[];
     }[]
   >([]);
+  const completionMinutes = useMemo(
+    () =>
+      validCompletionMinutes(
+        findCurriculumLesson({ modules }, slug)?.lesson.estimatedMinutes,
+      ),
+    [modules, slug],
+  );
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
@@ -456,7 +474,8 @@ export function LessonPage() {
             hint: curriculumLesson.hint || "Read the lesson content carefully.",
             difficulty: curriculumLesson.difficulty || "beginner",
             points: curriculumLesson.points || 15,
-            estimatedMinutes: curriculumLesson.estimatedMinutes || 10,
+            estimatedMinutes:
+              validCompletionMinutes(curriculumLesson.estimatedMinutes) ?? 10,
             learningObjectives: [],
             tips: [],
             exercises: [],
@@ -1113,7 +1132,10 @@ export function LessonPage() {
                       {lesson.difficulty || "beginner"}
                     </span>
                     <span className="text-[10px] font-mono font-black bg-surface-low text-text px-3 py-1 rounded-full border-2 border-black rotate-[1deg] inline-block shadow-card-sm uppercase dark:bg-[#1f1c18] dark:border-[#2e2924] dark:text-[#f0ebe2]">
-                      ⏱️ {calculateReadTime(markdownContent)} min read
+                      ⏱️{" "}
+                      {completionMinutes === undefined
+                        ? `${calculateReadTime(markdownContent)} min read`
+                        : `${completionMinutes} min to complete`}
                     </span>
                     <span className="text-[10px] font-mono font-black bg-surface-low text-muted px-3 py-1 rounded-full border-2 border-black rotate-[-0.5deg] inline-block shadow-card-sm uppercase dark:bg-[#1f1c18] dark:border-[#2e2924] dark:text-[#c4bbae]">
                       📅 Updated:{" "}

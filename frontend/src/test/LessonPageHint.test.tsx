@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import React from "react";
 import * as useUserProgressModule from "../hooks/useUserProgress";
 import * as lessonsModule from "../lib/lessons";
+import * as curriculumModule from "../lib/curriculum";
 
 // Mock TextToSpeechControls and GitGraph so they don't break
 vi.mock("../components/ui/TextToSpeechControls", () => ({
@@ -13,14 +14,6 @@ vi.mock("../components/ui/TextToSpeechControls", () => ({
 }));
 vi.mock("../components/ui/GitGraph", () => ({
   GitGraph: () => <div data-testid="git-graph" />,
-}));
-vi.mock("../lib/gitSimulator", () => ({
-  createInitialRepo: vi.fn(() => ({})),
-  parseGitCommand: vi.fn(() => ({
-    error: null,
-    output: "Mock success",
-    newState: {},
-  })),
 }));
 vi.mock("../features/auth/AuthContext", () => ({
   useAuth: () => ({
@@ -98,18 +91,25 @@ function renderWithProviders(ui: React.ReactElement) {
   );
 }
 
-describe("LessonPage Gamified Hint Module", () => {
+describe("LessonPage", () => {
   const mockSyncProgress = vi.fn();
 
   beforeEach(() => {
     cleanup();
     vi.clearAllMocks();
+    // The LessonPage and Testing Library waits use browser timers.
+    // eslint-disable-next-line no-restricted-syntax -- wait for async page rendering
+    vi.useRealTimers();
 
     vi.spyOn(useUserProgressModule, "useUserProgress").mockReturnValue({
       syncProgress: mockSyncProgress,
       isLessonCompleted: () => false,
       isLoading: false,
     } as any);
+
+    vi.spyOn(curriculumModule, "loadCurriculumCached").mockResolvedValue({
+      modules: [],
+    });
 
     vi.spyOn(lessonsModule, "fetchLessonsApiResult").mockResolvedValue({
       lessons: [customLesson],
@@ -135,4 +135,42 @@ describe("LessonPage Gamified Hint Module", () => {
     // 3. Verify the hint text is displayed
     expect(await screen.findByText(/Use git commit/i)).toBeInTheDocument();
   });
+
+  function setCurriculum(estimatedMinutes?: number) {
+    vi.mocked(curriculumModule.loadCurriculumCached).mockResolvedValue({
+      modules: [
+        {
+          id: "test",
+          title: "Test module",
+          lessons: [{ ...customLesson, estimatedMinutes }],
+        },
+      ],
+    });
+  }
+
+  it.each([true, false])(
+    "shows the curriculum estimate regardless of API availability (%s)",
+    async (fromApi) => {
+      setCurriculum(8);
+      if (!fromApi) {
+        vi.mocked(lessonsModule.fetchLessonsApiResult).mockResolvedValue({
+          lessons: [],
+          fromApi: false,
+        });
+      }
+      renderWithProviders(<LessonPage />);
+      expect(await screen.findByText(/8 min to complete/)).toBeInTheDocument();
+      expect(screen.queryByText(/min read/)).not.toBeInTheDocument();
+    },
+  );
+
+  it.each([undefined, 0, 121, 4.5])(
+    "keeps the reading time when the curriculum estimate is absent or invalid (%s)",
+    async (estimatedMinutes) => {
+      setCurriculum(estimatedMinutes);
+      renderWithProviders(<LessonPage />);
+      expect(await screen.findByText(/min read/)).toBeInTheDocument();
+      expect(screen.queryByText(/min to complete/)).not.toBeInTheDocument();
+    },
+  );
 });

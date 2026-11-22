@@ -294,6 +294,17 @@ def validate(content_dir: Path, check_external: bool = False) -> List[Problem]:
         if not str(lesson.get("title") or "").strip():
             problems.append(("curriculum.json", f"{slug}: missing title"))
 
+        if "estimatedMinutes" in lesson:
+            minutes = lesson["estimatedMinutes"]
+            # Match the bounds used by the backend curriculum importer.
+            if type(minutes) is not int or not 1 <= minutes <= 120:
+                problems.append(
+                    (
+                        "curriculum.json",
+                        f"{slug}: estimatedMinutes must be an integer between 1 and 120",
+                    )
+                )
+
         for q_index, quiz in enumerate(lesson.get("quizzes") or []):
             label = f"{slug} quiz #{q_index + 1}"
             if isinstance(quiz, str):
