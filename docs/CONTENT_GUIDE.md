@@ -50,6 +50,10 @@ To add a new lesson or create a module:
    }
    ```
    
+   The optional `estimatedMinutes` field accepts whole numbers from 1 through 120.
+   The lesson header uses it as the completion estimate. Lessons without the
+   field continue to show the calculated reading time.
+
 2. **Create the Markdown file**:
    Create the corresponding markdown file at the path listed in the `"filePath"` parameter. In this case: `frontend/public/content/module-2/git-stash-basics.md`.
 
