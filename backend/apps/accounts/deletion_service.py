@@ -255,7 +255,15 @@ def execute_account_deletion(user):
     except Exception:
         pass
 
-    # 4. Mark deletion requests as completed
+    # 4. Invalidate API tokens and sessions
+    try:
+        from rest_framework.authtoken.models import Token
+
+        Token.objects.filter(user=user).delete()
+    except Exception:
+        pass
+
+    # 5. Mark deletion requests as completed
     try:
         from apps.accounts.models import AccountDeletionRequest
 
@@ -268,5 +276,76 @@ def execute_account_deletion(user):
     except Exception:
         pass
 
-    # 5. Delete the user (cascades profile, notes, progress, certificates, tokens)
+    # 6. Delete the user (cascades profile, notes, progress, certificates, tokens)
     user.delete()
+
+
+def process_scheduled_deletions(
+    batch_size: int = 50, max_retries: int = 3
+) -> Dict[str, Any]:
+    """
+    Worker task to process expired account deletion requests whose grace period has ended.
+    Idempotent and resilient with retry tracking, dependency re-validation, and error reporting.
+    """
+    from apps.accounts.models import AccountDeletionRequest
+
+    now = timezone.now()
+    pending_requests = (
+        AccountDeletionRequest.objects.filter(
+            status=AccountDeletionRequest.STATUS_PENDING,
+            scheduled_for__lte=now,
+        )
+        .select_related("user")
+        .order_by("scheduled_for")[:batch_size]
+    )
+
+    results: Dict[str, Any] = {
+        "total": len(pending_requests),
+        "succeeded": 0,
+        "failed": 0,
+        "blocked": 0,
+        "errors": [],
+    }
+
+    for req in pending_requests:
+        user = req.user
+        if not user or not user.pk:
+            req.status = AccountDeletionRequest.STATUS_COMPLETED
+            req.completed_at = now
+            req.save(update_fields=["status", "completed_at"])
+            results["succeeded"] += 1
+            continue
+
+        # Re-verify blocking dependencies at execution time
+        blocking = check_blocking_dependencies(user)
+        if blocking:
+            logger.warning(
+                f"Scheduled deletion for user {user.id} ({user.username}) is blocked by dependencies: {blocking}"
+            )
+            results["blocked"] += 1
+            results["errors"].append(
+                {
+                    "user_id": user.id,
+                    "error": "blocked_by_dependencies",
+                    "blocking": blocking,
+                }
+            )
+            continue
+
+        try:
+            execute_account_deletion(user)
+            results["succeeded"] += 1
+        except Exception as exc:
+            logger.exception(
+                f"Error executing scheduled deletion for user {user.id}: {exc}"
+            )
+            results["failed"] += 1
+            results["errors"].append(
+                {
+                    "user_id": user.id,
+                    "error": str(exc),
+                }
+            )
+
+    return results
+
