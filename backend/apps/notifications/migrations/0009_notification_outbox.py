@@ -45,7 +45,12 @@ class Migration(migrations.Migration):
                         max_length=12,
                     ),
                 ),
-                ("attempts", models.PositiveIntegerField(default=0)),
+                (
+                    "attempts",
+                    models.PositiveIntegerField(
+                        default=0  # pyright: ignore[reportArgumentType]
+                    ),
+                ),
                 (
                     "next_attempt_at",
                     models.DateTimeField(default=django.utils.timezone.now),

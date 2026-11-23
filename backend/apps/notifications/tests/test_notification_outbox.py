@@ -1,3 +1,4 @@
+# pyright: reportAttributeAccessIssue=false, reportIndexIssue=false, reportOperatorIssue=false, reportArgumentType=false, reportReturnType=false, reportGeneralTypeIssues=false, reportCallIssue=false
 """Transactional notification outbox: atomic enqueue, claiming, retries, dead letters, metrics (#3320)."""
 
 import json

@@ -348,7 +348,9 @@ class NotificationOutbox(models.Model):
     status = models.CharField(
         max_length=12, choices=STATUS_CHOICES, default="pending", db_index=True
     )
-    attempts = models.PositiveIntegerField(default=0)
+    attempts = models.PositiveIntegerField(
+        default=0  # pyright: ignore[reportArgumentType]
+    )
     next_attempt_at = models.DateTimeField(default=timezone.now)
     locked_at = models.DateTimeField(null=True, blank=True)
     locked_by = models.CharField(max_length=64, blank=True)
@@ -379,4 +381,7 @@ class NotificationOutbox(models.Model):
         ]
 
     def __str__(self):
-        return f"Outbox #{self.pk} [{self.notif_type}] -> {self.recipient_id} ({self.status})"
+        recipient_id = getattr(self, "recipient_id", None)
+        return (
+            f"Outbox #{self.pk} [{self.notif_type}] -> {recipient_id} ({self.status})"
+        )

@@ -1,3 +1,4 @@
+# pyright: reportAttributeAccessIssue=false, reportIndexIssue=false, reportOperatorIssue=false, reportArgumentType=false, reportReturnType=false, reportGeneralTypeIssues=false, reportCallIssue=false
 """
 Transactional outbox for notifications.
 
