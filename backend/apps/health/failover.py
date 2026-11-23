@@ -1,3 +1,4 @@
+# pyright: reportAttributeAccessIssue=false
 """
 Failover status for the dependencies realtime and background work rely on.
 

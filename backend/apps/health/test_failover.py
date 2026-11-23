@@ -1,3 +1,4 @@
+# pyright: reportAttributeAccessIssue=false
 """
 Failure injection for realtime and worker failover (docs/DISASTER_RECOVERY.md).
 
