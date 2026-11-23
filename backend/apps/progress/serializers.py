@@ -3,10 +3,12 @@ from rest_framework import serializers
 from .models import (
     Badge,
     Certificate,
+    FinancialReward,
     HelpRequest,
     LessonProgress,
     ProgressBufferDeadLetter,
     QuizAttempt,
+    RewardTransactionSaga,
     UserBadge,
     WeeklyGoal,
 )
@@ -271,3 +273,46 @@ class ProgressBufferDeadLetterSerializer(serializers.ModelSerializer):
             "updated_at",
         ]
         read_only_fields = fields
+
+
+class FinancialRewardSerializer(serializers.ModelSerializer):
+    username = serializers.ReadOnlyField(source="user.username")
+
+    class Meta:
+        model = FinancialReward
+        fields = [
+            "id",
+            "user",
+            "username",
+            "saga_id",
+            "amount",
+            "currency",
+            "source_type",
+            "source_id",
+            "status",
+            "metadata",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "created_at", "updated_at"]
+
+
+class RewardTransactionSagaSerializer(serializers.ModelSerializer):
+    username = serializers.ReadOnlyField(source="user.username")
+
+    class Meta:
+        model = RewardTransactionSaga
+        fields = [
+            "id",
+            "saga_id",
+            "user",
+            "username",
+            "status",
+            "action_type",
+            "payload",
+            "step_states",
+            "error_message",
+            "created_at",
+            "updated_at",
+        ]
+        read_only_fields = ["id", "created_at", "updated_at"]
