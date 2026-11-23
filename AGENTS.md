@@ -76,7 +76,7 @@ Boots Postgres, Redis, Django backend (:8000), and Vite frontend (:5173).
 
 - Django defaults to **SQLite** locally (unless `DATABASE_URL` is set); Docker and CI use **Postgres**. The `.env.example` files have sane defaults — copy them to `.env`.
 - Backend settings module: `config.settings` (set in `pytest.ini` and `render.yaml`).
-- **Redis optional for local WS**: if Redis is unreachable, Channels uses `InMemoryChannelLayer` (logged). Set `FORCE_INMEMORY_CHANNEL_LAYER=1` to force that path. When Redis is up, a resilient layer falls back if Redis dies mid-process.
+- **Redis optional for local WS**: if Redis is unreachable, Channels uses `InMemoryChannelLayer` (logged). Set `FORCE_INMEMORY_CHANNEL_LAYER=1` to force that path. When Redis is up, a resilient layer falls back if Redis dies mid-process. See [docs/backend/REDIS_FALLBACK.md](docs/backend/REDIS_FALLBACK.md).
 - The sandbox exercise verifier only accepts whitelisted Git-learning commands. Don't extend it without reviewing the allowlist.
 - Frontend content (lessons, modules, quizzes) is purely Markdown + `curriculum.json` in `public/content/`. Adding content requires **zero code changes** — see `docs/CONTENT_GUIDE.md`.
 - Branch naming: `feat/...`, `fix/...`, `docs/...`, `refactor/...`.
