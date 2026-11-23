@@ -145,6 +145,13 @@ async def stream_python_execution(
                     if total_output_bytes > ResourceManagementEngine.MAX_OUTPUT_BYTES:
                         quota_killed = True
                         ResourceManagementEngine.kill_process_tree(process.pid)
+                        from apps.sandbox.telemetry import record_output_truncation
+
+                        record_output_truncation(
+                            stream=stream_type,
+                            command_category="python",
+                            limit=ResourceManagementEngine.MAX_OUTPUT_BYTES,
+                        )
                         break
                     await send_callback(
                         {

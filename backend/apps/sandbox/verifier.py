@@ -41,12 +41,15 @@ class SandboxVerifier:
         session_log: Union[str, List[Union[str, Dict[str, Any]]]],
         expected_steps: List[str],
         lesson_slug: Optional[str] = None,
+        max_output_length: Optional[int] = None,
     ) -> Dict[str, Any]:
         """
         Parses a full terminal session log, extracts executed Git commands,
         and grades the session against expected steps using AST allowlisting and per-step rules.
         """
-        events: List[HistoryEvent] = parse_terminal_session(session_log)
+        events: List[HistoryEvent] = parse_terminal_session(
+            session_log, max_output_length=max_output_length
+        )
         executed_commands = [evt.command for evt in events if evt.command]
 
         grading: StepGradingResult = grade_session(
@@ -73,3 +76,40 @@ class SandboxVerifier:
                 for step in grading.step_grades
             ],
         }
+
+    @classmethod
+    def truncate_output(
+        cls,
+        output: Union[str, bytes],
+        stream: str = "stdout",
+        command: Optional[str] = None,
+        command_category: Optional[str] = None,
+        limit: Optional[int] = None,
+    ) -> Union[str, bytes]:
+        """
+        Truncate output while emitting privacy-safe telemetry counters.
+        """
+        from apps.sandbox.telemetry import truncate_sandbox_output
+
+        truncated, _ = truncate_sandbox_output(
+            output=output,
+            stream=stream,
+            command=command,
+            command_category=command_category,
+            limit=limit,
+        )
+        return truncated
+
+    @classmethod
+    def record_truncation(
+        cls,
+        stream: str,
+        command_category: str,
+        limit: Union[int, str],
+    ) -> None:
+        """
+        Emit a privacy-safe truncation telemetry counter.
+        """
+        from apps.sandbox.telemetry import record_output_truncation
+
+        record_output_truncation(stream, command_category, limit)

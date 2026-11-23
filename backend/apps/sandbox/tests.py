@@ -181,3 +181,8 @@ async def test_collab_websocket_consumer():
 
     db_state = await check_db()
     assert db_state == test_update + test_update2
+
+
+from apps.sandbox.tests.test_output_truncation_telemetry import (  # noqa: F401
+    SandboxOutputTruncationTelemetryTests,
+)
