@@ -1202,6 +1202,33 @@ NOTIFICATION_FAILED_RETENTION_DAYS = int(
 # is marked STUCK by the reaper. Tasks with a time_limit get that limit plus a short grace.
 TASK_RUN_LEASE_SECONDS = int(os.getenv("TASK_RUN_LEASE_SECONDS", "900"))
 
+# ── Failover for realtime and workers (see docs/DISASTER_RECOVERY.md) ──
+# Dependencies whose outage makes /health/failover/ answer 503. Others only mark it degraded.
+FAILOVER_CRITICAL_DEPENDENCIES = tuple(
+    item.strip()
+    for item in os.getenv("FAILOVER_CRITICAL_DEPENDENCIES", "database").split(",")
+    if item.strip()
+)
+# Oldest queued run older than this makes the workers check degraded, and unavailable at the second.
+FAILOVER_QUEUE_AGE_DEGRADED_SECONDS = int(
+    os.getenv("FAILOVER_QUEUE_AGE_DEGRADED_SECONDS", "300")
+)
+FAILOVER_QUEUE_AGE_UNAVAILABLE_SECONDS = int(
+    os.getenv("FAILOVER_QUEUE_AGE_UNAVAILABLE_SECONDS", "1800")
+)
+# STUCK runs are sent again only for tasks declared with failover_requeue=True or listed here.
+# The task must be safe to run twice, and take no arguments.
+FAILOVER_REQUEUE_TASKS = tuple(
+    item.strip()
+    for item in os.getenv("FAILOVER_REQUEUE_TASKS", "").split(",")
+    if item.strip()
+)
+# A task that dies again and again is requeued at most this many times per window, then left to an operator.
+FAILOVER_REQUEUE_MAX_ATTEMPTS = int(os.getenv("FAILOVER_REQUEUE_MAX_ATTEMPTS", "3"))
+FAILOVER_REQUEUE_WINDOW_SECONDS = int(
+    os.getenv("FAILOVER_REQUEUE_WINDOW_SECONDS", "3600")
+)
+
 # ── Resumable data exports (see docs/DATA_EXPORTS.md) ──
 # Where export files are written. Must be a private directory that is not served publicly, and
 # shared between the web and worker hosts when they are different machines.
@@ -1256,6 +1283,10 @@ CELERY_BEAT_SCHEDULE = {
     },
     "reap-stuck-task-runs": {
         "task": "monitoring.reap_stuck_task_runs",
+        "schedule": 60.0,
+    },
+    "requeue-orphaned-task-runs": {
+        "task": "monitoring.requeue_orphaned_runs",
         "schedule": 60.0,
     },
 }

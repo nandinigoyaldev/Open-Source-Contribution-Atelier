@@ -15,6 +15,7 @@ Lease lifecycle of a TaskRun:
 * A long task can call ``touch_heartbeat(task_id)`` to push the lease forward.
 * ``task_postrun`` / ``task_failure`` / ``task_retry`` release it.
 * ``reap_expired_runs`` marks a STARTED run whose lease ran out as STUCK.
+* ``requeue_orphaned_runs`` sends a STUCK run of an opted-in task again, once.
 """
 
 import logging
@@ -120,6 +121,64 @@ def reap_expired_runs(now=None) -> int:
         )
         broadcast_task_update(run)
     return marked
+
+
+def is_requeue_safe(run: TaskRun) -> bool:
+    """
+    A STUCK run may be re-sent on its own only when that cannot do harm: the task is
+    opted in (``failover_requeue=True`` on the task, or its name in
+    ``FAILOVER_REQUEUE_TASKS``) because a worker that was only slow may still finish
+    the first copy, so the task has to be idempotent. Runs with arguments never
+    qualify, since arguments are not stored and cannot be replayed.
+    """
+    if run.args_summary:
+        return False
+    if run.task_name in set(getattr(settings, "FAILOVER_REQUEUE_TASKS", ()) or ()):
+        return True
+    task = current_app.tasks.get(run.task_name)
+    return bool(getattr(task, "failover_requeue", False))
+
+
+def requeue_orphaned_runs(now=None) -> dict:
+    """
+    Failover for jobs whose worker died: dispatch each STUCK run of an opted-in task
+    again. Exactly once per run, because ``retry_run`` claims the row with a
+    conditional update, so overlapping passes or a pass repeated after a crash find
+    the run already in RETRY. A task that keeps dying is not retried forever: after
+    ``FAILOVER_REQUEUE_MAX_ATTEMPTS`` requeues inside
+    ``FAILOVER_REQUEUE_WINDOW_SECONDS`` the remaining runs are left STUCK for an
+    operator. Stops at the first broker error, nothing is lost since the run stays STUCK.
+    """
+    now = now or timezone.now()
+    max_attempts = int(getattr(settings, "FAILOVER_REQUEUE_MAX_ATTEMPTS", 3))
+    window = timedelta(
+        seconds=int(getattr(settings, "FAILOVER_REQUEUE_WINDOW_SECONDS", 3600))
+    )
+    counts = {
+        "requeued": 0,
+        "skipped_unsafe": 0,
+        "skipped_exhausted": 0,
+        "broker_unavailable": 0,
+    }
+    stuck = TaskRun.objects.filter(status="STUCK").order_by("started_at")
+    for run in stuck[:REAP_BATCH_SIZE]:
+        if not is_requeue_safe(run):
+            counts["skipped_unsafe"] += 1
+            continue
+        # Every requeue leaves the original row in RETRY, so those rows are the tally.
+        attempts = TaskRun.objects.filter(
+            task_name=run.task_name, status="RETRY", started_at__gte=now - window
+        ).count()
+        if attempts >= max_attempts:
+            counts["skipped_exhausted"] += 1
+            continue
+        outcome = retry_run(run, None)
+        if outcome.state == "queued":
+            counts["requeued"] += 1
+        elif outcome.state == "broker_unavailable":
+            counts["broker_unavailable"] += 1
+            break
+    return counts
 
 
 @dataclass

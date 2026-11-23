@@ -68,10 +68,11 @@ When Redis was connected at startup, but crashes, restarts, or loses network con
 - Any channel layer call (`send`, `group_send`, `group_add`, `group_discard`) in `ResilientChannelLayer` encounters a `ConnectionError` or socket timeout.
 - The resilient layer marks the instance as `degraded = True`, switches `self._active = self._fallback`, and logs:
   ```text
-  WARNING: Channels Redis failed during <operation> (<Error>: <details>). Falling back to InMemoryChannelLayer for this process. Realtime messages will not cross workers until Redis is restored and the app is restarted.
+  WARNING: Channels Redis failed during <operation> (<Error>: <details>). Falling back to InMemoryChannelLayer for this process. Realtime messages will not cross workers until Redis is restored and this process fails back (see try_failback) or is restarted.
   ```
 - Redis socket connection pools are cleaned up asynchronously (`close_pools()`) with a 5.0s timeout to prevent socket leaks.
 - WebSocket consumers continue executing on the in-memory layer rather than raising unhandled 500 errors.
+- Once Redis answers a `PING` again (probed at most every 15 seconds) and no connection is subscribed on the fallback, the layer switches back to Redis by itself. While connections are still subscribed it stays degraded, because switching would strand them. See [DISASTER_RECOVERY.md](../DISASTER_RECOVERY.md).
 
 ---
 

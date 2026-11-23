@@ -33,6 +33,8 @@ touch_heartbeat(self.request.id)  # inside the task, for example once per batch
 
 A run with no lease (rows from before this feature) is never marked stuck.
 
+`monitoring.requeue_orphaned_runs` (beat, every minute) sends a `STUCK` run again for tasks that opted in with `failover_requeue=True`. See [DISASTER_RECOVERY.md](DISASTER_RECOVERY.md).
+
 ## Operator actions
 
 Both are `POST`, staff only, answer with a `status` field, and write an audit event ([AUDIT_EVENTS.md](AUDIT_EVENTS.md)) only when they change something.
