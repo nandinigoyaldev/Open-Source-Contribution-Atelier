@@ -38,6 +38,7 @@ api_v1_patterns = [
     path("api/leaderboard/", LeaderboardView.as_view(), name="leaderboard"),
     # ── Authentication ─────────────────────────────────────────────────────────
     path("accounts/", include("allauth.urls")),
+    path("api/auth/sso/", include("apps.organizations.sso_urls")),
     path("api/auth/", include("apps.accounts.urls")),
     path("api/users/", include("apps.accounts.user_urls")),
     # ── OAuth 2.0 & OpenID Connect ──────────────────────────────────────────────
