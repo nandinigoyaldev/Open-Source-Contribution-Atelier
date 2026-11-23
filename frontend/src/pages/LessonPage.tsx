@@ -2018,7 +2018,7 @@ export function LessonPage() {
 
         {showHistory && (
           <LessonHistoryModal
-            lessonId={lesson.id}
+            lessonSlug={lesson.slug}
             currentContent={markdownContent}
             onClose={() => setShowHistory(false)}
           />

@@ -7,8 +7,9 @@ from django.dispatch import receiver
 
 from apps.events.services.event_bus import EventBus
 
-from .models import Exercise, Lesson, LessonVersion, Module, ModuleDraft
+from .models import Exercise, Lesson, Module, ModuleDraft
 from .semantic_search import encode
+from .services import lesson_revisions
 
 logger = logging.getLogger(__name__)
 
@@ -115,13 +116,10 @@ def publish_lesson_deindexed_event(sender, instance, **kwargs):
 
 @receiver(post_save, sender=Lesson)
 def create_lesson_version(sender, instance, **kwargs):
-    def _create_version():
-        latest = instance.versions.first()
-        if not latest or latest.content != instance.content:
-            LessonVersion.objects.create(
-                lesson=instance,
-                content=instance.content,
-                summary=instance.summary,
-            )
-
-    transaction.on_commit(_create_version)
+    """A direct save is live right away, so it is recorded as the published revision."""
+    if lesson_revisions.is_publishing():
+        return  # publish/rollback already wrote the revision for this save
+    author = lesson_revisions.current_author()
+    transaction.on_commit(
+        lambda: lesson_revisions.record_live_edit(instance, author=author)
+    )

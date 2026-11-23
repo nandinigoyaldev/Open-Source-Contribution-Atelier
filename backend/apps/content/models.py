@@ -1,5 +1,5 @@
 from django.contrib.auth import get_user_model
-from django.core.exceptions import ObjectDoesNotExist
+from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
 
@@ -51,15 +51,143 @@ class Lesson(AuditableModel, SearchIndexMixin):
 
 
 class LessonVersion(models.Model):
+    """
+    A numbered revision of a lesson's title, summary and content.
+
+    Lifecycle: draft -> review -> published -> archived. Only drafts can be
+    edited; once a revision has left draft its snapshot never changes, and the
+    only state change a published revision can make is to archived (when a
+    newer revision is published). Rollback writes a new revision instead of
+    reviving an old one. Learner progress points at the Lesson row, which is
+    updated in place on publish, so it is never touched by any of this.
+    """
+
+    DRAFT = "draft"
+    REVIEW = "review"
+    PUBLISHED = "published"
+    ARCHIVED = "archived"
+    STATUS_CHOICES = [
+        (DRAFT, "Draft"),
+        (REVIEW, "In review"),
+        (PUBLISHED, "Published"),
+        (ARCHIVED, "Archived"),
+    ]
+    # Allowed status changes; anything else is rejected in save().
+    TRANSITIONS = {
+        DRAFT: {REVIEW, ARCHIVED},
+        REVIEW: {PUBLISHED, ARCHIVED},
+        PUBLISHED: {ARCHIVED},
+        ARCHIVED: set(),
+    }
+    # Fields frozen once the revision is no longer a draft.
+    FROZEN_FIELDS = (
+        "lesson_id",
+        "number",
+        "title",
+        "summary",
+        "content",
+        "note",
+        "author_id",
+        "restored_from_id",
+    )
+    # Also frozen once the revision has been published.
+    PUBLISH_FIELDS = ("published_at", "published_by_id")
+
+    objects = models.Manager()
+
     lesson = models.ForeignKey(
         Lesson, related_name="versions", on_delete=models.CASCADE
     )
+    lesson_id: int  # for type checkers; Django adds the attribute
+    number = models.PositiveIntegerField(editable=False)
+    status = models.CharField(
+        max_length=16, choices=STATUS_CHOICES, default=DRAFT, db_index=True
+    )
+    title = models.CharField(max_length=255, blank=True)
     content = models.TextField()
     summary = models.TextField(blank=True)
+    note = models.CharField(max_length=255, blank=True)
+    author = models.ForeignKey(
+        User,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="authored_lesson_revisions",
+    )
+    restored_from = models.ForeignKey(
+        "self",
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="restorations",
+        help_text="The earlier revision a rollback copied.",
+    )
+    published_at = models.DateTimeField(null=True, blank=True)
+    published_by = models.ForeignKey(
+        User,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="published_lesson_revisions",
+    )
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        ordering = ["-created_at"]
+        ordering = ["-number"]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["lesson", "number"], name="content_lessonversion_number"
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.lesson_id} v{self.number} ({self.status})"
+
+    def save(self, *args, **kwargs):
+        if self.pk is None:
+            if not self.number:
+                last = (
+                    LessonVersion.objects.filter(lesson_id=self.lesson_id)
+                    .order_by("-number")
+                    .values_list("number", flat=True)
+                    .first()
+                )
+                self.number = (last or 0) + 1
+        else:
+            self._check_allowed_change()
+        super().save(*args, **kwargs)
+
+    def delete(self, *args, **kwargs):
+        if self.published_at is not None:
+            raise ValidationError("A revision that was published cannot be deleted.")
+        return super().delete(*args, **kwargs)
+
+    def _check_allowed_change(self):
+        stored = (
+            LessonVersion.objects.filter(pk=self.pk)
+            .values("status", *self.FROZEN_FIELDS, *self.PUBLISH_FIELDS)
+            .first()
+        )
+        if stored is None:
+            return
+        old_status = stored.pop("status")
+        if old_status != self.status and self.status not in self.TRANSITIONS.get(
+            old_status, set()
+        ):
+            raise ValidationError(
+                f"A {old_status} revision cannot move to {self.status}."
+            )
+        if old_status == self.DRAFT:
+            return
+        frozen: list[str] = list(self.FROZEN_FIELDS)
+        if old_status in (self.PUBLISHED, self.ARCHIVED):
+            frozen.extend(self.PUBLISH_FIELDS)
+        changed = [f for f in frozen if getattr(self, f) != stored[f]]
+        if changed:
+            raise ValidationError(
+                f"Revision v{self.number} is {old_status} and cannot be edited "
+                f"({', '.join(changed)})."
+            )
 
 
 class Exercise(models.Model):
