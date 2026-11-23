@@ -1077,6 +1077,9 @@ CELERY_TASK_EAGER_PROPAGATES = True
 # Waffle Feature Flags
 WAFFLE_CREATE_MISSING_FLAGS = True
 WAFFLE_FLAG_DEFAULT = False
+# Environment name that FeatureFlag.environments is matched against
+# (apps.feature_flags). Defaults to DJANGO_ENV.
+FEATURE_FLAG_ENVIRONMENT = os.getenv("FEATURE_FLAG_ENVIRONMENT", DJANGO_ENV)
 
 # ──────────────────────────────────────────
 # Meilisearch Configurations

@@ -141,6 +141,12 @@ const VulnerabilityDashboard = lazy(() =>
   })),
 );
 
+const FeatureFlagsPage = lazy(() =>
+  import("../pages/admin/FeatureFlagsPage").then((module) => ({
+    default: module.FeatureFlagsPage,
+  })),
+);
+
 const SecurityDashboardPage = lazy(() =>
   import("../pages/SecurityDashboardPage").then((module) => ({
     default: module.SecurityDashboardPage,
@@ -1056,6 +1062,15 @@ export function AppRouter() {
           element={
             <ProtectedRoute>
               <VulnerabilityDashboard />
+            </ProtectedRoute>
+          }
+        />
+
+        <Route
+          path="/admin/feature-flags"
+          element={
+            <ProtectedRoute>
+              <FeatureFlagsPage />
             </ProtectedRoute>
           }
         />
