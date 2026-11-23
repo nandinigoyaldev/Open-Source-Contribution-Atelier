@@ -479,3 +479,25 @@ def replication_lag_view(request):
         "threshold_seconds": getattr(settings, "REPLICA_LAG_ALERT_SECONDS", 30),
     }
     return JsonResponse(payload, status=status_code)
+
+
+@csrf_exempt
+@never_cache
+@require_http_methods(["GET", "HEAD"])
+def failover_status_view(request):
+    """
+    Tri-state dependency status for failover decisions.
+
+    GET /health/failover/
+
+    Each dependency (database, cache, realtime, workers) is ``ready``, ``degraded``
+    or ``unavailable``. HTTP 503 only when a critical dependency is unavailable;
+    ``degraded`` still answers 200 so the instance stays in rotation. Carries no
+    hostnames or credentials. See docs/DISASTER_RECOVERY.md.
+    """
+    from apps.health import failover
+
+    result = failover.evaluate()
+    return JsonResponse(
+        result, status=503 if result["status"] == failover.UNAVAILABLE else 200
+    )
