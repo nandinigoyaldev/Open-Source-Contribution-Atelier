@@ -1,0 +1,191 @@
+{
+  "lessons": {
+    "empty": {
+      "status": 200,
+      "body": {
+        "next": null,
+        "remaining": "<non-negative integer>",
+        "total_estimate": "<non-negative integer>",
+        "results": []
+      }
+    },
+    "first": {
+      "status": 200,
+      "body": {
+        "next": {
+          "path": "/api/content/published-lessons/",
+          "query": {
+            "cursor": [
+              "<cursor>"
+            ]
+          }
+        },
+        "remaining": "<non-negative integer>",
+        "total_estimate": "<non-negative integer>",
+        "results": [
+          {
+            "id": "<integer>",
+            "exercises": [],
+            "prerequisites": [],
+            "readingTime": 1,
+            "difficulty": "",
+            "title": "Push",
+            "slug": "push",
+            "summary": "",
+            "content": "Sample lesson",
+            "learningObjectives": [],
+            "tips": [],
+            "category": "general",
+            "estimatedMinutes": 15,
+            "order": 0,
+            "embedding": null,
+            "jsExercise": null,
+            "organization": null
+          },
+          {
+            "id": "<integer>",
+            "exercises": [],
+            "prerequisites": [],
+            "readingTime": 1,
+            "difficulty": "",
+            "title": "Commit",
+            "slug": "commit",
+            "summary": "",
+            "content": "Sample lesson",
+            "learningObjectives": [],
+            "tips": [],
+            "category": "general",
+            "estimatedMinutes": 15,
+            "order": 0,
+            "embedding": null,
+            "jsExercise": null,
+            "organization": null
+          }
+        ]
+      }
+    },
+    "last": {
+      "status": 200,
+      "body": {
+        "next": null,
+        "remaining": "<non-negative integer>",
+        "total_estimate": "<non-negative integer>",
+        "results": [
+          {
+            "id": "<integer>",
+            "exercises": [],
+            "prerequisites": [],
+            "readingTime": 1,
+            "difficulty": "",
+            "title": "Introduction",
+            "slug": "intro",
+            "summary": "",
+            "content": "Sample lesson",
+            "learningObjectives": [],
+            "tips": [],
+            "category": "general",
+            "estimatedMinutes": 15,
+            "order": 0,
+            "embedding": null,
+            "jsExercise": null,
+            "organization": null
+          }
+        ]
+      }
+    },
+    "invalid": {
+      "status": 400,
+      "body": {
+        "error": true,
+        "code": "validation_error",
+        "message": "Invalid cursor signature. Please re-request from page 1.",
+        "correlation_id": "<uuid>"
+      }
+    }
+  },
+  "notifications": {
+    "empty": {
+      "status": 200,
+      "body": {
+        "count": 0,
+        "next": null,
+        "previous": null,
+        "results": []
+      }
+    },
+    "first": {
+      "status": 200,
+      "body": {
+        "count": 3,
+        "next": {
+          "path": "/api/notifications/",
+          "query": {
+            "page": [
+              "2"
+            ],
+            "page_size": [
+              "2"
+            ]
+          }
+        },
+        "previous": null,
+        "results": [
+          {
+            "id": "<integer>",
+            "notif_type": "badge",
+            "title": "New comment",
+            "message": "",
+            "is_read": false,
+            "created_at": "<timestamp>",
+            "sender_username": null,
+            "meta": {}
+          },
+          {
+            "id": "<integer>",
+            "notif_type": "badge",
+            "title": "Lesson completed",
+            "message": "",
+            "is_read": false,
+            "created_at": "<timestamp>",
+            "sender_username": null,
+            "meta": {}
+          }
+        ]
+      }
+    },
+    "last": {
+      "status": 200,
+      "body": {
+        "count": 3,
+        "next": null,
+        "previous": {
+          "path": "/api/notifications/",
+          "query": {
+            "page_size": [
+              "2"
+            ]
+          }
+        },
+        "results": [
+          {
+            "id": "<integer>",
+            "notif_type": "badge",
+            "title": "New badge",
+            "message": "",
+            "is_read": false,
+            "created_at": "<timestamp>",
+            "sender_username": null,
+            "meta": {}
+          }
+        ]
+      }
+    },
+    "invalid": {
+      "status": 404,
+      "body": {
+        "detail": "Invalid page.",
+        "correlation_id": "<uuid>"
+      }
+    }
+  }
+}
