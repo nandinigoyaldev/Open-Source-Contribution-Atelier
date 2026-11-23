@@ -1137,10 +1137,23 @@ if SENTRY_DSN:
         send_default_pii=False,
     )
 
+
 # ──────────────────────────────────────────
 # Audit Trail Configuration
 # ──────────────────────────────────────────
-AUDIT_RETENTION_DAYS = int(os.getenv("AUDIT_RETENTION_DAYS", "90"))
+def _parse_audit_retention_days(raw: str | None) -> int:
+    if raw is None:
+        return 90
+    try:
+        days = int(raw)
+        if days > 0:
+            return days
+    except ValueError:
+        pass
+    raise ImproperlyConfigured("AUDIT_RETENTION_DAYS must be a positive integer")
+
+
+AUDIT_RETENTION_DAYS = _parse_audit_retention_days(os.getenv("AUDIT_RETENTION_DAYS"))
 AUDIT_ARCHIVE_DIR = os.getenv("AUDIT_ARCHIVE_DIR", str(BASE_DIR / "archives" / "audit"))
 
 # ──────────────────────────────────────────
