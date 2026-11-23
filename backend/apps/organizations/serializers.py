@@ -18,7 +18,17 @@ class OrganizationSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = Organization
-        fields = ["id", "name", "description", "my_role", "member_count"]
+        fields = [
+            "id",
+            "name",
+            "slug",
+            "description",
+            "is_enterprise",
+            "schema_name",
+            "my_role",
+            "member_count",
+        ]
+        read_only_fields = ["id", "schema_name"]
 
     def get_my_role(self, obj):
         request = self.context.get("request")

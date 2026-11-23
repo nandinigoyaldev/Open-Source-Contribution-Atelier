@@ -36,7 +36,29 @@ def set_current_tenant(organization_id, user_id=None):
     _tenant_local.user_id = user_id
 
 
+def get_current_schema():
+    """Return the currently active database schema name, default 'public'."""
+    return getattr(_tenant_local, "schema_name", "public")
+
+
+def set_current_schema(schema_name: str):
+    """Set the currently active database schema name in thread-local storage."""
+    _tenant_local.schema_name = schema_name or "public"
+
+
+def get_current_tenant():
+    """Return the active Organization object or None."""
+    return getattr(_tenant_local, "tenant", None)
+
+
+def set_current_tenant_instance(tenant):
+    """Set the active Organization object in thread-local storage."""
+    _tenant_local.tenant = tenant
+
+
 def clear_current_tenant():
     """Clear the thread-local tenant context (always call in ``finally``)."""
     _tenant_local.organization_id = None
     _tenant_local.user_id = None
+    _tenant_local.schema_name = "public"
+    _tenant_local.tenant = None
