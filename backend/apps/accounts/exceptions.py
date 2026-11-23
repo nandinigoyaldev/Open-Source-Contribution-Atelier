@@ -38,7 +38,8 @@ _DEFAULT_MESSAGE = "Request limit exceeded. Please wait before retrying."
 def throttle_exception_handler(exc, context):
     """
     Custom DRF exception handler that standardizes API error responses
-    and attaches correlation IDs for backend-frontend observability.
+    and attaches correlation IDs (and the trace id, when there is one)
+    for backend-frontend observability.
     """
 
     request = context.get("request") if context else None
@@ -53,12 +54,25 @@ def throttle_exception_handler(exc, context):
         except Exception:
             pass
 
+    # Set by TracingMiddleware; it is the trace id in the response's traceparent header.
+    trace_id = getattr(request, "trace_id", None)
+    if not trace_id:
+        try:
+            from config.opentelemetry import current_trace_id
+
+            trace_id = current_trace_id()
+        except Exception:
+            pass
+
     def _attach_correlation_id(resp):
         if resp is not None and correlation_id:
             resp["X-Correlation-ID"] = correlation_id
             resp["X-Request-ID"] = correlation_id
             if isinstance(resp.data, dict) and "correlation_id" not in resp.data:
                 resp.data["correlation_id"] = correlation_id
+        if resp is not None and trace_id:
+            if isinstance(resp.data, dict) and "trace_id" not in resp.data:
+                resp.data["trace_id"] = trace_id
         return resp
 
     response = exception_handler(exc, context)
@@ -70,6 +84,7 @@ def throttle_exception_handler(exc, context):
                 "path": request.path if request else None,
                 "method": request.method if request else None,
                 "correlation_id": correlation_id,
+                "trace_id": trace_id,
             },
         )
         safe_ref = f" (Ref: {correlation_id[:8]})" if correlation_id else ""

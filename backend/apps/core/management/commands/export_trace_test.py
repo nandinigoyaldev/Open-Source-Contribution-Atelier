@@ -23,6 +23,9 @@ class Command(BaseCommand):
         enabled = is_otel_enabled()
         self.stdout.write(f"OTEL_ENABLED: {enabled}")
 
+        # Commands do not go through wsgi.py, so start the exporter pipeline here.
+        provider = setup_opentelemetry() if enabled and not dry_run else None
+
         try:
             from opentelemetry import trace
 
@@ -40,6 +43,12 @@ class Command(BaseCommand):
                         f"Successfully created trace: trace_id={trace_id}, span_id={span_id}"
                     )
                 )
+
+            if provider is not None:
+                if provider.force_flush():
+                    self.stdout.write("Span handed to the exporter.")
+                else:
+                    self.stderr.write("Exporter did not flush in time.")
 
         except ImportError:
             self.stdout.write(
