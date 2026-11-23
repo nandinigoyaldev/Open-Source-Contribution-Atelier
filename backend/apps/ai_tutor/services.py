@@ -385,43 +385,26 @@ class AiTutorService:
             yield f"data: {json.dumps({'text': 'Please ask a question about open source!'})}\n\n"
             return
 
-        if getattr(settings, "OPENAI_API_KEY", None):
+        has_llm_key = any(
+            getattr(settings, key, None)
+            for key in ["OPENAI_API_KEY", "GEMINI_API_KEY", "ANTHROPIC_API_KEY"]
+        )
+        if has_llm_key:
             try:
-                import openai
-
-                openai.api_key = settings.OPENAI_API_KEY
-                model = getattr(settings, "LLM_MODEL", "gpt-3.5-turbo")
+                from apps.ai_tutor.providers.router import SmartFailoverRouter
 
                 system_prompt = cls._build_system_prompt(lesson_context, tutor_context)
-                messages = [{"role": "system", "content": system_prompt}]
-
-                for entry in (history or [])[-6:]:
-                    messages.append(
-                        {"role": "user", "content": entry.get("question", "")}
-                    )
-                    messages.append(
-                        {"role": "assistant", "content": entry.get("answer", "")}
-                    )
-
-                messages.append({"role": "user", "content": question})
-
-                stream = openai.chat.completions.create(
-                    model=model,
-                    messages=messages,
-                    max_tokens=400,
-                    temperature=0.6,
-                    stream=True,
-                )
-
-                for chunk in stream:
-                    if chunk.choices and len(chunk.choices) > 0:
-                        delta = chunk.choices[0].delta
-                        content = getattr(delta, "content", None)
-                        if content:
-                            yield f"data: {json.dumps({'text': content})}\n\n"
+                router = SmartFailoverRouter()
+                for token in router.stream(
+                    prompt=question,
+                    system_prompt=system_prompt,
+                    history=history or [],
+                ):
+                    if token:
+                        yield f"data: {json.dumps({'text': token})}\n\n"
                 return
             except Exception as e:
-                logger.warning("AI tutor streaming LLM call failed: %s", e)
+                logger.warning("AI tutor streaming LLM failover call failed: %s", e)
 
         # Fallback streaming
         fallback_text = cls._fallback_socratic_response(
@@ -498,31 +481,18 @@ class AiTutorService:
         tutor_context: Optional[Dict[str, Any]] = None,
     ) -> str:
         try:
-            import openai
-
-            openai.api_key = settings.OPENAI_API_KEY
-            model = getattr(settings, "LLM_MODEL", "gpt-3.5-turbo")
+            from apps.ai_tutor.providers.router import SmartFailoverRouter
 
             system_prompt = cls._build_system_prompt(lesson_context, tutor_context)
-            messages = [{"role": "system", "content": system_prompt}]
-
-            for entry in history[-6:]:
-                messages.append({"role": "user", "content": entry.get("question", "")})
-                messages.append(
-                    {"role": "assistant", "content": entry.get("answer", "")}
-                )
-
-            messages.append({"role": "user", "content": question})
-
-            response = openai.chat.completions.create(
-                model=model,
-                messages=messages,
-                max_tokens=400,
-                temperature=0.6,
+            router = SmartFailoverRouter()
+            response = router.generate(
+                prompt=question,
+                system_prompt=system_prompt,
+                history=history,
             )
-            return response.choices[0].message.content.strip()
+            return response.content.strip()
         except Exception as e:
-            logger.warning("AI tutor LLM call failed: %s", e)
+            logger.warning("AI tutor failover LLM pipeline failed: %s", e)
             return cls._fallback_socratic_response(
                 question, lesson_context, tutor_context
             )
