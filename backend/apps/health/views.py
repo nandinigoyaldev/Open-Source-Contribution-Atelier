@@ -12,10 +12,14 @@ import redis
 import requests
 from django.conf import settings
 from django.core.cache import cache
-from django.db import connection
+from django.db import DatabaseError, connection, connections
 from django.http import JsonResponse
+from django.views.decorators.cache import never_cache
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
+from redis.backoff import NoBackoff
+from redis.exceptions import RedisError
+from redis.retry import Retry
 
 logger = logging.getLogger(__name__)
 
@@ -412,6 +416,42 @@ def health_live_view(request):
     Returns 200 if the application is running.
     """
     return JsonResponse({"status": "alive"}, status=200)
+
+
+@never_cache
+@require_http_methods(["GET"])
+def worker_readiness_view(request):
+    """Check only the database and configured Django-Q Redis broker."""
+    broker = settings.Q_CLUSTER
+    dependencies = {"database": "ready", "redis": "not_configured"}
+
+    try:
+        with connections[broker.get("orm") or "default"].cursor() as cursor:
+            cursor.execute("SELECT 1")
+    except DatabaseError:
+        dependencies["database"] = "unavailable"
+
+    redis_url = broker.get("redis")
+    if redis_url:
+        try:
+            with redis.from_url(
+                redis_url,
+                socket_connect_timeout=1,
+                socket_timeout=1,
+                retry=Retry(NoBackoff(), 0),
+            ) as client:
+                dependencies["redis"] = "ready" if client.ping() else "unavailable"
+        except (RedisError, ValueError):
+            dependencies["redis"] = "unavailable"
+
+    ready = "unavailable" not in dependencies.values()
+    return JsonResponse(
+        {
+            "status": "ready" if ready else "not_ready",
+            "dependencies": dependencies,
+        },
+        status=200 if ready else 503,
+    )
 
 
 @csrf_exempt

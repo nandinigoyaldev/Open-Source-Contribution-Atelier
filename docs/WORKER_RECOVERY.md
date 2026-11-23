@@ -38,6 +38,15 @@ Investigate when one or more of these symptoms occur:
 
 A running container does not prove that tasks are being processed. The root Compose worker does not define a dedicated worker health check, so `Up` alone is not evidence of successful task execution.
 
+For deployments that use HTTP dependency probes, send `GET /health/worker-ready/`
+to the Django service with the same database and Django-Q broker settings as the
+worker. It uses one database `SELECT 1` and, for a Redis broker, one Redis `PING`.
+The response is uncached and returns HTTP 200 when the required dependencies are
+ready or HTTP 503 if a dependency fails. It lists only dependency status.
+
+For the ORM broker, Redis is reported as `not_configured` and does not affect
+readiness. Pair this dependency probe with the platform's worker-process check.
+
 The configured task timeout is 90 seconds by default. Check recent logs and task context before interrupting in-flight work.
 
 ## 3. Capture incident details
