@@ -56,6 +56,7 @@ import { AITutorFloatingPanel } from "../components/ui/AITutorPanel";
 import { Breadcrumb, type BreadcrumbItem } from "../components/ui/Breadcrumb";
 
 const SESSION_KEY_RECENT = "recentlyViewedLessonsV1";
+const ZEN_MODE_STORAGE_KEY = "atelier:lesson-zen-mode";
 
 const MAX_RECENT_ITEMS = 3;
 
@@ -173,7 +174,21 @@ export function LessonPage() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
-  const [isZenMode, setIsZenMode] = useState<boolean>(false);
+  const [isZenMode, setIsZenMode] = useState(() => {
+    try {
+      return window.localStorage.getItem(ZEN_MODE_STORAGE_KEY) === "true";
+    } catch {
+      return false;
+    }
+  });
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(ZEN_MODE_STORAGE_KEY, String(isZenMode));
+    } catch {
+      // Zen Mode remains usable when browser storage is unavailable.
+    }
+  }, [isZenMode]);
 
   // 1. Intercept Escape key to cleanly exit Zen reading mode
   useEffect(() => {
@@ -1144,7 +1159,10 @@ export function LessonPage() {
                 )}
                 <div className="self-start sm:self-center sm:ml-auto flex flex-wrap items-center gap-2">
                   <button
-                    onClick={() => setIsZenMode(!isZenMode)}
+                    type="button"
+                    aria-label="Zen Mode"
+                    aria-pressed={isZenMode}
+                    onClick={() => setIsZenMode((enabled) => !enabled)}
                     className={`px-3 py-1.5 text-xs font-semibold rounded-lg border transition-all ${
                       isZenMode
                         ? "bg-blue-600/10 border-blue-500/30 text-blue-400 hover:bg-blue-600/20"

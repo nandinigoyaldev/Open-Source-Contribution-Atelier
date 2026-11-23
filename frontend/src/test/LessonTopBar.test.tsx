@@ -29,6 +29,7 @@ describe("LessonTopBar mobile layout", () => {
       screen.getByRole("button", { name: "Open lesson outline" }),
     ).toBeInTheDocument();
     expect(screen.getByLabelText("XP Bounties: 40")).toBeInTheDocument();
+    expect(screen.getByRole("banner")).not.toHaveAttribute("inert");
   });
 
   it("switches the outline label when the sidebar is open", () => {
@@ -50,8 +51,9 @@ describe("LessonTopBar mobile layout", () => {
     expect(screen.getByText("Exit")).toHaveClass("sm:hidden");
   });
 
-  it("hides the header in zen mode", () => {
+  it("hides the header and disables its controls in Zen Mode", () => {
     renderBar({ isZenMode: true });
-    expect(screen.getByRole("banner")).toHaveClass("-translate-y-full");
+    expect(screen.getByRole("banner")).toHaveClass("-translate-y-full", "h-0");
+    expect(screen.getByRole("banner")).toHaveAttribute("inert");
   });
 });
