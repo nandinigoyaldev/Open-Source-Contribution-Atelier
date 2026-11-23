@@ -112,4 +112,54 @@ describe("SyncStatusIndicator", () => {
       localData: { score: 20, completed: true },
     });
   });
+
+  it("reopens a bookmark conflict with what this device wanted", () => {
+    const serverData = { code: "bookmark_conflict", bookmarked: true, id: 7 };
+    setPending([
+      {
+        id: "bookmark-b",
+        kind: "bookmark",
+        lesson_slug: "b",
+        bookmarked: false,
+        state: "conflict",
+        serverData,
+      },
+    ]);
+    const onConflict = vi.fn();
+    eventBus.on("sync:conflict", onConflict);
+    render(<SyncStatusIndicator />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Review" }));
+    eventBus.off("sync:conflict", onConflict);
+
+    expect(onConflict).toHaveBeenCalledWith({
+      id: "bookmark-b",
+      kind: "bookmark",
+      lesson_slug: "b",
+      serverData,
+      localData: { lesson_slug: "b", bookmarked: false },
+    });
+  });
+
+  it("does not call a bookmark that was already up to date completed", () => {
+    setResults([
+      {
+        id: "bookmark-a",
+        kind: "bookmark",
+        lesson_slug: "a",
+        status: "duplicate",
+      },
+      {
+        id: "lesson-b",
+        kind: "progress",
+        lesson_slug: "b",
+        status: "duplicate",
+      },
+    ]);
+    render(<SyncStatusIndicator />);
+
+    expect(
+      screen.getByText("1 already completed, 1 bookmark already up to date"),
+    ).toBeTruthy();
+  });
 });

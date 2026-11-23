@@ -25,15 +25,28 @@ const conflict = {
   localData: { score: 10, completed: false },
 };
 
-const showConflict = () => {
+const showConflict = (payload: object = conflict) => {
   render(
     <QueryClientProvider client={new QueryClient()}>
       <ConflictResolutionModal />
     </QueryClientProvider>,
   );
   act(() => {
-    eventBus.emit("sync:conflict", conflict);
+    eventBus.emit("sync:conflict", payload);
   });
+};
+
+const bookmarkConflict = {
+  id: "bookmark-git-basics",
+  kind: "bookmark",
+  lesson_slug: "git-basics",
+  serverData: {
+    code: "bookmark_conflict",
+    bookmarked: true,
+    id: 7,
+    created_at: "2026-11-20T10:00:00.123456Z",
+  },
+  localData: { lesson_slug: "git-basics", bookmarked: false },
 };
 
 const click = async (name: string) => {
@@ -124,5 +137,85 @@ describe("ConflictResolutionModal", () => {
       "progress-sync-git-basics",
       "git-basics",
     );
+  });
+
+  describe("bookmark removed offline but saved again elsewhere", () => {
+    it("removes only the bookmark the user was shown", async () => {
+      vi.mocked(fetchApi).mockResolvedValue({});
+      showConflict(bookmarkConflict);
+      expect(screen.getByText("Bookmark Conflict")).toBeTruthy();
+
+      await click("Remove It Anyway");
+
+      expect(fetchApi).toHaveBeenCalledWith(
+        "/progress/bookmarks/git-basics/?expected_id=7",
+        expect.objectContaining({ method: "DELETE" }),
+      );
+      expect(removeQueuedAction).toHaveBeenCalledWith(
+        "bookmark-git-basics",
+        "git-basics",
+      );
+      expect(screen.queryByText("Bookmark Conflict")).toBeNull();
+    });
+
+    it("treats a bookmark that is already gone as removed", async () => {
+      vi.mocked(fetchApi).mockRejectedValue(createApiError({ status: 404 }));
+      const alert = vi.spyOn(window, "alert").mockImplementation(() => {});
+      showConflict(bookmarkConflict);
+
+      await click("Remove It Anyway");
+
+      expect(alert).not.toHaveBeenCalled();
+      expect(removeQueuedAction).toHaveBeenCalledTimes(1);
+    });
+
+    it("asks again when it was saved once more while the prompt was open", async () => {
+      vi.mocked(fetchApi).mockRejectedValueOnce(
+        createApiError({
+          status: 409,
+          body: {
+            ...bookmarkConflict.serverData,
+            id: 8,
+            created_at: "2026-11-20T11:00:00Z",
+          },
+        }),
+      );
+      showConflict(bookmarkConflict);
+
+      await click("Remove It Anyway");
+
+      expect(removeQueuedAction).not.toHaveBeenCalled();
+      expect(screen.getByText("Bookmark Conflict")).toBeTruthy();
+    });
+
+    it("keeps the prompt open when the queued removal could not be cleared", async () => {
+      vi.mocked(removeQueuedAction).mockRejectedValueOnce(
+        new Error("IndexedDB unavailable"),
+      );
+      showConflict(bookmarkConflict);
+
+      await click("Keep Bookmark");
+
+      // The removal is still queued, so the choice is not saved yet
+      expect(screen.getByText("Bookmark Conflict")).toBeTruthy();
+      expect(screen.getByRole("alert").textContent).toMatch(/try again/i);
+
+      await click("Keep Bookmark");
+
+      expect(removeQueuedAction).toHaveBeenCalledTimes(2);
+      expect(screen.queryByText("Bookmark Conflict")).toBeNull();
+    });
+
+    it("keeps the bookmark without calling the server", async () => {
+      showConflict(bookmarkConflict);
+
+      await click("Keep Bookmark");
+
+      expect(fetchApi).not.toHaveBeenCalled();
+      expect(removeQueuedAction).toHaveBeenCalledWith(
+        "bookmark-git-basics",
+        "git-basics",
+      );
+    });
   });
 });

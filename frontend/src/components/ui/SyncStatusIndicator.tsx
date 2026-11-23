@@ -18,9 +18,11 @@ import {
 
 interface PendingItem {
   id?: string;
+  kind?: string;
   lesson_slug: string;
   score?: number;
   completed?: boolean;
+  bookmarked?: boolean;
   state?: "failed" | "conflict";
   serverData?: unknown;
 }
@@ -67,6 +69,9 @@ export function SyncStatusIndicator() {
   const waiting = pending.length - failed.length - conflicts.length;
   const saved = results.filter((r) => r.status === "synced");
   const duplicates = results.filter((r) => r.status === "duplicate");
+  // For a bookmark "duplicate" means the server already had it that way
+  const upToDate = duplicates.filter((r) => r.kind === "bookmark");
+  const alreadyCompleted = duplicates.length - upToDate.length;
   const rejected = results.filter((r) => r.status === "failed");
 
   if (isOnline && pending.length === 0 && results.length === 0) {
@@ -88,9 +93,13 @@ export function SyncStatusIndicator() {
     if (!item) return;
     eventBus.emit("sync:conflict", {
       id: item.id,
+      kind: item.kind,
       lesson_slug: item.lesson_slug,
       serverData: item.serverData,
-      localData: { score: item.score, completed: item.completed },
+      localData:
+        item.kind === "bookmark"
+          ? { lesson_slug: item.lesson_slug, bookmarked: item.bookmarked }
+          : { score: item.score, completed: item.completed },
     });
   };
 
@@ -163,7 +172,9 @@ export function SyncStatusIndicator() {
           <span>
             {[
               saved.length > 0 && `${saved.length} saved`,
-              duplicates.length > 0 && `${duplicates.length} already completed`,
+              alreadyCompleted > 0 && `${alreadyCompleted} already completed`,
+              upToDate.length > 0 &&
+                `${plural(upToDate.length, "bookmark", "bookmarks")} already up to date`,
               rejected.length > 0 &&
                 `${rejected.length} rejected by the server`,
             ]

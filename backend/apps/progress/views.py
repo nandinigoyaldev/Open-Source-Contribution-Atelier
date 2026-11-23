@@ -1406,6 +1406,9 @@ class PeerReviewView(APIView):
         return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
 
 
+BOOKMARK_CONFLICT_CODE = "bookmark_conflict"
+
+
 class LessonBookmarkView(APIView):
     permission_classes = [permissions.IsAuthenticated]
 
@@ -1429,6 +1432,10 @@ class LessonBookmarkView(APIView):
         ]
         return Response(data)
 
+    # Both writes take an Idempotency-Key: the offline queue replays them after a
+    # reconnect, and a replay of a delete that already went through must not
+    # turn into a 404.
+    @idempotent
     def post(self, request, slug=None):
         lesson = get_object_or_404(Lesson, slug=slug)
         bookmark, created = LessonBookmark.objects.get_or_create(
@@ -1439,10 +1446,47 @@ class LessonBookmarkView(APIView):
             status=status.HTTP_201_CREATED if created else status.HTTP_200_OK,
         )
 
+    @idempotent
     def delete(self, request, slug=None):
-        bookmark = get_object_or_404(
-            LessonBookmark, user=request.user, lesson__slug=slug
-        )
+        raw_expected_id = request.query_params.get("expected_id")
+        expected_id = None
+        if raw_expected_id is not None:
+            try:
+                expected_id = int(raw_expected_id)
+            except (TypeError, ValueError):
+                return Response(
+                    {"expected_id": "Expected the id of the bookmark to remove."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        # Return the 404 instead of raising it: the idempotent decorator only
+        # stores responses, so a raised Http404 would leave the key free and a
+        # retry could delete a bookmark saved from another device in between.
+        bookmark = LessonBookmark.objects.filter(
+            user=request.user, lesson__slug=slug
+        ).first()
+        if bookmark is None:
+            return Response(
+                {"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND
+            )
+
+        # expected_id is the bookmark the client saw (the offline queue sends it
+        # for a removal made offline). Another id means the lesson was bookmarked
+        # again since, from another tab or device: deleting it would throw away
+        # the newer bookmark, so hand it back as a conflict instead.
+        if expected_id is not None and bookmark.id != expected_id:
+            return Response(
+                {
+                    "code": BOOKMARK_CONFLICT_CODE,
+                    "detail": "This lesson was bookmarked again after the client read it.",
+                    "lesson_slug": slug,
+                    "bookmarked": True,
+                    "id": bookmark.id,
+                    "created_at": bookmark.created_at.isoformat(),
+                },
+                status=status.HTTP_409_CONFLICT,
+            )
+
         bookmark.delete()
 
         return Response(status=status.HTTP_204_NO_CONTENT)
