@@ -27,8 +27,14 @@ class OIDCProviderSerializer(serializers.ModelSerializer):
     returned: the response only says whether one is stored.
     """
 
+    # trim_whitespace=False: the secret is stored exactly as the provider issued it.
+    # "" still clears it and leaving the field out keeps the stored value.
     client_secret = serializers.CharField(
-        write_only=True, required=False, allow_blank=True, max_length=255
+        write_only=True,
+        required=False,
+        allow_blank=True,
+        max_length=255,
+        trim_whitespace=False,
     )
     has_client_secret = serializers.SerializerMethodField()
     domains = DomainListField(
@@ -113,6 +119,25 @@ class OIDCProviderSerializer(serializers.ModelSerializer):
         domains = self.validated_data.pop("domains", None)
         try:
             with transaction.atomic():
+                if self.instance is not None:
+                    # Take the row lock first, then judge the final state. validate()
+                    # ran earlier on data that a concurrent request may have changed.
+                    locked = OrganizationOIDCProvider.objects.select_for_update().get(
+                        pk=self.instance.pk
+                    )
+                    enabled = self.validated_data.get("is_enabled", locked.is_enabled)
+                    have_domains = (
+                        domains
+                        if domains is not None
+                        else list(locked.domains.values_list("domain", flat=True))
+                    )
+                    if enabled and not have_domains:
+                        raise serializers.ValidationError(
+                            {
+                                "domains": "Add at least one email domain before "
+                                "enabling SSO."
+                            }
+                        )
                 provider = super().save(organization=organization, **kwargs)
                 if domains is not None:
                     provider.domains.exclude(domain__in=domains).delete()

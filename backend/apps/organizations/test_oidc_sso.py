@@ -14,7 +14,7 @@ import json
 import logging
 import time
 from unittest import mock
-from urllib.parse import parse_qs, urlsplit
+from urllib.parse import parse_qs, quote, urlsplit
 
 import jwt
 from cryptography.hazmat.primitives.asymmetric import rsa
@@ -22,6 +22,7 @@ from django.contrib.auth import get_user_model
 from django.core.cache import cache
 from django.db import connection
 from django.test import override_settings
+from rest_framework import serializers
 from rest_framework.test import APIClient, APITestCase
 
 from apps.accounts.throttles import OAuthThrottle
@@ -313,6 +314,45 @@ class SSOConfigTests(SSOTestCase):
         self.assertNotIn(CLIENT_SECRET, json.dumps(log.changes))
         self.assertEqual(log.changes["sso"]["fields"], ["auto_provision"])
 
+    def test_client_secret_is_stored_exactly_as_submitted(self):
+        self.client.force_authenticate(self.owner)
+        response = self.client.patch(
+            self.url, {"client_secret": "  pad+secret \t"}, format="json"
+        )
+        self.assertEqual(response.status_code, 200, response.content)
+        self.provider.refresh_from_db()
+        self.assertEqual(self.provider.client_secret, "  pad+secret \t")
+        # "" is still the explicit clear, and leaving it out keeps the value
+        self.client.patch(self.url, {"auto_provision": True}, format="json")
+        self.provider.refresh_from_db()
+        self.assertEqual(self.provider.client_secret, "  pad+secret \t")
+        self.client.patch(self.url, {"client_secret": ""}, format="json")
+        self.provider.refresh_from_db()
+        self.assertEqual(self.provider.client_secret, "")
+
+    def test_enabled_without_domains_is_rechecked_under_the_row_lock(self):
+        from .sso_serializers import OIDCProviderSerializer
+
+        self.provider.is_enabled = False
+        self.provider.save()
+        serializer = OIDCProviderSerializer(
+            self.provider, data={"is_enabled": True}, partial=True
+        )
+        self.assertTrue(serializer.is_valid(), serializer.errors)
+        # a concurrent request removes every domain after validate() but before save()
+        self.provider.domains.all().delete()
+        with mock.patch(
+            "django.db.models.query.QuerySet.select_for_update",
+            autospec=True,
+            side_effect=lambda qs, *a, **kw: qs,
+        ) as lock:
+            with self.assertRaises(serializers.ValidationError) as ctx:
+                serializer.save(organization=self.org)
+        lock.assert_called()
+        self.assertIn("domains", ctx.exception.detail)
+        self.provider.refresh_from_db()
+        self.assertFalse(self.provider.is_enabled)
+
     def test_member_is_forbidden_outsider_and_anonymous_are_refused(self):
         member = User.objects.create_user("m", "m@acme.test", "pw12345678")
         OrganizationMembership.objects.create(organization=self.org, user=member)
@@ -413,6 +453,16 @@ class SSODiscoveryTests(SSOTestCase):
             400,
         )
         self.assertEqual(self.client.post(self.url, {}, format="json").status_code, 400)
+
+    def test_non_string_email_is_400_not_a_server_error(self):
+        for value in (123, ["a@acme.test"], {"a": 1}, True, None):
+            response = self.client.post(self.url, {"email": value}, format="json")
+            self.assertEqual(response.status_code, 400, value)
+
+    def test_start_with_an_organization_selector_that_is_not_a_plain_id(self):
+        for value in ("\u00b2", "\u0663", "9" * 40, "1.5", "-1"):
+            response = self.client.get(START, {"organization": value})
+            self.assert_error(response, "sso_not_available")
 
     def test_start_by_email_routes_to_the_organization_provider(self):
         response = self.client.get(START, {"email": "ada@acme.test"})
@@ -609,6 +659,44 @@ class SSOStateTests(SSOTestCase):
         self.assert_error(response, "provider_denied")
         self.assertNotIn("boom", response["Location"])
 
+    def test_state_is_claimed_before_the_provider_is_called(self):
+        # Two overlapping callbacks can both read the attempt from the session. The
+        # cache marker is what only one of them gets, and it is taken before any
+        # call to the provider.
+        client = APIClient()
+        params = self.begin(client)
+        cache.delete(f"org-sso-state:{params['state']}")  # the other callback won
+        self.idp.requests.clear()
+        self.assert_error(self.callback(client, params), "invalid_state")
+        self.assertEqual(self.idp.requests, [])
+
+    def test_failure_to_store_the_login_code_is_a_clean_error(self):
+        client = APIClient()
+        params = self.begin(client)
+        real_set = cache.set
+
+        def broken_set(key, *args, **kwargs):
+            if str(key).startswith("org-sso-login:"):
+                raise ConnectionError("cache down")
+            return real_set(key, *args, **kwargs)
+
+        with mock.patch.object(cache, "set", side_effect=broken_set):
+            response = self.callback(client, params)
+        self.assert_error(response, "sso_failed")
+        self.assert_no_login()
+        # the first login still created the account, but nothing says it succeeded
+        self.assertTrue(User.objects.filter(email="ada@acme.test").exists())
+        self.assertFalse(
+            AuditEvent.objects.filter(extra__operation="sso.login_succeeded").exists()
+        )
+        self.assertTrue(
+            AuditEvent.objects.filter(extra__operation="sso.login_failed").exists()
+        )
+        # trying again reuses that account
+        _, retry = self.sso_login()
+        self.assertEqual(urlsplit(retry["Location"]).path, "/auth/sso/callback")
+        self.assertEqual(User.objects.filter(email="ada@acme.test").count(), 1)
+
     def test_missing_code(self):
         client = APIClient()
         params = self.begin(client)
@@ -637,10 +725,28 @@ class SSOIdTokenTests(SSOTestCase):
             token_overrides={"aud": [CLIENT_ID, "other"], "azp": "other"},
         )
 
-    def test_audience_list_with_correct_azp_is_fine(self):
-        self.idp.token_overrides = {"aud": [CLIENT_ID, "other"], "azp": CLIENT_ID}
+    def test_audience_list_with_an_untrusted_extra_audience_is_refused(self):
+        # OIDC Core 3.1.3.7 step 3. There is no setting for trusted extra audiences,
+        # so even a matching azp does not make "other" acceptable.
+        self.failing_login(
+            "id_token_invalid",
+            token_overrides={"aud": [CLIENT_ID, "other"], "azp": CLIENT_ID},
+        )
+
+    def test_audience_list_with_only_our_client_id_is_fine(self):
+        self.idp.token_overrides = {"aud": [CLIENT_ID], "azp": CLIENT_ID}
         _, response = self.sso_login()
         self.assertEqual(urlsplit(response["Location"]).path, "/auth/sso/callback")
+
+    def test_non_string_alg_in_the_header_is_a_clean_error(self):
+        for alg in (["RS256"], 5, {"a": 1}, None):
+            header = _b64u(json.dumps({"alg": alg, "typ": "JWT"}).encode())
+            token = f"{header}.{_b64u(b'{}')}.{_b64u(b'sig')}"
+            client = APIClient()
+            params = self.begin(client)
+            with mock.patch.object(self.idp, "mint", return_value=token):
+                response = self.callback(client, params)
+            self.assert_error(response, "id_token_invalid")
 
     def test_wrong_issuer(self):
         self.failing_login(
@@ -802,6 +908,100 @@ class OIDCClientSafetyTests(SSOTestCase):
         with self.settings(OIDC_SSO_ALLOW_LOCAL_PROVIDERS=True):
             oidc_client.assert_public_url("http://localhost:8080/realms/dev")
 
+    def test_connection_is_pinned_to_the_checked_address(self):
+        sock = mock.Mock()
+        conn = oidc_client._PinnedHTTPSConnection("idp.acme.test", 443)
+        with mock.patch(
+            "urllib3.util.connection.create_connection", return_value=sock
+        ) as create:
+            self.assertIs(conn._new_conn(), sock)
+        self.assertEqual(create.call_args.args[0], ("93.184.216.34", 443))
+        # only the socket is pinned: SNI and certificate checks keep the hostname
+        self.assertEqual(conn.host, "idp.acme.test")
+        self.assertEqual(conn._dns_host, "idp.acme.test")
+
+    def test_connection_time_lookup_that_turns_private_is_refused(self):
+        # DNS rebinding: public for the pre-check, internal when the socket opens
+        conn = oidc_client._PinnedHTTPSConnection("idp.acme.test", 443)
+        with (
+            mock.patch.object(
+                oidc_client, "_resolve_host", return_value=["169.254.169.254"]
+            ),
+            mock.patch("urllib3.util.connection.create_connection") as create,
+        ):
+            with self.assertRaises(oidc_client.OIDCError) as ctx:
+                conn._new_conn()
+        self.assertEqual(ctx.exception.code, "provider_misconfigured")
+        create.assert_not_called()
+
+    def test_https_requests_use_the_pinned_connection_class(self):
+        adapter = oidc_client._PinnedAdapter()
+        pool = adapter.poolmanager.connection_from_url("https://idp.acme.test/x")
+        self.assertIs(pool.ConnectionCls, oidc_client._PinnedHTTPSConnection)
+
+    def test_provider_endpoints_may_carry_a_query_but_issuers_may_not(self):
+        oidc_client.check_url_syntax(
+            "https://idp.acme.test/authorize?tenant=acme",
+            what="authorization_endpoint",
+            allow_query=True,
+        )
+        with self.assertRaises(ValueError):
+            oidc_client.check_url_syntax("https://idp.acme.test/authorize?tenant=acme")
+        with self.assertRaises(ValueError):
+            oidc_client.check_url_syntax(
+                "https://idp.acme.test/x#frag", allow_query=True
+            )
+
+    def test_discovery_keeps_the_query_of_the_authorization_endpoint(self):
+        original = self.idp.send
+
+        def send(method, url, **kw):
+            status, body = original(method, url, **kw)
+            if url.endswith("openid-configuration"):
+                doc = json.loads(body)
+                doc["authorization_endpoint"] += "?tenant=acme"
+                body = json.dumps(doc).encode()
+            return status, body
+
+        with mock.patch.object(oidc_client, "_send", side_effect=send):
+            response = self.client.get(START, {"organization": self.org.id})
+        self.assertEqual(response.status_code, 302, response.content)
+        location = urlsplit(response["Location"])
+        self.assertEqual(location.path, "/realm/auth")
+        query = parse_qs(location.query)
+        self.assertEqual(query["tenant"], ["acme"])
+        self.assertEqual(query["client_id"], [CLIENT_ID])
+
+    def test_request_json_accepts_endpoint_urls_with_a_query(self):
+        with mock.patch.object(
+            oidc_client, "_send", return_value=(200, b'{"keys": []}')
+        ) as send:
+            data = oidc_client._request_json("GET", "https://idp.acme.test/certs?t=1")
+        self.assertEqual(data, {"keys": []})
+        self.assertEqual(send.call_args.args[1], "https://idp.acme.test/certs?t=1")
+
+    def test_basic_credentials_are_form_encoded_before_base64(self):
+        # RFC 6749 2.3.1: a ":" in the id or a "+" in the secret must be escaped
+        captured = {}
+
+        def send(method, url, **kwargs):
+            captured.update(kwargs)
+            return 200, b'{"id_token": "x.y.z"}'
+
+        with mock.patch.object(oidc_client, "_send", side_effect=send):
+            oidc_client.exchange_code(
+                {"token_endpoint": "https://idp.acme.test/token"},
+                client_id="app:one two",
+                client_secret="p+q/r=s",
+                code="c",
+                redirect_uri="https://api.test/cb",
+                code_verifier="v",
+            )
+        basic = captured["headers"]["Authorization"].split(" ", 1)[1]
+        self.assertEqual(
+            base64.b64decode(basic).decode(), "app%3Aone%20two:p%2Bq%2Fr%3Ds"
+        )
+
     def test_pkce_pair_is_s256(self):
         verifier, challenge = oidc_client.pkce_pair()
         digest = hashlib.sha256(verifier.encode()).digest()
@@ -932,12 +1132,25 @@ class SSOAccountLinkingTests(SSOTestCase):
         response = client.post(f"/api/organizations/{(org or self.org).id}/sso/link/")
         return response
 
-    def run_link(self, user, **idp_overrides):
+    def confirm_link(self, user, callback_response, org=None):
+        """What the signed-in frontend does with ``?sso_link=<code>``."""
+        query = parse_qs(urlsplit(callback_response["Location"]).query)
+        self.assertIn("sso_link", query, callback_response["Location"])
+        client = APIClient()
+        client.force_authenticate(user)
+        return client.post(
+            f"/api/organizations/{(org or self.org).id}/sso/link/confirm/",
+            {"code": query["sso_link"][0]},
+            format="json",
+        )
+
+    def run_link(self, user, next_path=None, **idp_overrides):
         response = self.link_start(user)
         self.assertEqual(response.status_code, 200, response.content)
         start = urlsplit(response.data["start_url"])
         browser = APIClient()
-        started = browser.get(start.path + "?" + start.query)
+        query = start.query + (f"&next={quote(next_path)}" if next_path else "")
+        started = browser.get(start.path + "?" + query)
         self.assertEqual(started.status_code, 302, started.content)
         params = {
             k: v[0] for k, v in parse_qs(urlsplit(started["Location"]).query).items()
@@ -953,11 +1166,20 @@ class SSOAccountLinkingTests(SSOTestCase):
         OrganizationMembership.objects.create(organization=self.org, user=ada)
         # the IdP email differs on purpose: linking does not depend on it
         browser, response = self.run_link(ada, email="ada.work@acme.test")
+        # the callback only stages the link, the signed-in account makes it
+        self.assertEqual(urlsplit(response["Location"]).path, "/")
         self.assertEqual(
-            parse_qs(urlsplit(response["Location"]).query), {"sso": ["linked"]}
+            list(parse_qs(urlsplit(response["Location"]).query)), ["sso_link"]
         )
+        self.assertEqual(OrganizationSSOIdentity.objects.count(), 0)
+        confirmed = self.confirm_link(ada, response)
+        self.assertEqual(confirmed.status_code, 200, confirmed.content)
+        self.assertEqual(confirmed.data, {"linked": True})
         identity = OrganizationSSOIdentity.objects.get()
         self.assertEqual(identity.user_id, ada.id)
+        self.assertTrue(
+            AuditEvent.objects.filter(extra__operation="sso.identity_linked").exists()
+        )
 
         self.idp.token_overrides = {"email": "ada.work@acme.test"}
         _, login = self.sso_login()
@@ -967,6 +1189,132 @@ class SSOAccountLinkingTests(SSOTestCase):
         self.assertEqual(
             User.objects.filter(email__iexact="ada.work@acme.test").count(), 0
         )
+
+    def test_link_is_not_made_by_whoever_holds_the_start_url(self):
+        # A leaked start URL finished in another browser must not attach that
+        # browser's provider identity to the account. Only the signed-in account
+        # can confirm, and an unrelated account's confirm attempt changes nothing.
+        ada = self.make_user()
+        OrganizationMembership.objects.create(organization=self.org, user=ada)
+        mallory = self.make_user("mallory", "mallory@acme.test")
+        OrganizationMembership.objects.create(organization=self.org, user=mallory)
+        _, response = self.run_link(ada, sub="mallory-at-the-idp")
+        self.assertEqual(OrganizationSSOIdentity.objects.count(), 0)
+
+        wrong = self.confirm_link(mallory, response)
+        self.assertEqual(wrong.status_code, 400)
+        self.assertEqual(wrong.data["code"], "invalid_code")
+        anonymous = APIClient().post(
+            f"/api/organizations/{self.org.id}/sso/link/confirm/",
+            {"code": parse_qs(urlsplit(response["Location"]).query)["sso_link"][0]},
+            format="json",
+        )
+        self.assertEqual(anonymous.status_code, 401)
+        self.assertEqual(OrganizationSSOIdentity.objects.count(), 0)
+
+        # the refused attempt did not burn the code for its real owner
+        right = self.confirm_link(ada, response)
+        self.assertEqual(right.status_code, 200)
+        self.assertEqual(OrganizationSSOIdentity.objects.get().user_id, ada.id)
+
+    def test_link_confirmation_is_single_use(self):
+        ada = self.make_user()
+        OrganizationMembership.objects.create(organization=self.org, user=ada)
+        _, response = self.run_link(ada)
+        self.assertEqual(self.confirm_link(ada, response).status_code, 200)
+        self.assertEqual(self.confirm_link(ada, response).status_code, 400)
+
+    def test_link_confirmation_repeats_the_membership_and_ownership_checks(self):
+        ada = self.make_user()
+        membership = OrganizationMembership.objects.create(
+            organization=self.org, user=ada
+        )
+        _, response = self.run_link(ada)
+        membership.delete()
+        refused = self.confirm_link(ada, response)
+        # no longer a member: the organization is not even visible to this account
+        self.assertEqual(refused.status_code, 404)
+        self.assertEqual(OrganizationSSOIdentity.objects.count(), 0)
+
+        membership = OrganizationMembership.objects.create(
+            organization=self.org, user=ada
+        )
+        _, response = self.run_link(ada)
+        OrganizationSSOIdentity.objects.create(
+            provider=self.provider,
+            issuer=ISSUER,
+            subject="sub-123",
+            user=self.make_user("bob", "bob@acme.test"),
+        )
+        taken = self.confirm_link(ada, response)
+        self.assertEqual(taken.status_code, 400)
+        self.assertEqual(taken.data["code"], "identity_already_linked")
+
+    def test_link_confirmation_is_scoped_to_its_organization(self):
+        ada = self.make_user()
+        OrganizationMembership.objects.create(organization=self.org, user=ada)
+        other_org = Organization.objects.create(name="Other")
+        OrganizationMembership.objects.create(organization=other_org, user=ada)
+        _, response = self.run_link(ada)
+        wrong_org = self.confirm_link(ada, response, org=other_org)
+        self.assertEqual(wrong_org.status_code, 400)
+        self.assertEqual(OrganizationSSOIdentity.objects.count(), 0)
+
+    def test_link_result_keeps_the_query_and_fragment_of_next(self):
+        ada = self.make_user()
+        OrganizationMembership.objects.create(organization=self.org, user=ada)
+        _, response = self.run_link(ada, next_path="/settings?tab=security#sso")
+        parts = urlsplit(response["Location"])
+        self.assertEqual(parts.path, "/settings")
+        self.assertEqual(parts.fragment, "sso")
+        query = parse_qs(parts.query)
+        self.assertEqual(query["tab"], ["security"])
+        self.assertEqual(list(query), ["tab", "sso_link"])
+        self.assertNotIn("?", parts.query)
+
+    def test_relinking_after_an_issuer_change_replaces_the_stale_link(self):
+        ada = self.make_user()
+        OrganizationMembership.objects.create(organization=self.org, user=ada)
+        OrganizationSSOIdentity.objects.create(
+            provider=self.provider,
+            issuer="https://old-idp.acme.test",
+            subject="old-sub",
+            user=ada,
+        )
+        _, response = self.run_link(ada)
+        self.assertEqual(self.confirm_link(ada, response).status_code, 200)
+        identity = OrganizationSSOIdentity.objects.get()
+        self.assertEqual((identity.issuer, identity.subject), (ISSUER, "sub-123"))
+        self.assertEqual(identity.user_id, ada.id)
+
+        # and the normal login works again
+        self.idp.token_overrides = {}
+        _, login = self.sso_login()
+        self.assertEqual(urlsplit(login["Location"]).path, "/auth/sso/callback")
+
+    def test_provisioning_rechecks_the_email_inside_the_lock(self):
+        # Two first logins pass the unlocked check together. The one that waits on
+        # the provider row must see the account the other one committed.
+        calls = []
+        real = OrganizationOIDCProvider.objects.select_for_update
+
+        def lock_then_other_login_commits():
+            calls.append(1)
+            User.objects.create_user("ada-race", "ada@acme.test", "pw12345678")
+            return real()
+
+        with mock.patch.object(
+            OrganizationOIDCProvider.objects,
+            "select_for_update",
+            side_effect=lock_then_other_login_commits,
+        ):
+            _, response = self.sso_login()
+        self.assertEqual(calls, [1])
+        self.assert_error(response, "account_exists")
+        # nothing was provisioned (the stand-in for the other login's user sits in
+        # the rolled-back block, as the test runs in one connection)
+        self.assertEqual(OrganizationSSOIdentity.objects.count(), 0)
+        self.assertEqual(OrganizationMembership.objects.count(), 1)  # just the owner
 
     def test_link_url_needs_authentication_and_membership(self):
         self.assertEqual(

@@ -36,6 +36,9 @@ import jwt
 import requests
 from django.conf import settings
 from django.core.cache import cache
+from requests.adapters import HTTPAdapter
+from urllib3.connection import HTTPSConnection
+from urllib3.connectionpool import HTTPSConnectionPool
 
 logger = logging.getLogger(__name__)
 
@@ -94,10 +97,13 @@ def pkce_pair() -> tuple[str, str]:
 # ------------------------------------------------------------------ URL safety
 
 
-def check_url_syntax(url: str, *, what: str = "url") -> str:
+def check_url_syntax(url: str, *, what: str = "url", allow_query: bool = False) -> str:
     """
     Validate an issuer or endpoint URL without touching the network. Raises
     ``ValueError`` with a message that is safe to return to an admin.
+
+    Issuers must be a bare origin and path. Provider endpoints may carry a query
+    (RFC 6749 3.1 and 3.2 allow it, and clients must keep it); fragments never.
     """
     if not isinstance(url, str) or not url or len(url) > 500:
         raise ValueError(f"{what} is required")
@@ -110,8 +116,12 @@ def check_url_syntax(url: str, *, what: str = "url") -> str:
         raise ValueError(f"{what} must include a host")
     if parts.username or parts.password:
         raise ValueError(f"{what} must not contain credentials")
-    if parts.query or parts.fragment:
-        raise ValueError(f"{what} must not contain a query or fragment")
+    if parts.fragment or (parts.query and not allow_query):
+        raise ValueError(
+            f"{what} must not contain a fragment"
+            if allow_query
+            else f"{what} must not contain a query or fragment"
+        )
     if not _allow_local():
         if host == "localhost" or host.endswith((".localhost", ".local", ".internal")):
             raise ValueError(f"{what} must not point at a local host")
@@ -133,50 +143,98 @@ def _resolve_host(host: str) -> list[str]:
     return [info[4][0] for info in infos]
 
 
-def assert_public_url(url: str) -> None:
-    """Refuse a URL whose host resolves to a non-public address (SSRF guard)."""
-    try:
-        check_url_syntax(url)
-    except ValueError as exc:
-        raise OIDCError("provider_misconfigured", str(exc)) from exc
-    if _allow_local():
-        return
-    host = urlsplit(url).hostname or ""
-    for addr in _resolve_host(host):
+def _public_addresses(host: str) -> list[str]:
+    """Resolve ``host`` and return its addresses, refusing any non-public one."""
+    addresses = _resolve_host(host)
+    for addr in addresses:
         try:
             ip = ipaddress.ip_address(addr.split("%")[0])
         except ValueError as exc:
             raise OIDCError("provider_misconfigured", "bad address") from exc
         if not ip.is_global:
             raise OIDCError("provider_misconfigured", f"{host} is not a public host")
+    return addresses
+
+
+def assert_public_url(url: str, *, allow_query: bool = False) -> None:
+    """Refuse a URL whose host resolves to a non-public address (SSRF guard)."""
+    try:
+        check_url_syntax(url, allow_query=allow_query)
+    except ValueError as exc:
+        raise OIDCError("provider_misconfigured", str(exc)) from exc
+    if _allow_local():
+        return
+    _public_addresses(urlsplit(url).hostname or "")
+
+
+class _PinnedHTTPSConnection(HTTPSConnection):
+    """
+    Connects to an address that was checked a moment ago, not to whatever the
+    hostname resolves to when the socket opens. ``assert_public_url`` runs before
+    the request, so without this a DNS answer that flips between the two lookups
+    (DNS rebinding) could point the connection at an internal host.
+
+    Only the socket is pinned. ``self.host`` stays the original hostname, so SNI
+    and certificate verification still use it.
+    """
+
+    def _new_conn(self):
+        if _allow_local():
+            return super()._new_conn()
+        name = self._dns_host
+        self._dns_host = _public_addresses(name)[0]
+        try:
+            return super()._new_conn()
+        finally:
+            self._dns_host = name
+
+
+class _PinnedHTTPSConnectionPool(HTTPSConnectionPool):
+    ConnectionCls = _PinnedHTTPSConnection  # pyright: ignore[reportAssignmentType]
+
+
+class _PinnedAdapter(HTTPAdapter):
+    """Direct https connections use the pinned connection class. A proxy set in the
+    environment still resolves the target itself, so pinning does not apply there."""
+
+    def init_poolmanager(self, *args, **kwargs):
+        super().init_poolmanager(*args, **kwargs)
+        self.poolmanager.pool_classes_by_scheme = {
+            **self.poolmanager.pool_classes_by_scheme,
+            "https": _PinnedHTTPSConnectionPool,
+        }
 
 
 def _send(method: str, url: str, **kwargs: Any) -> tuple[int, bytes]:
     """The only place that talks to the network. Tests replace this."""
     try:
-        resp = requests.request(
-            method,
-            url,
-            timeout=HTTP_TIMEOUT,
-            allow_redirects=False,
-            stream=True,
-            **kwargs,
-        )
-        try:
-            body = b""
-            for chunk in resp.iter_content(chunk_size=16384):
-                body += chunk
-                if len(body) > MAX_RESPONSE_BYTES:
-                    raise OIDCError("provider_unavailable", "response too large")
-            return resp.status_code, body
-        finally:
-            resp.close()
+        with requests.Session() as session:
+            session.mount("https://", _PinnedAdapter())
+            resp = session.request(
+                method,
+                url,
+                timeout=HTTP_TIMEOUT,
+                allow_redirects=False,
+                stream=True,
+                **kwargs,
+            )
+            try:
+                body = b""
+                for chunk in resp.iter_content(chunk_size=16384):
+                    body += chunk
+                    if len(body) > MAX_RESPONSE_BYTES:
+                        raise OIDCError("provider_unavailable", "response too large")
+                return resp.status_code, body
+            finally:
+                resp.close()
     except requests.RequestException as exc:
         raise OIDCError("provider_unavailable", type(exc).__name__) from exc
 
 
 def _request_json(method: str, url: str, **kwargs: Any) -> dict:
-    assert_public_url(url)
+    # Endpoint URLs come from discovery and may have a query string. The discovery
+    # URL itself is built from an issuer that already passed the strict check.
+    assert_public_url(url, allow_query=True)
     status, body = _send(method, url, **kwargs)
     if status != 200:
         raise OIDCError(
@@ -214,7 +272,7 @@ def discover(issuer: str) -> dict:
     for field in ("authorization_endpoint", "token_endpoint", "jwks_uri"):
         value = doc.get(field)
         try:
-            result[field] = check_url_syntax(value, what=field)
+            result[field] = check_url_syntax(value, what=field, allow_query=True)
         except ValueError as exc:
             raise OIDCError("provider_misconfigured", str(exc)) from exc
     cache.set(key, result, DISCOVERY_TTL)
@@ -352,8 +410,10 @@ def validate_id_token(
         raise OIDCError("id_token_invalid", "unreadable header") from exc
 
     alg = header.get("alg")
-    if alg not in ALLOWED_ALGORITHMS:
-        raise OIDCError("id_token_invalid", f"algorithm {alg!r} not allowed")
+    # A header is attacker-controlled JSON: "alg" can be a list or a number, which
+    # would make the membership test below raise TypeError instead of a clean error.
+    if not isinstance(alg, str) or alg not in ALLOWED_ALGORITHMS:
+        raise OIDCError("id_token_invalid", "algorithm not allowed")
     kid = header.get("kid")
     if kid is not None and not isinstance(kid, str):
         raise OIDCError("id_token_invalid", "bad kid")
@@ -373,8 +433,13 @@ def validate_id_token(
         raise OIDCError("id_token_invalid", type(exc).__name__) from exc
 
     aud = claims.get("aud")
-    if isinstance(aud, list) and len(aud) > 1 and claims.get("azp") != client_id:
-        raise OIDCError("id_token_invalid", "azp does not match client")
+    if isinstance(aud, list):
+        # OIDC Core 3.1.3.7 step 3: reject audiences the client does not trust.
+        # There is no trusted-audience setting, so only our own client_id counts.
+        if any(a != client_id for a in aud):
+            raise OIDCError("id_token_invalid", "untrusted audience")
+        if len(aud) > 1 and claims.get("azp") != client_id:
+            raise OIDCError("id_token_invalid", "azp does not match client")
     if "azp" in claims and claims["azp"] != client_id:
         raise OIDCError("id_token_invalid", "azp does not match client")
 

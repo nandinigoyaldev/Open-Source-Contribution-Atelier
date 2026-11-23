@@ -161,6 +161,7 @@ class OrganizationSSOIdentity(models.Model):
     )
     # Issuer the subject was issued by, so pointing the provider at a different
     # issuer later cannot reuse an old link.
+    # Linking again at the new issuer replaces the old row (see link_existing_user).
     issuer = models.URLField(max_length=500)
     subject = models.CharField(max_length=255)
     user = models.ForeignKey(

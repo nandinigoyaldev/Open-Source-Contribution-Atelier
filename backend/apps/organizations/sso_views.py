@@ -4,6 +4,7 @@ HTTP endpoints for organization OIDC single sign-on.
 
 Admin (JWT):   GET/PUT/PATCH/DELETE /api/organizations/<id>/sso/
                POST /api/organizations/<id>/sso/link/
+               POST /api/organizations/<id>/sso/link/confirm/
 Public flow:   POST /api/auth/sso/discover/
                GET  /api/auth/sso/oidc/start/
                GET  /api/auth/sso/oidc/callback/
@@ -19,7 +20,7 @@ from __future__ import annotations
 import logging
 import time
 from typing import Optional
-from urllib.parse import urlsplit
+from urllib.parse import parse_qsl, urlencode, urlsplit, urlunsplit
 
 from django.contrib.auth.models import update_last_login
 from django.core.cache import cache
@@ -57,6 +58,7 @@ ATTEMPT_TTL_SECONDS = 600
 MAX_OPEN_ATTEMPTS = 5
 LOGIN_CODE_TTL = 60
 LINK_TOKEN_TTL = 300
+LINK_CONFIRM_TTL = 300
 
 ERROR_CODES = {
     "sso_not_available",
@@ -100,6 +102,20 @@ def safe_next_path(value: Optional[str]) -> str:
     return value
 
 
+def _frontend_next_url(path: str, extra: dict) -> str:
+    """
+    Frontend URL for ``path`` (which may already carry a query and a fragment)
+    with ``extra`` merged into its query, so ``/dashboard?tab=1`` becomes
+    ``/dashboard?tab=1&sso=linked#...`` and not ``tab=1?sso=linked``.
+    """
+    parts = urlsplit(path)
+    query = [(k, v) for k, v in parse_qsl(parts.query, keep_blank_values=True)]
+    query = [(k, v) for k, v in query if k not in extra] + list(extra.items())
+    return frontend_url(
+        urlunsplit(("", "", parts.path or "/", urlencode(query), parts.fragment))
+    )
+
+
 def _error_redirect(code: str):
     if code not in ERROR_CODES:
         code = "sso_failed"
@@ -138,6 +154,10 @@ def _store_attempt(request, state: str, attempt: dict) -> None:
     attempts = dict(newest)
     attempts[state] = {**attempt, "ts": now}
     request.session[SESSION_KEY] = attempts
+    # The session copy of an attempt is only written back when the response goes
+    # out, so two overlapping callbacks can both read it. This marker is what is
+    # actually claimed (see _pop_attempt).
+    cache.set(f"org-sso-state:{state}", 1, ATTEMPT_TTL_SECONDS)
 
 
 def _pop_attempt(request, state: str) -> Optional[dict]:
@@ -145,6 +165,10 @@ def _pop_attempt(request, state: str) -> Optional[dict]:
     attempt = attempts.pop(state, None)
     request.session[SESSION_KEY] = attempts
     if not attempt or time.time() - attempt.get("ts", 0) > ATTEMPT_TTL_SECONDS:
+        return None
+    # Delete-as-claim: only one of several concurrent callbacks gets True, and it
+    # happens before any call to the provider, so a state is redeemed once.
+    if not cache.delete(f"org-sso-state:{state}"):
         return None
     return attempt
 
@@ -245,7 +269,9 @@ class OrganizationSSOConfigView(_OrgSSOMixin, APIView):
 class OrganizationSSOLinkView(_OrgSSOMixin, APIView):
     """
     Start linking the signed-in account to the organization's provider. Returns a
-    one-time URL for the browser; only the person holding this session can use it.
+    one-time URL for the browser. The link is only made after the same signed-in
+    account confirms it (``OrganizationSSOLinkConfirmView``), so a leaked URL can
+    not attach somebody else's provider identity to this account.
     """
 
     throttle_classes = [OAuthThrottle]
@@ -271,6 +297,52 @@ class OrganizationSSOLinkView(_OrgSSOMixin, APIView):
         )
 
 
+class OrganizationSSOLinkConfirmView(_OrgSSOMixin, APIView):
+    """
+    Second half of linking. The provider callback only stages the link and sends
+    the browser to the frontend with ``sso_link=<code>``. The signed-in account that
+    started the link posts that code here, so the link is made by the same account
+    and not by whoever happened to hold the start URL.
+    """
+
+    throttle_classes = [OAuthThrottle]
+
+    def post(self, request, organization_pk):
+        org, role = self._org_and_role(request, organization_pk)
+        if org is None or role is None:
+            return Response(status=status.HTTP_404_NOT_FOUND)
+        code = request.data.get("code") if hasattr(request.data, "get") else None
+        invalid = Response(
+            {"detail": "Invalid or expired code.", "code": "invalid_code"},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+        if not isinstance(code, str) or not code or len(code) > 200:
+            return invalid
+        key = f"org-sso-link-pending:{code}"
+        pending = cache.get(key)
+        # Another account's code is treated like an unknown one and is left alone.
+        if not pending or pending.get("user_id") != request.user.id:
+            return invalid
+        provider = OrganizationOIDCProvider.objects.filter(
+            pk=pending["provider_id"], organization=org, is_enabled=True
+        ).first()
+        if provider is None or not cache.delete(key):
+            return invalid
+        try:
+            result = sso_service.link_existing_user(
+                provider, {"iss": pending["iss"], "sub": pending["sub"]}, request.user
+            )
+        except SSOError as exc:
+            _audit(request, "sso.login_failed", org.id, code=exc.code)
+            return Response(
+                {"detail": "Could not link this account.", "code": exc.code},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        if result.linked:
+            _audit(request, "sso.identity_linked", org.id, user_id=request.user.id)
+        return Response({"linked": True})
+
+
 # ----------------------------------------------------------------- public flow
 
 
@@ -286,7 +358,9 @@ class SSODiscoverView(_PublicSSOView):
     def post(self, request):
         email = request.data.get("email") if hasattr(request.data, "get") else None
         try:
-            validate_email(email or "")
+            if not isinstance(email, str):
+                raise DjangoValidationError("email must be a string")
+            validate_email(email)
         except DjangoValidationError:
             return Response(
                 {"detail": "Enter a valid email address."},
@@ -310,8 +384,13 @@ class SSOStartView(_PublicSSOView):
         provider = None
         org_param = request.query_params.get("organization")
         email = request.query_params.get("email")
-        if org_param and org_param.isdigit():
-            provider = sso_service.enabled_provider_for_org(int(org_param))
+        # isdigit() is also true for superscripts that int() can not parse
+        if org_param and org_param.isascii() and org_param.isdigit():
+            provider = (
+                sso_service.enabled_provider_for_org(int(org_param))
+                if len(org_param) <= 18
+                else None
+            )
         elif email:
             provider = sso_service.provider_for_email(email)
         if provider is None:
@@ -416,7 +495,10 @@ class SSOCallbackView(_PublicSSOView):
                 )
                 if user is None:
                     raise SSOError("link_expired")
-                result = sso_service.link_existing_user(provider, claims, user)
+                # Nothing is linked here. This browser may not be the one the
+                # account is signed in on, so the account has to confirm.
+                sso_service.check_can_link(provider, claims, user)
+                result = None
             else:
                 result = sso_service.sign_in(provider, claims)
         except oidc_client.OIDCError as exc:
@@ -437,24 +519,48 @@ class SSOCallbackView(_PublicSSOView):
             _audit(request, "sso.login_failed", org_id, code="sso_failed")
             return _error_redirect("sso_failed")
 
-        user = result.user
-        if result.created:
-            _audit(request, "sso.user_provisioned", org_id, user_id=user.id)
-        if result.linked:
-            _audit(request, "sso.identity_linked", org_id, user_id=user.id)
+        if result is None:
+            confirm_code = oidc_client.new_token()
+            try:
+                cache.set(
+                    f"org-sso-link-pending:{confirm_code}",
+                    {
+                        "user_id": attempt["link_user_id"],
+                        "provider_id": provider.pk,
+                        "iss": claims["iss"],
+                        "sub": claims["sub"],
+                    },
+                    LINK_CONFIRM_TTL,
+                )
+            except Exception:
+                logger.exception("SSO link hand-off failed org=%s", org_id)
+                _audit(request, "sso.login_failed", org_id, code="sso_failed")
+                return _error_redirect("sso_failed")
             return HttpResponseRedirect(
-                frontend_url(attempt["next"], {"sso": "linked"})
+                _frontend_next_url(attempt["next"], {"sso_link": confirm_code})
             )
 
-        update_last_login(None, user)
+        user = result.user
+        # Mint the tokens and park them behind the one-time code before anything is
+        # reported as a success. If the cache or the signer fails here the person
+        # gets a clean "try again", and the account that a first login just created
+        # is reused on the next attempt.
+        try:
+            update_last_login(None, user)
+            refresh = DynamicSaltRefreshToken.for_user(user)
+            login_code = oidc_client.new_token()
+            cache.set(
+                f"org-sso-login:{login_code}",
+                {"access": str(refresh.access_token), "refresh": str(refresh)},
+                LOGIN_CODE_TTL,
+            )
+        except Exception:
+            logger.exception("SSO login hand-off failed org=%s", org_id)
+            _audit(request, "sso.login_failed", org_id, code="sso_failed")
+            return _error_redirect("sso_failed")
+        if result.created:
+            _audit(request, "sso.user_provisioned", org_id, user_id=user.id)
         _audit(request, "sso.login_succeeded", org_id, user_id=user.id)
-        refresh = DynamicSaltRefreshToken.for_user(user)
-        login_code = oidc_client.new_token()
-        cache.set(
-            f"org-sso-login:{login_code}",
-            {"access": str(refresh.access_token), "refresh": str(refresh)},
-            LOGIN_CODE_TTL,
-        )
         query = {"code": login_code}
         if attempt["next"] != "/":
             query["next"] = attempt["next"]

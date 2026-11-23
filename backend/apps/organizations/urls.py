@@ -1,7 +1,11 @@
 from django.urls import include, path
 from rest_framework.routers import DefaultRouter
 
-from .sso_views import OrganizationSSOConfigView, OrganizationSSOLinkView
+from .sso_views import (
+    OrganizationSSOConfigView,
+    OrganizationSSOLinkConfirmView,
+    OrganizationSSOLinkView,
+)
 from .views import OrganizationMembershipViewSet, OrganizationViewSet
 
 router = DefaultRouter()
@@ -34,6 +38,11 @@ urlpatterns = [
         "<int:organization_pk>/sso/link/",
         OrganizationSSOLinkView.as_view(),
         name="organization-sso-link",
+    ),
+    path(
+        "<int:organization_pk>/sso/link/confirm/",
+        OrganizationSSOLinkConfirmView.as_view(),
+        name="organization-sso-link-confirm",
     ),
     path("", include(router.urls)),
 ]

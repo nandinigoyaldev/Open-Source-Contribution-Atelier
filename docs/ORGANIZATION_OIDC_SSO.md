@@ -36,13 +36,21 @@ An organization owner or admin manages the provider at
 }
 ```
 
+* **Frontend prerequisite.** This backend change does not include any UI. Before
+  SSO is usable, the frontend needs a route at `/auth/sso/callback` that reads the
+  one-time `code` (and optional `next`) from the query, posts it to
+  `/api/auth/sso/exchange/` to get the tokens, and a `/login` page that shows the
+  `sso_error` code. Linking an existing account needs a second handler (see
+  "Account linking rules"). Without these the redirect lands on a page that can
+  not finish the sign-in.
 * Register `https://<your-api-host>/api/auth/sso/oidc/callback/` as the redirect
   URI at the provider. Set `OIDC_SSO_REDIRECT_URI` to that exact value behind a
   proxy, so it does not depend on the incoming `Host` header.
 * `issuer` must be the exact `issuer` string of the provider's
   `/.well-known/openid-configuration`. It has to be `https` and must not point at
   a private or loopback address.
-* `client_secret` is write-only. It is encrypted at rest with
+* `client_secret` is write-only and is stored exactly as sent (whitespace is not
+  trimmed, since providers can issue secrets with it). It is encrypted at rest with
   `FIELD_ENCRYPTION_KEY`, never returned by the API (only `has_client_secret`),
   never written to the audit log or application logs, and never part of any
   redirect. Leave it out for a public client: PKCE alone is then used. Sending
@@ -68,14 +76,19 @@ to `start_url` instead of the password form. Matching is on the exact domain
 | Redirect | fresh `state`, `nonce` and PKCE `S256` challenge per attempt, kept in the browser's session for 10 minutes and used once |
 | Callback | `state` must be in *this browser's* session (stops login CSRF), then is consumed; provider `error` is never echoed |
 | Token exchange | server side, with the PKCE verifier; confidential clients use HTTP Basic (`client_secret_basic`) |
-| ID token | signature against the provider's JWKS (asymmetric algorithms only, `none` and `HS*` refused), `iss`, `aud` (plus `azp` when present), `exp`, `iat`, `nbf` (60 s leeway), `sub`, and `nonce` |
+| ID token | signature against the provider's JWKS (asymmetric algorithms only, `none` and `HS*` refused), `iss`, `aud` (every value must be our `client_id`: extra audiences are refused because there is no trusted-audience setting), `azp` when present, `exp`, `iat`, `nbf` (60 s leeway), `sub`, and `nonce` |
 | Key rotation | an unknown `kid` refreshes the JWKS once (at most every 30 s) |
 
 All requests to the provider use short timeouts, a 1 MB response cap, no
-redirects, and are refused when the host resolves to a non-public address. That
-guard is checked when the request is made. A hostile DNS server could still
-answer differently between that check and the connection, so keep egress
-filtering in place for production if the threat model includes that.
+redirects, and are refused when the host resolves to a non-public address. The
+address is checked again when the socket opens and the connection goes to that
+checked address (certificate and SNI still use the hostname), so a DNS answer that
+changes between the check and the connection does not reach an internal host.
+This does not apply when an HTTP proxy is configured in the environment, because
+the proxy then resolves the target. Keep egress filtering in place if the proxy is
+not trusted. The issuer must be a plain URL without a query; the authorization,
+token and JWKS endpoints from discovery may carry a query (RFC 6749 allows it) but
+never a fragment.
 `OIDC_SSO_ALLOW_LOCAL_PROVIDERS=True` lifts the https and private-host rules for
 local development with something like Keycloak on `localhost`. Do not set it in
 production.
@@ -89,12 +102,21 @@ production.
    because the email matches. Whoever controls an identity provider (or a mailbox
    at a claimed domain) could otherwise take over any local account. They get the
    `account_exists` error and must link from their account (rule 3).
-3. Linking an existing account needs that account's own signed-in session:
+3. Linking an existing account needs that account's own signed-in session, twice:
    `POST /api/organizations/<id>/sso/link/` (JWT, member of the organization)
-   returns a one-time `start_url` (valid 5 minutes) for the browser. After the
-   provider login the subject is linked and the browser lands on the frontend with
-   `?sso=linked`. A subject can be linked to one account only, and an account holds
-   one link per provider.
+   returns a one-time `start_url` (valid 5 minutes) for the browser, optionally
+   with `&next=/some/path`. After the provider login nothing is linked yet: the
+   browser lands on the frontend at `next` (default `/`) with `?sso_link=<code>`
+   merged into any query it already has. The frontend then posts
+   `{"code": "<code>"}` with the account's JWT to
+   `POST /api/organizations/<id>/sso/link/confirm/` (valid 5 minutes, single use),
+   which links the subject and answers `{"linked": true}`. A code can only be
+   confirmed by the account that started the link, so a leaked `start_url` cannot
+   attach somebody else's provider identity to it. A subject can be linked to one
+   account only, and an account holds one link per provider and issuer.
+   If the organization changes the provider's issuer, existing members' old links
+   stop working for login; linking again against the new issuer replaces the old
+   link (a second subject at the current issuer is still refused).
 4. A new account is created (member role, unusable password, organization set on
    the profile) only when `auto_provision` is on, the ID token has
    `email_verified: true`, the email is on one of the organization's domains, and

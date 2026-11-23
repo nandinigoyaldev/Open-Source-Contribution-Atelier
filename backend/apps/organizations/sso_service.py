@@ -146,6 +146,31 @@ def _link(provider, issuer, subject, user) -> OrganizationSSOIdentity:
     )
 
 
+def check_can_link(provider, claims: dict, user) -> None:
+    """
+    The checks of :func:`link_existing_user` without writing anything. The callback
+    runs this before it asks the signed-in user to confirm the link.
+    """
+    issuer, subject = claims["iss"], claims["sub"]
+    _check_user_allowed(user)
+    if not OrganizationMembership.objects.filter(
+        organization_id=provider.organization_id, user=user
+    ).exists():
+        raise SSOError("not_a_member")
+    existing = OrganizationSSOIdentity.objects.filter(
+        provider=provider, issuer=issuer, subject=subject
+    ).first()
+    if existing is not None and existing.user_id != user.id:
+        raise SSOError("identity_already_linked")
+    if (
+        existing is None
+        and OrganizationSSOIdentity.objects.filter(
+            provider=provider, user=user, issuer=issuer
+        ).exists()
+    ):
+        raise SSOError("user_already_linked")
+
+
 def link_existing_user(provider, claims: dict, user) -> SSOResult:
     """Attach the provider subject to a user who proved their own account."""
     issuer, subject = claims["iss"], claims["sub"]
@@ -167,9 +192,17 @@ def link_existing_user(provider, claims: dict, user) -> SSOResult:
             _touch(existing)
             return SSOResult(user=user)
         if OrganizationSSOIdentity.objects.filter(
-            provider=provider, user=user
+            provider=provider, user=user, issuer=issuer
         ).exists():
+            # A second subject at the issuer that is current today.
             raise SSOError("user_already_linked")
+        # A link made at an earlier issuer can not sign anyone in any more (login
+        # matches on the issuer), and it would block the one-link-per-user rule.
+        # The person has just proved the local account (signed-in confirmation) and
+        # the identity at the new issuer, so the stale link is replaced.
+        OrganizationSSOIdentity.objects.filter(provider=provider, user=user).exclude(
+            issuer=issuer
+        ).delete()
         try:
             _link(provider, issuer, subject, user)
         except IntegrityError:
@@ -210,6 +243,15 @@ def sign_in(provider, claims: dict) -> SSOResult:
 
     try:
         with transaction.atomic():
+            # Provisioning for one provider is serialized on its row. A domain
+            # belongs to one provider, so two first logins with the same email
+            # always meet here: the second one waits, then sees the committed user.
+            OrganizationOIDCProvider.objects.select_for_update().filter(
+                pk=provider.pk
+            ).first()
+            if User.objects.filter(email__iexact=email).exists():
+                # Checked again under the lock: the check above can be stale.
+                raise SSOError("account_exists")
             user = User.objects.create_user(
                 username=_new_username(claims, email), email=email, password=None
             )
