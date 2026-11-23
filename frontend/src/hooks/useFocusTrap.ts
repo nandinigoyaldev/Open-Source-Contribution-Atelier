@@ -13,8 +13,7 @@ export function useFocusTrap(
     const element = ref.current;
     const previousFocus = document.activeElement as HTMLElement;
 
-    // Focus the first element on mount
-    const timer = setTimeout(() => {
+    const focusFirstElement = () => {
       if (!element) return;
       if (element.contains(document.activeElement)) return;
 
@@ -22,7 +21,9 @@ export function useFocusTrap(
         element.querySelectorAll<HTMLElement>(FOCUSABLE_ELEMENTS);
       const focusableElements = Array.from(focusableEls).filter(
         (el) =>
-          el.tabIndex >= 0 && window.getComputedStyle(el).display !== "none",
+          el.tabIndex >= 0 &&
+          (typeof window.getComputedStyle !== "function" ||
+            window.getComputedStyle(el).display !== "none"),
       );
 
       if (focusableElements.length > 0) {
@@ -32,7 +33,12 @@ export function useFocusTrap(
         element.setAttribute("tabindex", "-1");
         element.focus();
       }
-    }, 10);
+    };
+
+    // Attempt immediate synchronous focus for quick interactions and tests,
+    // plus a small timer fallback for animated or transitioned elements.
+    focusFirstElement();
+    const timer = setTimeout(focusFirstElement, 10);
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key !== "Tab") return;

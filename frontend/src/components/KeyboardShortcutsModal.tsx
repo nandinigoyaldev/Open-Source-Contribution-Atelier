@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Keyboard, X } from "lucide-react";
 import { useFocusTrap } from "../hooks/useFocusTrap";
+import { isTypingTarget } from "../lib/accessibility";
 
 interface ShortcutRow {
   category: string;
@@ -105,40 +106,71 @@ const shortcuts: ShortcutRow[] = [
 export const KeyboardShortcutsModal: React.FC = () => {
   const [isOpen, setIsOpen] = useState(false);
   const modalRef = useRef<HTMLDivElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const triggerRef = useRef<HTMLElement | null>(null);
   useFocusTrap(modalRef, isOpen);
+
+  const openModal = () => {
+    triggerRef.current = document.activeElement as HTMLElement | null;
+    setIsOpen(true);
+  };
+
+  const closeModal = () => {
+    setIsOpen(false);
+    // Explicitly restore focus to the element that triggered the modal
+    if (triggerRef.current && typeof triggerRef.current.focus === "function") {
+      triggerRef.current.focus();
+    }
+  };
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Check if target is an input, textarea, or contentEditable element
-      const activeEl = document.activeElement;
-      const isInput =
-        activeEl &&
-        (activeEl.tagName === "INPUT" ||
-          activeEl.tagName === "TEXTAREA" ||
-          activeEl.getAttribute("contenteditable") === "true");
+      // Inputs, textareas, and editable fields are never hijacked
+      if (isTypingTarget(e)) return;
 
-      if (isInput) return;
-
-      if (e.key === "?") {
+      if (e.key === "?" && !e.ctrlKey && !e.metaKey && !e.altKey) {
         e.preventDefault();
-        setIsOpen((prev) => !prev);
+        if (isOpen) {
+          closeModal();
+        } else {
+          openModal();
+        }
       } else if (e.key === "Escape" && isOpen) {
         e.preventDefault();
-        setIsOpen(false);
+        closeModal();
       }
     };
 
-    const handleCustomToggle = () => setIsOpen((prev) => !prev);
+    const handleCustomToggle = () => {
+      if (isOpen) {
+        closeModal();
+      } else {
+        openModal();
+      }
+    };
+
+    const handleCustomOpen = () => openModal();
+    const handleCustomClose = () => closeModal();
 
     window.addEventListener("keydown", handleKeyDown);
     window.addEventListener("toggle-keyboard-shortcuts", handleCustomToggle);
+    window.addEventListener("open-keyboard-shortcuts", handleCustomOpen);
+    window.addEventListener("close-keyboard-shortcuts", handleCustomClose);
     return () => {
       window.removeEventListener("keydown", handleKeyDown);
       window.removeEventListener(
         "toggle-keyboard-shortcuts",
         handleCustomToggle,
       );
+      window.removeEventListener("open-keyboard-shortcuts", handleCustomOpen);
+      window.removeEventListener("close-keyboard-shortcuts", handleCustomClose);
     };
+  }, [isOpen]);
+
+  useEffect(() => {
+    if (isOpen) {
+      closeButtonRef.current?.focus();
+    }
   }, [isOpen]);
 
   return (
@@ -151,7 +183,8 @@ export const KeyboardShortcutsModal: React.FC = () => {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 bg-black/80 backdrop-blur-sm"
-            onClick={() => setIsOpen(false)}
+            onClick={closeModal}
+            data-testid="shortcuts-backdrop"
           />
 
           {/* Modal Container */}
@@ -179,9 +212,11 @@ export const KeyboardShortcutsModal: React.FC = () => {
                 </h2>
               </div>
               <button
-                onClick={() => setIsOpen(false)}
+                ref={closeButtonRef}
+                onClick={closeModal}
                 className="p-1.5 rounded-md border-2 border-transparent hover:border-black bg-transparent text-[#6b5a49] hover:text-[#f0ebe2] hover:bg-[#2e2924] transition-all"
                 aria-label="Close shortcuts modal"
+                data-testid="close-shortcuts-button"
               >
                 <X className="w-5 h-5" />
               </button>
