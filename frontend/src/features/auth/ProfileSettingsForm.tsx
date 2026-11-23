@@ -3,6 +3,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import * as z from "zod";
 import { fetchApi } from "../../lib/api";
+import { ApiError } from "../../lib/apiErrors";
 import { getAccessToken } from "../../lib/authToken";
 import { useAuth } from "./AuthContext";
 import { useToast } from "../ui/ToastContext";
@@ -11,6 +12,10 @@ import { CoverUploadDropzone } from "../../components/ui/CoverUploadDropzone";
 import { useWebPush } from "../../hooks/useWebPush";
 import { useUnsavedChanges } from "../../hooks/useUnsavedChanges";
 import { UnsavedChangesDialog } from "../../components/ui/UnsavedChangesDialog";
+import {
+  ValidationSummary,
+  ValidationErrorItem,
+} from "../../components/ui/ValidationSummary";
 
 interface UserSession {
   session_id: string;
@@ -156,6 +161,17 @@ interface ProfileSettingsFormProps {
   onChange?: (values: any) => void;
 }
 
+const FIELD_LABELS: Record<string, string> = {
+  first_name: "Display Name",
+  email: "Email Address",
+  bio: "Bio",
+  password: "New Password",
+  timezone: "Timezone",
+  github_url: "GitHub URL",
+  linkedin_url: "LinkedIn URL",
+  twitter_url: "Twitter URL",
+};
+
 export function ProfileSettingsForm({ onChange }: ProfileSettingsFormProps) {
   const { user, checkUser } = useAuth();
   const { addToast } = useToast();
@@ -172,7 +188,8 @@ export function ProfileSettingsForm({ onChange }: ProfileSettingsFormProps) {
     handleSubmit,
     reset,
     watch,
-    formState: { errors, isDirty },
+    setError,
+    formState: { errors, submitCount, isDirty },
   } = useForm<ProfileFormValues>({
     resolver: zodResolver(profileSchema),
     defaultValues: {
@@ -187,6 +204,33 @@ export function ProfileSettingsForm({ onChange }: ProfileSettingsFormProps) {
       github_url: user?.github_url || "",
     },
   });
+
+  const validationSummaryErrors = React.useMemo(() => {
+    const list: ValidationErrorItem[] = [];
+    (Object.keys(errors) as (keyof ProfileFormValues)[]).forEach((field) => {
+      const err = errors[field];
+      if (err?.message) {
+        list.push({
+          fieldId: field,
+          label: FIELD_LABELS[field] || field,
+          message: err.message,
+        });
+      }
+    });
+    return list;
+  }, [errors]);
+
+  const summaryRef = useRef<HTMLDivElement>(null);
+  const prevSubmitCountRef = useRef(submitCount);
+
+  useEffect(() => {
+    if (submitCount > prevSubmitCountRef.current) {
+      prevSubmitCountRef.current = submitCount;
+      if (validationSummaryErrors.length > 0) {
+        summaryRef.current?.focus();
+      }
+    }
+  }, [submitCount, validationSummaryErrors.length]);
 
   const hasUnsavedChanges =
     isDirty || selectedAvatar !== null || selectedCover !== null;
@@ -284,6 +328,20 @@ export function ProfileSettingsForm({ onChange }: ProfileSettingsFormProps) {
       setSelectedAvatar(null);
       setSelectedCover(null);
     } catch (error: unknown) {
+      if (error instanceof ApiError && error.fieldErrors) {
+        for (const [field, msgs] of Object.entries(error.fieldErrors)) {
+          if (msgs && msgs.length > 0) {
+            setError(field as any, {
+              type: "server",
+              message: msgs[0],
+            });
+          }
+        }
+        setTimeout(() => {
+          summaryRef.current?.focus();
+        }, 0);
+      }
+
       const message =
         error instanceof Error
           ? error.message
@@ -333,6 +391,12 @@ export function ProfileSettingsForm({ onChange }: ProfileSettingsFormProps) {
   return (
     <>
       <form className="space-y-6 pt-2" onSubmit={handleSubmit(onSubmit)}>
+        <ValidationSummary
+          ref={summaryRef}
+          id="profile-validation-summary"
+          errors={validationSummaryErrors}
+        />
+
         <CoverUploadDropzone
           currentCoverUrl={user?.cover_image_url}
           onFileSelect={(file) => setSelectedCover(file)}
@@ -352,6 +416,10 @@ export function ProfileSettingsForm({ onChange }: ProfileSettingsFormProps) {
           <input
             id="first_name"
             {...register("first_name")}
+            aria-invalid={errors.first_name ? true : undefined}
+            aria-describedby={
+              errors.first_name ? "first_name-error" : undefined
+            }
             className={`w-full rounded-2xl border-4 border-black bg-white px-5 py-4 text-black font-bold outline-none placeholder:text-muted/60 focus:bg-accent shadow-card-sm transition-all focus:-translate-y-1 focus:shadow-card ${
               errors.first_name ? "border-red-500" : ""
             }`}
@@ -361,7 +429,11 @@ export function ProfileSettingsForm({ onChange }: ProfileSettingsFormProps) {
             disabled={loading}
           />
           {errors.first_name && (
-            <p role="alert" className="text-red-600 font-bold ml-2 text-sm">
+            <p
+              id="first_name-error"
+              role="alert"
+              className="text-red-600 font-bold ml-2 text-sm"
+            >
               {errors.first_name.message}
             </p>
           )}
@@ -377,6 +449,8 @@ export function ProfileSettingsForm({ onChange }: ProfileSettingsFormProps) {
           <input
             id="email"
             {...register("email")}
+            aria-invalid={errors.email ? true : undefined}
+            aria-describedby={errors.email ? "email-error" : undefined}
             className={`w-full rounded-2xl border-4 border-black bg-white px-5 py-4 text-black font-bold outline-none placeholder:text-muted/60 focus:bg-accent shadow-card-sm transition-all focus:-translate-y-1 focus:shadow-card ${
               errors.email ? "border-red-500" : ""
             }`}
@@ -385,7 +459,11 @@ export function ProfileSettingsForm({ onChange }: ProfileSettingsFormProps) {
             disabled={loading}
           />
           {errors.email && (
-            <p role="alert" className="text-red-600 font-bold ml-2 text-sm">
+            <p
+              id="email-error"
+              role="alert"
+              className="text-red-600 font-bold ml-2 text-sm"
+            >
               {errors.email.message}
             </p>
           )}
@@ -401,6 +479,8 @@ export function ProfileSettingsForm({ onChange }: ProfileSettingsFormProps) {
           <textarea
             id="bio"
             {...register("bio")}
+            aria-invalid={errors.bio ? true : undefined}
+            aria-describedby={errors.bio ? "bio-error" : undefined}
             rows={5}
             className={`w-full rounded-2xl border-4 border-black bg-white px-5 py-4 text-black font-bold outline-none placeholder:text-muted/60 focus:bg-accent shadow-card-sm transition-all focus:-translate-y-1 focus:shadow-card ${
               errors.bio ? "border-red-500" : ""
@@ -409,7 +489,11 @@ export function ProfileSettingsForm({ onChange }: ProfileSettingsFormProps) {
             disabled={loading}
           />
           {errors.bio && (
-            <p role="alert" className="text-red-600 font-bold ml-2 text-sm">
+            <p
+              id="bio-error"
+              role="alert"
+              className="text-red-600 font-bold ml-2 text-sm"
+            >
               {errors.bio.message}
             </p>
           )}
@@ -425,6 +509,8 @@ export function ProfileSettingsForm({ onChange }: ProfileSettingsFormProps) {
           <input
             id="password"
             {...register("password")}
+            aria-invalid={errors.password ? true : undefined}
+            aria-describedby={errors.password ? "password-error" : undefined}
             className={`w-full rounded-2xl border-4 border-black bg-white px-5 py-4 text-black font-bold outline-none placeholder:text-muted/60 focus:bg-tertiary shadow-card-sm transition-all focus:-translate-y-1 focus:shadow-card ${
               errors.password ? "border-red-500" : ""
             }`}
@@ -433,7 +519,11 @@ export function ProfileSettingsForm({ onChange }: ProfileSettingsFormProps) {
             disabled={loading}
           />
           {errors.password && (
-            <p role="alert" className="text-red-600 font-bold ml-2 text-sm">
+            <p
+              id="password-error"
+              role="alert"
+              className="text-red-600 font-bold ml-2 text-sm"
+            >
               {errors.password.message}
             </p>
           )}
@@ -449,6 +539,8 @@ export function ProfileSettingsForm({ onChange }: ProfileSettingsFormProps) {
           <select
             id="timezone"
             {...register("timezone")}
+            aria-invalid={errors.timezone ? true : undefined}
+            aria-describedby={errors.timezone ? "timezone-error" : undefined}
             className={`w-full rounded-2xl border-4 border-black bg-white px-5 py-4 text-black font-bold outline-none shadow-card-sm transition-all focus:-translate-y-1 focus:shadow-card focus:bg-accent ${
               errors.timezone ? "border-red-500" : ""
             }`}
@@ -462,7 +554,11 @@ export function ProfileSettingsForm({ onChange }: ProfileSettingsFormProps) {
             ))}
           </select>
           {errors.timezone && (
-            <p role="alert" className="text-red-600 font-bold ml-2 text-sm">
+            <p
+              id="timezone-error"
+              role="alert"
+              className="text-red-600 font-bold ml-2 text-sm"
+            >
               {errors.timezone.message}
             </p>
           )}
@@ -478,6 +574,10 @@ export function ProfileSettingsForm({ onChange }: ProfileSettingsFormProps) {
           <input
             id="github_url"
             {...register("github_url")}
+            aria-invalid={errors.github_url ? true : undefined}
+            aria-describedby={
+              errors.github_url ? "github_url-error" : undefined
+            }
             className={`w-full rounded-2xl border-4 border-black bg-white px-5 py-4 text-black font-bold outline-none placeholder:text-muted/60 focus:bg-accent shadow-card-sm transition-all focus:-translate-y-1 focus:shadow-card ${
               errors.github_url ? "border-red-500" : ""
             }`}
@@ -486,7 +586,11 @@ export function ProfileSettingsForm({ onChange }: ProfileSettingsFormProps) {
             disabled={loading}
           />
           {errors.github_url && (
-            <p role="alert" className="text-red-600 font-bold ml-2 text-sm">
+            <p
+              id="github_url-error"
+              role="alert"
+              className="text-red-600 font-bold ml-2 text-sm"
+            >
               {errors.github_url.message}
             </p>
           )}
@@ -502,6 +606,10 @@ export function ProfileSettingsForm({ onChange }: ProfileSettingsFormProps) {
           <input
             id="linkedin_url"
             {...register("linkedin_url")}
+            aria-invalid={errors.linkedin_url ? true : undefined}
+            aria-describedby={
+              errors.linkedin_url ? "linkedin_url-error" : undefined
+            }
             className={`w-full rounded-2xl border-4 border-black bg-white px-5 py-4 text-black font-bold outline-none placeholder:text-muted/60 focus:bg-accent shadow-card-sm transition-all focus:-translate-y-1 focus:shadow-card ${
               errors.linkedin_url ? "border-red-500" : ""
             }`}
@@ -510,7 +618,11 @@ export function ProfileSettingsForm({ onChange }: ProfileSettingsFormProps) {
             disabled={loading}
           />
           {errors.linkedin_url && (
-            <p role="alert" className="text-red-600 font-bold ml-2 text-sm">
+            <p
+              id="linkedin_url-error"
+              role="alert"
+              className="text-red-600 font-bold ml-2 text-sm"
+            >
               {errors.linkedin_url.message}
             </p>
           )}
@@ -526,6 +638,10 @@ export function ProfileSettingsForm({ onChange }: ProfileSettingsFormProps) {
           <input
             id="twitter_url"
             {...register("twitter_url")}
+            aria-invalid={errors.twitter_url ? true : undefined}
+            aria-describedby={
+              errors.twitter_url ? "twitter_url-error" : undefined
+            }
             className={`w-full rounded-2xl border-4 border-black bg-white px-5 py-4 text-black font-bold outline-none placeholder:text-muted/60 focus:bg-accent shadow-card-sm transition-all focus:-translate-y-1 focus:shadow-card ${
               errors.twitter_url ? "border-red-500" : ""
             }`}
@@ -534,7 +650,11 @@ export function ProfileSettingsForm({ onChange }: ProfileSettingsFormProps) {
             disabled={loading}
           />
           {errors.twitter_url && (
-            <p role="alert" className="text-red-600 font-bold ml-2 text-sm">
+            <p
+              id="twitter_url-error"
+              role="alert"
+              className="text-red-600 font-bold ml-2 text-sm"
+            >
               {errors.twitter_url.message}
             </p>
           )}
