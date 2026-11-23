@@ -35,8 +35,18 @@ class Migration(migrations.Migration):
                         blank=True, default="", max_length=255
                     ),
                 ),
-                ("is_enabled", models.BooleanField(default=False)),
-                ("auto_provision", models.BooleanField(default=True)),
+                (
+                    "is_enabled",
+                    models.BooleanField(
+                        default=False  # pyright: ignore[reportArgumentType]
+                    ),
+                ),
+                (
+                    "auto_provision",
+                    models.BooleanField(
+                        default=True  # pyright: ignore[reportArgumentType]
+                    ),
+                ),
                 ("created_at", models.DateTimeField(auto_now_add=True)),
                 ("updated_at", models.DateTimeField(auto_now=True)),
                 (
