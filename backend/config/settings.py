@@ -1206,6 +1206,22 @@ NOTIFICATION_FAILED_RETENTION_DAYS = int(
     os.getenv("NOTIFICATION_FAILED_RETENTION_DAYS", "180")
 )
 
+# ── Notification outbox (see docs/NOTIFICATION_OUTBOX.md) ──
+# Hand-off tries a queued notification gets before it is dead-lettered.
+NOTIFICATION_OUTBOX_MAX_ATTEMPTS = int(
+    os.getenv("NOTIFICATION_OUTBOX_MAX_ATTEMPTS", "5")
+)
+# A worker holding an outbox row for longer than this is assumed to have died.
+NOTIFICATION_OUTBOX_LEASE_SECONDS = int(
+    os.getenv("NOTIFICATION_OUTBOX_LEASE_SECONDS", "120")
+)
+# First retry delay after a failed hand-off; doubles each time, capped at one hour.
+NOTIFICATION_OUTBOX_BACKOFF_SECONDS = int(
+    os.getenv("NOTIFICATION_OUTBOX_BACKOFF_SECONDS", "30")
+)
+# Rows claimed per dispatcher batch.
+NOTIFICATION_OUTBOX_BATCH_SIZE = int(os.getenv("NOTIFICATION_OUTBOX_BATCH_SIZE", "100"))
+
 # ── Background job leases (see docs/JOB_OPERATIONS.md) ──
 # A running task with no time_limit that has not finished or sent a heartbeat for this long
 # is marked STUCK by the reaper. Tasks with a time_limit get that limit plus a short grace.
@@ -1281,6 +1297,10 @@ CELERY_BEAT_SCHEDULE = {
     "recover-stale-notification-deliveries": {
         "task": "apps.notifications.tasks.recover_stale_deliveries",
         "schedule": 300.0,
+    },
+    "dispatch-notification-outbox": {
+        "task": "apps.notifications.tasks.dispatch_notification_outbox",
+        "schedule": 30.0,
     },
     "purge-notification-ledger": {
         "task": "apps.notifications.tasks.purge_notification_ledger_task",

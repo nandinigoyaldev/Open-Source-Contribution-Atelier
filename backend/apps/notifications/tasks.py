@@ -931,10 +931,65 @@ def recover_stale_deliveries(limit: int = 500):
 
 @shared_task
 def purge_notification_ledger_task():
-    """Periodic task: apply the retention windows to the delivery ledger."""
+    """Periodic task: apply the retention windows to the delivery ledger (and the outbox)."""
+    from apps.notifications.outbox import purge_dispatched
     from apps.notifications.retention import purge_notification_ledger
 
-    return purge_notification_ledger()
+    counts = purge_notification_ledger()
+    counts["outbox"] = purge_dispatched()
+    return counts
+
+
+@shared_task
+def dispatch_outbox_row(row_id: int):
+    """Fast path after commit: hand one outbox row to the delivery ledger (see ``outbox.py``)."""
+    from apps.notifications.outbox import dispatch_one
+
+    return dispatch_one(row_id)
+
+
+@shared_task
+def dispatch_notification_outbox(limit: Optional[int] = None):
+    """
+    Periodic task: claim due outbox rows and hand them to the delivery ledger. Covers rows whose
+    fast-path task was never queued or run, retries that are due, and rows left by a dead worker.
+    """
+    from apps.notifications.outbox import dispatch_due
+
+    summary = dispatch_due(limit=limit)
+    if summary["claimed"]:
+        logger.info("Notification outbox sweep: %s", summary)
+    return summary
+
+
+def _start_delivery(delivery, payload) -> None:
+    """Run the delivery now (eager mode, tests) or queue it for a worker."""
+    if getattr(settings, "CELERY_TASK_ALWAYS_EAGER", True) or getattr(
+        settings, "TESTING", False
+    ):
+        try:
+            process_notification_delivery(delivery.id, payload)
+            delivery.refresh_from_db()
+        except Exception as exc:
+            logger.error(
+                "Error processing delivery #%s synchronously: %s",
+                delivery.id,
+                exc,
+            )
+    else:
+        try:
+            process_notification_delivery.delay(delivery.id, payload)
+        except Exception as e:
+            logger.warning("Caught exception: %s", e)
+            process_notification_delivery(delivery.id, payload)
+            delivery.refresh_from_db()
+
+
+def start_deliveries(deliveries) -> None:
+    """Start every still-pending delivery of a ``dispatch_notification(..., deliver=False)`` call."""
+    for delivery in deliveries:
+        if delivery.status == "pending":
+            _start_delivery(delivery, None)
 
 
 def dispatch_notification(
@@ -945,9 +1000,14 @@ def dispatch_notification(
     meta: Optional[dict] = None,
     sender=None,
     dedupe_key: Optional[str] = None,
+    deliver: bool = True,
 ):
     """
     Create the notification and one delivery per enabled channel, then start delivering.
+
+    With ``deliver=False`` the rows are written but nothing is sent: the caller starts the
+    deliveries itself (``start_deliveries``). The outbox dispatcher does this so that no channel
+    is touched while its own transaction is still open.
 
     Pass ``dedupe_key`` (see ``apps.notifications.delivery.make_dedupe_key``) to make the call
     idempotent: dispatching the same key for the same recipient again, for example because a
@@ -1045,27 +1105,9 @@ def dispatch_notification(
             )
         raise
 
-    for delivery in deliveries:
-        payload = payloads[delivery.id]
-        if getattr(settings, "CELERY_TASK_ALWAYS_EAGER", True) or getattr(
-            settings, "TESTING", False
-        ):
-            try:
-                process_notification_delivery(delivery.id, payload)
-                delivery.refresh_from_db()
-            except Exception as exc:
-                logger.error(
-                    "Error processing delivery #%s synchronously: %s",
-                    delivery.id,
-                    exc,
-                )
-        else:
-            try:
-                process_notification_delivery.delay(delivery.id, payload)
-            except Exception as e:
-                logger.warning("Caught exception: %s", e)
-                process_notification_delivery(delivery.id, payload)
-                delivery.refresh_from_db()
+    if deliver:
+        for delivery in deliveries:
+            _start_delivery(delivery, payloads[delivery.id])
 
     return deliveries
 

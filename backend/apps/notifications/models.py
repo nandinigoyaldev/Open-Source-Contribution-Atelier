@@ -2,6 +2,7 @@ import datetime
 
 from django.contrib.auth import get_user_model
 from django.db import models
+from django.utils import timezone
 
 User = get_user_model()
 
@@ -299,3 +300,88 @@ class NotificationAttempt(models.Model):
 
     def __str__(self):
         return f"Attempt {self.attempt_number} of delivery #{self.delivery_id}: {self.outcome}"
+
+
+class NotificationOutbox(models.Model):
+    """
+    A notification *intent*, written in the same database transaction as the change that caused it.
+
+    ``apps.notifications.outbox.enqueue_notification`` inserts a row here instead of notifying
+    straight away. If the surrounding transaction rolls back the row goes with it; if it commits
+    the row is durable and a dispatcher (``dispatch_notification_outbox``) hands it to the delivery
+    ledger (``dispatch_notification`` -> ``NotificationDelivery``), which does the channel work.
+
+    Life of a row: ``pending`` -> ``processing`` (claimed by a worker, with a lease) ->
+    ``dispatched``. A failed hand-off goes back to ``pending`` with a later ``next_attempt_at``,
+    and after ``NOTIFICATION_OUTBOX_MAX_ATTEMPTS`` tries (or a permanent error) it is ``dead``.
+    """
+
+    STATUS_CHOICES = [
+        ("pending", "Pending"),
+        ("processing", "Processing"),
+        ("dispatched", "Dispatched to the delivery ledger"),
+        ("dead", "Dead-lettered"),
+    ]
+
+    objects = models.Manager()
+
+    recipient = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="notification_outbox"
+    )
+    sender = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+    )
+    notif_type = models.CharField(max_length=50)
+    title = models.CharField(max_length=255)
+    message = models.TextField()
+    meta = models.JSONField(default=dict, blank=True)
+    # Where the intent came from, e.g. "progress.UserBadge:12"; only for humans and reconciliation.
+    source = models.CharField(max_length=255, blank=True)
+    # Same (recipient, key) is enqueued once. It is also the ``dedupe_key`` of the deliveries made
+    # from this row, so a retry after a crash cannot notify twice.
+    idempotency_key = models.CharField(max_length=128)
+
+    status = models.CharField(
+        max_length=12, choices=STATUS_CHOICES, default="pending", db_index=True
+    )
+    attempts = models.PositiveIntegerField(
+        default=0  # pyright: ignore[reportArgumentType]
+    )
+    next_attempt_at = models.DateTimeField(default=timezone.now)
+    locked_at = models.DateTimeField(null=True, blank=True)
+    locked_by = models.CharField(max_length=64, blank=True)
+    # "transient" or "permanent" for the last failure; empty while healthy.
+    error_class = models.CharField(max_length=20, blank=True)
+    last_error = models.TextField(blank=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+    dispatched_at = models.DateTimeField(null=True, blank=True)
+    dead_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["id"]
+        indexes = [
+            models.Index(
+                fields=["status", "next_attempt_at"], name="idx_outbox_status_next"
+            ),
+            models.Index(
+                fields=["status", "created_at"], name="idx_outbox_status_created"
+            ),
+        ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["recipient", "idempotency_key"],
+                name="uniq_outbox_recipient_key",
+            )
+        ]
+
+    def __str__(self):
+        recipient_id = getattr(self, "recipient_id", None)
+        return (
+            f"Outbox #{self.pk} [{self.notif_type}] -> {recipient_id} ({self.status})"
+        )

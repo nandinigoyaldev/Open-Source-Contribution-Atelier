@@ -9,3 +9,6 @@ class NotificationsConfig(AppConfig):
     def ready(self):
         import apps.notifications.mentions  # noqa: F401
         import apps.notifications.signals  # noqa: F401
+        from apps.notifications.metrics import register_outbox_collector
+
+        register_outbox_collector()

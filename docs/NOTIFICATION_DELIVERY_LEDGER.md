@@ -2,6 +2,8 @@
 
 How a notification gets from `dispatch_notification()` to a channel, how every try is written down, and what happens when something goes wrong. Code: `backend/apps/notifications/` (`tasks.py`, `delivery.py`, `retention.py`, `models.py`).
 
+To record the notification in the same transaction as the change that causes it, enqueue it through the [notification outbox](NOTIFICATION_OUTBOX.md) instead of calling `dispatch_notification()` directly.
+
 ## The two tables
 
 | Table | One row per | Says |
