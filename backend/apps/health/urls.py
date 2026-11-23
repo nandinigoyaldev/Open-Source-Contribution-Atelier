@@ -11,6 +11,7 @@ app_name = "health"
 urlpatterns = [
     path("", views.health_view, name="health"),
     path("ready/", views.health_ready_view, name="health-ready"),
+    path("worker-ready/", views.worker_readiness_view, name="worker-ready"),
     path("live/", views.health_live_view, name="health-live"),
     path("db/", views.db_health_view, name="health-db"),
     path(
