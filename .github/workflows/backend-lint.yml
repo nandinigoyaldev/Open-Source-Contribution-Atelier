@@ -16,6 +16,8 @@ on:
       - "pyproject.toml"
       - "pyrightconfig.json"
       - "scripts/ci/pyright_regressions.py"
+      - "scripts/ci/check_migration_locks.py"
+      - "scripts/tests/test_check_migration_locks.py"
       - ".github/workflows/backend-lint.yml"
   workflow_dispatch:
 
@@ -30,6 +32,26 @@ env:
   PYRIGHT_VERSION: "1.1.390"
 
 jobs:
+  migration-locks:
+    name: PostgreSQL migration locks
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - name: Test the migration check
+        run: |
+          python -m pip install pytest
+          python -m pytest scripts/tests/test_check_migration_locks.py -q -p no:cacheprovider --rootdir=. -c /dev/null
+      - name: Check newly added migrations
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        run: python scripts/ci/check_migration_locks.py --base "$BASE_SHA"
+
   format:
     name: Black and isort
     runs-on: ubuntu-latest
