@@ -18,7 +18,9 @@ class SecurityViolation(Exception):
 
 
 class QuotaViolation(Exception):
-    pass
+    def __init__(self, message: str, violation_type: str = "quota"):
+        super().__init__(message)
+        self.violation_type = violation_type
 
 
 class ResourceManagementEngine:
