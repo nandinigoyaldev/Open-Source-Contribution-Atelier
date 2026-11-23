@@ -257,3 +257,10 @@ tokeninfo/userinfo endpoints and issues a JWT.
 See [`docs/GOOGLE_LOGIN.md`](GOOGLE_LOGIN.md) for the Google Cloud Console
 setup, the required environment variables, and a troubleshooting table for
 every error code the endpoint can return.
+
+## Single sign-on for organizations (OIDC)
+
+A managed organization can let its members sign in with the organization's own
+OpenID Connect provider (Okta, Entra ID, Keycloak, Google Workspace and so on).
+See [`docs/ORGANIZATION_OIDC_SSO.md`](ORGANIZATION_OIDC_SSO.md) for the setup,
+the endpoints, the account linking rules and the error codes.
