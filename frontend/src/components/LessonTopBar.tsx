@@ -16,10 +16,11 @@ export function LessonTopBar({
 }: LessonTopBarProps) {
   return (
     <header
-      className={`h-[72px] border-b-4 border-black dark:border-[#2e2924] bg-white dark:bg-[#0f0e0c] flex items-center justify-between gap-2 px-3 sm:px-6 flex-shrink-0 z-40 transition-all duration-300 transform ${
+      inert={isZenMode}
+      className={`border-black dark:border-[#2e2924] bg-white dark:bg-[#0f0e0c] flex items-center justify-between gap-2 px-3 sm:px-6 flex-shrink-0 z-40 transition-all duration-300 transform ${
         isZenMode
-          ? "-translate-y-full h-0 p-0 overflow-hidden opacity-0"
-          : "translate-y-0"
+          ? "-translate-y-full h-0 overflow-hidden opacity-0"
+          : "translate-y-0 h-[72px] border-b-4"
       }`}
     >
       <div className="flex items-center gap-2 sm:gap-3 min-w-0">

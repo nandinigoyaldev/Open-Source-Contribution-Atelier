@@ -97,6 +97,45 @@ test.describe("a11y smoke matrix", { tag: "@a11y-smoke" }, () => {
     ).toHaveValue("someone_else");
   });
 
+  test("lesson-focus: Zen Mode persists and Escape restores navigation", async ({
+    signedIn: page,
+  }) => {
+    const lesson = makeLesson("focus");
+    await mockLessonApi(page, [lesson]);
+    await page.goto(`/lessons/${lesson.slug}`);
+
+    const toggle = page.getByRole("button", { name: "Zen Mode", exact: true });
+    const dashboard = page.getByRole("link", {
+      name: "Back to Dashboard",
+      includeHidden: true,
+    });
+    const toolbar = page.locator("header").filter({ has: dashboard });
+    await expect(dashboard).toBeVisible();
+    await expect(toggle).toHaveAttribute("aria-pressed", "false");
+
+    await toggle.focus();
+    await page.keyboard.press("Space");
+    await expect(toggle).toHaveAttribute("aria-pressed", "true");
+    await expect(toolbar).toHaveCSS("height", "0px");
+    await dashboard.focus();
+    await expect(dashboard).not.toBeFocused();
+
+    await page.reload();
+    await expect(toggle).toHaveAttribute("aria-pressed", "true");
+    await dashboard.focus();
+    await expect(dashboard).not.toBeFocused();
+
+    await toggle.focus();
+    await page.keyboard.press("Escape");
+    await expect(toggle).toHaveAttribute("aria-pressed", "false");
+    await expect(dashboard).toBeVisible();
+    await dashboard.focus();
+    await expect(dashboard).toBeFocused();
+    await page.reload();
+    await expect(toggle).toHaveAttribute("aria-pressed", "false");
+    await expect(dashboard).toBeVisible();
+  });
+
   test("lesson-open: lesson route puts focus in the terminal input", async ({
     signedIn: page,
     ctx,
