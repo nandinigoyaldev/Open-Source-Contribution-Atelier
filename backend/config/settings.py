@@ -633,6 +633,15 @@ DEFAULT_FROM_EMAIL = os.getenv("DEFAULT_FROM_EMAIL", "noreply@atelier.dev")
 FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
 SITE_NAME = os.getenv("SITE_NAME", "Open Source Contribution Atelier")
 
+# ── Organization OIDC single sign-on (docs/ORGANIZATION_OIDC_SSO.md) ─────────
+# Redirect URI registered at each organization's identity provider. Empty means
+# "build it from the incoming request", which needs a correct Host header.
+OIDC_SSO_REDIRECT_URI = os.getenv("OIDC_SSO_REDIRECT_URI", "").strip()
+# Local development only: allow http:// providers and private/loopback hosts.
+OIDC_SSO_ALLOW_LOCAL_PROVIDERS = os.getenv(
+    "OIDC_SSO_ALLOW_LOCAL_PROVIDERS", "False"
+).lower() in {"1", "true", "yes", "on"}
+
 # ── Proxy / Load-Balancer Support ─────────────────────────────────────────────
 # Number of trusted proxy hops in front of Django (e.g. Nginx + AWS ALB = 2).
 # Used by throttles.py to extract the real client IP from X-Forwarded-For.
