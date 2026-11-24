@@ -395,6 +395,7 @@ MIDDLEWARE = [
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
+    "apps.accounts.permissions.StepUpAuthMiddleware",
     "apps.core.middleware.tenant.TenantContextMiddleware",  # tenant scoping (issue #1940)
     "apps.audit.middleware.AuditContextMiddleware",
     "apps.audit.middleware.AuditContextMiddleware",
