@@ -12,6 +12,7 @@ from .models import (
     WebhookEndpoint,
 )
 from .security import build_signature_headers, compute_signature, serialize_payload
+from .services.safe_client import SafeHTTPClient, SSRFProtectionError
 
 logger = logging.getLogger(__name__)
 
@@ -98,7 +99,7 @@ def dispatch_event(event_type, payload, dedupe_key=None):
 
 def _move_to_dlq(delivery: WebhookDelivery, reason: str) -> None:
     """Move a permanently failed delivery to the Dead Letter Queue."""
-    setattr(delivery, "status", "dead")
+    delivery.status = "dead"
     delivery.save(update_fields=["status", "updated_at"])
     DeadLetterWebhook.objects.get_or_create(
         delivery=delivery,
@@ -193,7 +194,7 @@ def deliver_webhook(delivery_id, attempt=1):
 
     try:
         with cb:
-            response = requests.post(
+            response = SafeHTTPClient.post(
                 endpoint.target_url, data=body, headers=headers, timeout=5
             )
             delivery.status_code = response.status_code
@@ -220,9 +221,30 @@ def deliver_webhook(delivery_id, attempt=1):
             ) and not is_half_open_probe
             failure_reason = f"HTTP {response.status_code}: {response.text[:500]}"
 
+    except SSRFProtectionError as exc:
+        logger.warning(
+            "deliver_webhook: SSRF protection blocked delivery %s to %s: %s",
+            delivery.id,
+            endpoint.target_url,
+            exc,
+        )
+        failure_reason = f"SSRF Blocked: {exc!s}"
+        delivery.status = "dead"
+        delivery.response_body = failure_reason
+        delivery.status_code = None
+        delivery.save(update_fields=["status", "response_body", "updated_at"])
+        WebhookDeliveryLog.objects.create(
+            delivery=delivery,
+            status_code=None,
+            response_body=failure_reason,
+            key_id=active_key_id,
+        )
+        _move_to_dlq(delivery, reason=failure_reason)
+        return
+
     except CircuitOpenError as exc:
         is_retryable = True
-        failure_reason = f"Circuit open: {str(exc)}"
+        failure_reason = f"Circuit open: {exc!s}"
         delivery.response_body = failure_reason
         delivery.status_code = None
         WebhookDeliveryLog.objects.create(

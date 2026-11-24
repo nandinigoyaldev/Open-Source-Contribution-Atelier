@@ -1,13 +1,16 @@
 import json
 
+import requests
 from django.utils import timezone
 from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
+from rest_framework.views import APIView
 
 from .models import DeadLetterWebhook, WebhookDelivery, WebhookEndpoint
 from .serializers import WebhookDeliverySerializer, WebhookEndpointSerializer
+from .services.safe_client import SafeHTTPClient, SSRFProtectionError
 from .tasks import deliver_webhook
 
 # A delivery can be retried by hand only from one of these states.
@@ -238,8 +241,6 @@ class WebhookDeliveryViewSet(viewsets.ReadOnlyModelViewSet):
         return Response({"failed_ratio": ratio, "total": total, "failed": failed})
 
 
-import requests
-from rest_framework.views import APIView
 
 from .security import build_signature_headers, serialize_payload
 
@@ -279,7 +280,7 @@ class TestWebhookView(APIView):
         headers.update(build_signature_headers(secret, body))
 
         try:
-            resp = requests.post(url, data=body, headers=headers, timeout=5)
+            resp = SafeHTTPClient.post(url, data=body, headers=headers, timeout=5)
             return Response(
                 {
                     "success": 200 <= resp.status_code < 300,
@@ -287,6 +288,14 @@ class TestWebhookView(APIView):
                     "response_body": resp.text[:1000],
                 },
                 status=status.HTTP_200_OK,
+            )
+        except SSRFProtectionError as exc:
+            return Response(
+                {
+                    "success": False,
+                    "error": f"SSRF Protection blocked destination URL: {exc!s}",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
             )
         except requests.exceptions.RequestException as exc:
             return Response(

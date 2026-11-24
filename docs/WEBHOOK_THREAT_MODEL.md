@@ -31,6 +31,8 @@ All of them go through `security.check_signature`.
 | Forging with the published default secret | The hard coded fallback key is used only when `DEBUG` is on. Otherwise no key means a 500, not a successful verification. | `test_the_old_public_default_secret_no_longer_forges` |
 | Log forging and secret leaks through the audit trail | Audit lines are one JSON object, sender supplied values are cut to 64 safe characters, and the secret, signature and body are never logged. | `test_reject_writes_one_structured_event_without_secrets`, `test_sender_controlled_values_cannot_forge_log_lines` |
 | Error responses revealing which check failed | Signature, format, key id and legacy problems all return the same 403 message. (Timestamp problems return 400 with their own message.) | `test_decorator_hides_the_reason_behind_one_message` |
+| SSRF and cloud metadata access via target URLs | Outgoing webhook dispatch routes through `SafeHTTPClient`, validating target IPs against private (RFC 1918), loopback, link-local, and cloud metadata (169.254.169.254 / fd00:ec2::254) address ranges. | `test_rejection_of_blocked_ips`, `test_prohibited_hostnames`, `test_deliver_webhook_moves_ssrf_attempt_to_dlq` |
+| DNS rebinding (TOCTOU) attacks on target URLs | Hostnames are resolved pre-connect and pinned via `PinnedIPAdapter` directly to the verified socket IP, preserving the Host header and TLS SNI certificate verification. | `test_pinned_ip_used_in_request_url_and_host_header_preserved` |
 
 ## Not covered
 
@@ -40,6 +42,5 @@ All of them go through `security.check_signature`.
 * **Compromised secret or signing key.** Anyone holding the secret can sign anything. Rotate with `rotate_webhook_signing_key` and remove the old key from `WEBHOOK_SIGNING_KEYS`. Rotation here is a settings change; there is no automatic expiry of retired keys.
 * **Clock attacks on the verifying host.** If the server clock is moved, the window moves with it. Keep NTP on.
 * **Transport.** Signatures do not hide the body. Use HTTPS for `target_url`.
-* **SSRF through `target_url`.** Not part of signature verification and not touched here.
 * **Flooding.** Forged requests are rejected cheaply, but there is no rate limit in this module. Rejects go to the log, not the database, so a flood does not write rows.
 * **`services/signature_signer.HMACSignatureSigner`.** A separate helper that only the tests use. It is still payload-only and was not changed.
