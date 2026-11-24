@@ -572,3 +572,19 @@ class DynamicSaltTokenRefreshSerializer(TokenRefreshSerializer):
     """
 
     token_class = DynamicSaltRefreshToken
+
+
+class StepUpVerifySerializer(serializers.Serializer):
+    """Serializer for step-up verification via password or 2FA TOTP code."""
+
+    password = serializers.CharField(required=False, write_only=True)
+    totp_code = serializers.CharField(required=False, write_only=True)
+
+    def validate(self, attrs):
+        password = attrs.get("password")
+        totp_code = attrs.get("totp_code")
+        if not password and not totp_code:
+            raise serializers.ValidationError(
+                "Either password or totp_code must be provided."
+            )
+        return attrs

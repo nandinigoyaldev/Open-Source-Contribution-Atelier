@@ -25,6 +25,7 @@ from .views import (
     SecureAccountDeleteView,
     ShopStreakFreezeView,
     SignupView,
+    StepUpVerifyView,
     TwoFactorDisableView,
     TwoFactorGenerateBackupCodesView,
     TwoFactorSetupView,
@@ -129,6 +130,7 @@ urlpatterns = [
         name="passkey-register-finish",
     ),
     path("profile/<str:username>/", PublicProfileView.as_view(), name="public-profile"),
+    path("step-up/verify/", StepUpVerifyView.as_view(), name="step-up-verify"),
     path(
         "shop/streak-freeze/", ShopStreakFreezeView.as_view(), name="shop-streak-freeze"
     ),

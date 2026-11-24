@@ -69,6 +69,12 @@ class LoginResponseSchema(UserResponseSchema):
 
 from . import email_verification
 from .models import MagicLinkToken, OTPToken, PasswordResetToken
+from .permissions import (
+    IsRecentAuthentication,
+    generate_step_up_token,
+    is_recently_authenticated,
+    require_recent_authentication,
+)
 from .serializers import (
     EmailOrUsernameTokenObtainPairSerializer,
     MagicLinkRequestSerializer,
@@ -79,6 +85,7 @@ from .serializers import (
     PasswordResetRequestSerializer,
     ResendVerificationSerializer,
     SignupSerializer,
+    StepUpVerifySerializer,
     UserListSerializer,
     UserUpdateSerializer,
 )
@@ -301,14 +308,37 @@ class MeView(APIView):
 
     @extend_schema(request=UserUpdateSerializer, responses=UserListSerializer)
     def put(self, request):
+        email_requested = request.data.get("email")
+        if (
+            email_requested
+            and str(email_requested).lower().strip()
+            != str(request.user.email).lower().strip()
+        ):
+            if not is_recently_authenticated(
+                request, request.user, max_age_seconds=300
+            ):
+                return Response(
+                    {
+                        "error": "step_up_required",
+                        "detail": "Step-up authentication required to change email address.",
+                        "max_age_seconds": 300,
+                    },
+                    status=status.HTTP_403_FORBIDDEN,
+                )
+
         serializer = UserUpdateSerializer(
             request.user, data=request.data, partial=True, context={"request": request}
         )
         serializer.is_valid(raise_exception=True)
+        old_email = request.user.email
         instance = serializer.save()
         instance.refresh_from_db()
         if hasattr(instance, "user_profile"):
             instance.user_profile.refresh_from_db()
+
+        if instance.email != old_email:
+            revoke_user_sessions(instance, notify=True)
+
         response_serializer = UserListSerializer(instance, context={"request": request})
         return Response(response_serializer.data, status=status.HTTP_200_OK)
 
@@ -2058,11 +2088,12 @@ class TwoFactorVerifySetupView(APIView):
 class TwoFactorDisableView(APIView):
     """
     POST /api/auth/2fa/disable/
-    Disable 2FA after password confirmation.
+    Disable 2FA after password confirmation and step-up verification.
     """
 
     permission_classes = [IsAuthenticated]
 
+    @require_recent_authentication(max_age_seconds=300)
     def post(self, request):
         serializer = TwoFactorDisableSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
@@ -2077,6 +2108,9 @@ class TwoFactorDisableView(APIView):
 
         if hasattr(user, "totp_device"):
             user.totp_device.delete()
+
+        # Invalidate sessions upon 2FA removal
+        revoke_user_sessions(user, notify=True)
 
         return Response(
             {"status": "2FA disabled successfully", "is_enabled": False},
@@ -2143,6 +2177,71 @@ class TwoFactorGenerateBackupCodesView(APIView):
             {
                 "backup_codes": plain_backup_codes,
                 "status": "New backup codes generated successfully",
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+class StepUpVerifyView(APIView):
+    """
+    POST /api/auth/step-up/verify/
+    Verify user password or TOTP to issue a short-lived step_up_token (valid for 5 minutes).
+    """
+
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(
+        request=StepUpVerifySerializer,
+        responses={
+            200: OpenApiResponse(
+                description="Step-up authentication verified; token issued."
+            )
+        },
+    )
+    def post(self, request):
+        serializer = StepUpVerifySerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        user = request.user
+        password = serializer.validated_data.get("password")
+        totp_code = serializer.validated_data.get("totp_code")
+
+        authenticated = False
+        if password:
+            if user.check_password(password):
+                authenticated = True
+            else:
+                return Response(
+                    {"error": "Invalid password."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+        elif totp_code:
+            totp_device = getattr(user, "totp_device", None)
+            if not totp_device or not totp_device.is_enabled:
+                return Response(
+                    {"error": "2FA is not enabled on this account."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+            if totp_device.verify_token(totp_code):
+                authenticated = True
+            else:
+                return Response(
+                    {"error": "Invalid 2FA code."},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
+        if not authenticated:
+            return Response(
+                {"error": "Authentication failed."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        token = generate_step_up_token(user, max_age_seconds=300)
+        return Response(
+            {
+                "status": "step-up authentication successful",
+                "step_up_token": token,
+                "expires_in": 300,
             },
             status=status.HTTP_200_OK,
         )
