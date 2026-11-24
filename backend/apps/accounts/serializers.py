@@ -473,6 +473,26 @@ class PasswordResetRequestSerializer(serializers.Serializer):
     """Accept an email address to trigger a password reset email."""
 
     email = serializers.EmailField()
+    # Honeypot fields to trap scrapers / automated enumeration bots (Issue #3550)
+    website = serializers.CharField(
+        required=False, allow_blank=True, default="", write_only=True
+    )
+    honeypot = serializers.CharField(
+        required=False, allow_blank=True, default="", write_only=True
+    )
+
+
+class CheckUsernameSerializer(serializers.Serializer):
+    """Validate username availability check queries and trap bots with honeypots (Issue #3550)."""
+
+    username = serializers.CharField(min_length=3, max_length=150)
+    # Honeypot fields to trap scrapers / automated enumeration bots
+    website = serializers.CharField(
+        required=False, allow_blank=True, default="", write_only=True
+    )
+    honeypot = serializers.CharField(
+        required=False, allow_blank=True, default="", write_only=True
+    )
 
 
 class PasswordResetConfirmSerializer(serializers.Serializer):

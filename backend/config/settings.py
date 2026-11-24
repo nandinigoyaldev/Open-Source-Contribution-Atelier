@@ -702,6 +702,8 @@ REST_FRAMEWORK = {
         "auth_category": RATE_LIMIT_AUTH_CATEGORY,
         "api_read": RATE_LIMIT_API_READS,
         "api_write": RATE_LIMIT_API_WRITES,
+        # Anti-enumeration rate limiting (Issue #3550): 3 requests / 15 minutes
+        "anti_enumeration": os.getenv("RATE_LIMIT_ANTI_ENUMERATION", "3/15m"),
         # ── Sandbox ──────────────────────────────────────────────────────────
         "sandbox_anon": "10/minute",
         "sandbox_user": "10/minute",

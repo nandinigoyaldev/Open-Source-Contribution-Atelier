@@ -4,6 +4,7 @@ logger = logging.getLogger(__name__)
 import base64
 import hashlib
 import os
+import random
 import secrets
 import time
 from pathlib import Path
@@ -67,9 +68,12 @@ class LoginResponseSchema(UserResponseSchema):
     pass
 
 
+from apps.core.throttling import AntiEnumerationThrottle
+
 from . import email_verification
 from .models import MagicLinkToken, OTPToken, PasswordResetToken
 from .serializers import (
+    CheckUsernameSerializer,
     EmailOrUsernameTokenObtainPairSerializer,
     MagicLinkRequestSerializer,
     MagicLinkVerifySerializer,
@@ -1059,11 +1063,15 @@ class PasswordResetRequestView(APIView):
 
     Accept an email address and send a password reset link if the account exists.
     Always returns the same response to prevent email enumeration attacks.
-    Rate-limited to 3 requests/hour per IP.
+    Rate-limited by AntiEnumerationThrottle (3 requests / 15 minutes per IP).
     """
 
     permission_classes = [permissions.AllowAny]
-    throttle_classes = [PasswordResetThrottle, StrictIdentityPasswordResetThrottle]
+    throttle_classes = [
+        AntiEnumerationThrottle,
+        PasswordResetThrottle,
+        StrictIdentityPasswordResetThrottle,
+    ]
 
     def throttled(self, request, wait):
         record_password_reset_rate_limited(
@@ -1077,7 +1085,22 @@ class PasswordResetRequestView(APIView):
         serializer = PasswordResetRequestSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
+        # Honeypot trap check: if bot filled honeypot fields, silently return 200 without queuing
+        if serializer.validated_data.get("website") or serializer.validated_data.get(
+            "honeypot"
+        ):
+            time.sleep(random.uniform(0.04, 0.08))
+            return Response(
+                {
+                    "message": "If an account with that email exists, a password reset link has been sent."
+                },
+                status=status.HTTP_200_OK,
+            )
+
         email = serializer.validated_data["email"].lower()  # type: ignore
+
+        # Side-channel timing jitter to normalize lookup response time
+        time.sleep(random.uniform(0.04, 0.08))
 
         # Nothing here looks at whether the account exists. That all happens in the
         # queued task, so the response and its timing are the same either way.
@@ -1090,6 +1113,58 @@ class PasswordResetRequestView(APIView):
         return Response(
             {
                 "message": "If an account with that email exists, a password reset link has been sent."
+            },
+            status=status.HTTP_200_OK,
+        )
+
+
+@extend_schema(
+    request=CheckUsernameSerializer,
+    responses={
+        200: OpenApiResponse(description="Username availability status returned."),
+    },
+)
+class CheckUsernameView(APIView):
+    """
+    POST /api/auth/check-username/
+    POST /api/accounts/check-username/
+
+    Check whether a username is available for registration.
+    Protected by AntiEnumerationThrottle (3 requests / 15 minutes per IP),
+    honeypot trap fields, and timing jitter to prevent automated user enumeration.
+    """
+
+    permission_classes = [permissions.AllowAny]
+    throttle_classes = [AntiEnumerationThrottle]
+
+    def post(self, request):
+        serializer = CheckUsernameSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        # Honeypot trap check
+        if serializer.validated_data.get("website") or serializer.validated_data.get(
+            "honeypot"
+        ):
+            time.sleep(random.uniform(0.04, 0.08))
+            return Response(
+                {
+                    "available": False,
+                    "username": serializer.validated_data.get("username", ""),
+                },
+                status=status.HTTP_200_OK,
+            )
+
+        username = serializer.validated_data["username"].strip()
+
+        # Side-channel timing jitter to normalize lookup times
+        time.sleep(random.uniform(0.04, 0.08))
+
+        is_taken = User.objects.filter(username__iexact=username).exists()
+
+        return Response(
+            {
+                "available": not is_taken,
+                "username": username,
             },
             status=status.HTTP_200_OK,
         )
