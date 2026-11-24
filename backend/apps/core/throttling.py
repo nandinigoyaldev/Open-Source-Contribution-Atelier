@@ -1,5 +1,6 @@
 import logging
 import math
+import re
 import time
 import uuid
 from typing import Optional, TypedDict
@@ -235,6 +236,52 @@ class SlidingWindowThrottle(SimpleRateThrottle):
             wait_time = duration - (self.now - self.oldest_score)
             return max(1, int(wait_time))
         return super().wait()
+
+    def parse_rate(self, rate):
+        """
+        Given the request rate string, return a two tuple of:
+        <allowed number of requests>, <period of time in seconds>
+
+        Extends DRF's parse_rate to support multipliers such as '3/15m' or '10/5m'.
+        """
+        if rate is None:
+            return (None, None)
+        try:
+            num, period = rate.split("/")
+            num_requests = int(num)
+
+            match = re.match(r"^(\d+)?([smhd])", period.lower())
+            if match:
+                multiplier = int(match.group(1)) if match.group(1) else 1
+                unit = match.group(2)
+                base = {"s": 1, "m": 60, "h": 3600, "d": 86400}[unit]
+                return (num_requests, multiplier * base)
+
+            duration = {"s": 1, "m": 60, "h": 3600, "d": 86400}[period[0]]
+            return (num_requests, duration)
+        except Exception:
+            return super().parse_rate(rate)
+
+
+class AntiEnumerationThrottle(SlidingWindowThrottle):
+    """
+    Sliding-window rate limiter for enumeration-sensitive endpoints (Issue #3550).
+    Enforces strict rate limits (e.g. 3 requests per 15 minutes) across callers
+    (both anonymous and authenticated) identified by client IP.
+    """
+
+    scope = "anti_enumeration"
+
+    def get_rate(self):
+        rate = super().get_rate()
+        return rate if rate is not None else "3/15m"
+
+    def get_cache_key(self, request, view):
+        ident = self.get_ident(request)
+        return self.cache_format % {
+            "scope": self.scope,
+            "ident": ident,
+        }
 
 
 class SlidingWindowAnonThrottle(SlidingWindowThrottle):

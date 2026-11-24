@@ -40,6 +40,7 @@ api_v1_patterns = [
     path("accounts/", include("allauth.urls")),
     path("api/auth/sso/", include("apps.organizations.sso_urls")),
     path("api/auth/", include("apps.accounts.urls")),
+    path("api/accounts/", include("apps.accounts.urls")),
     path("api/users/", include("apps.accounts.user_urls")),
     # ── OAuth 2.0 & OpenID Connect ──────────────────────────────────────────────
     path("oauth/", include("apps.oauth.urls")),

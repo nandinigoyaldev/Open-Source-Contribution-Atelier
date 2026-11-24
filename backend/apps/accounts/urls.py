@@ -5,6 +5,7 @@ from .views import (
     AccountDeletionCancelView,
     AvatarUploadView,
     ChangePasswordView,
+    CheckUsernameView,
     ExportDataView,
     GitHubOAuthExchangeView,
     GitHubOAuthStartView,
@@ -41,6 +42,7 @@ from .views_webauthn import PasskeyRegisterBeginView, PasskeyRegisterFinishView
 
 urlpatterns = [
     path("signup/", SignupView.as_view(), name="signup"),
+    path("check-username/", CheckUsernameView.as_view(), name="check-username"),
     path("login/", LoginView.as_view(), name="login"),
     path("refresh/", RefreshView.as_view(), name="refresh"),
     path("me/", MeView.as_view(), name="me"),
