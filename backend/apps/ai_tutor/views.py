@@ -5,6 +5,7 @@ from rest_framework import permissions, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from .security import PromptInjectionGuard
 from .services import AiTutorService
 from .throttles import AiTutorRateThrottle
 
@@ -63,6 +64,17 @@ class TutorAskView(APIView):
             exercise_prompt=expected_command,
         )
 
+        # Check prompt injection for user question
+        if question:
+            is_safe, violation = PromptInjectionGuard.check_input(
+                question, user=getattr(request, "user", None), request=request
+            )
+            if not is_safe:
+                return Response(
+                    {"error": "Input blocked by prompt safety policy.", "detail": violation},
+                    status=status.HTTP_400_BAD_REQUEST,
+                )
+
         # Handle 'evaluate' action
         if action == "evaluate":
             if not question:
@@ -104,6 +116,7 @@ class TutorAskView(APIView):
                 history=history,
                 tutor_context=tutor_context,
             )
+            answer = PromptInjectionGuard.filter_output(answer)
             return Response({"answer": answer}, status=status.HTTP_200_OK)
 
         stream_generator = AiTutorService.get_streaming_response(
@@ -132,6 +145,15 @@ class TutorEvaluateView(APIView):
         if not user_input:
             return Response(
                 {"error": "user_input is required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        is_safe, violation = PromptInjectionGuard.check_input(
+            user_input, user=getattr(request, "user", None), request=request
+        )
+        if not is_safe:
+            return Response(
+                {"error": "Input blocked by prompt safety policy.", "detail": violation},
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
