@@ -571,3 +571,103 @@ class CurriculumImport(models.Model):
 
     def __str__(self) -> str:
         return f"Curriculum import #{self.pk} ({self.status})"
+
+
+class CurriculumReleaseManifest(models.Model):
+    STATUS_DRAFT = "draft"
+    STATUS_VALIDATED = "validated"
+    STATUS_ACTIVE = "active"
+    STATUS_ARCHIVED = "archived"
+
+    STATUS_CHOICES = [
+        (STATUS_DRAFT, "Draft"),
+        (STATUS_VALIDATED, "Validated"),
+        (STATUS_ACTIVE, "Active"),
+        (STATUS_ARCHIVED, "Archived"),
+    ]
+
+    curriculum_slug = models.SlugField(max_length=255, db_index=True)
+    version = models.CharField(max_length=50)
+    status = models.CharField(
+        max_length=20, choices=STATUS_CHOICES, default=STATUS_DRAFT, db_index=True
+    )
+    manifest_data = models.JSONField(
+        default=dict,
+        help_text="Items list referencing lesson slugs, immutable revision numbers, order, and prerequisite DAG.",
+    )
+    is_active = models.BooleanField(default=False, db_index=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    activated_at = models.DateTimeField(null=True, blank=True)
+    created_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="curriculum_releases",
+    )
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+        unique_together = [("curriculum_slug", "version")]
+
+    def __str__(self) -> str:
+        return f"{self.curriculum_slug} v{self.version} ({self.status})"
+
+
+class CurriculumEnrollment(models.Model):
+    user = models.ForeignKey(
+        User, on_delete=models.CASCADE, related_name="curriculum_enrollments"
+    )
+    curriculum_slug = models.SlugField(max_length=255, db_index=True)
+    current_release = models.ForeignKey(
+        CurriculumReleaseManifest,
+        on_delete=models.PROTECT,
+        related_name="enrolled_learners",
+    )
+    enrolled_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-enrolled_at"]
+        unique_together = [("user", "curriculum_slug")]
+
+    def __str__(self) -> str:
+        return f"Enrollment({self.user_id}, {self.curriculum_slug}, {self.current_release.version})"
+
+
+class CurriculumMigrationAudit(models.Model):
+    enrollment = models.ForeignKey(
+        CurriculumEnrollment,
+        on_delete=models.CASCADE,
+        related_name="migration_history",
+    )
+    source_release = models.ForeignKey(
+        CurriculumReleaseManifest,
+        on_delete=models.PROTECT,
+        related_name="source_migrations",
+    )
+    target_release = models.ForeignKey(
+        CurriculumReleaseManifest,
+        on_delete=models.PROTECT,
+        related_name="target_migrations",
+    )
+    retained_completions = models.JSONField(default=list)
+    newly_required_prerequisites = models.JSONField(default=list)
+    removed_lessons = models.JSONField(default=list)
+    unresolved_mappings = models.JSONField(default=list)
+    is_rollback = models.BooleanField(default=False)
+    migrated_at = models.DateTimeField(auto_now_add=True)
+    approved_by = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="approved_curriculum_migrations",
+    )
+
+    class Meta:
+        ordering = ["-migrated_at"]
+
+    def __str__(self) -> str:
+        return f"MigrationAudit({self.enrollment_id}: {self.source_release.version} -> {self.target_release.version})"
+
