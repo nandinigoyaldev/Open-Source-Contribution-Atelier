@@ -6,18 +6,20 @@ from unittest.mock import MagicMock, patch
 import django
 from django.contrib.auth import get_user_model
 from django.core.cache import cache
+from django.test import TestCase
 from rest_framework import status
 from rest_framework.test import APIClient
 
 from apps.sandbox.models import ExecutionViolationLog
 from apps.sandbox.resource_manager import (
+    QuotaViolation,
     ResourceManagementEngine,
     SecurityViolation,
 )
-from apps.sandbox.services import stream_python_execution
+from apps.sandbox.services import start_debug_session, stream_python_execution
 
 
-class SandboxSessionQuotaTestCase(unittest.TestCase):
+class SandboxSessionQuotaTestCase(TestCase):
     def setUp(self):
         self.session_id = f"test_session_{os.urandom(4).hex()}"
         ResourceManagementEngine.reset_session_quota(self.session_id)
@@ -132,3 +134,60 @@ class SandboxSessionQuotaTestCase(unittest.TestCase):
             ResourceManagementEngine.analyze_ast("import os")
         with self.assertRaises(SecurityViolation):
             ResourceManagementEngine.analyze_ast("from subprocess import Popen")
+
+    def test_git_verify_quota_exhaustion(self):
+        """Verify SandboxVerifyView blocks requests when session quota is exhausted."""
+        # Exhaust CPU quota for user
+        ResourceManagementEngine.record_session_usage(
+            str(self.user.id),
+            cpu_time=ResourceManagementEngine.MAX_SESSION_CPU_SECONDS + 5.0,
+        )
+        response = self.client.post(
+            "/api/sandbox/verify/",
+            {"command": "git status", "expected_command": "git status"},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_429_TOO_MANY_REQUESTS)
+        data = response.json()
+        self.assertFalse(data["accepted"])
+        self.assertEqual(data["quota_error"], "cpu")
+        self.assertIn("metrics", data)
+        self.assertEqual(data["metrics"]["session_id"], str(self.user.id))
+
+    def test_debugger_session_quota_exhaustion(self):
+        """Verify debugger flow enforces session quotas."""
+        # Exhaust process quota
+        proc_key = f"sandbox_session_processes_{self.session_id}"
+        cache.set(proc_key, ResourceManagementEngine.MAX_SESSION_PROCESSES, timeout=3600)
+
+        loop = asyncio.new_event_loop()
+        try:
+            with self.assertRaises(QuotaViolation) as cm:
+                loop.run_until_complete(
+                    start_debug_session("x = 1", [], user_id=self.session_id)
+                )
+            self.assertEqual(cm.exception.violation_type, "process")
+        finally:
+            loop.close()
+
+    def test_concurrent_sessions_isolation(self):
+        """Verify session quotas are strictly isolated across multiple sessions."""
+        session_a = f"session_a_{os.urandom(4).hex()}"
+        session_b = f"session_b_{os.urandom(4).hex()}"
+
+        try:
+            # Exhaust session A
+            ResourceManagementEngine.record_session_usage(
+                session_a, cpu_time=ResourceManagementEngine.MAX_SESSION_CPU_SECONDS
+            )
+            allowed_a, reason_a = ResourceManagementEngine.check_session_quotas(session_a)
+            self.assertFalse(allowed_a)
+            self.assertEqual(reason_a, "cpu")
+
+            # Session B should remain uninhibited
+            allowed_b, reason_b = ResourceManagementEngine.check_session_quotas(session_b)
+            self.assertTrue(allowed_b)
+            self.assertIsNone(reason_b)
+        finally:
+            ResourceManagementEngine.reset_session_quota(session_a)
+            ResourceManagementEngine.reset_session_quota(session_b)

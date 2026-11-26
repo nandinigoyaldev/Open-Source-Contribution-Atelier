@@ -70,7 +70,11 @@ import os
 import sys
 import tempfile
 
-from ..resource_manager import ResourceManagementEngine, SecurityViolation
+from ..resource_manager import (
+    QuotaViolation,
+    ResourceManagementEngine,
+    SecurityViolation,
+)
 
 
 async def stream_python_execution(
@@ -81,8 +85,9 @@ async def stream_python_execution(
 ):
     """
     Executes Python code securely with resource limits in a subprocess and streams output asynchronously.
-    Enforces per-session CPU, memory, output, and process quotas.
+    Enforces per-session CPU, memory, output, and process quotas. Client input cannot increase limits.
     """
+    timeout = min(max(1, timeout), ResourceManagementEngine.MAX_EXECUTION_TIME_SECONDS)
     allowed, reason = ResourceManagementEngine.check_and_acquire(user_id)
     if not allowed:
         from asgiref.sync import sync_to_async
@@ -234,11 +239,30 @@ async def stream_python_execution(
         ResourceManagementEngine.release_execution_lock(user_id)
 
 
-async def start_debug_session(code: str, breakpoints: list):
+async def start_debug_session(
+    code: str,
+    breakpoints: list,
+    user_id: str = "anonymous",
+    timeout: int = ResourceManagementEngine.MAX_EXECUTION_TIME_SECONDS,
+):
     """
     Starts a debugging session by writing code to a temp file and launching debugger_script.py
+    Enforces per-session CPU, memory, output, and process quotas. Client input cannot increase limits.
     Returns the subprocess and the temp file path.
     """
+    timeout = min(max(1, timeout), ResourceManagementEngine.MAX_EXECUTION_TIME_SECONDS)
+    allowed, reason = ResourceManagementEngine.check_and_acquire(user_id)
+    if not allowed:
+        violation_type = reason or "concurrency"
+        err_msg = {
+            "concurrency": "Execution limit reached. Please wait for your previous code to finish.",
+            "cpu": "Session CPU quota exceeded. Please wait before executing more code.",
+            "process": "Session process quota exceeded. Maximum session executions reached.",
+        }.get(violation_type, "Execution quota exceeded.")
+        raise QuotaViolation(err_msg, violation_type=violation_type)
+
+    ResourceManagementEngine.analyze_ast(code)
+
     fd, path = tempfile.mkstemp(suffix=".py")
     with os.fdopen(fd, "w") as f:
         f.write(code)
@@ -261,8 +285,9 @@ async def start_debug_session(code: str, breakpoints: list):
 async def run_code_trace(code: str, user_id: str = "anonymous", timeout: int = 10):
     """
     Runs the tracer script on the provided code and returns the parsed JSON trace array.
-    Enforces per-session execution and process quotas.
+    Enforces per-session execution and process quotas. Client input cannot increase limits.
     """
+    timeout = min(max(1, timeout), ResourceManagementEngine.MAX_EXECUTION_TIME_SECONDS)
     allowed, reason = ResourceManagementEngine.check_and_acquire(user_id)
     if not allowed:
         return []

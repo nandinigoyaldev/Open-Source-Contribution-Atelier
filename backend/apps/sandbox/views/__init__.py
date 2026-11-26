@@ -67,10 +67,42 @@ class SandboxVerifyView(APIView):
         serializer = SandboxVerifySerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
 
-        result = verify_git_command(
-            serializer.validated_data["command"],
-            serializer.validated_data["expected_command"],
-        )
+        session_id = str(request.user.id)
+        from ..resource_manager import ResourceManagementEngine
+
+        allowed, reason = ResourceManagementEngine.check_and_acquire(session_id)
+        if not allowed:
+            violation_type = reason or "concurrency"
+            err_msg = {
+                "concurrency": "Execution limit reached. Please wait for your previous command to finish.",
+                "cpu": "Session CPU quota exceeded. Please wait before executing more commands.",
+                "process": "Session process quota exceeded. Maximum session executions reached.",
+            }.get(violation_type, "Execution quota exceeded.")
+            ResourceManagementEngine.log_violation(
+                session_id,
+                serializer.validated_data.get("command", ""),
+                violation_type,
+                f"Quota breached: {violation_type}",
+            )
+            return Response(
+                {
+                    "accepted": False,
+                    "feedback": err_msg,
+                    "score_delta": 0,
+                    "quota_error": violation_type,
+                    "metrics": ResourceManagementEngine.get_session_quota_status(session_id),
+                },
+                status=status.HTTP_429_TOO_MANY_REQUESTS,
+            )
+
+        try:
+            result = verify_git_command(
+                serializer.validated_data["command"],
+                serializer.validated_data["expected_command"],
+            )
+        finally:
+            ResourceManagementEngine.release_execution_lock(session_id)
+            ResourceManagementEngine.record_session_usage(session_id, cpu_time=0.01)
 
         # If verification succeeded, mark execution as used
         if result.accepted:

@@ -177,9 +177,23 @@ class SandboxConsumer(AsyncWebsocketConsumer):
                 async def send_callback(message_data):
                     await self.send(text_data=json.dumps(message_data))
 
-                self.debug_process, self.debug_file = await start_debug_session(
-                    code, breakpoints
-                )
+                self.debug_user_id = user_id
+                self.debug_start_time = asyncio.get_event_loop().time()
+                try:
+                    self.debug_process, self.debug_file = await start_debug_session(
+                        code, breakpoints, user_id=user_id
+                    )
+                except Exception as exc:
+                    await self.send(
+                        text_data=json.dumps(
+                            {
+                                "action": "execution_error",
+                                "error": str(exc),
+                                "quota_error": getattr(exc, "violation_type", "quota_exceeded"),
+                            }
+                        )
+                    )
+                    return
 
                 async def read_debug_output():
                     try:
@@ -289,12 +303,15 @@ class SandboxConsumer(AsyncWebsocketConsumer):
             logger.warning("Caught exception: %s", e)
 
     async def _cleanup_debug_session(self):
+        import asyncio
         import os
+
+        from .resource_manager import ResourceManagementEngine
 
         if self.debug_process:
             try:
-                self.debug_process.kill()
-            except ProcessLookupError:
+                ResourceManagementEngine.kill_process_tree(self.debug_process.pid)
+            except Exception:
                 pass
             self.debug_process = None
 
@@ -308,6 +325,15 @@ class SandboxConsumer(AsyncWebsocketConsumer):
             except Exception as e:
                 logger.warning("Caught exception: %s", e)
             self.debug_file = None
+
+        if getattr(self, "debug_user_id", None):
+            elapsed = 0.0
+            if getattr(self, "debug_start_time", None):
+                elapsed = asyncio.get_event_loop().time() - self.debug_start_time
+            ResourceManagementEngine.record_session_usage(self.debug_user_id, elapsed)
+            ResourceManagementEngine.release_execution_lock(self.debug_user_id)
+            self.debug_user_id = None
+            self.debug_start_time = None
 
     async def code_message(self, event):
         code = event["code"]
