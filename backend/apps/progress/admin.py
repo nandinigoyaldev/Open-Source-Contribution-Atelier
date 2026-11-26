@@ -3,8 +3,10 @@ from django.contrib import admin
 from .models import (
     Badge,
     ExerciseAttempt,
+    FinancialReward,
     LessonProgress,
     ProgressBufferDeadLetter,
+    RewardTransactionSaga,
     UserBadge,
     UserNote,
 )
@@ -33,3 +35,27 @@ class ProgressBufferDeadLetterAdmin(admin.ModelAdmin):
     @admin.action(description="Discard selected")
     def discard_selected(self, request, qs):
         qs.update(status="discarded", replayed_by=request.user.username)
+
+
+@admin.register(RewardTransactionSaga)
+class RewardTransactionSagaAdmin(admin.ModelAdmin):
+    list_display = ("saga_id", "user", "status", "action_type", "created_at")
+    list_filter = ("status", "action_type", "created_at")
+    search_fields = ("saga_id", "user__username")
+    readonly_fields = ("created_at", "updated_at")
+
+
+@admin.register(FinancialReward)
+class FinancialRewardAdmin(admin.ModelAdmin):
+    list_display = (
+        "id",
+        "user",
+        "amount",
+        "currency",
+        "status",
+        "source_type",
+        "created_at",
+    )
+    list_filter = ("status", "currency", "source_type", "created_at")
+    search_fields = ("saga_id", "user__username")
+    readonly_fields = ("created_at", "updated_at")

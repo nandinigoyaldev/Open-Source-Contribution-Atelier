@@ -881,3 +881,96 @@ class ProgressBufferDeadLetter(models.Model):
         self.save(
             update_fields=["status", "error_message", "replayed_by", "updated_at"]
         )
+
+
+class RewardTransactionSaga(models.Model):
+    """
+    Two-Phase Commit / Saga state journal for distributed cross-table
+    financial reward and XP batch allocations.
+
+    States:
+      - PREPARING: Saga initiated, steps currently executing.
+      - COMMITTED: All steps completed successfully and committed.
+      - COMPENSATING: A step failed; compensation rollbacks are actively running.
+      - ABORTED: Compensation completed; all executed steps rolled back.
+    """
+
+    class Status(models.TextChoices):
+        PREPARING = "PREPARING", "Preparing"
+        COMMITTED = "COMMITTED", "Committed"
+        COMPENSATING = "COMPENSATING", "Compensating"
+        ABORTED = "ABORTED", "Aborted"
+
+    saga_id = models.CharField(max_length=64, unique=True, db_index=True)
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="reward_sagas",
+    )
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.PREPARING,
+        db_index=True,
+    )
+    action_type = models.CharField(max_length=100, default="batch_reward_allocation")
+    payload = models.JSONField(default=dict, blank=True)
+    step_states = models.JSONField(default=list, blank=True)
+    error_message = models.TextField(blank=True, default="")
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["user", "status"], name="idx_reward_saga_user_status"),
+            models.Index(
+                fields=["status", "-created_at"], name="idx_reward_saga_status_created"
+            ),
+        ]
+
+    def __str__(self):
+        return f"RewardTransactionSaga(saga_id={self.saga_id}, user={self.user_id}, status={self.status})"
+
+
+class FinancialReward(models.Model):
+    """
+    Cross-table financial reward allocation entity (cash, credits, vouchers, or grants).
+    Created and updated via 2PC / Saga orchestrator steps.
+    """
+
+    class Status(models.TextChoices):
+        PENDING = "pending", "Pending"
+        ALLOCATED = "allocated", "Allocated"
+        REVOKED = "revoked", "Revoked"
+        REFUNDED = "refunded", "Refunded"
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="financial_rewards",
+    )
+    saga_id = models.CharField(max_length=64, blank=True, default="", db_index=True)
+    amount = models.DecimalField(max_digits=10, decimal_places=2)
+    currency = models.CharField(max_length=10, default="USD")
+    source_type = models.CharField(max_length=50, default="challenge_reward")
+    source_id = models.CharField(max_length=100, blank=True, default="")
+    status = models.CharField(
+        max_length=20,
+        choices=Status.choices,
+        default=Status.ALLOCATED,
+        db_index=True,
+    )
+    metadata = models.JSONField(default=dict, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True, db_index=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        ordering = ["-created_at"]
+        indexes = [
+            models.Index(fields=["user", "status"], name="idx_fin_reward_user_status"),
+            models.Index(fields=["saga_id"], name="idx_fin_reward_saga_id"),
+        ]
+
+    def __str__(self):
+        return f"FinancialReward(id={self.id}, user={self.user_id}, amount={self.amount} {self.currency}, status={self.status})"
