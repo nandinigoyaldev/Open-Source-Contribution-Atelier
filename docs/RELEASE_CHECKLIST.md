@@ -31,6 +31,7 @@ For maintainers shipping a change to production. Copy the sections that apply in
 - [ ] `python backend/manage.py check_curriculum_slugs` reports no drift between `curriculum.json` and the lessons in the database, if lessons or curriculum files changed
 - [ ] New or changed environment variables are added to `backend/.env.example` **and** set in the hosting dashboard (Render / Hugging Face secrets). Secrets are never committed. Compare with `infra/deploy/render.yaml` and `infra/deploy/docker-compose.prod.yml`
 - [ ] Dependencies: `backend/requirements.txt` and `backend/requirements-prod.txt` agree (the "Dependency Drift" check enforces this) and `make scan-vulns` shows nothing new at HIGH
+- [ ] Dependency licenses: generate and review the release license metadata (`python scripts/release_license_report.py --output release-license-report.json --fail-on-disallowed`); investigate any `unknown_packages`, `unapproved`, or `disallowed_packages` entries flagged there or inside `vuln-report-consolidated.json` (`dependency_licenses`)
 
 ## 4. Migrations
 
