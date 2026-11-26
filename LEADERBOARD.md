@@ -30,7 +30,7 @@ Welcome to the permanent **Hall of Fame & Contributor Legacy** for **Open-Source
 
 | 1 | @divyanshAgarwal123 | 🥇 Gold Contributor  | 5 | 125 | 2026-11-16 |
 
-| 1 | @riteshbonthalakoti | 🥉 Bronze Contributor  | 1 | 25 | 2026-11-26 |
+| 1 | @riteshbonthalakoti | 🥉 Bronze Contributor ⚡ | 2 | 50 | 2026-11-26 |
 
 ---
 
