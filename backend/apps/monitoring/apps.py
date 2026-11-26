@@ -11,3 +11,9 @@ class MonitoringConfig(AppConfig):
             import apps.monitoring.celery_monitor  # noqa: F401
         except ImportError:
             pass
+        try:
+            from apps.monitoring.collectors import register_collectors
+
+            register_collectors()
+        except Exception:
+            pass

@@ -190,9 +190,24 @@ def record_http_request(
 
 def metrics_view(request: HttpRequest) -> HttpResponse:
     """Return Prometheus text exposition format for scraped metrics."""
+    try:
+        from apps.monitoring.collectors import register_collectors
+
+        register_collectors()
+    except Exception:
+        pass
+
     if _PROMETHEUS_AVAILABLE and generate_latest is not None:
         body = generate_latest()
     else:
-        body = _in_memory_metrics.render_prometheus_text().encode("utf-8")
+        try:
+            from apps.monitoring.collectors import CeleryMetricsCollector
+
+            celery_text = CeleryMetricsCollector().render_prometheus_text()
+        except Exception:
+            celery_text = ""
+        body = (_in_memory_metrics.render_prometheus_text() + celery_text).encode(
+            "utf-8"
+        )
 
     return HttpResponse(body, content_type=CONTENT_TYPE_LATEST)

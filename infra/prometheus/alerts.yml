@@ -18,3 +18,23 @@ groups:
         annotations:
           summary: "High API latency on {{ $labels.view }}"
           description: "95th percentile of response times for {{ $labels.method }} {{ $labels.view }} is over 1 second for the last 5 minutes."
+
+  - name: celery_alerts
+    rules:
+      - alert: CeleryQueueLagHigh
+        expr: sum(celery_queue_length) by (queue) > 500
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High queue lag on Celery queue {{ $labels.queue }}"
+          description: "Celery queue {{ $labels.queue }} has more than 500 queued tasks for 5 minutes."
+
+      - alert: WorkerHeartbeatMissing
+        expr: celery_active_workers == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Celery worker heartbeat is missing"
+          description: "No active Celery workers have answered heartbeats or pings for over 1 minute."
