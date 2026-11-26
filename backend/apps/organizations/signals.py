@@ -4,7 +4,7 @@ from django.core.cache import cache
 from django.db.models.signals import post_delete, post_save
 from django.dispatch import receiver
 
-from .models import OrganizationMembership
+from .models import Organization, OrganizationMembership
 
 logger = logging.getLogger(__name__)
 
@@ -57,6 +57,22 @@ def organization_membership_post_save(sender, instance, created, **kwargs):
         user_id=instance.user_id,
         organization_id=instance.organization_id,
     )
+
+
+@receiver(post_save, sender=Organization)
+def organization_tenant_schema_post_save(sender, instance, created, **kwargs):
+    """
+    Automated schema creation and migration runner on enterprise organization creation.
+    """
+    if instance.is_enterprise and instance.schema_name:
+        from apps.organizations.tenancy import (
+            create_tenant_schema,
+            migrate_tenant_schema,
+        )
+
+        create_tenant_schema(instance.schema_name)
+        if created:
+            migrate_tenant_schema(instance.schema_name)
 
 
 @receiver(post_delete, sender=OrganizationMembership)

@@ -6,10 +6,46 @@ from apps.core.fields import EncryptedCharField
 
 class Organization(models.Model):
     name = models.CharField(max_length=100, unique=True)
+    slug = models.SlugField(max_length=100, unique=True, null=True, blank=True)
     description = models.TextField(blank=True)
+    is_enterprise = models.BooleanField(default=False)
+    schema_name = models.CharField(max_length=63, unique=True, null=True, blank=True)
 
     def __str__(self):
         return self.name
+
+    def get_default_schema_name(self) -> str:
+        from apps.organizations.tenancy import get_tenant_schema_name
+
+        return get_tenant_schema_name(self.slug or self.name)
+
+    def save(self, *args, **kwargs):
+        from django.utils.text import slugify
+
+        is_new = self.pk is None
+        if not self.slug:
+            base_slug = slugify(self.name) or "org"
+            slug = base_slug
+            idx = 1
+            while Organization.objects.filter(slug=slug).exclude(pk=self.pk).exists():
+                slug = f"{base_slug}-{idx}"
+                idx += 1
+            self.slug = slug
+
+        if self.is_enterprise and not self.schema_name:
+            self.schema_name = self.get_default_schema_name()
+
+        super().save(*args, **kwargs)
+
+        if self.is_enterprise and self.schema_name:
+            from apps.organizations.tenancy import (
+                create_tenant_schema,
+                migrate_tenant_schema,
+            )
+
+            create_tenant_schema(self.schema_name)
+            if is_new or kwargs.get("force_migrate", False):
+                migrate_tenant_schema(self.schema_name)
 
 
 class OrganizationMembership(models.Model):
