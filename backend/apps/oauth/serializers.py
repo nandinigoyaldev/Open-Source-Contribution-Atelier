@@ -78,6 +78,20 @@ class AuthorizeRequestSerializer(serializers.Serializer):
             )
         return value
 
+    def validate_code_challenge_method(self, value):
+        if not value:
+            return "S256"
+        val = value.strip()
+        if val.upper() == "PLAIN":
+            raise serializers.ValidationError(
+                "Plain code_challenge_method is not permitted. Only 'S256' is supported."
+            )
+        if val.upper() != "S256":
+            raise serializers.ValidationError(
+                f"Unsupported code_challenge_method '{value}'. Only 'S256' is supported."
+            )
+        return "S256"
+
 
 class TokenRequestSerializer(serializers.Serializer):
     grant_type = serializers.CharField()
