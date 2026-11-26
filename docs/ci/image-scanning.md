@@ -122,6 +122,28 @@ and are not a replacement for an entry with a reason.
 reports. It is not read by the image scan. If a CVE shows up in both places,
 it needs an entry in each.
 
+## Dependency license review in release reports
+
+`backend/scripts/check_dependency_allowlist.py` embeds a deterministic
+`dependency_licenses` summary in `vuln-report-consolidated.json` covering both
+frontend (`package-lock.json`, `frontend/package-lock.json`) and backend
+(`backend/requirements*.txt`, `services/notifications_worker/requirements.txt`)
+dependencies without modifying dependency resolution. You can also generate or
+gate the license summary directly:
+
+```bash
+# Produce reproducible JSON and check for unknown/disallowed licenses
+python scripts/release_license_report.py --output release-license-report.json --fail-on-disallowed
+
+# Strict mode (fail on both UNKNOWN and disallowed licenses)
+python scripts/release_license_report.py --strict
+```
+
+Review any entries listed under `disallowed_packages`, `unknown_packages`, or
+`review_required` before approving a release. Unknown backend package metadata
+in environments without installed wheels can be supplied via
+`--python-licenses-json`.
+
 ## Run the scan locally
 
 You need Docker and [Trivy](https://trivy.dev/docs/latest/getting-started/installation/).
