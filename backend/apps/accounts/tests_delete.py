@@ -186,3 +186,74 @@ class SecureAccountDeleteTest(TestCase):
         audit_event.refresh_from_db()
         self.assertIsNone(audit_event.actor)
         self.assertEqual(audit_event.action, "created")
+
+    def test_scheduled_deletions_worker_execution(self):
+        """Worker task executes deletion when grace period expires."""
+        from apps.accounts.deletion_service import process_scheduled_deletions
+
+        del_req = AccountDeletionRequest.objects.create(
+            user=self.user,
+            status=AccountDeletionRequest.STATUS_PENDING,
+            scheduled_for=timezone.now() - timedelta(minutes=5),
+            reason="Expired grace period",
+        )
+
+        results = process_scheduled_deletions(batch_size=10)
+        self.assertEqual(results["total"], 1)
+        self.assertEqual(results["succeeded"], 1)
+        self.assertEqual(results["failed"], 0)
+        self.assertEqual(results["blocked"], 0)
+
+        # User is deleted and contributions anonymized
+        self.assertFalse(User.objects.filter(username="john_doe").exists())
+        self.assertEqual(Comment.objects.first().user.username, "anonymous_contributor")
+
+    def test_scheduled_deletion_blocked_if_dependency_added_during_grace(self):
+        """Worker task skips deletion if user becomes sole owner of an organization during grace period."""
+        from apps.accounts.deletion_service import process_scheduled_deletions
+
+        AccountDeletionRequest.objects.create(
+            user=self.user,
+            status=AccountDeletionRequest.STATUS_PENDING,
+            scheduled_for=timezone.now() - timedelta(minutes=5),
+        )
+
+        org = Organization.objects.create(name="Grace Period Org")
+        OrganizationMembership.objects.create(
+            organization=org, user=self.user, role=OrganizationMembership.ROLE_OWNER
+        )
+
+        results = process_scheduled_deletions(batch_size=10)
+        self.assertEqual(results["total"], 1)
+        self.assertEqual(results["succeeded"], 0)
+        self.assertEqual(results["blocked"], 1)
+
+        # User remains active and not deleted
+        self.assertTrue(User.objects.filter(username="john_doe").exists())
+
+    def test_scheduled_deletion_resumable_and_retry_tolerant(self):
+        """Worker handles transient errors gracefully and supports retries."""
+        from unittest.mock import patch
+        from apps.accounts.deletion_service import process_scheduled_deletions
+
+        AccountDeletionRequest.objects.create(
+            user=self.user,
+            status=AccountDeletionRequest.STATUS_PENDING,
+            scheduled_for=timezone.now() - timedelta(minutes=5),
+        )
+
+        with patch("apps.accounts.deletion_service.execute_account_deletion", side_effect=RuntimeError("Transient DB lock")):
+            results = process_scheduled_deletions(batch_size=10)
+            self.assertEqual(results["total"], 1)
+            self.assertEqual(results["failed"], 1)
+            self.assertEqual(results["succeeded"], 0)
+
+        # User was not deleted due to error
+        self.assertTrue(User.objects.filter(username="john_doe").exists())
+
+        # Retry succeeds
+        retry_results = process_scheduled_deletions(batch_size=10)
+        self.assertEqual(retry_results["total"], 1)
+        self.assertEqual(retry_results["succeeded"], 1)
+        self.assertFalse(User.objects.filter(username="john_doe").exists())
+
