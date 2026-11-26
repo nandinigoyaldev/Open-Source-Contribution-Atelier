@@ -71,6 +71,30 @@ To add a new lesson or create a module:
 
 ---
 
+## Previewing Lessons Locally
+
+You do **not** need to start the Django or Vite dev servers to verify metadata, quizzes, glossary matches, or Markdown rendering for a lesson you are editing.
+
+Run the curriculum preview script from the repository root with any lesson slug from `curriculum.json`:
+
+```bash
+# List available lesson slugs
+python scripts/preview_curriculum.py --list-slugs
+
+# Validate and render a terminal preview
+python scripts/preview_curriculum.py what-is-open-source
+
+# Render sanitized HTML using the app's block, inline, and glossary rules
+python scripts/preview_curriculum.py what-is-open-source --format html
+```
+
+The command:
+- Validates `curriculum.json`, `quizzes.json`, frontmatter, internal links/anchors, and asset paths with the same checks as `scripts/validate_curriculum.py`.
+- Fails with a non-zero exit code and close slug suggestions (`--list-slugs` hint) if an unknown or malformed slug is passed.
+- Parses blocks (headings, code/Mermaid fences, GitHub alerts, tables, lists, images, `[interactive-quiz]` shortcodes), inline formatting, safe URLs, glossary matches (`glossary.json`), and reading-time fallbacks using the same rules as the frontend lesson renderer.
+
+---
+
 ## Part 2: How to Add Quizzes
 If a lesson is conceptual/theoretical (e.g. licensing or etiquette), it is validated using multiple-choice quizzes rather than Git terminal commands.
 
