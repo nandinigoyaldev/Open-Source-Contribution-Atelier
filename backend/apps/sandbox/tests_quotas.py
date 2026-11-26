@@ -158,7 +158,9 @@ class SandboxSessionQuotaTestCase(TestCase):
         """Verify debugger flow enforces session quotas."""
         # Exhaust process quota
         proc_key = f"sandbox_session_processes_{self.session_id}"
-        cache.set(proc_key, ResourceManagementEngine.MAX_SESSION_PROCESSES, timeout=3600)
+        cache.set(
+            proc_key, ResourceManagementEngine.MAX_SESSION_PROCESSES, timeout=3600
+        )
 
         loop = asyncio.new_event_loop()
         try:
@@ -180,14 +182,98 @@ class SandboxSessionQuotaTestCase(TestCase):
             ResourceManagementEngine.record_session_usage(
                 session_a, cpu_time=ResourceManagementEngine.MAX_SESSION_CPU_SECONDS
             )
-            allowed_a, reason_a = ResourceManagementEngine.check_session_quotas(session_a)
+            allowed_a, reason_a = ResourceManagementEngine.check_session_quotas(
+                session_a
+            )
             self.assertFalse(allowed_a)
             self.assertEqual(reason_a, "cpu")
 
             # Session B should remain uninhibited
-            allowed_b, reason_b = ResourceManagementEngine.check_session_quotas(session_b)
+            allowed_b, reason_b = ResourceManagementEngine.check_session_quotas(
+                session_b
+            )
             self.assertTrue(allowed_b)
             self.assertIsNone(reason_b)
         finally:
             ResourceManagementEngine.reset_session_quota(session_a)
             ResourceManagementEngine.reset_session_quota(session_b)
+
+    def test_container_capabilities_drop_all_except_setuid_setgid(self):
+        """Verify Docker sandbox container security profile drops all capabilities except CAP_SETUID and CAP_SETGID."""
+        config = ResourceManagementEngine.get_container_security_config()
+        self.assertEqual(config.get("cap_drop"), ["ALL"])
+        self.assertEqual(sorted(config.get("cap_add", [])), ["SETGID", "SETUID"])
+        self.assertTrue(config.get("ebpf_filter_enabled"))
+        self.assertTrue(config.get("block_outbound_network"))
+
+    def test_network_isolation_blocks_external_destinations(self):
+        """Verify outbound network connections to non-loopback IPs and domains are rejected."""
+        with self.assertRaises(SecurityViolation):
+            ResourceManagementEngine.validate_network_access("8.8.8.8")
+        with self.assertRaises(SecurityViolation):
+            ResourceManagementEngine.validate_network_access("example.com")
+        with self.assertRaises(SecurityViolation):
+            ResourceManagementEngine.validate_network_access("192.168.1.100")
+        with self.assertRaises(SecurityViolation):
+            ResourceManagementEngine.validate_network_access("10.0.0.1")
+
+    def test_network_isolation_permits_whitelisted_loopback(self):
+        """Verify only whitelisted loopback addresses (127.0.0.1, localhost, ::1) are allowed."""
+        self.assertTrue(ResourceManagementEngine.validate_network_access("127.0.0.1"))
+        self.assertTrue(ResourceManagementEngine.validate_network_access("localhost"))
+        self.assertTrue(ResourceManagementEngine.validate_network_access("::1"))
+        self.assertTrue(ResourceManagementEngine.validate_network_access("127.0.0.5"))
+
+    def test_sandbox_seccomp_profile_structure(self):
+        """Verify infra/docker/sandbox-seccomp.json is valid and enforces restricted syscalls."""
+        import json
+        from pathlib import Path
+
+        repo_root = Path(__file__).resolve().parents[3]
+        seccomp_path = repo_root / "infra" / "docker" / "sandbox-seccomp.json"
+        self.assertTrue(seccomp_path.exists())
+
+        with open(seccomp_path, "r", encoding="utf-8") as f:
+            profile = json.load(f)
+
+        self.assertEqual(profile.get("defaultAction"), "SCMP_ACT_ERRNO")
+        self.assertIn("architectures", profile)
+        self.assertIn("syscalls", profile)
+
+        # Check blocked syscalls category
+        actions = {s.get("action") for s in profile["syscalls"]}
+        self.assertIn("SCMP_ACT_ALLOW", actions)
+        self.assertIn("SCMP_ACT_ERRNO", actions)
+
+    def test_sandbox_apparmor_and_ebpf_profile_files_exist(self):
+        """Verify AppArmor profile and eBPF network filter C source exist in infra/docker/."""
+        from pathlib import Path
+
+        repo_root = Path(__file__).resolve().parents[3]
+        apparmor_path = repo_root / "infra" / "docker" / "sandbox-apparmor.profile"
+        ebpf_path = repo_root / "infra" / "docker" / "ebpf_network_filter.c"
+
+        self.assertTrue(apparmor_path.exists())
+        self.assertTrue(ebpf_path.exists())
+
+        with open(apparmor_path, "r", encoding="utf-8") as f:
+            apparmor_content = f.read()
+        self.assertIn("profile sandbox-profile", apparmor_content)
+        self.assertIn("capability setuid", apparmor_content)
+        self.assertIn("capability setgid", apparmor_content)
+        self.assertIn("deny capability sys_admin", apparmor_content)
+
+        with open(ebpf_path, "r", encoding="utf-8") as f:
+            ebpf_content = f.read()
+        self.assertIn("filter_outbound_ipv4", ebpf_content)
+        self.assertIn("filter_outbound_ipv6", ebpf_content)
+        self.assertIn("LOOPBACK_IPV4_MASK", ebpf_content)
+
+    def test_wrapper_script_network_isolation_socket_hook(self):
+        """Verify generated wrapper script patches socket.connect to block non-loopback connections."""
+        script = ResourceManagementEngine.get_wrapper_script("print('secure')")
+        self.assertIn("_isolated_connect", script)
+        self.assertIn("Network access to", script)
+        self.assertIn("127.0.0.1", script)
+        self.assertIn("localhost", script)
+        self.assertIn("socket.socket.connect = _isolated_connect", script)
