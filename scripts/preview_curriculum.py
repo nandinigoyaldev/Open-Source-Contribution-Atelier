@@ -40,7 +40,6 @@ from validate_curriculum import (  # noqa: E402
 )
 from validate_curriculum_frontmatter import parse_frontmatter  # noqa: E402
 
-SAFE_URL_RE = re.compile(r"^(https?://|mailto:|/|#)", re.I)
 INLINE_TOKEN_RE = re.compile(r"(\*\*.*?\*\*|`.*?`|\[.*?\]\(.*?\))")
 CODE_MASK_RE = re.compile(r"(`+)([\s\S]*?)\1")
 SHORTCODE_RE = re.compile(r"^\[([a-zA-Z0-9-]+)(?:\s+(.*?))?\]$")
@@ -89,10 +88,35 @@ class LessonPreviewData:
     glossary_terms: List[GlossaryTerm]
 
 
+def safe_link_href(href: str) -> str:
+    """Mirror safeUrl.ts safeLinkHref: reject script/data schemes, preserve relative links."""
+    trimmed = href.strip()
+    lower = trimmed.lower()
+    if (
+        lower.startswith("javascript:")
+        or lower.startswith("vbscript:")
+        or lower.startswith("data:")
+    ):
+        return "#"
+    return trimmed
+
+
+def safe_image_src(src: str) -> str:
+    """Mirror safeUrl.ts safeImageSrc: allow relative paths and drop script-capable schemes."""
+    trimmed = src.strip()
+    lower = trimmed.lower()
+    if (
+        lower.startswith("javascript:")
+        or lower.startswith("vbscript:")
+        or lower.startswith("data:text/html")
+    ):
+        return ""
+    return trimmed
+
+
 def safe_url(url: str) -> str:
-    """Apply the frontend SAFE_URL_PATTERN allowlist."""
-    trimmed = url.strip()
-    return trimmed if SAFE_URL_RE.match(trimmed) else "#"
+    """Apply link URL sanitization while preserving relative paths."""
+    return safe_link_href(url)
 
 
 def sanitize_lesson_markdown(content: str) -> str:
@@ -144,16 +168,22 @@ def load_glossary_terms(content_dir: Path) -> List[GlossaryTerm]:
     data = _load_json(glossary_path, problems)
     if problems or not isinstance(data, dict):
         return []
+    terms_raw = data.get("terms")
+    if not isinstance(terms_raw, list):
+        return []
     terms: List[GlossaryTerm] = []
-    for raw in data.get("terms") or []:
+    for raw in terms_raw:
         if not isinstance(raw, dict):
             continue
         term_id = str(raw.get("id") or "").strip()
         term = str(raw.get("term") or "").strip()
         if not term_id or not term:
             continue
-        aliases = tuple(
-            str(a).strip() for a in (raw.get("aliases") or []) if str(a).strip()
+        raw_aliases = raw.get("aliases")
+        aliases = (
+            tuple(str(a).strip() for a in raw_aliases if str(a).strip())
+            if isinstance(raw_aliases, list)
+            else ()
         )
         terms.append(
             GlossaryTerm(
@@ -223,22 +253,26 @@ def split_text_with_glossary(
     return segments
 
 
-def strip_frontmatter(text: str) -> Tuple[Dict[str, Any], str]:
-    """Extract parsed frontmatter metadata (when present) and return markdown body."""
+def strip_frontmatter(text: str) -> Tuple[Dict[str, Any], str, Optional[str]]:
+    """Extract parsed frontmatter metadata, body, and any delimiter/parse error."""
     cleaned = text.lstrip("\ufeff")
     lines = cleaned.splitlines()
     if not lines or lines[0].strip() != "---":
-        return {}, cleaned
+        return {}, cleaned, None
 
     for idx, line in enumerate(lines[1:], start=1):
         if line.strip() == "---":
             metadata, err = parse_frontmatter(cleaned)
             body = "\n".join(lines[idx + 1 :]).lstrip("\n")
-            return (metadata or {}) if not err else {}, body
-    return {}, cleaned
+            return (metadata or {}) if not err else {}, body, (err or None)
+    return {}, cleaned, "front matter is not closed (missing second '---')"
 
 
-def _format_unknown_slug_error(slug: str, known_slugs: Sequence[str]) -> str:
+def _format_unknown_slug_error(
+    slug: str,
+    known_slugs: Sequence[str],
+    content_dir: Optional[Path] = None,
+) -> str:
     clean_slug = slug.strip()
     lines = [f"Unknown lesson slug: {clean_slug!r}."]
     if clean_slug and not SLUG_RE.match(clean_slug):
@@ -252,9 +286,10 @@ def _format_unknown_slug_error(slug: str, known_slugs: Sequence[str]) -> str:
         sample = ", ".join(known_slugs[:5])
         suffix = ", ..." if len(known_slugs) > 5 else ""
         lines.append(f"Sample slugs: {sample}{suffix}")
-    lines.append(
-        "Run `python scripts/preview_curriculum.py --list-slugs` to see all lesson slugs."
-    )
+    list_cmd = "python scripts/preview_curriculum.py --list-slugs"
+    if content_dir is not None and content_dir != DEFAULT_CONTENT_DIR:
+        list_cmd += f" --content-dir {content_dir}"
+    lines.append(f"Run `{list_cmd}` to see all lesson slugs.")
     return " ".join(lines)
 
 
@@ -274,10 +309,19 @@ def list_curriculum_lessons(
             [("curriculum.json", "missing 'modules' list")],
         )
     entries: List[Tuple[Dict[str, Any], Dict[str, Any]]] = []
-    for module in modules:
+    for m_index, module in enumerate(modules):
         if not isinstance(module, dict):
             continue
-        for lesson in module.get("lessons") or []:
+        mod_label = str(module.get("id") or module.get("slug") or f"modules[{m_index}]")
+        raw_lessons = module.get("lessons")
+        if raw_lessons is None:
+            continue
+        if not isinstance(raw_lessons, list):
+            raise CurriculumPreviewError(
+                f"curriculum.json: {mod_label}: 'lessons' must be a list",
+                [("curriculum.json", f"{mod_label}: 'lessons' must be a list")],
+            )
+        for lesson in raw_lessons:
             if isinstance(lesson, dict):
                 entries.append((module, lesson))
     return entries
@@ -315,10 +359,19 @@ def load_and_validate_lesson(content_dir: Path, slug: str) -> LessonPreviewData:
     lesson_files: Dict[str, Path] = {}
     target_pair: Optional[Tuple[Dict[str, Any], Dict[str, Any]]] = None
 
-    for module in modules:
+    for m_index, module in enumerate(modules):
         if not isinstance(module, dict):
             continue
-        for lesson in module.get("lessons") or []:
+        mod_label = str(module.get("id") or module.get("slug") or f"modules[{m_index}]")
+        raw_lessons = module.get("lessons")
+        if raw_lessons is None:
+            continue
+        if not isinstance(raw_lessons, list):
+            raise CurriculumPreviewError(
+                f"curriculum.json: {mod_label}: 'lessons' must be a list",
+                [("curriculum.json", f"{mod_label}: 'lessons' must be a list")],
+            )
+        for lesson in raw_lessons:
             if not isinstance(lesson, dict):
                 continue
             item_slug = str(lesson.get("slug") or "").strip()
@@ -334,10 +387,13 @@ def load_and_validate_lesson(content_dir: Path, slug: str) -> LessonPreviewData:
                     target_pair = (module, lesson)
 
     if target_pair is None:
-        raise CurriculumPreviewError(_format_unknown_slug_error(slug, known_slugs))
+        raise CurriculumPreviewError(
+            _format_unknown_slug_error(slug, known_slugs, content_dir)
+        )
 
     module, lesson = target_pair
     lesson_problems: List[Problem] = []
+    validated_bank_ids: Set[str] = set()
 
     if not SLUG_RE.match(slug):
         lesson_problems.append(("curriculum.json", f"malformed slug {slug!r}"))
@@ -360,7 +416,11 @@ def load_and_validate_lesson(content_dir: Path, slug: str) -> LessonPreviewData:
             estimated_minutes = minutes
 
     resolved_quizzes: List[Dict[str, Any]] = []
-    for q_index, quiz in enumerate(lesson.get("quizzes") or []):
+    raw_quizzes = lesson.get("quizzes")
+    if raw_quizzes is not None and not isinstance(raw_quizzes, list):
+        lesson_problems.append(("curriculum.json", f"{slug}: 'quizzes' must be a list"))
+        raw_quizzes = []
+    for q_index, quiz in enumerate(raw_quizzes or []):
         label = f"{slug} quiz #{q_index + 1}"
         if isinstance(quiz, str):
             if quiz not in quiz_bank:
@@ -368,11 +428,12 @@ def load_and_validate_lesson(content_dir: Path, slug: str) -> LessonPreviewData:
                     ("curriculum.json", f"{label}: unknown quiz id {quiz!r}")
                 )
                 continue
+            validated_bank_ids.add(quiz)
             bank_entry = quiz_bank[quiz]
             for msg in check_quiz(bank_entry, f"quiz '{quiz}'"):
                 lesson_problems.append(("quizzes.json", msg))
             if isinstance(bank_entry, dict):
-                resolved_quizzes.append({"id": quiz, **bank_entry})
+                resolved_quizzes.append({**bank_entry, "id": quiz})
             continue
         for msg in check_quiz(quiz, label):
             lesson_problems.append(("curriculum.json", msg))
@@ -395,13 +456,24 @@ def load_and_validate_lesson(content_dir: Path, slug: str) -> LessonPreviewData:
             f"Validation failed for lesson {slug!r}.", lesson_problems
         )
 
-    raw_text = md_path.read_text(encoding="utf-8")
+    try:
+        raw_text = md_path.read_text(encoding="utf-8")
+    except (UnicodeDecodeError, OSError) as exc:
+        raise CurriculumPreviewError(
+            f"Validation failed for lesson {slug!r}.",
+            [(file_path, f"could not read markdown file as UTF-8: {exc}")],
+        ) from exc
+
     if not raw_text.strip():
         lesson_problems.append((file_path, "lesson file is empty"))
 
     front_matter_error = check_front_matter(raw_text)
     if front_matter_error:
         lesson_problems.append((file_path, front_matter_error))
+
+    frontmatter, body, parse_fm_error = strip_frontmatter(raw_text)
+    if parse_fm_error and not front_matter_error:
+        lesson_problems.append((file_path, parse_fm_error))
 
     link_issues = check_links_and_assets(
         text=raw_text,
@@ -415,15 +487,32 @@ def load_and_validate_lesson(content_dir: Path, slug: str) -> LessonPreviewData:
     for line, msg in link_issues:
         lesson_problems.append((f"{file_path}:{line}", msg))
 
+    # Validate any quiz_bank records referenced directly by Markdown shortcodes.
+    for blk in _parse_blocks(body):
+        if blk["type"] != "shortcode" or blk["name"] != "interactive-quiz":
+            continue
+        sc_quiz_id = blk["props"].get("id")
+        if (
+            sc_quiz_id
+            and sc_quiz_id in quiz_bank
+            and sc_quiz_id not in validated_bank_ids
+        ):
+            validated_bank_ids.add(sc_quiz_id)
+            for msg in check_quiz(quiz_bank[sc_quiz_id], f"quiz '{sc_quiz_id}'"):
+                lesson_problems.append(("quizzes.json", msg))
+
     if lesson_problems:
         raise CurriculumPreviewError(
             f"Validation failed for lesson {slug!r}.", lesson_problems
         )
 
-    frontmatter, body = strip_frontmatter(raw_text)
     glossary_terms = load_glossary_terms(content_dir)
     valid_quiz_bank = {
-        k: v for k, v in quiz_bank.items() if isinstance(k, str) and isinstance(v, dict)
+        k: v
+        for k, v in quiz_bank.items()
+        if isinstance(k, str)
+        and isinstance(v, dict)
+        and not check_quiz(v, f"quiz '{k}'")
     }
     return LessonPreviewData(
         module=module,
@@ -465,7 +554,7 @@ def _render_inline_text(
         if part.startswith("[") and "](" in part:
             match = re.match(r"\[(.*?)\]\((.*?)\)", part)
             if match:
-                label, href = match.group(1), safe_url(match.group(2))
+                label, href = match.group(1), safe_link_href(match.group(2))
                 rendered_label = _track_glossary_plain(
                     label, patterns, matched_glossary
                 )
@@ -510,7 +599,7 @@ def _render_inline_html(
                 label = _render_glossary_html(
                     match.group(1), patterns, rendered_term_ids
                 )
-                href = html.escape(safe_url(match.group(2)), quote=True)
+                href = html.escape(safe_link_href(match.group(2)), quote=True)
                 out.append(
                     f'<a href="{href}" target="_blank" rel="noopener noreferrer">{label}</a>'
                 )
@@ -693,7 +782,7 @@ def _parse_blocks(body: str) -> List[Dict[str, Any]]:
             blocks.append(
                 {
                     "type": "image",
-                    "src": safe_url(img_tag_match.group(1)),
+                    "src": safe_image_src(img_tag_match.group(1)),
                     "alt": alt_m.group(1) if alt_m else "image",
                 }
             )
@@ -706,7 +795,7 @@ def _parse_blocks(body: str) -> List[Dict[str, Any]]:
             blocks.append(
                 {
                     "type": "image",
-                    "src": safe_url(img_md_match.group(2)),
+                    "src": safe_image_src(img_md_match.group(2)),
                     "alt": img_md_match.group(1),
                 }
             )
@@ -724,8 +813,13 @@ def _resolve_shortcode_quiz(
     data: LessonPreviewData, props: Dict[str, str]
 ) -> Optional[Dict[str, Any]]:
     quiz_id = props.get("id")
-    if quiz_id and quiz_id in data.quiz_bank:
-        return {"id": quiz_id, **data.quiz_bank[quiz_id]}
+    if quiz_id is not None:
+        if quiz_id in data.quiz_bank:
+            return {**data.quiz_bank[quiz_id], "id": quiz_id}
+        for q in data.quizzes:
+            if q.get("id") == quiz_id:
+                return q
+        return None
     if data.quizzes:
         return data.quizzes[0]
     return None
@@ -826,7 +920,8 @@ def render_preview_text(data: LessonPreviewData) -> str:
             if name == "interactive-quiz":
                 quiz = _resolve_shortcode_quiz(data, blk["props"])
                 if quiz:
-                    out.append(f"[QUIZ: {quiz.get('id', 'inline')}] {quiz['question']}")
+                    question_text = quiz.get("question", "")
+                    out.append(f"[QUIZ: {quiz.get('id', 'inline')}] {question_text}")
                     for idx, opt in enumerate(quiz.get("options") or []):
                         marker = "*" if idx == quiz.get("answer") else " "
                         out.append(f"  [{marker}] {idx + 1}. {opt}")
@@ -943,12 +1038,13 @@ def render_preview_html(data: LessonPreviewData) -> str:
             if name == "interactive-quiz":
                 quiz = _resolve_shortcode_quiz(data, blk["props"])
                 if quiz:
+                    question_text = str(quiz.get("question") or "")
                     opts = "".join(
                         f"<li>{html.escape(str(opt))}</li>"
                         for opt in (quiz.get("options") or [])
                     )
                     parts.append(
-                        f'<section class="interactive-quiz"><p><strong>{html.escape(str(quiz["question"]))}</strong></p><ul>{opts}</ul></section>'
+                        f'<section class="interactive-quiz"><p><strong>{html.escape(question_text)}</strong></p><ul>{opts}</ul></section>'
                     )
                 else:
                     parts.append(
@@ -966,6 +1062,25 @@ def render_preview_html(data: LessonPreviewData) -> str:
             parts.append(
                 f"<p>{_render_inline_html(blk['text'], patterns, rendered_terms)}</p>"
             )
+
+    if data.quizzes:
+        quiz_items: List[str] = []
+        for quiz in data.quizzes:
+            question = html.escape(str(quiz.get("question") or ""))
+            opts = "".join(
+                (
+                    f'<li data-correct="true">{html.escape(str(opt))}</li>'
+                    if o_idx == quiz.get("answer")
+                    else f"<li>{html.escape(str(opt))}</li>"
+                )
+                for o_idx, opt in enumerate(quiz.get("options") or [])
+            )
+            quiz_items.append(
+                f"<li><p><strong>{question}</strong></p><ul>{opts}</ul></li>"
+            )
+        parts.append(
+            f'<section class="lesson-quizzes"><h2>Lesson Quizzes</h2><ol>{"".join(quiz_items)}</ol></section>'
+        )
 
     parts.append("</article>")
     return "\n".join(parts) + "\n"
