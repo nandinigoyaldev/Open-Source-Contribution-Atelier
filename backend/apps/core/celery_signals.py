@@ -24,8 +24,13 @@ def add_request_id_to_task(headers=None, **kwargs):
         headers["x-request-id"] = req_id
         headers["x-correlation-id"] = req_id
         headers["correlation_id"] = req_id
-    # The W3C traceparent header is added by CeleryInstrumentor (see config.opentelemetry),
-    # which also reads it back in the worker so the task span continues the request's trace.
+    if headers is not None:
+        try:
+            from opentelemetry import propagate
+
+            propagate.inject(headers)
+        except Exception:
+            pass
 
 
 @worker_init.connect

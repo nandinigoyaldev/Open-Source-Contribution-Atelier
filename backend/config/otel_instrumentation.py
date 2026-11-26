@@ -323,12 +323,183 @@ def uninstrument_requests() -> None:
     _original_send = None
 
 
+# ── Celery Task Tracing & Span Propagation ──────────────────────────────────
+
+_CELERY_PUBLISH_UID = "config.otel_instrumentation.celery_publish"
+_CELERY_PRERUN_UID = "config.otel_instrumentation.celery_prerun"
+_CELERY_POSTRUN_UID = "config.otel_instrumentation.celery_postrun"
+_celery_enabled = False
+_in_task_span: contextvars.ContextVar[Any] = contextvars.ContextVar(
+    "otel_in_task_span", default=None
+)
+_task_token: contextvars.ContextVar[Any] = contextvars.ContextVar(
+    "otel_task_token", default=None
+)
+
+
+def _inject_celery_trace_context(headers=None, **kwargs) -> None:
+    """Inject OpenTelemetry trace context (traceparent, tracestate) into Celery task headers."""
+    if not _celery_enabled or headers is None:
+        return
+    try:
+        propagate.inject(headers)
+    except Exception as exc:
+        logger.debug("Failed to inject trace context into Celery headers: %s", exc)
+
+    span = trace.get_current_span()
+    span_ctx = span.get_span_context() if span else None
+    if span_ctx and span_ctx.is_valid:
+        if "traceparent" not in headers:
+            trace_id = format(span_ctx.trace_id, "032x")
+            span_id = format(span_ctx.span_id, "016x")
+            flags = format(span_ctx.trace_flags, "02x")
+            headers["traceparent"] = f"00-{trace_id}-{span_id}-{flags}"
+        if span_ctx.trace_state and "tracestate" not in headers:
+            headers["tracestate"] = span_ctx.trace_state.to_header()
+
+
+def _extract_celery_carrier(task: Any) -> dict[str, str]:
+    carrier: dict[str, str] = {}
+    if task is None:
+        return carrier
+    request = getattr(task, "request", None)
+    if not request:
+        return carrier
+
+    headers = getattr(request, "headers", None)
+    if isinstance(headers, dict):
+        for k, v in headers.items():
+            if isinstance(v, str):
+                carrier[k] = v
+            elif isinstance(v, bytes):
+                carrier[k] = v.decode("latin1", "replace")
+
+    for key in (
+        "traceparent",
+        "tracestate",
+        "x-correlation-id",
+        "correlation_id",
+        "x-request-id",
+    ):
+        val = getattr(request, key, None)
+        if val and key not in carrier:
+            carrier[key] = str(val)
+
+    return carrier
+
+
+def celery_task_prerun(
+    task_id=None, task=None, args=None, kwargs=None, **extra
+) -> None:
+    """Pre-run signal listener: extracts trace headers and starts a child span."""
+    if not _celery_enabled or not is_instrumentation_enabled():
+        return
+
+    carrier = _extract_celery_carrier(task)
+    parent_context = propagate.extract(carrier) if carrier else None
+    task_name = getattr(task, "name", "celery.task")
+    span_name = f"celery.{task_name}"
+
+    tracer = _tracer()
+    attributes: dict[str, Any] = {
+        "messaging.system": "celery",
+        "messaging.destination": getattr(task, "queue", "celery") or "celery",
+        "messaging.message_id": str(task_id or ""),
+        "celery.task_name": str(task_name),
+        "celery.task_id": str(task_id or ""),
+    }
+    corr_id = carrier.get("x-correlation-id") or carrier.get("correlation_id")
+    if corr_id:
+        attributes["app.correlation_id"] = corr_id
+
+    span = tracer.start_span(
+        span_name,
+        context=parent_context,
+        kind=SpanKind.CONSUMER,
+        attributes=attributes,
+        record_exception=False,
+        set_status_on_exception=False,
+    )
+
+    from opentelemetry.context import attach
+
+    token = attach(trace.set_span_in_context(span, parent_context))
+
+    _in_task_span.set(span)
+    _task_token.set(token)
+    if task is not None:
+        task._otel_child_span = span
+        task._otel_token = token
+
+
+def celery_task_postrun(
+    task_id=None, task=None, args=None, kwargs=None, retval=None, state=None, **extra
+) -> None:
+    """Post-run signal listener: closes the child span started in prerun."""
+    if not _celery_enabled:
+        return
+
+    span = getattr(task, "_otel_child_span", None) or _in_task_span.get()
+    token = getattr(task, "_otel_token", None) or _task_token.get()
+
+    if span is not None:
+        if state == "FAILURE":
+            span.set_status(Status(StatusCode.ERROR, "Task execution failed"))
+        span.set_attribute("celery.status", state or "SUCCESS")
+        span.end()
+
+    if token is not None:
+        from opentelemetry.context import detach
+
+        try:
+            detach(token)
+        except Exception:
+            pass
+
+    _in_task_span.set(None)
+    _task_token.set(None)
+    if task is not None:
+        task._otel_child_span = None
+        task._otel_token = None
+
+
+def instrument_celery() -> None:
+    global _celery_enabled
+    try:
+        from celery.signals import before_task_publish, task_postrun, task_prerun
+    except ImportError:
+        return
+
+    _celery_enabled = True
+    before_task_publish.connect(
+        _inject_celery_trace_context, dispatch_uid=_CELERY_PUBLISH_UID, weak=False
+    )
+    task_prerun.connect(celery_task_prerun, dispatch_uid=_CELERY_PRERUN_UID, weak=False)
+    task_postrun.connect(
+        celery_task_postrun, dispatch_uid=_CELERY_POSTRUN_UID, weak=False
+    )
+
+
+def uninstrument_celery() -> None:
+    global _celery_enabled
+    try:
+        from celery.signals import before_task_publish, task_postrun, task_prerun
+    except ImportError:
+        return
+
+    _celery_enabled = False
+    before_task_publish.disconnect(dispatch_uid=_CELERY_PUBLISH_UID)
+    task_prerun.disconnect(dispatch_uid=_CELERY_PRERUN_UID)
+    task_postrun.disconnect(dispatch_uid=_CELERY_POSTRUN_UID)
+
+
 # ── All of the above ────────────────────────────────────────────────────────
 
 _INSTRUMENTATIONS = (
     ("database", instrument_database, uninstrument_database),
     ("cache", instrument_cache, uninstrument_cache),
     ("requests", instrument_requests, uninstrument_requests),
+    ("celery", instrument_celery, uninstrument_celery),
 )
 
 
