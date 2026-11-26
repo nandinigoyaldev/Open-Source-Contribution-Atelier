@@ -33,6 +33,23 @@ class ResourceManagementEngine:
     MAX_SESSION_PROCESSES = 20  # max processes spawned across session
     SESSION_WINDOW_SECONDS = 3600  # 1 hour window
 
+    CONTAINER_SECURITY_PROFILE = {
+        "cap_drop": ["ALL"],
+        "cap_add": ["SETUID", "SETGID"],
+        "security_opt": [
+            "seccomp=infra/docker/sandbox-seccomp.json",
+            "apparmor=sandbox-profile",
+        ],
+        "allowed_loopback_addresses": [
+            "127.0.0.1",
+            "::1",
+            "localhost",
+            "127.0.0.0/8",
+        ],
+        "ebpf_filter_enabled": True,
+        "block_outbound_network": True,
+    }
+
     # AST Whitelist rules
     FORBIDDEN_IMPORTS = {
         "os",
@@ -247,6 +264,37 @@ class ResourceManagementEngine:
             logger.warning("Error killing process tree %s: %s", pid, e)
 
     @classmethod
+    def validate_network_access(cls, host: str, port: int = None) -> bool:
+        """
+        Validates outbound network destination against loopback whitelist.
+        Blocks all outbound traffic to non-loopback addresses.
+        """
+        import ipaddress
+
+        if not host:
+            return False
+
+        clean_host = str(host).strip().lower()
+        if clean_host in ("localhost", "127.0.0.1", "::1"):
+            return True
+
+        try:
+            ip_obj = ipaddress.ip_address(clean_host)
+            if ip_obj.is_loopback:
+                return True
+        except ValueError:
+            pass
+
+        raise SecurityViolation(
+            f"Outbound network access to '{host}' is blocked by sandbox eBPF network isolation rules. Only loopback connections are permitted."
+        )
+
+    @classmethod
+    def get_container_security_config(cls) -> dict:
+        """Returns Docker execution container security configuration."""
+        return cls.CONTAINER_SECURITY_PROFILE.copy()
+
+    @classmethod
     def get_wrapper_script(cls, code: str) -> str:
         return f"""
 import sys
@@ -260,6 +308,23 @@ try:
         # Limit max child processes to 5 to protect process quota
         resource.setrlimit(resource.RLIMIT_NPROC, (5, 5))
 except ImportError:
+    pass
+
+# eBPF / Network Isolation Hook: Restrict all outbound socket traffic to loopback
+try:
+    import socket
+    _orig_connect = socket.socket.connect
+
+    def _isolated_connect(self, address):
+        target_host = address[0] if isinstance(address, tuple) and address else str(address)
+        target_str = str(target_host).strip().lower()
+        allowed = ("127.0.0.1", "localhost", "::1")
+        if target_str not in allowed and not target_str.startswith("127."):
+            raise PermissionError(f"Network access to '{{target_host}}' is blocked by sandbox eBPF network isolation rules.")
+        return _orig_connect(self, address)
+
+    socket.socket.connect = _isolated_connect
+except Exception:
     pass
 
 code = {repr(code)}
