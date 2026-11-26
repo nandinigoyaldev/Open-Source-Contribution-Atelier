@@ -57,6 +57,55 @@ def ws_active_connections() -> float | None:
 
 
 # --------------------------------------------------------------------------- #
+# Distributed worker leader election gauge                                    #
+# --------------------------------------------------------------------------- #
+
+LEADER_GAUGE_NAME = "notification_worker_is_leader"
+
+try:
+    from prometheus_client import REGISTRY, Gauge
+
+    existing_leader = getattr(REGISTRY, "_names_to_collectors", {}).get(
+        LEADER_GAUGE_NAME
+    )
+    if existing_leader:
+        NOTIFICATION_WORKER_IS_LEADER = existing_leader
+    else:
+        try:
+            NOTIFICATION_WORKER_IS_LEADER = Gauge(
+                LEADER_GAUGE_NAME,
+                "Indicates if this worker node is the elected cluster leader (1=leader, 0=follower)",
+            )
+        except ValueError:
+            NOTIFICATION_WORKER_IS_LEADER = getattr(
+                REGISTRY, "_names_to_collectors", {}
+            ).get(LEADER_GAUGE_NAME)
+except (ImportError, Exception):
+    NOTIFICATION_WORKER_IS_LEADER = None
+
+
+def set_worker_is_leader_metric(is_leader: bool) -> None:
+    """Record whether this process is the elected leader (1=leader, 0=follower)."""
+    if NOTIFICATION_WORKER_IS_LEADER is not None:
+        try:
+            NOTIFICATION_WORKER_IS_LEADER.set(1 if is_leader else 0)
+        except Exception as exc:
+            logger.debug("Failed to set notification_worker_is_leader gauge: %s", exc)
+
+
+def get_worker_is_leader_metric() -> float | None:
+    """Read the current notification_worker_is_leader gauge value from REGISTRY."""
+    if NOTIFICATION_WORKER_IS_LEADER is None:
+        return None
+    try:
+        from prometheus_client import REGISTRY
+
+        return REGISTRY.get_sample_value(LEADER_GAUGE_NAME)
+    except Exception:
+        return None
+
+
+# --------------------------------------------------------------------------- #
 # Notification outbox (see apps.notifications.outbox)                         #
 # --------------------------------------------------------------------------- #
 

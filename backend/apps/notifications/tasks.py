@@ -605,6 +605,14 @@ def send_notification_digests():
     emails out in parallel across worker threads using a Celery ``group``. Each
     member of the group is a ``send_bulk_email`` subtask.
     """
+    from apps.core.election import is_worker_leader
+
+    if getattr(settings, "ENABLE_LEADER_ELECTION", False) and not is_worker_leader():
+        logger.info(
+            "Skipping send_notification_digests fan-out: node is not elected leader"
+        )
+        return {"status": "skipped", "reason": "not_leader"}
+
     import zoneinfo
 
     from celery import group
@@ -932,6 +940,14 @@ def recover_stale_deliveries(limit: int = 500):
 @shared_task
 def purge_notification_ledger_task():
     """Periodic task: apply the retention windows to the delivery ledger (and the outbox)."""
+    from apps.core.election import is_worker_leader
+
+    if getattr(settings, "ENABLE_LEADER_ELECTION", False) and not is_worker_leader():
+        logger.info(
+            "Skipping purge_notification_ledger_task: node is not elected leader"
+        )
+        return {"status": "skipped", "reason": "not_leader"}
+
     from apps.notifications.outbox import purge_dispatched
     from apps.notifications.retention import purge_notification_ledger
 
@@ -954,6 +970,12 @@ def dispatch_notification_outbox(limit: Optional[int] = None):
     Periodic task: claim due outbox rows and hand them to the delivery ledger. Covers rows whose
     fast-path task was never queued or run, retries that are due, and rows left by a dead worker.
     """
+    from apps.core.election import is_worker_leader
+
+    if getattr(settings, "ENABLE_LEADER_ELECTION", False) and not is_worker_leader():
+        logger.info("Skipping dispatch_notification_outbox: node is not elected leader")
+        return {"status": "skipped", "reason": "not_leader"}
+
     from apps.notifications.outbox import dispatch_due
 
     summary = dispatch_due(limit=limit)
