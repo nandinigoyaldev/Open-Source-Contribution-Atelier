@@ -371,3 +371,284 @@ def test_drf_oauth2_bearer_authentication(test_user, oauth_client_obj):
     assert user == test_user
     assert token == token_obj
     assert "openid" in token.scopes
+
+
+@pytest.mark.django_db
+def test_pkce_verify_helper():
+    from apps.oauth.views import _verify_pkce
+
+    verifier = "E9Melhoa2OwvFrEMTJguCHaoeK1t8URWbuGJSstw-cM"
+    # SHA-256 hash of the above verifier
+    hashed = hashlib.sha256(verifier.encode("ascii")).digest()
+    challenge = base64.urlsafe_b64encode(hashed).decode("ascii").rstrip("=")
+
+    # Valid S256 verification
+    assert _verify_pkce(verifier, challenge, "S256") is True
+
+    # Padded challenge also matches
+    padded_challenge = challenge + "="
+    assert _verify_pkce(verifier, padded_challenge, "S256") is True
+
+    # Mismatched verifier fails
+    assert (
+        _verify_pkce("wrong_verifier_123456789012345678901234567890", challenge, "S256")
+        is False
+    )
+
+    # Plain method is rejected
+    assert _verify_pkce(verifier, verifier, "plain") is False
+    assert _verify_pkce(verifier, challenge, "plain") is False
+
+    # Unknown method is rejected
+    assert _verify_pkce(verifier, challenge, "S512") is False
+
+    # Empty verifier fails
+    assert _verify_pkce("", challenge, "S256") is False
+
+    # Non-ascii verifier fails safely
+    assert _verify_pkce("verifier_with_unicode_\u2603", challenge, "S256") is False
+
+
+@pytest.mark.django_db
+def test_public_client_requires_code_challenge_at_authorization(
+    test_user, public_oauth_client
+):
+    api_client = APIClient()
+    api_client.force_authenticate(user=test_user)
+
+    # GET consent without code_challenge must fail for public clients
+    res_get = api_client.get(
+        "/oauth/authorize/",
+        {
+            "client_id": public_oauth_client.client_id,
+            "redirect_uri": "http://localhost:3000/callback",
+            "response_type": "code",
+            "scope": "openid",
+        },
+    )
+    assert res_get.status_code == 400
+    assert res_get.json()["error"] == "invalid_request"
+    assert "code_challenge is required" in res_get.json()["error_description"]
+
+    # POST grant without code_challenge must fail for public clients
+    res_post = api_client.post(
+        "/oauth/authorize/",
+        {
+            "client_id": public_oauth_client.client_id,
+            "redirect_uri": "http://localhost:3000/callback",
+            "response_type": "code",
+            "scope": "openid",
+            "action": "grant",
+        },
+        format="json",
+    )
+    assert res_post.status_code == 400
+    assert res_post.json()["error"] == "invalid_request"
+    assert "code_challenge is required" in res_post.json()["error_description"]
+
+
+@pytest.mark.django_db
+def test_authorization_rejects_plain_code_challenge_method(
+    test_user, public_oauth_client
+):
+    api_client = APIClient()
+    api_client.force_authenticate(user=test_user)
+
+    res = api_client.post(
+        "/oauth/authorize/",
+        {
+            "client_id": public_oauth_client.client_id,
+            "redirect_uri": "http://localhost:3000/callback",
+            "response_type": "code",
+            "scope": "openid",
+            "code_challenge": "my_plain_challenge_string_12345",
+            "code_challenge_method": "plain",
+            "action": "grant",
+        },
+        format="json",
+    )
+    assert res.status_code == 400
+    assert res.json()["error"] == "invalid_request"
+    assert "code_challenge_method" in res.json()
+
+
+@pytest.mark.django_db
+def test_authorization_rejects_unsupported_code_challenge_method(
+    test_user, public_oauth_client
+):
+    api_client = APIClient()
+    api_client.force_authenticate(user=test_user)
+
+    res = api_client.post(
+        "/oauth/authorize/",
+        {
+            "client_id": public_oauth_client.client_id,
+            "redirect_uri": "http://localhost:3000/callback",
+            "response_type": "code",
+            "scope": "openid",
+            "code_challenge": "challenge_12345",
+            "code_challenge_method": "S512",
+            "action": "grant",
+        },
+        format="json",
+    )
+    assert res.status_code == 400
+    assert res.json()["error"] == "invalid_request"
+
+
+@pytest.mark.django_db
+def test_public_client_token_exchange_validation(test_user, public_oauth_client):
+    api_client = APIClient()
+    api_client.force_authenticate(user=test_user)
+
+    code_verifier = "public_client_secure_random_verifier_string_12345678"
+    hashed = hashlib.sha256(code_verifier.encode("ascii")).digest()
+    code_challenge = base64.urlsafe_b64encode(hashed).rstrip(b"=").decode("ascii")
+
+    res_grant = api_client.post(
+        "/oauth/authorize/",
+        {
+            "client_id": public_oauth_client.client_id,
+            "redirect_uri": "http://localhost:3000/callback",
+            "response_type": "code",
+            "scope": "openid",
+            "code_challenge": code_challenge,
+            "code_challenge_method": "S256",
+            "action": "grant",
+        },
+        format="json",
+    )
+    assert res_grant.status_code == 201
+    code = res_grant.json()["code"]
+
+    api_client.logout()
+
+    # 1. Missing code_verifier must fail
+    res_no_verifier = api_client.post(
+        "/oauth/token/",
+        {
+            "grant_type": "authorization_code",
+            "client_id": public_oauth_client.client_id,
+            "code": code,
+            "redirect_uri": "http://localhost:3000/callback",
+        },
+        format="json",
+    )
+    assert res_no_verifier.status_code == 400
+    assert res_no_verifier.json()["error"] == "invalid_grant"
+
+    # 2. Invalid code_verifier must fail
+    res_wrong_verifier = api_client.post(
+        "/oauth/token/",
+        {
+            "grant_type": "authorization_code",
+            "client_id": public_oauth_client.client_id,
+            "code": code,
+            "redirect_uri": "http://localhost:3000/callback",
+            "code_verifier": "wrong_verifier_mismatching_challenge_12345",
+        },
+        format="json",
+    )
+    assert res_wrong_verifier.status_code == 400
+    assert res_wrong_verifier.json()["error"] == "invalid_grant"
+
+    # 3. Correct code_verifier succeeds
+    res_valid = api_client.post(
+        "/oauth/token/",
+        {
+            "grant_type": "authorization_code",
+            "client_id": public_oauth_client.client_id,
+            "code": code,
+            "redirect_uri": "http://localhost:3000/callback",
+            "code_verifier": code_verifier,
+        },
+        format="json",
+    )
+    assert res_valid.status_code == 200
+    assert "access_token" in res_valid.json()
+
+
+@pytest.mark.django_db
+def test_public_client_token_exchange_rejects_code_without_challenge(
+    test_user, public_oauth_client
+):
+    api_client = APIClient()
+
+    # Manually created auth code for public client without challenge
+    auth_code = OAuthAuthorizationCode.objects.create(
+        client=public_oauth_client,
+        user=test_user,
+        code="authcode_unprotected_public_test",
+        redirect_uri="http://localhost:3000/callback",
+        scope="openid",
+        code_challenge="",
+        expires_at=timezone.now() + timedelta(minutes=10),
+    )
+
+    res = api_client.post(
+        "/oauth/token/",
+        {
+            "grant_type": "authorization_code",
+            "client_id": public_oauth_client.client_id,
+            "code": auth_code.code,
+            "redirect_uri": "http://localhost:3000/callback",
+            "code_verifier": "some_verifier_string_12345678901234567890",
+        },
+        format="json",
+    )
+    assert res.status_code == 400
+    assert res.json()["error"] == "invalid_grant"
+
+
+@pytest.mark.django_db
+def test_confidential_client_pkce_rejects_invalid_verifier(test_user, oauth_client_obj):
+    api_client = APIClient()
+    api_client.force_authenticate(user=test_user)
+
+    code_verifier = "confidential_client_pkce_verifier_secret_12345"
+    hashed = hashlib.sha256(code_verifier.encode("ascii")).digest()
+    code_challenge = base64.urlsafe_b64encode(hashed).rstrip(b"=").decode("ascii")
+
+    res_grant = api_client.post(
+        "/oauth/authorize/",
+        {
+            "client_id": oauth_client_obj.client_id,
+            "redirect_uri": "http://localhost:3000/callback",
+            "response_type": "code",
+            "scope": "openid",
+            "code_challenge": code_challenge,
+            "code_challenge_method": "S256",
+            "action": "grant",
+        },
+        format="json",
+    )
+    assert res_grant.status_code == 201
+    code = res_grant.json()["code"]
+
+    api_client.logout()
+
+    # Wrong verifier rejected
+    res_fail = api_client.post(
+        "/oauth/token/",
+        {
+            "grant_type": "authorization_code",
+            "client_id": oauth_client_obj.client_id,
+            "client_secret": "secret123",
+            "code": code,
+            "redirect_uri": "http://localhost:3000/callback",
+            "code_verifier": "completely_wrong_verifier_token",
+        },
+        format="json",
+    )
+    assert res_fail.status_code == 400
+    assert res_fail.json()["error"] == "invalid_grant"
+
+
+@pytest.mark.django_db
+def test_openid_discovery_has_pkce_methods():
+    api_client = APIClient()
+    res = api_client.get("/.well-known/openid-configuration")
+    assert res.status_code == 200
+    config = res.json()
+    assert "code_challenge_methods_supported" in config
+    assert config["code_challenge_methods_supported"] == ["S256"]

@@ -21,18 +21,20 @@ from .serializers import (
 )
 
 
-def _verify_pkce(code_verifier: str, code_challenge: str, method: str) -> bool:
+def _verify_pkce(code_verifier: str, code_challenge: str, method: str = "S256") -> bool:
     if not code_challenge:
         return True
     if not code_verifier:
         return False
-    if method == "S256":
-        hashed = hashlib.sha256(code_verifier.encode("utf-8")).digest()
-        calculated = base64.urlsafe_b64encode(hashed).rstrip(b"=").decode("utf-8")
-        return calculated == code_challenge.rstrip("=")
-    elif method == "plain":
-        return code_verifier == code_challenge
-    return False
+    if method != "S256":
+        return False
+    try:
+        verifier_bytes = code_verifier.encode("ascii")
+    except (UnicodeEncodeError, AttributeError):
+        return False
+    hashed = hashlib.sha256(verifier_bytes).digest()
+    calculated = base64.urlsafe_b64encode(hashed).decode("ascii").rstrip("=")
+    return calculated == code_challenge.rstrip("=")
 
 
 class AuthorizationView(views.APIView):
@@ -40,7 +42,21 @@ class AuthorizationView(views.APIView):
 
     def get(self, request):
         serializer = AuthorizeRequestSerializer(data=request.query_params)
-        serializer.is_valid(raise_exception=True)
+        if not serializer.is_valid():
+            first_err = next(iter(serializer.errors.values()))
+            err_msg = (
+                first_err[0]
+                if isinstance(first_err, list) and first_err
+                else str(first_err)
+            )
+            return Response(
+                {
+                    "error": "invalid_request",
+                    "error_description": err_msg,
+                    **serializer.errors,
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         data = serializer.validated_data
 
         try:
@@ -55,6 +71,17 @@ class AuthorizationView(views.APIView):
         if data["redirect_uri"] not in client.redirect_uris:
             return Response(
                 {"error": "invalid_redirect_uri"}, status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if client.client_type == OAuthClient.ClientType.PUBLIC and not data.get(
+            "code_challenge"
+        ):
+            return Response(
+                {
+                    "error": "invalid_request",
+                    "error_description": "PKCE code_challenge is required for public clients",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         return Response(
@@ -72,7 +99,21 @@ class AuthorizationView(views.APIView):
 
     def post(self, request):
         serializer = AuthorizeRequestSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+        if not serializer.is_valid():
+            first_err = next(iter(serializer.errors.values()))
+            err_msg = (
+                first_err[0]
+                if isinstance(first_err, list) and first_err
+                else str(first_err)
+            )
+            return Response(
+                {
+                    "error": "invalid_request",
+                    "error_description": err_msg,
+                    **serializer.errors,
+                },
+                status=status.HTTP_400_BAD_REQUEST,
+            )
         data = serializer.validated_data
 
         user_action = request.data.get("action", "grant")
@@ -99,6 +140,17 @@ class AuthorizationView(views.APIView):
         if redirect_uri not in client.redirect_uris:
             return Response(
                 {"error": "invalid_redirect_uri"}, status=status.HTTP_400_BAD_REQUEST
+            )
+
+        if client.client_type == OAuthClient.ClientType.PUBLIC and not data.get(
+            "code_challenge"
+        ):
+            return Response(
+                {
+                    "error": "invalid_request",
+                    "error_description": "PKCE code_challenge is required for public clients",
+                },
+                status=status.HTTP_400_BAD_REQUEST,
             )
 
         code_str = f"authcode_{secrets.token_urlsafe(32)}"
@@ -167,6 +219,17 @@ class TokenView(views.APIView):
                     status=400,
                 )
 
+            # Check client matching if client_id is passed
+            req_client_id = data.get("client_id")
+            if req_client_id and req_client_id != auth_code.client.client_id:
+                return Response(
+                    {
+                        "error": "invalid_client",
+                        "error_description": "Client ID mismatch",
+                    },
+                    status=400,
+                )
+
             # Check client authentication for confidential clients
             if auth_code.client.client_type == OAuthClient.ClientType.CONFIDENTIAL:
                 client_secret = data.get("client_secret")
@@ -176,9 +239,51 @@ class TokenView(views.APIView):
                     return Response({"error": "invalid_client"}, status=401)
 
             # Check PKCE
-            if auth_code.code_challenge:
-                code_verifier = data.get("code_verifier", "")
+            is_public_client = (
+                auth_code.client.client_type == OAuthClient.ClientType.PUBLIC
+            )
+            code_verifier = data.get("code_verifier", "")
+
+            if is_public_client:
+                if not code_verifier:
+                    return Response(
+                        {
+                            "error": "invalid_grant",
+                            "error_description": "Code verifier is required for public clients",
+                        },
+                        status=400,
+                    )
+                if not auth_code.code_challenge:
+                    return Response(
+                        {
+                            "error": "invalid_grant",
+                            "error_description": "PKCE code_challenge is required for public clients",
+                        },
+                        status=400,
+                    )
+                if auth_code.code_challenge_method != "S256":
+                    return Response(
+                        {
+                            "error": "invalid_grant",
+                            "error_description": "Unsupported code_challenge_method. Only 'S256' is supported.",
+                        },
+                        status=400,
+                    )
                 if not _verify_pkce(
+                    code_verifier,
+                    auth_code.code_challenge,
+                    auth_code.code_challenge_method,
+                ):
+                    return Response(
+                        {
+                            "error": "invalid_grant",
+                            "error_description": "PKCE verification failed",
+                        },
+                        status=400,
+                    )
+            elif auth_code.code_challenge:
+                # Confidential client that provided a code_challenge
+                if not code_verifier or not _verify_pkce(
                     code_verifier,
                     auth_code.code_challenge,
                     auth_code.code_challenge_method,
@@ -361,6 +466,7 @@ class OpenIDConfigView(views.APIView):
                     "client_credentials",
                     "refresh_token",
                 ],
+                "code_challenge_methods_supported": ["S256"],
                 "subject_types_supported": ["public"],
                 "id_token_signing_alg_values_supported": ["RS256"],
                 "scopes_supported": [
