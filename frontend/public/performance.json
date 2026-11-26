@@ -1,69 +1,67 @@
 {
-  "timestamp": "2026-07-20T14:41:43.119Z",
+  "timestamp": "2026-11-26T16:16:53.006Z",
   "metrics": {
-    "totalJsGzipKB": 2178,
-    "totalCssGzipKB": 43
+    "totalJsGzipKB": 3433,
+    "totalCssGzipKB": 68
   },
   "budget": {
-    "totalJsGzipKB": 500,
-    "singleChunkMaxKB": 200,
-    "totalCssGzipKB": 100
+    "totalJsGzipKB": 3600,
+    "singleChunkMaxKB": 1000,
+    "totalCssGzipKB": 100,
+    "reviewThresholdPct": 90
   },
   "top10Chunks": [
     {
-      "name": "index-6u12ggDy.js",
-      "sizeKB": 921,
+      "name": "index-BfjtZRIf.js",
+      "sizeKB": 927,
       "type": "JS"
     },
     {
-      "name": "index-6u12ggDy.js.gz",
-      "sizeKB": 918,
-      "type": "Asset"
-    },
-    {
-      "name": "index-6u12ggDy.js.br",
-      "sizeKB": 740,
-      "type": "Asset"
-    },
-    {
-      "name": "SignupPage-CaWHLtv2.js",
-      "sizeKB": 386,
+      "name": "PasswordStrengthMeter-fgK_Arhg.js",
+      "sizeKB": 384,
       "type": "JS"
     },
     {
-      "name": "SignupPage-CaWHLtv2.js.gz",
-      "sizeKB": 386,
-      "type": "Asset"
-    },
-    {
-      "name": "SignupPage-CaWHLtv2.js.br",
-      "sizeKB": 351,
-      "type": "Asset"
-    },
-    {
-      "name": "A11yLinterSandbox-bX-ELPQB.js",
-      "sizeKB": 162,
+      "name": "A11yLinterSandbox-0kZ_RTvQ.js",
+      "sizeKB": 186,
       "type": "JS"
     },
     {
-      "name": "A11yLinterSandbox-bX-ELPQB.js.gz",
-      "sizeKB": 161,
-      "type": "Asset"
+      "name": "cynefin-VYW2F7L2-DT4aD6rg.js",
+      "sizeKB": 146,
+      "type": "JS"
     },
     {
-      "name": "A11yLinterSandbox-bX-ELPQB.js.br",
-      "sizeKB": 135,
-      "type": "Asset"
+      "name": "MarkdownRenderer-_gbw_XKv.js",
+      "sizeKB": 139,
+      "type": "JS"
     },
     {
-      "name": "RichTextEditor-BYe9U85X.js",
-      "sizeKB": 109,
+      "name": "cytoscape.esm-CPepm-69.js",
+      "sizeKB": 133,
+      "type": "JS"
+    },
+    {
+      "name": "RichTextEditor-DF29QcNl.js",
+      "sizeKB": 107,
+      "type": "JS"
+    },
+    {
+      "name": "jsWorker-B8yc_9fM.js",
+      "sizeKB": 85,
+      "type": "JS"
+    },
+    {
+      "name": "katex-D4fjm7KT.js",
+      "sizeKB": 75,
+      "type": "JS"
+    },
+    {
+      "name": "katex-DYMATl0w.js",
+      "sizeKB": 75,
       "type": "JS"
     }
   ],
-  "violations": [
-    "Chunk `index-6u12ggDy.js` (921KB) exceeds limit of 200KB",
-    "Chunk `SignupPage-CaWHLtv2.js` (386KB) exceeds limit of 200KB"
-  ],
-  "status": "failed"
+  "violations": [],
+  "status": "passed"
 }
