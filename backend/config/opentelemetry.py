@@ -81,9 +81,16 @@ def _service_name() -> str:
 def _otlp_exporter() -> Any:
     from opentelemetry.exporter.otlp.proto.http.trace_exporter import OTLPSpanExporter
 
-    endpoint = getattr(settings, "OTEL_EXPORTER_OTLP_ENDPOINT", None)
-    # Without an explicit Django setting the exporter reads the standard
-    # OTEL_EXPORTER_OTLP_(TRACES_)ENDPOINT/HEADERS/TIMEOUT variables itself.
+    # Check settings and environment variables for OpenTelemetry collector or Jaeger
+    endpoint = (
+        getattr(settings, "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT", None)
+        or getattr(settings, "OTEL_EXPORTER_OTLP_ENDPOINT", None)
+        or getattr(settings, "JAEGER_ENDPOINT", None)
+        or os.getenv("OTEL_EXPORTER_OTLP_TRACES_ENDPOINT")
+        or os.getenv("OTEL_EXPORTER_OTLP_ENDPOINT")
+        or os.getenv("JAEGER_ENDPOINT")
+    )
+    # Modern Jaeger and OpenTelemetry Collector ingest unified distributed traces via OTLP
     return OTLPSpanExporter(endpoint=endpoint) if endpoint else OTLPSpanExporter()
 
 
@@ -103,8 +110,13 @@ def _build_provider(span_exporter: Any) -> Any:
         if os.getenv("OTEL_TRACES_SAMPLER")
         else DebugAwareSampler(get_sample_rate())
     )
+    resource_attrs = {
+        SERVICE_NAME: _service_name(),
+        "service.version": getattr(settings, "APP_VERSION", "1.0.0"),
+        "deployment.environment": getattr(settings, "ENVIRONMENT", "development"),
+    }
     provider = TracerProvider(
-        resource=Resource.create({SERVICE_NAME: _service_name()}),
+        resource=Resource.create(resource_attrs),
         sampler=sampler,
     )
     provider.add_span_processor(

@@ -39,7 +39,10 @@ combined_websocket_urlpatterns = (
 )
 
 from apps.chat.middleware import ProfanityFilterMiddleware
-from apps.core.middleware import WebSocketRateLimitMiddleware
+from apps.core.middleware import (
+    WebSocketRateLimitMiddleware,
+    WebSocketTraceMiddleware,
+)
 
 application = ProtocolTypeRouter(
     {
@@ -47,7 +50,11 @@ application = ProtocolTypeRouter(
         "websocket": AllowedHostsOriginValidator(
             WebSocketRateLimitMiddleware(
                 ProfanityFilterMiddleware(
-                    JWTAuthMiddleware(URLRouter(combined_websocket_urlpatterns))
+                    JWTAuthMiddleware(
+                        WebSocketTraceMiddleware(
+                            URLRouter(combined_websocket_urlpatterns)
+                        )
+                    )
                 )
             )
         ),
