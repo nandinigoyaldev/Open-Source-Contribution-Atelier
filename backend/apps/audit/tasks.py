@@ -20,7 +20,11 @@ def archive_audit_events():
     to a JSON file in the configured storage directory, then delete them from the database.
     """
     retention_days = getattr(settings, "AUDIT_RETENTION_DAYS", 90)
-    cutoff = timezone.now() - timedelta(days=retention_days)
+    now = timezone.now()
+    # A cutoff before year 1 cannot match any stored timestamp.
+    if retention_days >= now.toordinal():
+        return 0
+    cutoff = now - timedelta(days=retention_days)
 
     events_to_archive = AuditEvent.objects.filter(created_at__lt=cutoff)
     count = events_to_archive.count()
@@ -34,7 +38,7 @@ def archive_audit_events():
     )
     archive_dir.mkdir(parents=True, exist_ok=True)
 
-    timestamp = timezone.now().strftime("%Y%m%d_%H%M%S")
+    timestamp = now.strftime("%Y%m%d_%H%M%S")
     archive_file = archive_dir / f"audit_archive_{timestamp}.json"
 
     # Batch serialize and write to JSON

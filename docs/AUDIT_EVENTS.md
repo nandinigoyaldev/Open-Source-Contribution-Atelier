@@ -154,7 +154,10 @@ inputs are checked in the browser first, and typing waits for a short pause befo
 
 ## 5. Retention
 
-- Events are kept in the database for `AUDIT_RETENTION_DAYS` (default `90`, set by environment variable).
+- Set `AUDIT_RETENTION_DAYS` to a positive integer in each deployment. If it is
+  unset, the default is `90` days. Blank, non-integer, zero, and negative values
+  stop application and worker startup so a misconfigured worker cannot archive
+  events using the wrong retention window.
 - A daily scheduled job (`audit-events-archive-daily`, running `apps.audit.tasks.archive_audit_events`) writes events older than that to a JSON file in `AUDIT_ARCHIVE_DIR` (default `backend/archives/audit/`) and then deletes them from the table.
 - Archive files are plain, unencrypted JSON on the server's disk. They hold already redacted payloads, but they still name actors and targets. Limit the directory to the application user, and apply your own retention to the files if you need to delete data after a fixed period. Nothing in the app removes archive files.
 - Events whose actor account is deleted keep their row with `actor` set to `null`. The target id stays, since it is only a number.
