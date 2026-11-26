@@ -115,17 +115,69 @@ export function moveFocus(
 //  Keyboard Navigation
 // ---------------------------------------------------------------------------
 
+/**
+ * Determines whether a keyboard event or element indicates active user typing
+ * in an input, textarea, select, contenteditable, or ARIA textbox.
+ * Used to disable keyboard shortcuts and ensure typing is never hijacked.
+ */
+export function isTypingTarget(
+  targetOrEvent: Event | EventTarget | HTMLElement | null,
+): boolean {
+  if (!targetOrEvent) return false;
+
+  const target = (
+    "target" in (targetOrEvent as Event)
+      ? (targetOrEvent as Event).target
+      : targetOrEvent
+  ) as HTMLElement | null;
+
+  const activeElement =
+    typeof document !== "undefined"
+      ? (document.activeElement as HTMLElement | null)
+      : null;
+
+  const check = (el: HTMLElement | null): boolean => {
+    if (!el || typeof el.tagName !== "string") return false;
+    const tag = el.tagName.toUpperCase();
+    if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") {
+      return true;
+    }
+    if (
+      el.isContentEditable ||
+      el.getAttribute("contenteditable") === "true" ||
+      el.getAttribute("contenteditable") === ""
+    ) {
+      return true;
+    }
+    if (el.getAttribute("role") === "textbox") {
+      return true;
+    }
+    if (
+      el.closest?.(
+        'input, textarea, select, [contenteditable="true"], [contenteditable=""], [role="textbox"]',
+      )
+    ) {
+      return true;
+    }
+    return false;
+  };
+
+  return check(target) || check(activeElement);
+}
+
 export interface KeyboardShortcut {
   key: string;
   ctrl?: boolean;
   shift?: boolean;
   alt?: boolean;
   description: string;
+  disableWhileTyping?: boolean;
   handler: (event: KeyboardEvent) => void;
 }
 
 /**
  * Register keyboard shortcuts on a container. Returns a cleanup function.
+ * Automatically disables shortcuts when typing in inputs/textareas by default.
  */
 export function useKeyboardShortcuts(
   container: HTMLElement | null,
@@ -135,6 +187,10 @@ export function useKeyboardShortcuts(
 
   function handleKeyDown(event: KeyboardEvent) {
     for (const shortcut of shortcuts) {
+      if (shortcut.disableWhileTyping !== false && isTypingTarget(event)) {
+        continue;
+      }
+
       const keyMatch =
         event.key.toLowerCase() === shortcut.key.toLowerCase();
       const ctrlMatch = shortcut.ctrl
