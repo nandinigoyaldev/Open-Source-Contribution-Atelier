@@ -6,6 +6,7 @@ from unittest.mock import patch
 import django
 from django.conf import settings
 from django.contrib.auth import get_user_model
+from django.test import TestCase
 from django.utils import timezone
 from rest_framework import status
 from rest_framework.test import APIClient
@@ -17,7 +18,7 @@ from apps.organizations.models import Organization, OrganizationMembership
 from apps.progress.models import Certificate, DailyActivity
 
 
-class PrivacySafeDataExportTestCase(unittest.TestCase):
+class PrivacySafeDataExportTestCase(TestCase):
     @classmethod
     def setUpClass(cls):
         super().setUpClass()
