@@ -970,24 +970,35 @@ _audit_handlers: list = ["console_audit"] + (
     ["file_audit"] if _audit_file_enabled else []
 )
 
+_log_format_is_json = os.getenv("LOG_FORMAT", "").lower() == "json" or os.getenv(
+    "STRUCTURED_LOGGING", ""
+).lower() in ("true", "1", "yes")
+
 _logging_handlers = {
-    # General-purpose console handler: human-readable, PII-masked.
+    # General-purpose console handler: human-readable or structured JSON if LOG_FORMAT=json.
     "console": {
         "class": "logging.StreamHandler",
         "filters": ["request_id", "mask_sensitive_data"],
-        "formatter": "verbose",
-    },  # Audit console handler: structured JSON with request correlation.
+        "formatter": "structured_json" if _log_format_is_json else "verbose",
+    },
+    # Structured JSON console handler with full OpenTelemetry/request correlation.
+    "json_console": {
+        "class": "logging.StreamHandler",
+        "filters": ["request_id", "mask_sensitive_data"],
+        "formatter": "structured_json",
+    },
+    # Audit console handler: structured JSON with request correlation.
     "console_audit": {
         "class": "logging.StreamHandler",
         "filters": ["request_id", "mask_sensitive_data"],
-        "formatter": "json_audit",
+        "formatter": "structured_json",
     },
     # Audit file handler: structured JSON with request correlation (resilient to permission errors).
     "file_audit": {
         "class": "config.logging_filters.ResilientFileHandler",
         "filename": _audit_log_file,
         "filters": ["request_id", "mask_sensitive_data"],
-        "formatter": "json_audit",
+        "formatter": "structured_json",
         "delay": True,
     },
 }
@@ -1003,22 +1014,23 @@ LOGGING = {
         "request_id": {
             "()": "apps.core.logging_filters.RequestIdFilter",
         },
-        # Masks PII (emails, JWT tokens, secrets) from console output.
+        # Masks PII (passwords, tokens, credit card digits) from log output.
         "mask_sensitive_data": {
-            "()": "config.logging_filters.SensitiveDataFilter",
+            "()": "apps.core.logging.PIIRedactionFilter",
+        },
+        "pii_filter": {
+            "()": "apps.core.logging.PIIRedactionFilter",
         },
     },
     # ── Formatters ──────────────────────────────────────────────────────────
     "formatters": {
-        # Structured JSON formatter used by the audit file handler and the
-        # dedicated audit console handler.  Includes request_id / user_id
-        # fields that are injected by RequestIdFilter.
+        # Unified structured JSON formatter injecting timestamp, level, trace_id,
+        # span_id, user_id, service, duration_ms, and message.
+        "structured_json": {
+            "()": "apps.core.logging.StructuredJsonFormatter",
+        },
         "json_audit": {
-            "format": (
-                '{"time": "%(asctime)s", "level": "%(levelname)s", '
-                '"request_id": "%(request_id)s", "user_id": "%(user_id)s", '
-                '"message": "%(message)s"}'
-            ),
+            "()": "apps.core.logging.StructuredJsonFormatter",
         },
         # Human-readable formatter for general console output.
         "verbose": {
