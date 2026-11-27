@@ -13,6 +13,7 @@ import { Link, NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../../features/auth/AuthContext";
 import LogoutButtonWithConfirm from "./LogoutButtonWithConfirm";
 import { ThemeToggle } from "../ui/ThemeToggle";
+import { HeaderSyncIndicator } from "../ui/HeaderSyncIndicator";
 import { isTypingTarget } from "../../lib/accessibility";
 
 interface NavItem {
@@ -163,13 +164,10 @@ export function Navigation() {
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const isItemActive = useCallback(
-    (path: string) => {
-      if (typeof window === "undefined") return false;
-      return window.location.pathname === path;
-    },
-    [],
-  );
+  const isItemActive = useCallback((path: string) => {
+    if (typeof window === "undefined") return false;
+    return window.location.pathname === path;
+  }, []);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
@@ -200,8 +198,9 @@ export function Navigation() {
           <SearchButton onClick={() => navigate("/dashboard")} />
         </div>
 
-        {/* Right: Theme + Shortcuts + User */}
+        {/* Right: Sync Status + Theme + Shortcuts + User */}
         <div className="flex items-center gap-2 shrink-0">
+          <HeaderSyncIndicator />
           <KeyboardShortcutsButton />
           <ThemeToggle iconSize={16} buttonClassName="p-2" />
           {user ? (

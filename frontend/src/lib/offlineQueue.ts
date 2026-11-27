@@ -1,6 +1,11 @@
 import { openDB } from "./offlineDB";
 import { eventBus } from "../core/events";
 import { getAccessToken } from "./authToken";
+import {
+  crdtSyncEngine,
+  type SyncState,
+  type CRDTDeltaOperation,
+} from "./crdtSyncEngine";
 
 /**
  * Shape version of the records in the "sync-queue" store. Bump it when
@@ -43,6 +48,8 @@ export interface QueuedAction {
    * as "never sent".
    */
   dispatchedAt?: number;
+  /** Timestamped CRDT delta operation recorded while offline. */
+  delta?: CRDTDeltaOperation;
 }
 
 /** Result of replaying one queued item. "failed" is the only retryable state. */
@@ -469,6 +476,7 @@ function newQueuedAction(
   headers: Record<string, string>,
   body: string,
   kind: QueueKind = kindFromUrl(url),
+  delta?: CRDTDeltaOperation,
 ): QueuedAction {
   const idempotencyKey = newIdempotencyKey();
   return {
@@ -486,6 +494,7 @@ function newQueuedAction(
     idempotencyKey,
     kind,
     owner: tokenOwner(findHeader(headers, "Authorization") ?? getAccessToken()),
+    delta,
   };
 }
 
@@ -553,7 +562,28 @@ export async function enqueueOfflineAction(
   const bodyStr = typeof body === "string" ? body : JSON.stringify(body);
   const bodyObj = typeof body === "string" ? parseBody(body) : body;
 
-  const action = newQueuedAction(id, finalUrl, method, headers, bodyStr);
+  let delta: CRDTDeltaOperation | undefined;
+  try {
+    delta = await crdtSyncEngine.recordDelta(
+      id,
+      [type || "action", slugOrId],
+      bodyObj,
+      "set",
+      typeof bodyObj === "object" ? bodyObj : undefined,
+    );
+  } catch (err) {
+    console.warn("[OfflineQueue] Failed to record CRDT delta operation:", err);
+  }
+
+  const action = newQueuedAction(
+    id,
+    finalUrl,
+    method,
+    headers,
+    bodyStr,
+    undefined,
+    delta,
+  );
 
   // 1. Save to IndexedDB
   await saveQueuedAction(action);
@@ -568,6 +598,8 @@ export async function enqueueOfflineAction(
     timestamp: action.timestamp,
   });
 
+  crdtSyncEngine.recalculateSyncState();
+
   // 3. Trigger Service Worker background sync
   await triggerBackgroundSync();
   return id;
@@ -580,6 +612,23 @@ export async function queueProgressSync(data: {
   headers: Record<string, string>;
 }) {
   const id = `progress-sync-${data.lesson_slug}`;
+  let delta: CRDTDeltaOperation | undefined;
+  try {
+    delta = await crdtSyncEngine.recordDelta(
+      id,
+      ["progress", data.lesson_slug],
+      {
+        lesson_slug: data.lesson_slug,
+        score: data.score,
+        completed: data.completed,
+      },
+      "merge",
+      { score: data.score, completed: data.completed },
+    );
+  } catch (err) {
+    console.warn("[OfflineQueue] Failed to record CRDT progress delta:", err);
+  }
+
   const action = newQueuedAction(
     id,
     `${apiBase()}/progress/me/`,
@@ -590,6 +639,8 @@ export async function queueProgressSync(data: {
       score: data.score,
       completed: data.completed,
     }),
+    "progress",
+    delta,
   );
 
   // 1. Save to IndexedDB
@@ -606,6 +657,8 @@ export async function queueProgressSync(data: {
     completed: data.completed ?? true,
     timestamp: action.timestamp,
   });
+
+  crdtSyncEngine.recalculateSyncState();
 
   // 3. Trigger Service Worker background sync
   await triggerBackgroundSync();
@@ -671,6 +724,20 @@ export async function queueBookmarkChange(
 
   const token = getAccessToken();
   const url = `${apiBase()}/progress/bookmarks/${slug}/`;
+
+  let delta: CRDTDeltaOperation | undefined;
+  try {
+    delta = await crdtSyncEngine.recordDelta(
+      id,
+      ["bookmarks", slug],
+      { bookmarked, bookmarkId },
+      bookmarked ? "set" : "delete",
+      { bookmarked, bookmarkId },
+    );
+  } catch (err) {
+    console.warn("[OfflineQueue] Failed to record CRDT bookmark delta:", err);
+  }
+
   const action = newQueuedAction(
     id,
     url,
@@ -678,6 +745,7 @@ export async function queueBookmarkChange(
     token ? { Authorization: `Bearer ${token}` } : {},
     "",
     "bookmark",
+    delta,
   );
   if (!bookmarked && typeof bookmarkId === "number") {
     // If the lesson was bookmarked again since (another tab or device) its id
@@ -693,6 +761,7 @@ export async function queueBookmarkChange(
     bookmarked,
     timestamp: action.timestamp,
   });
+  crdtSyncEngine.recalculateSyncState();
   await triggerBackgroundSync();
   return { outcome: "queued" };
 }
@@ -967,6 +1036,7 @@ function entityKey(action: QueuedAction, slug: string): string {
 }
 
 async function replayQueue(): Promise<SyncItemResult[]> {
+  crdtSyncEngine.setSyncState("syncing");
   const db = await openDB();
   const actions = await loadQueue(db);
 
@@ -1052,11 +1122,61 @@ async function replayQueue(): Promise<SyncItemResult[]> {
       response.status === 409
         ? await response.json().catch(() => ({}))
         : undefined;
-    const { status, retryable } = classifyQueuedReplay(
+    let { status, retryable } = classifyQueuedReplay(
       action,
       response.status,
       responseBody,
     );
+
+    // CRDT Automatic Three-Way Merge: attempt non-prompting reconciliation on 409 data conflicts
+    if (
+      status === "conflict" &&
+      responseBody &&
+      !isIdempotencyRejection(responseBody)
+    ) {
+      try {
+        const baseData = await crdtSyncEngine.getBaseSnapshot(entity);
+        const mergeResult = crdtSyncEngine.threeWayMerge(
+          baseData,
+          (localData || {}) as Record<string, any>,
+          (responseBody || {}) as Record<string, any>,
+        );
+
+        if (!mergeResult.hasStructuralCollision) {
+          console.log(
+            `[OfflineQueue] Automatic 3-way merge succeeded without prompt for ${entity}:`,
+            mergeResult.merged,
+          );
+          await crdtSyncEngine.saveBaseSnapshot(entity, mergeResult.merged);
+          if (action.delta) {
+            await crdtSyncEngine.markDeltasApplied([action.delta.id]);
+          }
+          status = "synced";
+        } else {
+          console.warn(
+            `[OfflineQueue] Irreconcilable structural collision for ${entity}: ${mergeResult.collisionReason}`,
+          );
+        }
+      } catch (mergeErr) {
+        console.warn(
+          `[OfflineQueue] Three-way merge error for ${entity}:`,
+          mergeErr,
+        );
+      }
+    }
+
+    if (status === "synced" || status === "duplicate") {
+      if (typeof localData === "object" && localData !== null) {
+        crdtSyncEngine.saveBaseSnapshot(
+          entity,
+          localData as Record<string, any>,
+        );
+      }
+      if (action.delta) {
+        crdtSyncEngine.markDeltasApplied([action.delta.id]);
+      }
+    }
+
     const result: SyncItemResult = {
       id: action.id,
       lesson_slug,
@@ -1113,6 +1233,7 @@ async function replayQueue(): Promise<SyncItemResult[]> {
     if (response.status === 401) break;
   }
 
+  crdtSyncEngine.recalculateSyncState();
   if (results.length > 0) eventBus.emit("sync:results", results);
   return results;
 }
@@ -1124,8 +1245,12 @@ async function replayQueue(): Promise<SyncItemResult[]> {
  * anything queued after them for the same lesson.
  */
 export async function syncOfflineQueue(): Promise<SyncItemResult[]> {
-  if (!navigator.onLine) return [];
+  if (!navigator.onLine) {
+    crdtSyncEngine.setSyncState("offline-buffered");
+    return [];
+  }
 
+  crdtSyncEngine.setSyncState("syncing");
   if (!syncInFlight) {
     syncInFlight = replayQueue()
       .catch((err) => {
@@ -1134,6 +1259,7 @@ export async function syncOfflineQueue(): Promise<SyncItemResult[]> {
       })
       .finally(() => {
         syncInFlight = null;
+        crdtSyncEngine.recalculateSyncState();
       });
   }
   return syncInFlight;
@@ -1294,4 +1420,14 @@ export async function removeQueuedAction(id: string, lessonSlug: string) {
     null,
   );
   console.log(`[OfflineQueue] Successfully removed queued action ${id}`);
+}
+
+export {
+  crdtSyncEngine,
+  type SyncState,
+  type CRDTDeltaOperation,
+} from "./crdtSyncEngine";
+
+export function getSyncState(): SyncState {
+  return crdtSyncEngine.getSyncState();
 }

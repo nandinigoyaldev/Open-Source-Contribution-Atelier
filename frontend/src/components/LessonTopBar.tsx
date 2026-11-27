@@ -1,5 +1,6 @@
 import { ArrowLeft, Menu, X } from "lucide-react";
 import { Link } from "react-router-dom";
+import { HeaderSyncIndicator } from "./ui/HeaderSyncIndicator";
 
 interface LessonTopBarProps {
   points: number;
@@ -46,6 +47,7 @@ export function LessonTopBar({
       </div>
 
       <div className="flex items-center gap-2 sm:gap-4 flex-shrink-0">
+        <HeaderSyncIndicator compact />
         <span className="hidden md:inline-block font-mono text-[10px] uppercase font-bold text-muted dark:text-[#9b8f80]">
           Lesson Workspace
         </span>
