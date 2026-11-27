@@ -1,9 +1,11 @@
 export const DB_NAME = "atelier-offline-db";
-export const DB_VERSION = 4;
+export const DB_VERSION = 5;
 export const SYNC_STORE = "sync-queue";
 export const LESSON_STORE = "lessons";
 export const QUIZ_SYNC_STORE = "pending_quiz_sync";
 export const CURRICULUM_STORE = "curriculum-manifests";
+export const CRDT_DOC_STORE = "crdt-documents";
+export const CRDT_DELTA_STORE = "crdt-deltas";
 
 export function openDB(): Promise<IDBDatabase> {
   return new Promise((resolve, reject) => {
@@ -39,6 +41,23 @@ export function openDB(): Promise<IDBDatabase> {
         curriculumStore.createIndex("version", "version", { unique: false });
         curriculumStore.createIndex("status", "status", { unique: false });
         curriculumStore.createIndex("cachedAt", "cachedAt", { unique: false });
+      }
+
+      // v5 stores — CRDT state documents and timestamped delta operations
+      if (!db.objectStoreNames.contains(CRDT_DOC_STORE)) {
+        const crdtStore = db.createObjectStore(CRDT_DOC_STORE, {
+          keyPath: "docId",
+        });
+        crdtStore.createIndex("updatedAt", "updatedAt", { unique: false });
+      }
+
+      if (!db.objectStoreNames.contains(CRDT_DELTA_STORE)) {
+        const deltaStore = db.createObjectStore(CRDT_DELTA_STORE, {
+          keyPath: "id",
+        });
+        deltaStore.createIndex("docId", "docId", { unique: false });
+        deltaStore.createIndex("timestamp", "timestamp", { unique: false });
+        deltaStore.createIndex("applied", "applied", { unique: false });
       }
     };
 

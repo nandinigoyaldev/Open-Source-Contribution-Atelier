@@ -15,6 +15,7 @@ import {
   syncOfflineQueue,
   type SyncItemResult,
 } from "../../lib/offlineQueue";
+import { HeaderSyncIndicator } from "./HeaderSyncIndicator";
 
 interface PendingItem {
   id?: string;
@@ -120,14 +121,14 @@ export function SyncStatusIndicator() {
       className="flex flex-col items-end gap-1.5 mx-2"
     >
       {!isOnline && (
-        <div className={row}>
+        <div className={row} data-sync-state="offline-buffered">
           <WifiOff className="w-4 h-4 text-yellow-500" />
           <span>Offline ({pending.length} pending)</span>
         </div>
       )}
 
       {isOnline && waiting > 0 && (
-        <div className={row}>
+        <div className={row} data-sync-state="syncing">
           <RefreshCw className="w-4 h-4 text-blue-400 animate-spin" />
           <span>Syncing {plural(waiting, "item", "items")}...</span>
         </div>
@@ -194,3 +195,6 @@ export function SyncStatusIndicator() {
     </div>
   );
 }
+
+export { HeaderSyncIndicator };
+export default SyncStatusIndicator;
