@@ -389,7 +389,7 @@ MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "config.security_middleware.ContentSecurityPolicyMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
-    "django.middleware.gzip.GZipMiddleware",
+    "apps.core.middleware.compression.AdaptiveCompressionMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
     "apps.localization.middleware.LocaleMiddleware",
     "django.middleware.common.CommonMiddleware",
@@ -413,6 +413,13 @@ MIDDLEWARE = [
     "allauth.account.middleware.AccountMiddleware",
     "django_prometheus.middleware.PrometheusAfterMiddleware",
 ]
+
+# Response compression (apps/core/middleware/compression.py). Bodies smaller than
+# COMPRESSION_MIN_SIZE bytes are sent as is. Brotli quality 5 came out smaller than
+# gzip level 6 on curriculum JSON at about the same CPU cost; 11 is far too slow for
+# per-request use (backend/scripts/benchmark_compression.py).
+COMPRESSION_MIN_SIZE = int(os.getenv("COMPRESSION_MIN_SIZE", "1024"))
+COMPRESSION_BROTLI_QUALITY = int(os.getenv("COMPRESSION_BROTLI_QUALITY", "5"))
 
 if TESTING:
     INSTALLED_APPS.append("nplusone.ext.django")

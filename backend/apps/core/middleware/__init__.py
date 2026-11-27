@@ -8,6 +8,8 @@ import time
 from asgiref.sync import sync_to_async
 from django.core.cache import cache
 
+# Re-exported so it also imports as apps.core.middleware.AdaptiveCompressionMiddleware.
+from .compression import AdaptiveCompressionMiddleware  # noqa: F401
 from .request_id import RequestIdMiddleware
 
 
