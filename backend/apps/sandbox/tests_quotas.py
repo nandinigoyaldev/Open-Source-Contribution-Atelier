@@ -158,7 +158,9 @@ class SandboxSessionQuotaTestCase(TestCase):
         """Verify debugger flow enforces session quotas."""
         # Exhaust process quota
         proc_key = f"sandbox_session_processes_{self.session_id}"
-        cache.set(proc_key, ResourceManagementEngine.MAX_SESSION_PROCESSES, timeout=3600)
+        cache.set(
+            proc_key, ResourceManagementEngine.MAX_SESSION_PROCESSES, timeout=3600
+        )
 
         loop = asyncio.new_event_loop()
         try:
@@ -180,14 +182,102 @@ class SandboxSessionQuotaTestCase(TestCase):
             ResourceManagementEngine.record_session_usage(
                 session_a, cpu_time=ResourceManagementEngine.MAX_SESSION_CPU_SECONDS
             )
-            allowed_a, reason_a = ResourceManagementEngine.check_session_quotas(session_a)
+            allowed_a, reason_a = ResourceManagementEngine.check_session_quotas(
+                session_a
+            )
             self.assertFalse(allowed_a)
             self.assertEqual(reason_a, "cpu")
 
             # Session B should remain uninhibited
-            allowed_b, reason_b = ResourceManagementEngine.check_session_quotas(session_b)
+            allowed_b, reason_b = ResourceManagementEngine.check_session_quotas(
+                session_b
+            )
             self.assertTrue(allowed_b)
             self.assertIsNone(reason_b)
         finally:
             ResourceManagementEngine.reset_session_quota(session_a)
             ResourceManagementEngine.reset_session_quota(session_b)
+
+    def test_cgroup_v2_resource_limit_constants(self):
+        """Verify cgroup v2 specifications match CPU 50%, 256MB RAM, and 32 PIDs."""
+        self.assertEqual(ResourceManagementEngine.CGROUP_CPU_MAX, "50000 100000")
+        self.assertEqual(ResourceManagementEngine.CGROUP_MEMORY_MAX, "268435456")
+        self.assertEqual(ResourceManagementEngine.CGROUP_PIDS_MAX, 32)
+        self.assertEqual(ResourceManagementEngine.MAX_MEMORY_MB, 256)
+        self.assertEqual(
+            ResourceManagementEngine.QUOTA_EXCEEDED_MESSAGE,
+            "Resource quota exceeded: Memory or process limit reached",
+        )
+
+    def test_cgroup_v2_budget_manager_mock_setup(self):
+        """Verify cgroup v2 creates group, sets cpu.max, memory.max, pids.max and attaches PID."""
+        import tempfile
+        from pathlib import Path
+
+        from apps.sandbox.resource_manager import CgroupV2BudgetManager
+
+        with tempfile.TemporaryDirectory() as td:
+            cg_root = Path(td)
+            # Create mock cgroup.controllers indicating cgroup v2 presence
+            (cg_root / "cgroup.controllers").write_text(
+                "cpu memory pids\n", encoding="utf-8"
+            )
+
+            manager = CgroupV2BudgetManager(cgroup_root=str(cg_root))
+            self.assertTrue(manager.is_cgroup_v2_available())
+
+            proc_cgroup = manager.setup_process_cgroup(
+                pid=9999, scope_name="test_worker_9999"
+            )
+            self.assertIsNotNone(proc_cgroup)
+
+            cg_path = Path(proc_cgroup)
+            self.assertTrue(cg_path.exists())
+            self.assertEqual(
+                (cg_path / "cpu.max").read_text(encoding="utf-8").strip(),
+                "50000 100000",
+            )
+            self.assertEqual(
+                (cg_path / "memory.max").read_text(encoding="utf-8").strip(),
+                "268435456",
+            )
+            self.assertEqual(
+                (cg_path / "pids.max").read_text(encoding="utf-8").strip(), "32"
+            )
+            self.assertEqual(
+                (cg_path / "cgroup.procs").read_text(encoding="utf-8").strip(), "9999"
+            )
+
+            # Test violation detection
+            (cg_path / "memory.events").write_text(
+                "oom_kill 1\noom 1\n", encoding="utf-8"
+            )
+            breached, reason = manager.check_limits_breached(proc_cgroup)
+            self.assertTrue(breached)
+            self.assertEqual(reason, "memory")
+
+            (cg_path / "memory.events").write_text("oom_kill 0\n", encoding="utf-8")
+            (cg_path / "pids.events").write_text("max 3\n", encoding="utf-8")
+            breached, reason = manager.check_limits_breached(proc_cgroup)
+            self.assertTrue(breached)
+            self.assertEqual(reason, "process")
+
+            # Test cleanup
+            manager.terminate_cgroup(proc_cgroup)
+
+    def test_terminate_process_cleanly_message(self):
+        """Verify clean process termination returns the exact user-facing quota exceeded message."""
+        msg = ResourceManagementEngine.terminate_process_cleanly(pid=0)
+        self.assertEqual(
+            msg,
+            "Resource quota exceeded: Memory or process limit reached",
+        )
+
+    def test_wrapper_script_cgroup_quota_exceeded_message(self):
+        """Verify wrapper script enforces 256MB RAM and outputs the quota exceeded message on limit breaches."""
+        script = ResourceManagementEngine.get_wrapper_script("print('test')")
+        self.assertIn("268435456", script)
+        self.assertIn("RLIMIT_NPROC, (32, 32)", script)
+        self.assertIn(
+            "Resource quota exceeded: Memory or process limit reached", script
+        )
