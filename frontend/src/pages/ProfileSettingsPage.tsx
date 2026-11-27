@@ -1,4 +1,5 @@
 import React from "react";
+import { AdaptiveDifficultyToggle } from "../features/auth/AdaptiveDifficultyToggle";
 import { ProfileSettingsForm } from "../features/auth/ProfileSettingsForm";
 
 export function ProfileSettingsPage() {
@@ -13,6 +14,7 @@ export function ProfileSettingsPage() {
         </p>
       </div>
       <ProfileSettingsForm />
+      <AdaptiveDifficultyToggle />
     </div>
   );
 }
