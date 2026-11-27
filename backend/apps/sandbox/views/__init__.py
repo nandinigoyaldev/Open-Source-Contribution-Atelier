@@ -90,7 +90,9 @@ class SandboxVerifyView(APIView):
                     "feedback": err_msg,
                     "score_delta": 0,
                     "quota_error": violation_type,
-                    "metrics": ResourceManagementEngine.get_session_quota_status(session_id),
+                    "metrics": ResourceManagementEngine.get_session_quota_status(
+                        session_id
+                    ),
                 },
                 status=status.HTTP_429_TOO_MANY_REQUESTS,
             )
@@ -647,18 +649,78 @@ class PipelineExecutionViewSet(viewsets.ModelViewSet):
 
 import re
 
+from drf_spectacular.types import OpenApiTypes
+from drf_spectacular.utils import extend_schema
 from rest_framework import status
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
+from apps.progress.models import AdaptiveAttempt
+from apps.progress.services import adaptive_difficulty as adaptive
+
 from ..models import ConflictAttempt, ConflictScenario
 from ..serializers import ConflictAttemptSerializer, ConflictScenarioSerializer
+
+CONFLICT_CHALLENGE = "merge_conflict"
 
 
 class ConflictScenarioViewSet(viewsets.ReadOnlyModelViewSet):
     queryset = ConflictScenario.objects.all()
     serializer_class = ConflictScenarioSerializer
     permission_classes = [permissions.IsAuthenticated]
+
+    def get_serializer_context(self):
+        context = super().get_serializer_context()
+        user = self.request.user
+        if user.is_authenticated and adaptive.is_enabled(user):
+            context["revealed_hints"] = set(
+                AdaptiveAttempt.objects.filter(
+                    user=user, challenge_type=CONFLICT_CHALLENGE, hints_used__gt=0
+                ).values_list("challenge_id", flat=True)
+            )
+        return context
+
+    @extend_schema(request=None, responses=OpenApiTypes.OBJECT)
+    @action(detail=True, methods=["post"])
+    def start(self, request, pk=None):
+        """Open a scenario: starting code and, if opted in, its parameters."""
+        scenario = self.get_object()
+        attempt = adaptive.start_challenge(
+            request.user, CONFLICT_CHALLENGE, scenario.pk
+        )
+        if attempt is None:
+            return Response({"adaptive": None, "starter_code": scenario.current_code})
+        return Response(
+            {
+                "adaptive": adaptive.challenge_parameters(
+                    attempt.level, scenario.difficulty
+                ),
+                "starter_code": adaptive.starter_code(
+                    attempt.level, scenario.current_code, scenario.incoming_code
+                ),
+            }
+        )
+
+    @extend_schema(request=None, responses=OpenApiTypes.OBJECT)
+    @action(detail=True, methods=["post"])
+    def hint(self, request, pk=None):
+        scenario = self.get_object()
+        if scenario.hint:
+            adaptive.record_hint(request.user, CONFLICT_CHALLENGE, scenario.pk)
+        return Response({"hint": scenario.hint})
+
+    @staticmethod
+    def _rate(request, scenario, passed, body):
+        rating = adaptive.record_submission(
+            request.user,
+            CONFLICT_CHALLENGE,
+            scenario.pk,
+            solved=passed,
+            difficulty=scenario.difficulty,
+        )
+        if rating is not None:
+            body["adaptive"] = rating
+        return body
 
     @action(detail=True, methods=["post"])
     def resolve_conflict(self, request, pk=None):
@@ -678,7 +740,10 @@ class ConflictScenarioViewSet(viewsets.ReadOnlyModelViewSet):
                 passed=False,
                 error_message=error_msg,
             )
-            return Response({"error": error_msg}, status=status.HTTP_400_BAD_REQUEST)
+            return Response(
+                self._rate(request, scenario, False, {"error": error_msg}),
+                status=status.HTTP_400_BAD_REQUEST,
+            )
 
         def _normalize(text):
             return "\n".join(line.rstrip() for line in text.splitlines()).strip()
@@ -698,11 +763,12 @@ class ConflictScenarioViewSet(viewsets.ReadOnlyModelViewSet):
             error_message=error_msg,
         )
 
+        body = {
+            "passed": passed,
+            "message": "Conflict resolved successfully!" if passed else error_msg,
+        }
         return Response(
-            {
-                "passed": passed,
-                "message": "Conflict resolved successfully!" if passed else error_msg,
-            },
+            self._rate(request, scenario, passed, body),
             status=status.HTTP_200_OK if passed else status.HTTP_400_BAD_REQUEST,
         )
 

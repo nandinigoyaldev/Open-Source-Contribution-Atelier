@@ -209,6 +209,22 @@ class UserProfile(AuditableModel):
         related_name="users",
     )
 
+    # Opt-in adaptive challenge difficulty (Glicko-2), written only by
+    # apps.progress.services.adaptive_difficulty.
+    adaptive_difficulty_enabled = models.BooleanField(
+        default=False,  # pyright: ignore[reportArgumentType]
+        help_text="Adapt challenge difficulty to the learner's rating",
+    )
+    skill_rating = models.FloatField(
+        default=1500.0  # pyright: ignore[reportArgumentType]
+    )
+    rating_deviation = models.FloatField(
+        default=350.0  # pyright: ignore[reportArgumentType]
+    )
+    rating_volatility = models.FloatField(
+        default=0.06  # pyright: ignore[reportArgumentType]
+    )
+
     github_access_token = EncryptedCharField(max_length=255, blank=True, default="")
     github_access_token_hash = models.CharField(
         max_length=64, blank=True, default="", db_index=True

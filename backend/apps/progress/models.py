@@ -974,3 +974,71 @@ class FinancialReward(models.Model):
 
     def __str__(self):
         return f"FinancialReward(id={self.id}, user={self.user_id}, amount={self.amount} {self.currency}, status={self.status})"
+
+
+class ChallengeRating(models.Model):
+    """Glicko-2 difficulty rating of one challenge, see adaptive_difficulty."""
+
+    objects = models.Manager()
+
+    challenge_type = models.CharField(max_length=32)
+    challenge_id = models.CharField(max_length=64)
+    rating = models.FloatField(default=1500.0)  # pyright: ignore[reportArgumentType]
+    deviation = models.FloatField(default=350.0)  # pyright: ignore[reportArgumentType]
+    volatility = models.FloatField(default=0.06)  # pyright: ignore[reportArgumentType]
+    games = models.PositiveIntegerField(
+        default=0  # pyright: ignore[reportArgumentType]
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["challenge_type", "challenge_id"],
+                name="unique_challenge_rating",
+            )
+        ]
+
+    def __str__(self):
+        return f"ChallengeRating({self.challenge_type}:{self.challenge_id})"
+
+
+class AdaptiveAttempt(models.Model):
+    """One opted in learner's run at one challenge: clock, hints and failures."""
+
+    objects = models.Manager()
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="adaptive_attempts",
+    )
+    challenge_type = models.CharField(max_length=32)
+    challenge_id = models.CharField(max_length=64)
+    level = models.CharField(max_length=16)
+    started_at = models.DateTimeField(null=True, blank=True)
+    solved_at = models.DateTimeField(null=True, blank=True)
+    hints_used = models.PositiveSmallIntegerField(
+        default=0  # pyright: ignore[reportArgumentType]
+    )
+    submissions = models.PositiveIntegerField(
+        default=0  # pyright: ignore[reportArgumentType]
+    )
+    failed_attempts = models.PositiveIntegerField(
+        default=0  # pyright: ignore[reportArgumentType]
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["user", "challenge_type", "challenge_id"],
+                name="unique_adaptive_attempt",
+            )
+        ]
+
+    def __str__(self):
+        return (
+            f"AdaptiveAttempt({self.challenge_type}:{self.challenge_id}, "
+            f"user={self.user_id})"  # pyright: ignore[reportAttributeAccessIssue]
+        )

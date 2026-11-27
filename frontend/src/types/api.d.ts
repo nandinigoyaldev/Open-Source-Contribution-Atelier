@@ -7256,6 +7256,24 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["api_rbac_revoke_create"];
+    "/api/progress/adaptive-difficulty/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The learner's opt-in switch and current rating. */
+        get: operations["api_progress_adaptive_difficulty_retrieve"];
+        /** @description The learner's opt-in switch and current rating. */
+        put: operations["api_progress_adaptive_difficulty_update"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
         delete?: never;
         options?: never;
         head?: never;
@@ -7523,6 +7541,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/sandbox/conflict-scenarios/{id}/hint/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["api_sandbox_conflict_scenarios_hint_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/sandbox/conflict-scenarios/{id}/resolve_conflict/": {
         parameters: {
             query?: never;
@@ -7533,6 +7567,23 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["api_sandbox_conflict_scenarios_resolve_conflict_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/sandbox/conflict-scenarios/{id}/start/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Open a scenario: starting code and, if opted in, its parameters. */
+        post: operations["api_sandbox_conflict_scenarios_start_create"];
         delete?: never;
         options?: never;
         head?: never;
@@ -16374,6 +16425,24 @@ export interface paths {
     };
     "/api/v1/api/project-health/history/": {
         parameters: {
+    "/api/v1/api/progress/adaptive-difficulty/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description The learner's opt-in switch and current rating. */
+        get: operations["api_v1_api_progress_adaptive_difficulty_retrieve"];
+        /** @description The learner's opt-in switch and current rating. */
+        put: operations["api_v1_api_progress_adaptive_difficulty_update"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
             query?: never;
             header?: never;
             path?: never;
@@ -16717,6 +16786,22 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/api/sandbox/conflict-scenarios/{id}/hint/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post: operations["api_v1_api_sandbox_conflict_scenarios_hint_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/api/sandbox/conflict-scenarios/{id}/resolve_conflict/": {
         parameters: {
             query?: never;
@@ -16727,6 +16812,23 @@ export interface paths {
         get?: never;
         put?: never;
         post: operations["api_v1_api_sandbox_conflict_scenarios_resolve_conflict_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/api/sandbox/conflict-scenarios/{id}/start/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Open a scenario: starting code and, if opted in, its parameters. */
+        post: operations["api_v1_api_sandbox_conflict_scenarios_start_create"];
         delete?: never;
         options?: never;
         head?: never;
@@ -19374,6 +19476,14 @@ export interface components {
          * @enum {string}
          */
         ActivityTypeD42Enum: "lesson" | "exercise" | "quiz" | "sandbox" | "peer_review" | "challenge";
+        AdaptiveDifficultySettings: {
+            enabled: boolean;
+            /** Format: double */
+            readonly skill_rating: number;
+            /** Format: double */
+            readonly rating_deviation: number;
+            readonly level: components["schemas"]["LevelEnum"];
+        };
         /**
          * @description * `manual` - Manual
          *     * `auto` - Auto-tagged
@@ -21235,6 +21345,13 @@ export interface components {
             /** @description Client-generated idempotency key per completion attempt */
             idempotency_key?: string;
         };
+        /**
+         * @description * `guided` - guided
+         *     * `standard` - standard
+         *     * `expert` - expert
+         * @enum {string}
+         */
+        LevelEnum: "guided" | "standard" | "expert";
         LicenseScenario: {
             readonly id: number;
             /** @description Title of the scenario. */
@@ -40199,6 +40316,50 @@ export interface operations {
                 };
             };
         };
+    api_progress_adaptive_difficulty_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdaptiveDifficultySettings"];
+                };
+            };
+        };
+    };
+    api_progress_adaptive_difficulty_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdaptiveDifficultySettings"];
+                "application/x-www-form-urlencoded": components["schemas"]["AdaptiveDifficultySettings"];
+                "multipart/form-data": components["schemas"]["AdaptiveDifficultySettings"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdaptiveDifficultySettings"];
+                };
+            };
+        };
+    };
     };
     api_sandbox_clear_execution_create: {
         parameters: {
@@ -40452,6 +40613,30 @@ export interface operations {
             };
         };
     };
+    api_sandbox_conflict_scenarios_hint_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A UUID string identifying this conflict scenario. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
     api_sandbox_conflict_scenarios_resolve_conflict_create: {
         parameters: {
             query?: never;
@@ -40476,6 +40661,30 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ConflictScenario"];
+                };
+            };
+        };
+    };
+    api_sandbox_conflict_scenarios_start_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A UUID string identifying this conflict scenario. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
         };
@@ -59732,6 +59941,50 @@ export interface operations {
         requestBody?: never;
         responses: {
             /** @description No response body */
+    api_v1_api_progress_adaptive_difficulty_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdaptiveDifficultySettings"];
+                };
+            };
+        };
+    };
+    api_v1_api_progress_adaptive_difficulty_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AdaptiveDifficultySettings"];
+                "application/x-www-form-urlencoded": components["schemas"]["AdaptiveDifficultySettings"];
+                "multipart/form-data": components["schemas"]["AdaptiveDifficultySettings"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdaptiveDifficultySettings"];
+                };
+            };
+        };
+    };
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -60253,6 +60506,30 @@ export interface operations {
             };
         };
     };
+    api_v1_api_sandbox_conflict_scenarios_hint_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A UUID string identifying this conflict scenario. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+        };
+    };
     api_v1_api_sandbox_conflict_scenarios_resolve_conflict_create: {
         parameters: {
             query?: never;
@@ -60277,6 +60554,30 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ConflictScenario"];
+                };
+            };
+        };
+    };
+    api_v1_api_sandbox_conflict_scenarios_start_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description A UUID string identifying this conflict scenario. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
                 };
             };
         };
