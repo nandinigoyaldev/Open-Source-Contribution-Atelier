@@ -1,3 +1,7 @@
+# Moved unchanged from services.py. These three rules only fire here on untyped
+# Django managers, fields and transaction.atomic().
+# pyright: reportAttributeAccessIssue=false, reportGeneralTypeIssues=false
+# pyright: reportOperatorIssue=false
 """
 Services for user accounts, authentication tokens, and password reset flows.
 """
@@ -21,9 +25,9 @@ from apps.audit.models import AuditEvent
 from apps.audit.security_events import record_security_event
 from config.db_router import use_primary
 
-from .models import PasswordResetToken, UserSession
-from .throttles import _get_real_ip
-from .token_rotation import publish_token_revoked
+from ..models import PasswordResetToken, UserSession
+from ..throttles import _get_real_ip
+from ..token_rotation import publish_token_revoked
 
 logger = logging.getLogger(__name__)
 User = get_user_model()

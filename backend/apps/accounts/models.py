@@ -377,6 +377,67 @@ class UserSession(models.Model):
                 ).delete()
 
 
+class UserLoginHistory(models.Model):
+    """
+    One risk evaluation of a password login, with the outcome.
+
+    A challenged row also holds the hash of the emailed code.
+    """
+
+    ALLOWED = "allowed"
+    FLAGGED = "flagged"
+    CHALLENGED = "challenged"
+    CONFIRMED = "confirmed"
+    REJECTED = "rejected"
+
+    OUTCOME_CHOICES = [
+        (ALLOWED, "Allowed"),
+        (FLAGGED, "Risky but allowed"),
+        (CHALLENGED, "Email code required"),
+        (CONFIRMED, "Confirmed by email code"),
+        (REJECTED, "Wrong or expired code"),
+    ]
+    # Only these count as known behaviour when scoring later logins.
+    SUCCESSFUL_OUTCOMES = (ALLOWED, FLAGGED, CONFIRMED)
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="login_history",
+    )
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    user_agent = models.CharField(max_length=512, blank=True)
+    device_fingerprint = models.CharField(max_length=64)
+    latitude = models.FloatField(null=True, blank=True)
+    longitude = models.FloatField(null=True, blank=True)
+    country = models.CharField(max_length=64, blank=True)
+    asn = models.PositiveBigIntegerField(null=True, blank=True)
+    is_proxy = models.BooleanField(default=False)  # type: ignore[arg-type]
+    risk_score = models.PositiveSmallIntegerField(default=0)  # type: ignore[arg-type]
+    reasons = models.JSONField(default=list, blank=True)
+    outcome = models.CharField(max_length=16, choices=OUTCOME_CHOICES)
+    code_hash = models.CharField(max_length=64, blank=True, editable=False)
+    code_attempts = models.PositiveSmallIntegerField(default=0, editable=False)  # type: ignore[arg-type]
+    code_used = models.BooleanField(default=False, editable=False)  # type: ignore[arg-type]
+    created_at = models.DateTimeField(default=timezone.now, editable=False)
+
+    class Meta:
+        db_table = "accounts_userloginhistory"
+        ordering = ["-created_at", "-id"]
+        indexes = [
+            models.Index(
+                fields=["user", "-created_at"], name="login_history_user_recent"
+            )
+        ]
+
+    def __str__(self):
+        return (
+            f"UserLoginHistory(user={self.user_id}, "  # type: ignore[attr-defined]
+            f"score={self.risk_score}, "
+            f"outcome={self.outcome})"
+        )
+
+
 class GitCredential(models.Model):
     """
     Stores encrypted Git credentials.

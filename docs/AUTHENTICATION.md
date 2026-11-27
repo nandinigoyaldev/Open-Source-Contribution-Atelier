@@ -121,6 +121,35 @@ for any new place that issues tokens, not SimpleJWT's plain `RefreshToken`.
 
 Tests: `apps/accounts/tests/test_password_change_sessions.py`.
 
+## Suspicious Login Detection
+
+Every successful password check on `POST /api/auth/login/` is scored and saved in `UserLoginHistory`
+(visible read-only in the Django admin and included in the data export).
+
+| Signal | Score | Needs |
+| --- | --- | --- |
+| Travel faster than 800 km/h since the last located login (over 100 km apart) | 60 | latitude and longitude |
+| A datacenter, proxy, VPN or Tor network the account has not used | 40 | ASN, proxy flag, an earlier ASN |
+| A user agent the account has not used (version numbers ignored) | 20 | an earlier login |
+
+The project ships no geolocation or ASN data. The default `LOGIN_RISK_IP_PROVIDER` knows nothing, so only
+the user agent signal can fire. To use real data, set it to a class with a
+`lookup(ip_address) -> IPInfo | None` method (see `apps/accounts/services/ip_intelligence.py`). Set
+`TRUSTED_PROXY_COUNT` correctly behind a proxy.
+
+### Email confirmation (off by default)
+
+With `LOGIN_RISK_CONFIRMATION_ENABLED=True`, a score above `LOGIN_RISK_THRESHOLD` (50) answers `401` with
+`"code": "login_confirmation_required"` and emails a 6 digit code. The client repeats the login with the
+same username and password plus `email_code`. A wrong or expired code answers
+`invalid_login_confirmation_code`. Codes expire after 10 minutes, work once, allow 5 guesses, only work for
+the device that asked, and at most 5 are emailed per hour.
+
+**The web login page does not send `email_code` yet**, so keep this off until it does. The login is not
+blocked when scoring fails, the mail task cannot be queued, the account has no email, or the account already
+uses an authenticator code. Mail is sent by the background worker, so it must be running. Google, GitHub,
+SSO and magic link sign-ins are not scored.
+
 ## Password Reset
 
 `POST /api/auth/password-reset/` always answers the same way. The view validates the address and queues `process_password_reset_request`, for every address. Looking up the account, creating the token and sending the email all happen in the worker, so neither the response nor its timing depends on whether the account exists.

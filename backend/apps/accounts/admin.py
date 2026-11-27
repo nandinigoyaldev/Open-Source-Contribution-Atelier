@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import MentorProfile
+from .models import MentorProfile, UserLoginHistory
 
 
 @admin.register(MentorProfile)
@@ -18,6 +18,28 @@ class MentorProfileAdmin(admin.ModelAdmin):
     @admin.display(description="Assigned lessons", ordering="_assigned_lesson_count")
     def get_assigned_lesson_count(self, obj: MentorProfile) -> int:
         return getattr(obj, "_assigned_lesson_count", obj.assigned_lessons.count())
+
+
+@admin.register(UserLoginHistory)
+class UserLoginHistoryAdmin(admin.ModelAdmin):
+    """Read-only view of the login risk evaluations."""
+
+    list_display = (
+        "created_at",
+        "user",
+        "ip_address",
+        "country",
+        "risk_score",
+        "outcome",
+    )
+    list_filter = ("outcome",)
+    search_fields = ("user__username", "user__email", "ip_address")
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
 
 
 from django.contrib.admin.models import LogEntry

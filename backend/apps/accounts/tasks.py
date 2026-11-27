@@ -70,6 +70,25 @@ def send_otp_email_task(user_email, user_username, otp_token):
     )
 
 
+def send_login_confirmation_email_task(user_email, user_username, code, timeout):
+    """
+    Sends the code that confirms an unusual sign-in. (CRITICAL)
+    """
+    send_mail(
+        subject="Confirm your sign-in",
+        message=(
+            f"Hi {user_username},\n\n"
+            "We noticed an unusual sign-in with your password. Your confirmation "
+            f"code is: {code}\n"
+            f"It expires in {timeout} minutes.\n\n"
+            "If this was not you, change your password now."
+        ),
+        from_email=getattr(settings, "DEFAULT_FROM_EMAIL", "noreply@atelier.dev"),
+        recipient_list=[user_email],
+        fail_silently=False,
+    )
+
+
 def send_magic_link_email_task(user_email, user_username, login_url, timeout):
     """
     Sends a magic link email to the user asynchronously. (CRITICAL)
