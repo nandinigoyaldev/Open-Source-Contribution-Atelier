@@ -6,6 +6,11 @@ app_name = "uploads"
 
 urlpatterns = [
     path("", views.DirectUploadView.as_view(), name="direct_upload"),
+    path(
+        "presigned-url/",
+        views.PresignedUploadUrlView.as_view(),
+        name="presigned_upload_url",
+    ),
     path("start/", views.StartUploadView.as_view(), name="start_upload"),
     path(
         "chunk/<uuid:session_id>/", views.UploadChunkView.as_view(), name="upload_chunk"

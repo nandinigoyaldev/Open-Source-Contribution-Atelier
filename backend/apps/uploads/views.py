@@ -549,3 +549,71 @@ class RetryScanView(views.APIView):
             },
             status=status.HTTP_202_ACCEPTED,
         )
+
+
+class PresignedUploadUrlView(views.APIView):
+    """
+    Generates a pre-authenticated S3 PUT upload URL for direct client-to-storage uploads.
+    Reduces application server memory usage by having clients PUT payloads directly to S3/CDN.
+    """
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    def post(self, request):
+        filename = request.data.get("filename")
+        content_type = request.data.get("content_type", "application/octet-stream")
+        file_size = request.data.get("file_size") or request.data.get("size")
+        upload_type = request.data.get("upload_type", UploadSession.UploadType.PROJECT)
+        prefix = request.data.get("prefix", "media/uploads")
+
+        if not filename:
+            return Response(
+                {"error": "Missing 'filename' field."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        if upload_type not in UploadSession.UploadType.values:
+            return Response(
+                {"error": "Invalid upload type."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            validate_filename_extensions(filename)
+            if file_size is not None:
+                validate_declared_size(int(file_size), upload_type)
+        except (TypeError, ValueError, ValidationError) as exc:
+            msg = (
+                exc.messages[0]
+                if isinstance(exc, ValidationError)
+                else "Invalid metadata"
+            )
+            return Response({"error": msg}, status=status.HTTP_400_BAD_REQUEST)
+
+        from config.storage import generate_presigned_upload_url
+
+        user_id = str(request.user.id) if request.user else "anon"
+        presigned_data = generate_presigned_upload_url(
+            filename=filename,
+            content_type=content_type,
+            user_id=user_id,
+            prefix=prefix,
+            max_size_bytes=int(file_size) if file_size else 100 * 1024 * 1024,
+        )
+
+        session = UploadSession.objects.create(
+            user=request.user,
+            filename=sanitize_filename_ascii(filename),
+            upload_type=upload_type,
+            total_size=int(file_size) if file_size else 0,
+            total_chunks=1,
+            uploaded_chunks=[0],
+            file_path=presigned_data["s3_key"],
+            status=UploadSession.Status.CLEAN,
+            detected_mime_type=content_type,
+        )
+
+        presigned_data["session_id"] = str(session.session_id)
+        presigned_data["upload_id"] = str(session.session_id)
+
+        return Response(presigned_data, status=status.HTTP_201_CREATED)
