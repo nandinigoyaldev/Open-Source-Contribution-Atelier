@@ -20,6 +20,7 @@ from .base import (
     LLMResponse,
     LLMServer5xxError,
     LLMTimeoutError,
+    TokenUsage,
 )
 
 logger = logging.getLogger(__name__)
@@ -49,6 +50,7 @@ class GeminiProvider(BaseLLMProvider):
         **kwargs: Any,
     ) -> LLMResponse:
         start_time = time.perf_counter()
+        self.last_usage = None
         active_model = kwargs.get("model", self.model)
         api_key = kwargs.get("api_key", self.api_key)
 
@@ -79,6 +81,13 @@ class GeminiProvider(BaseLLMProvider):
                 prompt, request_options={"timeout": self.timeout}
             )
             content = response.text.strip() if hasattr(response, "text") else ""
+            meta = getattr(response, "usage_metadata", None)
+            if meta is not None:
+                self.last_usage = self._usage_from(
+                    getattr(meta, "prompt_token_count", None),
+                    getattr(meta, "candidates_token_count", None),
+                    getattr(meta, "thoughts_token_count", None),
+                )
 
             duration_ms = (time.perf_counter() - start_time) * 1000
             return LLMResponse(
@@ -87,6 +96,7 @@ class GeminiProvider(BaseLLMProvider):
                 model=active_model,
                 latency_ms=duration_ms,
                 raw_response=response,
+                usage=self.last_usage,
             )
         except (ImportError, AttributeError):
             # 2. Fall back to direct Google AI REST API
@@ -149,6 +159,14 @@ class GeminiProvider(BaseLLMProvider):
                 if parts:
                     text = parts[0].get("text", "")
 
+            meta = data.get("usageMetadata") or {}
+            if isinstance(meta, dict):
+                self.last_usage = self._usage_from(
+                    meta.get("promptTokenCount"),
+                    meta.get("candidatesTokenCount"),
+                    meta.get("thoughtsTokenCount"),
+                )
+
             duration_ms = (time.perf_counter() - start_time) * 1000
             return LLMResponse(
                 content=text.strip(),
@@ -156,6 +174,7 @@ class GeminiProvider(BaseLLMProvider):
                 model=model,
                 latency_ms=duration_ms,
                 raw_response=data,
+                usage=self.last_usage,
             )
         except requests.exceptions.Timeout as exc:
             raise LLMTimeoutError(
@@ -191,6 +210,15 @@ class GeminiProvider(BaseLLMProvider):
         words = resp.content.split(" ")
         for i, word in enumerate(words):
             yield word + (" " if i < len(words) - 1 else "")
+
+    @staticmethod
+    def _usage_from(
+        prompt_tokens: Any, candidate_tokens: Any, thought_tokens: Any = None
+    ) -> Optional[TokenUsage]:
+        # thinking models bill their thought tokens as output too
+        if isinstance(thought_tokens, int) and isinstance(candidate_tokens, int):
+            candidate_tokens += thought_tokens
+        return TokenUsage.from_counts(prompt_tokens, candidate_tokens)
 
     def _handle_gemini_exception(self, exc: Exception) -> None:
         exc_str = str(exc).lower()

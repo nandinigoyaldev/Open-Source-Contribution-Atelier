@@ -23,6 +23,7 @@ from .base import (
     LLMResponse,
     LLMServer5xxError,
     LLMTimeoutError,
+    TokenUsage,
 )
 from .gemini import GeminiProvider
 from .metrics import record_llm_provider_failover
@@ -80,6 +81,16 @@ class SmartFailoverRouter:
             # Fallback default order: Gemini -> OpenAI -> Anthropic
             self.providers = [GeminiProvider(), OpenAIProvider(), AnthropicProvider()]
 
+        # The provider that served the last generate()/stream() call.
+        self.active_provider: Optional[BaseLLMProvider] = None
+
+    @property
+    def last_usage(self) -> Optional[TokenUsage]:
+        """Token usage the serving provider reported, None when it reported none."""
+        if self.active_provider is None:
+            return None
+        return getattr(self.active_provider, "last_usage", None)
+
     def generate(
         self,
         prompt: str,
@@ -92,6 +103,7 @@ class SmartFailoverRouter:
         If a provider encounters 5xx or timeout, transparently failover to the next.
         """
         errors: List[tuple[str, Exception]] = []
+        self.active_provider = None
 
         for idx, provider in enumerate(self.providers):
             has_next = idx + 1 < len(self.providers)
@@ -110,6 +122,7 @@ class SmartFailoverRouter:
                     history=history,
                     **kwargs,
                 )
+                self.active_provider = provider
                 return response
 
             except (LLMServer5xxError, LLMTimeoutError) as exc:
@@ -188,6 +201,7 @@ class SmartFailoverRouter:
         Stream completion with transparent failover before the first token is emitted.
         """
         errors: List[tuple[str, Exception]] = []
+        self.active_provider = None
 
         for idx, provider in enumerate(self.providers):
             has_next = idx + 1 < len(self.providers)
@@ -204,8 +218,12 @@ class SmartFailoverRouter:
                 try:
                     first_token = next(gen)
                 except StopIteration:
+                    self.active_provider = provider
                     return
 
+                # set before yielding so a stream the client drops early still
+                # knows which provider (and so which usage) it came from
+                self.active_provider = provider
                 yield first_token
                 for token in gen:
                     yield token

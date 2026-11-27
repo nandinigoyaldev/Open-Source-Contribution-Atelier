@@ -20,6 +20,7 @@ from .base import (
     LLMResponse,
     LLMServer5xxError,
     LLMTimeoutError,
+    TokenUsage,
 )
 
 logger = logging.getLogger(__name__)
@@ -64,6 +65,7 @@ class AnthropicProvider(BaseLLMProvider):
         **kwargs: Any,
     ) -> LLMResponse:
         start_time = time.perf_counter()
+        self.last_usage = None
         active_model = kwargs.get("model", self.model)
         api_key = kwargs.get("api_key", self.api_key)
         messages = self._build_messages(prompt, history)
@@ -113,6 +115,12 @@ class AnthropicProvider(BaseLLMProvider):
                     if block.get("type") == "text":
                         text += block.get("text", "")
 
+            usage = data.get("usage") or {}
+            if isinstance(usage, dict):
+                self.last_usage = TokenUsage.from_counts(
+                    usage.get("input_tokens"), usage.get("output_tokens")
+                )
+
             duration_ms = (time.perf_counter() - start_time) * 1000
             return LLMResponse(
                 content=text.strip(),
@@ -120,6 +128,7 @@ class AnthropicProvider(BaseLLMProvider):
                 model=active_model,
                 latency_ms=duration_ms,
                 raw_response=data,
+                usage=self.last_usage,
             )
         except requests.exceptions.Timeout as exc:
             raise LLMTimeoutError(

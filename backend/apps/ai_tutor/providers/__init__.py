@@ -13,6 +13,7 @@ from .base import (
     LLMResponse,
     LLMServer5xxError,
     LLMTimeoutError,
+    TokenUsage,
 )
 from .gemini import GeminiProvider
 from .metrics import LLM_PROVIDER_FAILOVERS_TOTAL, record_llm_provider_failover
@@ -27,6 +28,7 @@ __all__ = [
     "LLMTimeoutError",
     "LLMClientError",
     "LLMAllProvidersFailedError",
+    "TokenUsage",
     "GeminiProvider",
     "OpenAIProvider",
     "AnthropicProvider",
