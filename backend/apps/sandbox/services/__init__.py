@@ -141,6 +141,10 @@ async def stream_python_execution(
             stderr=asyncio.subprocess.PIPE,
         )
 
+        cgroup_path = ResourceManagementEngine.apply_cgroup_v2_limits(
+            process.pid, scope_name=f"stream_{process.pid}"
+        )
+
         async def read_stream(stream, stream_type):
             nonlocal total_output_bytes, quota_killed
             while True:
@@ -178,6 +182,11 @@ async def stream_python_execution(
                 timeout=timeout,
             )
 
+            # Check cgroup limit breaches or returncode 137 or quota_killed
+            cgroup_breached, cgroup_reason = (
+                ResourceManagementEngine.check_cgroup_v2_limits(cgroup_path)
+            )
+
             if quota_killed:
                 from asgiref.sync import sync_to_async
 
@@ -196,15 +205,29 @@ async def stream_python_execution(
                 )
                 return
 
-            status = "Completed"
-            if process.returncode == 137:
-                status = "Memory Limit Exceeded"
+            if process.returncode == 137 or cgroup_breached:
+                ResourceManagementEngine.terminate_process_cleanly(
+                    process.pid, cgroup_path
+                )
+                status = ResourceManagementEngine.RESOURCE_QUOTA_EXCEEDED_MESSAGE
                 from asgiref.sync import sync_to_async
 
+                violation_type = cgroup_reason or "memory"
                 await sync_to_async(ResourceManagementEngine.log_violation)(
-                    user_id, code, "memory", "Process returned 137 (Memory/CPU limit)"
+                    user_id, code, violation_type, status
                 )
-            elif process.returncode != 0:
+                await send_callback(
+                    {
+                        "action": "execution_end",
+                        "status": status,
+                        "error": status,
+                        "returncode": 137,
+                    }
+                )
+                return
+
+            status = "Completed"
+            if process.returncode != 0:
                 status = "Failed"
 
             await send_callback(
@@ -215,7 +238,7 @@ async def stream_python_execution(
                 }
             )
         except asyncio.TimeoutError:
-            ResourceManagementEngine.kill_process_tree(process.pid)
+            ResourceManagementEngine.terminate_process_cleanly(process.pid, cgroup_path)
             from asgiref.sync import sync_to_async
 
             await sync_to_async(ResourceManagementEngine.log_violation)(
@@ -233,6 +256,8 @@ async def stream_python_execution(
         await send_callback({"action": "execution_error", "error": str(e)})
     finally:
         elapsed = asyncio.get_event_loop().time() - start_time
+        if cgroup_path:
+            ResourceManagementEngine.cgroup_manager.terminate_cgroup(cgroup_path)
         ResourceManagementEngine.record_session_usage(
             user_id, elapsed, total_output_bytes
         )
@@ -278,6 +303,9 @@ async def start_debug_session(
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
     )
+    ResourceManagementEngine.apply_cgroup_v2_limits(
+        process.pid, scope_name=f"debug_{process.pid}"
+    )
 
     return process, path
 
@@ -305,6 +333,9 @@ async def run_code_trace(code: str, user_id: str = "anonymous", timeout: int = 1
         stdout=asyncio.subprocess.PIPE,
         stderr=asyncio.subprocess.PIPE,
     )
+    cgroup_path = ResourceManagementEngine.apply_cgroup_v2_limits(
+        process.pid, scope_name=f"trace_{process.pid}"
+    )
 
     start_time = asyncio.get_event_loop().time()
     try:
@@ -321,10 +352,12 @@ async def run_code_trace(code: str, user_id: str = "anonymous", timeout: int = 1
             except:
                 return []
     except asyncio.TimeoutError:
-        ResourceManagementEngine.kill_process_tree(process.pid)
+        ResourceManagementEngine.terminate_process_cleanly(process.pid, cgroup_path)
         return []
     finally:
         elapsed = asyncio.get_event_loop().time() - start_time
+        if cgroup_path:
+            ResourceManagementEngine.cgroup_manager.terminate_cgroup(cgroup_path)
         ResourceManagementEngine.record_session_usage(user_id, elapsed)
         ResourceManagementEngine.release_execution_lock(user_id)
         if os.path.exists(path):
