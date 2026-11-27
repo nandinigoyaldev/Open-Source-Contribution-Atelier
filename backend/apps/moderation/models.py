@@ -2,6 +2,9 @@ from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
 from django.db import models
+from django.utils import timezone
+
+from apps.audit.chain import MODERATION_CHAIN, ChainedModel
 
 User = get_user_model()
 
@@ -81,13 +84,21 @@ class SentimentSnapshot(models.Model):
     total_comments = models.IntegerField(default=0)
 
 
-class ModerationAuditEvent(models.Model):
+class ModerationAuditEvent(ChainedModel):
+    """Append only, and hash chained like ``apps.audit.models.AuditEvent``."""
+
+    chain = MODERATION_CHAIN
+
     # Example values: REPORT_APPROVED, REPORT_DISMISSED
     event_type = models.CharField(max_length=50)
 
+    # SET_NULL, not CASCADE: reports go away with their reporter's account, and
+    # the record of what moderators did has to stay.
     content_report = models.ForeignKey(
         ContentReport,
-        on_delete=models.CASCADE,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
         related_name="audit_events",
     )
 
@@ -113,9 +124,16 @@ class ModerationAuditEvent(models.Model):
     action_taken = models.CharField(max_length=20, null=True, blank=True)
     reason = models.TextField(blank=True)
 
-    created_at = models.DateTimeField(auto_now_add=True)
+    # Not auto_now_add: that would replace the value after it has been hashed.
+    created_at = models.DateTimeField(default=timezone.now, editable=False)
 
-    class Meta:
+    # Ids copied when the row is written. They are hashed, and they stay when the
+    # row they point at is deleted.
+    content_report_ref = models.BigIntegerField(null=True, editable=False)
+    moderator_ref = models.BigIntegerField(null=True, editable=False)
+    target_user_ref = models.BigIntegerField(null=True, editable=False)
+
+    class Meta:  # pyright: ignore[reportIncompatibleVariableOverride]
         ordering = ["-created_at"]
         indexes = [
             models.Index(fields=["created_at"], name="idx_created_at"),

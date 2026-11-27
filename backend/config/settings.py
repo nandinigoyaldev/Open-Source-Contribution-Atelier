@@ -43,6 +43,10 @@ if not SECRET_KEY:
 if len(SECRET_KEY) < 50:
     raise ImproperlyConfigured("SECRET_KEY must be at least 50 characters long")
 
+# Signs the head and retention anchors of the audit hash chains. SECRET_KEY is
+# used when it is empty. See docs/AUDIT_EVENTS.md before changing either.
+AUDIT_CHAIN_KEY = os.getenv("AUDIT_CHAIN_KEY", "").strip()
+
 # Base64 encoded 32-byte key for AES-GCM field encryption.
 # Can be a comma-separated list of keys to support double-read during key rotation.
 FIELD_ENCRYPTION_KEY_RAW = os.getenv("FIELD_ENCRYPTION_KEY", "")
