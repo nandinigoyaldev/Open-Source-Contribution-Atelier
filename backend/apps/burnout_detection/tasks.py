@@ -3,6 +3,7 @@ Celery tasks for burnout detection.
 """
 
 import logging
+from collections import defaultdict
 from datetime import timedelta
 
 from celery import shared_task
@@ -16,13 +17,13 @@ from apps.burnout_detection.models import (
     Intervention,
 )
 from apps.burnout_detection.services.burnout_detector import BurnoutDetector
-from apps.burnout_detection.services.sentiment_analyzer import SentimentAnalyzer
 
 logger = logging.getLogger(__name__)
 
 HIGH_ACTIVITY_HOURS = 8.0
 HIGH_ACTIVITY_STREAK_DAYS = 5
 ROLLING_WINDOW_DAYS = 7
+DEFAULT_BATCH_SIZE = 500
 
 
 def _is_high_activity_day(day, weekend_learning_enabled: bool) -> bool:
@@ -55,80 +56,161 @@ def _has_sustained_high_activity(days, weekend_learning_enabled: bool) -> bool:
 
 
 @shared_task
-def detect_user_burnout_risk():
+def detect_user_burnout_risk(batch_size: int = DEFAULT_BATCH_SIZE):
     """Flag users with five consecutive high-duration study days in a 7-day window."""
     User = get_user_model()
-    window_start = timezone.localdate() - timedelta(days=ROLLING_WINDOW_DAYS - 1)
+    today = timezone.localdate()
+    window_start = today - timedelta(days=ROLLING_WINDOW_DAYS - 1)
     flagged_count = 0
+    last_id = 0
 
-    for user in User.objects.select_related("user_profile").all():
-        profile = getattr(user, "user_profile", None)
-        weekend_learning_enabled = bool(
-            profile and getattr(profile, "weekend_learning_enabled", False)
+    while True:
+        users = list(
+            User.objects.select_related("user_profile")
+            .filter(id__gt=last_id)
+            .order_by("id")[:batch_size]
         )
-        days = BurnoutActivityDay.objects.filter(
-            user=user, date__gte=window_start, date__lte=timezone.localdate()
-        )
+        if not users:
+            break
+        last_id = users[-1].id
+        user_ids = [user.id for user in users]
 
-        if not _has_sustained_high_activity(days, weekend_learning_enabled):
+        days_by_user: dict[int, list[BurnoutActivityDay]] = defaultdict(list)
+        for day in BurnoutActivityDay.objects.filter(
+            user_id__in=user_ids, date__gte=window_start, date__lte=today
+        ):
+            days_by_user[day.user_id].append(day)
+
+        flagged_users = []
+        for user in users:
+            profile = getattr(user, "user_profile", None)
+            weekend_learning_enabled = bool(
+                profile and getattr(profile, "weekend_learning_enabled", False)
+            )
+            if _has_sustained_high_activity(
+                days_by_user.get(user.id, []), weekend_learning_enabled
+            ):
+                flagged_users.append(user)
+
+        if not flagged_users:
             continue
 
-        signal, created = BurnoutSignal.objects.get_or_create(
-            user=user,
-            signal_type="irregular_pattern",
-            is_resolved=False,
-            defaults={
-                "severity": "severe",
-                "description": (
-                    "Sustained high-duration learning activity detected for "
-                    f"at least {HIGH_ACTIVITY_STREAK_DAYS} consecutive days."
-                ),
-            },
+        existing_user_ids = set(
+            BurnoutSignal.objects.filter(
+                user_id__in=[u.id for u in flagged_users],
+                signal_type="irregular_pattern",
+                is_resolved=False,
+            ).values_list("user_id", flat=True)
         )
-        if created:
-            flagged_count += 1
+        new_users = [u for u in flagged_users if u.id not in existing_user_ids]
+        if not new_users:
+            continue
+
+        description = (
+            "Sustained high-duration learning activity detected for "
+            f"at least {HIGH_ACTIVITY_STREAK_DAYS} consecutive days."
+        )
+        BurnoutSignal.objects.bulk_create(
+            [
+                BurnoutSignal(
+                    user=user,
+                    signal_type="irregular_pattern",
+                    is_resolved=False,
+                    severity="severe",
+                    description=description,
+                )
+                for user in new_users
+            ]
+        )
+        for user in new_users:
             trigger_intervention.delay(user.id)
+        flagged_count += len(new_users)
 
     logger.info("Detected %s sustained high-activity burnout cases", flagged_count)
     return {"flagged": flagged_count}
 
 
 @shared_task
-def detect_burnout():
+def detect_burnout(batch_size: int = DEFAULT_BATCH_SIZE):
     """
-    Detect burnout in all contributors.
+    Detect burnout in all contributors using keyset-paginated batches.
     """
     logger.info("Starting burnout detection")
 
-    activities = ContributorActivity.objects.all()
     detector = BurnoutDetector()
-
     detected_count = 0
     critical_count = 0
+    last_id = None
 
-    for activity in activities:
-        try:
-            result = detector.detect_burnout(activity)
+    while True:
+        qs = ContributorActivity.objects.select_related("user").order_by("id")
+        if last_id is not None:
+            qs = qs.filter(id__gt=last_id)
+        activities = list(qs[:batch_size])
+        if not activities:
+            break
+        last_id = activities[-1].id
 
-            if result["needs_intervention"]:
+        pending_signals: list[tuple[int, dict]] = []
+        intervene_user_ids: set[int] = set()
+
+        for activity in activities:
+            try:
+                result = detector.detect_burnout(activity)
+                if not result["needs_intervention"]:
+                    continue
+
                 detected_count += 1
                 if result["risk_level"] == "critical":
                     critical_count += 1
 
                 for signal_data in result["signals"]:
-                    BurnoutSignal.objects.create(
-                        user=activity.user,
-                        signal_type=signal_data["type"],
-                        severity=signal_data["severity"],
-                        description=signal_data["description"],
-                    )
+                    pending_signals.append((activity.user_id, signal_data))
+                intervene_user_ids.add(activity.user_id)
+            except (
+                Exception
+            ) as e:  # noqa: BLE001 - isolate per-activity detection failures
+                logger.error(
+                    "Error detecting burnout for %s: %s",
+                    activity.user.username,
+                    e,
+                )
 
-                trigger_intervention.delay(activity.user.id)
+        if not pending_signals:
+            continue
 
-        except Exception as e:
-            logger.error(f"Error detecting burnout for {activity.user.username}: {e}")
+        existing_pairs = set(
+            BurnoutSignal.objects.filter(
+                user_id__in=intervene_user_ids,
+                is_resolved=False,
+            ).values_list("user_id", "signal_type")
+        )
 
-    logger.info(f"Detected {detected_count} burnout cases ({critical_count} critical)")
+        signals_to_create = []
+        newly_signaled_users: set[int] = set()
+        for user_id, signal_data in pending_signals:
+            pair = (user_id, signal_data["type"])
+            if pair in existing_pairs:
+                continue
+            existing_pairs.add(pair)
+            signals_to_create.append(
+                BurnoutSignal(
+                    user_id=user_id,
+                    signal_type=signal_data["type"],
+                    severity=signal_data["severity"],
+                    description=signal_data["description"],
+                )
+            )
+            newly_signaled_users.add(user_id)
+
+        if signals_to_create:
+            BurnoutSignal.objects.bulk_create(signals_to_create)
+            for user_id in sorted(newly_signaled_users):
+                trigger_intervention.delay(user_id)
+
+    logger.info(
+        "Detected %s burnout cases (%s critical)", detected_count, critical_count
+    )
     return {"detected": detected_count, "critical": critical_count}
 
 
