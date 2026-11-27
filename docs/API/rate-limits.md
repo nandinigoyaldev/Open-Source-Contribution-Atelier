@@ -57,3 +57,41 @@ The older `X-RateLimit-Category`, `X-RateLimit-Category-Limit` and `X-RateLimit-
 - Throttles keyed on a value the caller picks (the username on login, the email on password reset) are not counted in the headers of successful responses.
 - Browsers can read these headers from the frontend origin because they are listed in `CORS_EXPOSE_HEADERS`.
 - Endpoints that are not rate limited (health checks, static files, webhooks) send no rate limit headers.
+
+## AI tutor daily token budget
+
+On top of the request limits above, `POST /api/ai/tutor/ask/` has a daily budget of LLM tokens (prompt plus completion) per user. It is checked before the request reaches any LLM provider and resets at 00:00 UTC. Hints and evaluations (`action: "hint"` / `"evaluate"`) are rule based and do not use it.
+
+| Who | Tokens per UTC day |
+| :--- | :--- |
+| Free learners | `AI_TUTOR_FREE_DAILY_TOKENS` (10,000) |
+| Premium (active subscription, staff, or a premium tier) | `AI_TUTOR_PREMIUM_DAILY_TOKENS` (50,000) |
+| User with an `AITokenBudgetOverride` (admin) | the override's limit, `0` blocks the user |
+| Member of an organization with an active `AITokenOrganizationPool` (admin) | the pool's limit, shared by all members |
+
+An override wins over a pool, and a pool wins over the tier.
+
+| Header | Value |
+| :--- | :--- |
+| `X-AI-Token-Budget-Limit` | Tokens allowed today |
+| `X-AI-Token-Budget-Remaining` | Tokens left when the request was let in |
+| `X-AI-Token-Budget-Reset` | Unix time of the next 00:00 UTC |
+| `X-AI-Token-Budget-Scope` | `user`, or `organization` for a shared pool |
+| `X-AI-Token-Budget-Warning` | Only from `AI_TUTOR_TOKEN_WARNING_PERCENT` (90%) of the budget on |
+
+Once the budget is used up the endpoint returns `429` with `Retry-After` (seconds until midnight UTC):
+
+```
+HTTP/1.1 429 Too Many Requests
+Retry-After: 3600
+X-AI-Token-Budget-Limit: 10000
+X-AI-Token-Budget-Remaining: 0
+
+{"error": "ai_token_budget_exhausted", "code": "ai_token_budget_exhausted", "message": "...",
+ "limit": 10000, "used": 10000, "remaining": 0, "tier": "free", "scope": "user",
+ "reset_at": "2026-03-11T00:00:00Z", "retry_after": 3600}
+```
+
+Usage comes from what the provider reports (OpenAI `usage`, also on streams; Anthropic `usage`; Gemini `usageMetadata`). When a provider reports nothing, both sides are estimated at 4 characters per token. A request that is let in with budget left is answered in full, so the last request of the day can go over the limit by up to one answer.
+
+With Redis, counters live in the cache and the Django-Q schedule `flush-ai-token-usage` copies them into `AITokenUsageLedger` every minute. The check reads both, so it does not wait for the flush. Without Redis the cache is a per-process LocMemCache that the flush worker cannot see, so each request writes its tokens straight to the ledger instead (`AI_TUTOR_TOKEN_LEDGER_WRITE_THROUGH`, default `None` = only for LocMemCache).

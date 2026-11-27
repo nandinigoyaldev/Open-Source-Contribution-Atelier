@@ -20,6 +20,7 @@ from .base import (
     LLMResponse,
     LLMServer5xxError,
     LLMTimeoutError,
+    TokenUsage,
 )
 
 logger = logging.getLogger(__name__)
@@ -69,6 +70,7 @@ class OpenAIProvider(BaseLLMProvider):
         **kwargs: Any,
     ) -> LLMResponse:
         start_time = time.perf_counter()
+        self.last_usage = None
         active_model = kwargs.get("model", self.model)
         api_key = kwargs.get("api_key", self.api_key)
         messages = self._build_messages(prompt, system_prompt, history)
@@ -88,6 +90,7 @@ class OpenAIProvider(BaseLLMProvider):
             )
             content = response.choices[0].message.content.strip()
             duration_ms = (time.perf_counter() - start_time) * 1000
+            self.last_usage = self._usage_from(getattr(response, "usage", None))
 
             return LLMResponse(
                 content=content,
@@ -95,6 +98,7 @@ class OpenAIProvider(BaseLLMProvider):
                 model=active_model,
                 latency_ms=duration_ms,
                 raw_response=response,
+                usage=self.last_usage,
             )
         except Exception as exc:
             self._handle_openai_exception(exc)
@@ -107,6 +111,7 @@ class OpenAIProvider(BaseLLMProvider):
         history: Optional[List[Dict[str, str]]] = None,
         **kwargs: Any,
     ) -> Generator[str, None, None]:
+        self.last_usage = None
         active_model = kwargs.get("model", self.model)
         api_key = kwargs.get("api_key", self.api_key)
         messages = self._build_messages(prompt, system_prompt, history)
@@ -123,10 +128,15 @@ class OpenAIProvider(BaseLLMProvider):
                 max_tokens=kwargs.get("max_tokens", 400),
                 temperature=kwargs.get("temperature", 0.6),
                 stream=True,
+                # the last chunk then carries the token usage of the whole stream
+                stream_options={"include_usage": True},
                 timeout=self.timeout,
             )
 
             for chunk in stream:
+                usage = self._usage_from(getattr(chunk, "usage", None))
+                if usage is not None:
+                    self.last_usage = usage
                 if chunk.choices and len(chunk.choices) > 0:
                     delta = chunk.choices[0].delta
                     content = getattr(delta, "content", None)
@@ -135,6 +145,15 @@ class OpenAIProvider(BaseLLMProvider):
         except Exception as exc:
             self._handle_openai_exception(exc)
             raise
+
+    @staticmethod
+    def _usage_from(usage: Any) -> Optional[TokenUsage]:
+        if usage is None:
+            return None
+        return TokenUsage.from_counts(
+            getattr(usage, "prompt_tokens", None),
+            getattr(usage, "completion_tokens", None),
+        )
 
     def _handle_openai_exception(self, exc: Exception) -> None:
         exc_str = str(exc).lower()

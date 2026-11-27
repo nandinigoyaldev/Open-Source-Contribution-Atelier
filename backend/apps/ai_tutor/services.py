@@ -5,6 +5,8 @@ from typing import Any, Dict, Generator, List, Optional
 
 from django.conf import settings
 
+from . import token_budget
+
 logger = logging.getLogger(__name__)
 
 # Structured Socratic knowledge base covering all 7 Levels of Open Source mastery
@@ -360,14 +362,18 @@ class AiTutorService:
         lesson_context: str = "",
         history: Optional[List[Dict[str, str]]] = None,
         tutor_context: Optional[Dict[str, Any]] = None,
+        user: Any = None,
     ) -> str:
-        """Generates a synchronous Socratic response using LLM or structured knowledge base fallback."""
+        """Generates a synchronous Socratic response using LLM or structured knowledge base fallback.
+
+        When ``user`` is given, the LLM tokens of the call count against their daily budget.
+        """
         if not question.strip():
             return "Please ask a question! I'm here to help you master open source contribution."
 
         if getattr(settings, "OPENAI_API_KEY", None):
             return cls._llm_response(
-                question, lesson_context, history or [], tutor_context
+                question, lesson_context, history or [], tutor_context, user=user
             )
 
         return cls._fallback_socratic_response(question, lesson_context, tutor_context)
@@ -379,8 +385,12 @@ class AiTutorService:
         lesson_context: str = "",
         history: Optional[List[Dict[str, str]]] = None,
         tutor_context: Optional[Dict[str, Any]] = None,
+        user: Any = None,
     ) -> Generator[str, None, None]:
-        """Streams Socratic tutor responses word-by-word (via LLM or deterministic fallback)."""
+        """Streams Socratic tutor responses word-by-word (via LLM or deterministic fallback).
+
+        When ``user`` is given, the LLM tokens of the stream count against their daily budget.
+        """
         if not question.strip():
             yield f"data: {json.dumps({'text': 'Please ask a question about open source!'})}\n\n"
             return
@@ -390,6 +400,9 @@ class AiTutorService:
             for key in ["OPENAI_API_KEY", "GEMINI_API_KEY", "ANTHROPIC_API_KEY"]
         )
         if has_llm_key:
+            router = None
+            system_prompt = ""
+            streamed: List[str] = []
             try:
                 from apps.ai_tutor.providers.router import SmartFailoverRouter
 
@@ -401,10 +414,23 @@ class AiTutorService:
                     history=history or [],
                 ):
                     if token:
+                        streamed.append(token)
                         yield f"data: {json.dumps({'text': token})}\n\n"
                 return
             except Exception as e:
                 logger.warning("AI tutor streaming LLM failover call failed: %s", e)
+            finally:
+                # Also runs when the client drops the stream half way: the provider
+                # still billed what it generated up to then.
+                if router is not None and router.active_provider is not None:
+                    cls._record_token_usage(
+                        user,
+                        router.last_usage,
+                        system_prompt,
+                        history or [],
+                        question,
+                        "".join(streamed),
+                    )
 
         # Fallback streaming
         fallback_text = cls._fallback_socratic_response(
@@ -479,6 +505,7 @@ class AiTutorService:
         lesson_context: str,
         history: List[Dict[str, str]],
         tutor_context: Optional[Dict[str, Any]] = None,
+        user: Any = None,
     ) -> str:
         try:
             from apps.ai_tutor.providers.router import SmartFailoverRouter
@@ -490,9 +517,54 @@ class AiTutorService:
                 system_prompt=system_prompt,
                 history=history,
             )
+            cls._record_token_usage(
+                user,
+                getattr(response, "usage", None) or router.last_usage,
+                system_prompt,
+                history,
+                question,
+                response.content,
+            )
             return response.content.strip()
         except Exception as e:
             logger.warning("AI tutor failover LLM pipeline failed: %s", e)
             return cls._fallback_socratic_response(
                 question, lesson_context, tutor_context
             )
+
+    @classmethod
+    def _record_token_usage(
+        cls,
+        user: Any,
+        usage: Any,
+        system_prompt: str,
+        history: List[Dict[str, str]],
+        question: str,
+        output_text: str,
+    ) -> None:
+        """Count one LLM call against the user's daily token budget.
+
+        Uses the usage the provider reported. When it reported none, both sides are
+        estimated from the text (token_budget.estimate_tokens).
+        """
+        if user is None or not getattr(user, "is_authenticated", False):
+            return
+        try:
+            if usage is not None:
+                input_tokens = usage.input_tokens
+                output_tokens = usage.output_tokens
+            else:
+                # the same last 6 history turns the providers send
+                parts = [system_prompt]
+                for entry in history[-6:]:
+                    if isinstance(entry, dict):
+                        parts.append(str(entry.get("question") or ""))
+                        parts.append(str(entry.get("answer") or ""))
+                parts.append(question)
+                input_tokens = token_budget.estimate_tokens(
+                    "\n".join(part for part in parts if part)
+                )
+                output_tokens = token_budget.estimate_tokens(output_text)
+            token_budget.record_usage(user, input_tokens, output_tokens)
+        except Exception as e:
+            logger.warning("Could not record AI tutor token usage: %s", e)

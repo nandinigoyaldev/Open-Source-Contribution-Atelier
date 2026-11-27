@@ -16,6 +16,30 @@ logger = logging.getLogger(__name__)
 
 
 @dataclass
+class TokenUsage:
+    """Prompt and completion token counts for one LLM call."""
+
+    input_tokens: int = 0
+    output_tokens: int = 0
+    estimated: bool = False
+
+    @property
+    def total_tokens(self) -> int:
+        return self.input_tokens + self.output_tokens
+
+    @classmethod
+    def from_counts(cls, input_tokens: Any, output_tokens: Any) -> Optional[TokenUsage]:
+        """Build usage from what a provider reported, or None when it reported nothing usable."""
+        counts = (input_tokens, output_tokens)
+        if all(
+            isinstance(value, int) and not isinstance(value, bool) and value >= 0
+            for value in counts
+        ):
+            return cls(input_tokens=input_tokens, output_tokens=output_tokens)
+        return None
+
+
+@dataclass
 class LLMResponse:
     """Standardized provider-agnostic response object."""
 
@@ -25,6 +49,8 @@ class LLMResponse:
     latency_ms: float = 0.0
     raw_response: Any = None
     metadata: Dict[str, Any] = field(default_factory=dict)
+    # Token counts the provider reported for this call, None when it reported none.
+    usage: Optional[TokenUsage] = None
 
     def __str__(self) -> str:
         return self.content
@@ -115,6 +141,9 @@ class BaseLLMProvider(ABC):
     name: str = "base"
     default_model: str = "default"
     timeout: float = 10.0
+    # Usage of the last generate()/stream() call, for callers that only see the
+    # streamed text. Stays None when the provider did not report usage.
+    last_usage: Optional[TokenUsage] = None
 
     @abstractmethod
     def generate(
