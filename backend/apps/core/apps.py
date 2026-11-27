@@ -13,6 +13,7 @@ class CoreConfig(AppConfig):
 
         import apps.core.celery_signals  # noqa
         import apps.core.checks  # noqa
+        import apps.core.lock_signals  # noqa
 
         def configure_sqlite(sender, connection, **kwargs):
             if connection.vendor == "sqlite":

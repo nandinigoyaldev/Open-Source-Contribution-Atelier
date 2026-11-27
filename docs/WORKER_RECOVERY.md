@@ -242,6 +242,14 @@ These actions can destroy persistent data or pending work. A normal worker resta
 
 The volume-reset examples in the general local-development troubleshooting guide are for specific local setup failures. They are **not** instructions for routine notification-worker recovery.
 
+### Task locks left by a dead worker
+
+Tasks decorated with `distributed_lock` (see `backend/apps/core/tasks.py`) hold a Redis lock with a TTL of at most 45 seconds and renew it every 15 seconds while they run. If the worker is killed, the lock expires by itself within 45 seconds, so there is normally nothing to delete.
+
+When a worker process starts, it logs a warning beginning with `Stranded task lock` for each lock whose owner process is gone or has stopped renewing. Wait for the expiry shown in the message, then retry the task.
+
+If a running task logs `Lost Redis lock`, it could not renew its lock (for example because Redis was unreachable). The task is not stopped automatically, so check that a second run did not overlap with it.
+
 ## 10. Escalation checklist
 
 If recovery does not work, escalate with:
