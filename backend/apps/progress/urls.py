@@ -1,5 +1,6 @@
 from django.urls import path
 
+from .adaptive_views import AdaptiveDifficultySettingsView
 from .views import ExportNotesView  # ✅ ADDED
 from .views import QuizNonceView  # NEW: Imported the Nonce View
 from .views import (
@@ -132,4 +133,9 @@ urlpatterns = [
     # ✅ ADDED: Notes Export
     path("notes/export/", ExportNotesView.as_view(), name="notes-export"),
     path("reading-position/", ReadingProgressView.as_view(), name="reading-position"),
+    path(
+        "adaptive-difficulty/",
+        AdaptiveDifficultySettingsView.as_view(),
+        name="adaptive-difficulty",
+    ),
 ]

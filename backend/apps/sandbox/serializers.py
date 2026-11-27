@@ -271,6 +271,15 @@ class ConflictScenarioSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = ["id", "created_at"]
 
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        # Set for learners on adaptive difficulty: they get a hint through the
+        # hint action, so that it can be counted.
+        revealed = self.context.get("revealed_hints")
+        if revealed is not None and str(instance.pk) not in revealed:
+            data["hint"] = ""
+        return data
+
 
 class ConflictAttemptSerializer(serializers.ModelSerializer):
     class Meta:
