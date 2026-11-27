@@ -36,6 +36,7 @@ django-redis>=5.4.0
 django-allauth>=0.60.0
 python-dotenv>=1.0.0
 boto3>=1.34.0
+django-storages>=1.14.0
 celery-prometheus-exporter>=1.7.0
 whitenoise[brotli]>=6.5.0
 pydantic>=2.14.1

@@ -1,0 +1,54 @@
+{
+  "description": "Cloudflare Edge Caching Rules for Static Media and Assets",
+  "rules": [
+    {
+      "id": "media-static-immutable-edge-cache",
+      "description": "1-Year Immutable Edge Caching for Media and Static Assets",
+      "expression": "(http.request.uri.path matches \"^/(media|static)/.*\")",
+      "action": "set_cache_settings",
+      "action_parameters": {
+        "cache": true,
+        "edge_ttl": {
+          "mode": "override_origin",
+          "default": 31536000
+        },
+        "browser_ttl": {
+          "mode": "override_origin",
+          "default": 31536000
+        },
+        "serve_stale": {
+          "disable_stale_while_revalidate": false
+        },
+        "cache_deception_armor": true,
+        "cache_key": {
+          "cache_by_device_type": false,
+          "ignore_query_strings_order": true
+        }
+      },
+      "enabled": true
+    },
+    {
+      "id": "media-cache-control-headers-transform",
+      "description": "Inject Cache-Control: public, max-age=31536000, immutable on Edge Response",
+      "expression": "(http.request.uri.path matches \"^/(media|static)/.*\")",
+      "action": "rewrite",
+      "action_parameters": {
+        "headers": {
+          "Cache-Control": {
+            "operation": "set",
+            "value": "public, max-age=31536000, immutable"
+          },
+          "Access-Control-Allow-Origin": {
+            "operation": "set",
+            "value": "*"
+          },
+          "X-Content-Type-Options": {
+            "operation": "set",
+            "value": "nosniff"
+          }
+        }
+      },
+      "enabled": true
+    }
+  ]
+}

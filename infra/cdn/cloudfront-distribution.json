@@ -1,0 +1,123 @@
+{
+  "DistributionConfig": {
+    "CallerReference": "atelier-multiregion-cdn-distribution",
+    "Aliases": {
+      "Quantity": 1,
+      "Items": ["cdn.atelier.dev"]
+    },
+    "DefaultRootObject": "",
+    "OriginGroups": {
+      "Quantity": 1,
+      "Items": [
+        {
+          "Id": "DualRegion-S3-OriginGroup",
+          "FailoverCriteria": {
+            "StatusCodes": {
+              "Quantity": 4,
+              "Items": [500, 502, 503, 504]
+            }
+          },
+          "Members": {
+            "Quantity": 2,
+            "Items": [
+              { "OriginId": "Primary-S3-us-east-1" },
+              { "OriginId": "Replica-S3-eu-central-1" }
+            ]
+          }
+        }
+      ]
+    },
+    "Origins": {
+      "Quantity": 2,
+      "Items": [
+        {
+          "Id": "Primary-S3-us-east-1",
+          "DomainName": "atelier-media-primary.s3.us-east-1.amazonaws.com",
+          "OriginPath": "",
+          "S3OriginConfig": {
+            "OriginAccessIdentity": "origin-access-identity/cloudfront/E123EXAMPLE"
+          }
+        },
+        {
+          "Id": "Replica-S3-eu-central-1",
+          "DomainName": "atelier-media-replica.s3.eu-central-1.amazonaws.com",
+          "OriginPath": "",
+          "S3OriginConfig": {
+            "OriginAccessIdentity": "origin-access-identity/cloudfront/E123EXAMPLE"
+          }
+        }
+      ]
+    },
+    "CacheBehaviors": {
+      "Quantity": 2,
+      "Items": [
+        {
+          "PathPattern": "media/*",
+          "TargetOriginId": "DualRegion-S3-OriginGroup",
+          "ViewerProtocolPolicy": "redirect-to-https",
+          "AllowedMethods": {
+            "Quantity": 2,
+            "Items": ["GET", "HEAD"],
+            "CachedMethods": {
+              "Quantity": 2,
+              "Items": ["GET", "HEAD"]
+            }
+          },
+          "Compress": true,
+          "MinTTL": 31536000,
+          "MaxTTL": 31536000,
+          "DefaultTTL": 31536000,
+          "ResponseHeadersPolicyConfig": {
+            "CustomHeadersConfig": {
+              "Quantity": 2,
+              "Items": [
+                {
+                  "Header": "Cache-Control",
+                  "Value": "public, max-age=31536000, immutable",
+                  "Override": true
+                },
+                {
+                  "Header": "Access-Control-Allow-Origin",
+                  "Value": "*",
+                  "Override": false
+                }
+              ]
+            }
+          }
+        },
+        {
+          "PathPattern": "static/*",
+          "TargetOriginId": "DualRegion-S3-OriginGroup",
+          "ViewerProtocolPolicy": "redirect-to-https",
+          "AllowedMethods": {
+            "Quantity": 2,
+            "Items": ["GET", "HEAD"],
+            "CachedMethods": {
+              "Quantity": 2,
+              "Items": ["GET", "HEAD"]
+            }
+          },
+          "Compress": true,
+          "MinTTL": 31536000,
+          "MaxTTL": 31536000,
+          "DefaultTTL": 31536000,
+          "ResponseHeadersPolicyConfig": {
+            "CustomHeadersConfig": {
+              "Quantity": 1,
+              "Items": [
+                {
+                  "Header": "Cache-Control",
+                  "Value": "public, max-age=31536000, immutable",
+                  "Override": true
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    "Comment": "Multi-region S3 CDN distribution with automated origin failover and 1-year immutable caching",
+    "Enabled": true,
+    "PriceClass": "PriceClass_All"
+  }
+}

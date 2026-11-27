@@ -48,6 +48,12 @@ class APICacheControlMiddleware:
             return response
 
         path = request.path
+
+        # Edge caching for static and media assets: 1 year immutable
+        if path.startswith("/media/") or path.startswith("/static/"):
+            response["Cache-Control"] = "public, max-age=31536000, immutable"
+            return response
+
         for prefix, max_age in self.CACHE_RULES.items():
             if path.startswith(prefix):
                 # private = only the user's browser cache, not shared CDN caches

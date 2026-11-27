@@ -554,16 +554,62 @@ USE_TZ = True
 
 STATIC_URL = "/static/"
 STATIC_ROOT = BASE_DIR / "staticfiles"
+
+# ==============================================================================
+# S3-Compatible Storage & Multi-Region Replication Settings
+# ==============================================================================
+USE_S3_STORAGE = os.getenv("USE_S3_STORAGE", "false").lower() in ("true", "1", "yes")
+AWS_ACCESS_KEY_ID = os.getenv("AWS_ACCESS_KEY_ID")
+AWS_SECRET_ACCESS_KEY = os.getenv("AWS_SECRET_ACCESS_KEY")
+AWS_STORAGE_BUCKET_NAME = os.getenv("AWS_STORAGE_BUCKET_NAME", "atelier-media-primary")
+AWS_S3_REGION_NAME = os.getenv("AWS_S3_REGION_NAME", "us-east-1")
+AWS_S3_ENDPOINT_URL = os.getenv("AWS_S3_ENDPOINT_URL")
+AWS_S3_CUSTOM_DOMAIN = os.getenv("AWS_S3_CUSTOM_DOMAIN")
+
+# Dual-region bucket replication settings
+AWS_S3_REPLICA_BUCKET_NAME = os.getenv(
+    "AWS_S3_REPLICA_BUCKET_NAME", "atelier-media-replica"
+)
+AWS_S3_REPLICA_REGION_NAME = os.getenv("AWS_S3_REPLICA_REGION_NAME", "eu-central-1")
+AWS_S3_REPLICA_ENDPOINT_URL = os.getenv("AWS_S3_REPLICA_ENDPOINT_URL")
+AWS_S3_REPLICATION_ENABLED = os.getenv(
+    "AWS_S3_REPLICATION_ENABLED", "true"
+).lower() in (
+    "true",
+    "1",
+    "yes",
+)
+
+# Immutable 1-year CDN edge caching header for static media
+AWS_S3_OBJECT_PARAMETERS = {
+    "CacheControl": "public, max-age=31536000, immutable",
+}
+
 STORAGES = {
     "default": {
-        "BACKEND": "django.core.files.storage.FileSystemStorage",
+        "BACKEND": (
+            "config.storage.MediaS3Storage"
+            if USE_S3_STORAGE
+            else "django.core.files.storage.FileSystemStorage"
+        ),
     },
     "staticfiles": {
         "BACKEND": "whitenoise.storage.CompressedManifestStaticFilesStorage",
     },
 }
 
-MEDIA_URL = "/media/"
+if USE_S3_STORAGE:
+    if AWS_S3_CUSTOM_DOMAIN:
+        MEDIA_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/media/"
+    elif AWS_S3_ENDPOINT_URL:
+        MEDIA_URL = (
+            f"{AWS_S3_ENDPOINT_URL.rstrip('/')}/{AWS_STORAGE_BUCKET_NAME}/media/"
+        )
+    else:
+        MEDIA_URL = f"https://{AWS_STORAGE_BUCKET_NAME}.s3.{AWS_S3_REGION_NAME}.amazonaws.com/media/"
+else:
+    MEDIA_URL = "/media/"
+
 MEDIA_ROOT = BASE_DIR / "media"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
@@ -869,8 +915,9 @@ CELERY_BEAT_SCHEDULE = {
     },
 }
 
-MEDIA_URL = "/media/"
-MEDIA_ROOT = os.path.join(BASE_DIR, "media")
+if not USE_S3_STORAGE:
+    MEDIA_URL = "/media/"
+    MEDIA_ROOT = os.path.join(BASE_DIR, "media")
 
 # Cache timeout for Search API (in seconds) - Default: 1 hour
 SEARCH_CACHE_TIMEOUT = 60 * 60
