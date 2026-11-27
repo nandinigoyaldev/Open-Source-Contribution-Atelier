@@ -189,6 +189,12 @@ CORS_EXPOSE_HEADERS = [
     "X-RateLimit-Remaining",
     "X-RateLimit-Reset",
     "Retry-After",
+    # AI tutor daily token budget (see docs/API/rate-limits.md).
+    "X-AI-Token-Budget-Limit",
+    "X-AI-Token-Budget-Remaining",
+    "X-AI-Token-Budget-Reset",
+    "X-AI-Token-Budget-Scope",
+    "X-AI-Token-Budget-Warning",
 ]
 CORS_ALLOW_HEADERS = [*default_cors_headers, "x-request-id"]
 
@@ -607,6 +613,15 @@ GOOGLE_CLIENT_SECRET = os.getenv("GOOGLE_CLIENT_SECRET", "")
 # ── AI Tutor ────────────────────────────────────────────────────────────────────
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY")
 LLM_MODEL = os.getenv("LLM_MODEL", "gpt-3.5-turbo")
+# Daily LLM token budget per user, reset at 00:00 UTC (apps/ai_tutor/token_budget.py).
+# Admins can set per-user overrides and shared organization pools in the admin.
+AI_TUTOR_FREE_DAILY_TOKENS = int(os.getenv("AI_TUTOR_FREE_DAILY_TOKENS", "10000"))
+AI_TUTOR_PREMIUM_DAILY_TOKENS = int(os.getenv("AI_TUTOR_PREMIUM_DAILY_TOKENS", "50000"))
+# Responses carry X-AI-Token-Budget-Warning from this share of the budget on.
+AI_TUTOR_TOKEN_WARNING_PERCENT = int(os.getenv("AI_TUTOR_TOKEN_WARNING_PERCENT", "90"))
+# None: write each request's tokens straight to the ledger only when the cache is
+# per process (LocMemCache), where the flush worker cannot see the counters.
+AI_TUTOR_TOKEN_LEDGER_WRITE_THROUGH = None
 
 # ── Discord Integration ────────────────────────────────────────────────────────
 # Discord webhook URL for achievement announcements

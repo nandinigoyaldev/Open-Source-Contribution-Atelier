@@ -6,7 +6,12 @@ from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from .services import AiTutorService
-from .throttles import AiTutorRateThrottle
+from .throttles import (
+    AiTutorRateThrottle,
+    add_token_budget_headers,
+    token_budget_exceeded_response,
+)
+from .token_budget import get_budget_status
 
 logger = logging.getLogger(__name__)
 
@@ -97,25 +102,38 @@ class TutorAskView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        # 'ask' is the only action that can reach the LLM router, so the daily
+        # token budget is checked here, before any provider is called.
+        budget = get_budget_status(request.user)
+        if budget.exhausted:
+            return token_budget_exceeded_response(budget)
+
         if not stream:
             answer = AiTutorService.get_response(
                 question=question,
                 lesson_context=lesson_context,
                 history=history,
                 tutor_context=tutor_context,
+                user=request.user,
             )
-            return Response({"answer": answer}, status=status.HTTP_200_OK)
+            return add_token_budget_headers(
+                Response({"answer": answer}, status=status.HTTP_200_OK), budget
+            )
 
         stream_generator = AiTutorService.get_streaming_response(
             question=question,
             lesson_context=lesson_context,
             history=history,
             tutor_context=tutor_context,
+            user=request.user,
         )
 
-        return StreamingHttpResponse(
-            stream_generator,
-            content_type="text/event-stream",
+        return add_token_budget_headers(
+            StreamingHttpResponse(
+                stream_generator,
+                content_type="text/event-stream",
+            ),
+            budget,
         )
 
 
