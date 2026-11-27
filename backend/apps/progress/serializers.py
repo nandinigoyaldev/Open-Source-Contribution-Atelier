@@ -9,6 +9,7 @@ from .models import (
     ProgressBufferDeadLetter,
     QuizAttempt,
     RewardTransactionSaga,
+    StreakFreezeLedger,
     UserBadge,
     WeeklyGoal,
 )
@@ -316,3 +317,38 @@ class RewardTransactionSagaSerializer(serializers.ModelSerializer):
             "updated_at",
         ]
         read_only_fields = ["id", "created_at", "updated_at"]
+
+
+class StreakFreezeLedgerSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = StreakFreezeLedger
+        fields = [
+            "id",
+            "entry_type",
+            "delta",
+            "balance_after",
+            "xp_spent",
+            "protected_date",
+            "week_start",
+            "created_at",
+        ]
+
+
+class StreakFreezeWeekSerializer(serializers.Serializer):
+    week_start = serializers.DateField()
+    target_lessons = serializers.IntegerField()
+    completed_lessons = serializers.IntegerField()
+    claimed = serializers.BooleanField()
+    claimable = serializers.BooleanField()
+
+
+class StreakFreezeStatusSerializer(serializers.Serializer):
+    streak_freezes = serializers.IntegerField()
+    price_xp = serializers.IntegerField()
+    xp_balance = serializers.IntegerField()
+    total_earned = serializers.IntegerField()
+    total_redeemed = serializers.IntegerField()
+    total_used = serializers.IntegerField()
+    last_protected_date = serializers.DateField(allow_null=True)
+    weeks = StreakFreezeWeekSerializer(many=True)
+    history = StreakFreezeLedgerSerializer(many=True)

@@ -52,6 +52,9 @@ from .models import (
     LessonProgress,
     ProgressBufferDeadLetter,
     QuizAttempt,
+    StreakFreezeInventory,
+    StreakFreezeLedger,
+    StreakProfile,
     UserBadge,
     WeeklyGoal,
 )
@@ -65,6 +68,7 @@ from .serializers import (
     LessonProgressSerializer,
     ProgressBufferDeadLetterSerializer,
     QuizAttemptSerializer,
+    StreakFreezeStatusSerializer,
     WeeklyGoalSerializer,
 )
 from .services.activity_timeline import (
@@ -1466,9 +1470,7 @@ class LessonBookmarkView(APIView):
             user=request.user, lesson__slug=slug
         ).first()
         if bookmark is None:
-            return Response(
-                {"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND
-            )
+            return Response({"detail": "Not found."}, status=status.HTTP_404_NOT_FOUND)
 
         # expected_id is the bookmark the client saw (the offline queue sends it
         # for a removal made offline). Another id means the lesson was bookmarked
@@ -2108,6 +2110,64 @@ class StreakStatusView(APIView):
             ),
         }
         return Response(formatted_data, status=status.HTTP_200_OK)
+
+
+def _streak_freeze_status(user):
+    from apps.progress.services import streak_engine
+
+    profile = (
+        StreakProfile.objects.filter(  # pyright: ignore[reportAttributeAccessIssue]
+            user=user
+        ).first()
+    )
+    inventory = StreakFreezeInventory.objects.filter(user=user).first()
+    ledger = StreakFreezeLedger.objects.filter(user=user)
+    last_protected = (
+        ledger.filter(protected_date__isnull=False)
+        .order_by("-protected_date")
+        .values_list("protected_date", flat=True)
+        .first()
+    )
+    return StreakFreezeStatusSerializer(
+        {
+            "streak_freezes": profile.streak_freezes if profile else 0,
+            "price_xp": streak_engine.freeze_price(),
+            "xp_balance": streak_engine.xp_balance(user),
+            "total_earned": inventory.total_earned if inventory else 0,
+            "total_redeemed": inventory.total_redeemed if inventory else 0,
+            "total_used": inventory.total_used if inventory else 0,
+            "last_protected_date": last_protected,
+            "weeks": streak_engine.recent_weeks(user),
+            "history": ledger[:20],
+        }
+    ).data
+
+
+class StreakFreezeView(APIView):
+    """Freeze tokens held, how to get more and the latest ledger entries."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    @extend_schema(responses=StreakFreezeStatusSerializer)
+    def get(self, request):
+        return Response(_streak_freeze_status(request.user))
+
+
+class StreakFreezeClaimView(APIView):
+    """Claim the free token for a completed weekly lesson goal."""
+
+    permission_classes = [permissions.IsAuthenticated]
+
+    @extend_schema(request=None, responses=StreakFreezeStatusSerializer)
+    def post(self, request):
+        from apps.progress.services.streak_engine import claim_weekly_goal_freezes
+
+        if not claim_weekly_goal_freezes(request.user):
+            return Response(
+                {"error": "No completed weekly goal to claim."},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+        return Response(_streak_freeze_status(request.user))
 
 
 class StreakRecoveryView(APIView):

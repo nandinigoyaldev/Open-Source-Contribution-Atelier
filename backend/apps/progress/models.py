@@ -450,6 +450,80 @@ class StreakProfile(models.Model):
         return f"{self.user.username} - {self.current_streak} day streak"
 
 
+class StreakFreezeInventory(models.Model):
+    """
+    Lifetime freeze token counters for one user.
+
+    The tokens held right now are ``StreakProfile.streak_freezes``.
+    """
+
+    objects = models.Manager()
+
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="streak_freeze_inventory",
+    )
+    total_earned = models.PositiveIntegerField(
+        default=0  # pyright: ignore[reportArgumentType]
+    )
+    total_redeemed = models.PositiveIntegerField(
+        default=0  # pyright: ignore[reportArgumentType]
+    )
+    total_used = models.PositiveIntegerField(
+        default=0  # pyright: ignore[reportArgumentType]
+    )
+    updated_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"StreakFreezeInventory(user={self.user_id})"  # pyright: ignore[reportAttributeAccessIssue]
+
+
+class StreakFreezeLedger(models.Model):
+    """One row for every freeze token gained or used. Rows are never edited."""
+
+    class EntryType(models.TextChoices):
+        WEEKLY_GOAL = "weekly_goal", "Earned from weekly goal"
+        XP_REDEEM = "xp_redeem", "Redeemed with XP"
+        SHOP_PURCHASE = "shop_purchase", "Bought in the shop"
+        CONSUMED = "consumed", "Used on a missed day"
+
+    objects = models.Manager()
+
+    user = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="streak_freeze_ledger",
+    )
+    entry_type = models.CharField(max_length=20, choices=EntryType.choices)
+    delta = models.SmallIntegerField()
+    balance_after = models.PositiveIntegerField()
+    xp_spent = models.PositiveIntegerField(
+        default=0  # pyright: ignore[reportArgumentType]
+    )
+    protected_date = models.DateField(null=True, blank=True)
+    week_start = models.DateField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ["-created_at", "-id"]
+        constraints = [
+            # NULLs never collide, so these only apply to the rows that set them.
+            models.UniqueConstraint(
+                fields=["user", "protected_date"], name="unique_freeze_per_date"
+            ),
+            models.UniqueConstraint(
+                fields=["user", "week_start"], name="unique_freeze_per_week"
+            ),
+        ]
+
+    def __str__(self):
+        return (
+            f"StreakFreezeLedger(user={self.user_id}, "  # pyright: ignore[reportAttributeAccessIssue]
+            f"{self.entry_type} {self.delta:+d})"
+        )
+
+
 class StreakRecoveryPlan(models.Model):
     """Tracks a user's progress toward recovering a lost streak on a specific day."""
 
@@ -524,6 +598,7 @@ class DailyActivity(models.Model):
 
         from django.db import transaction
 
+        from apps.progress.services.streak_engine import cover_missed_days
         from apps.progress.streak_engine import get_user_local_date
 
         if isinstance(date, datetime):
@@ -552,18 +627,8 @@ class DailyActivity(models.Model):
                     streak_profile.current_streak += 1
                 else:
                     last = streak_profile.last_activity_date
-                    if last and date > last:
-                        missed_days = (date - last).days - 1
-                        if missed_days == 0:
-                            streak_profile.current_streak += 1
-                        elif (
-                            missed_days > 0
-                            and streak_profile.streak_freezes >= missed_days
-                        ):
-                            streak_profile.streak_freezes -= missed_days
-                            streak_profile.current_streak += 1
-                        else:
-                            streak_profile.current_streak = 1
+                    if last and date > last and cover_missed_days(streak_profile, date):
+                        streak_profile.current_streak += 1
                     else:
                         streak_profile.current_streak = 1
 

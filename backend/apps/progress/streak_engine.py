@@ -20,6 +20,7 @@ User = get_user_model()
 from django.db import transaction
 
 from .models import STREAK_MILESTONES, StreakProfile
+from .services.streak_engine import cover_missed_days, lock_profile
 
 logger = logging.getLogger(__name__)
 
@@ -169,7 +170,7 @@ class StreakEngine:
             activity_date = get_user_local_date(user, activity_date)
 
         with transaction.atomic():
-            profile = cls.get_or_create_profile(user)
+            profile = lock_profile(user)
 
             old_multiplier = profile.current_multiplier
             last = profile.last_activity_date
@@ -188,15 +189,8 @@ class StreakEngine:
                 profile.current_streak += 1
             else:
                 # Gap detected
-                missed_days = (activity_date - last).days - 1
-                if profile.streak_freezes >= missed_days:
-                    profile.streak_freezes -= missed_days
+                if cover_missed_days(profile, activity_date):
                     profile.current_streak += 1
-                    logger.info(
-                        "Streak preserved for user %s using %d streak freeze(s)",
-                        user.username,
-                        missed_days,
-                    )
                 else:
                     logger.info(
                         "Streak reset for user %s (gap from %s to %s)",

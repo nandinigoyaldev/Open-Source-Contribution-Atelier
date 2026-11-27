@@ -193,7 +193,12 @@ class PurchaseItemView(views.APIView):
     def post(self, request):
         from django.db import transaction
 
-        from apps.progress.models import XPEvent
+        from apps.progress.models import StreakFreezeLedger, XPEvent
+        from apps.progress.services.streak_engine import (
+            grant_freeze,
+            lock_profile,
+            xp_balance,
+        )
 
         item_id = request.data.get("item_id")
         try:
@@ -204,11 +209,10 @@ class PurchaseItemView(views.APIView):
             )
 
         with transaction.atomic():
-            # Lock the user's XP rows to prevent concurrent balance reads
-            user_xp_events = XPEvent.objects.select_for_update().filter(
-                user=request.user
-            )
-            total_xp = user_xp_events.aggregate(total=Sum("xp_delta"))["total"] or 0
+            # Every XP spend locks the same row first, so the balance read below
+            # cannot be used twice by concurrent requests.
+            lock_profile(request.user)
+            total_xp = xp_balance(request.user)
 
             if item.is_limited:
                 existing = Purchase.objects.filter(
@@ -240,13 +244,11 @@ class PurchaseItemView(views.APIView):
             Purchase.objects.create(user=request.user, item=item, xp_spent=item.cost)
 
             if item.item_type == "streak_freeze":
-                from apps.progress.models import StreakProfile
-
-                streak_profile, _ = StreakProfile.objects.get_or_create(
-                    user=request.user
+                grant_freeze(
+                    request.user,
+                    StreakFreezeLedger.EntryType.SHOP_PURCHASE,
+                    xp_spent=item.cost,
                 )
-                streak_profile.streak_freezes += 1
-                streak_profile.save(update_fields=["streak_freezes"])
 
         return Response(
             {

@@ -30,6 +30,8 @@ from .views import (
     QuizAttemptView,
     ReadingProgressView,
     RecommendationsView,
+    StreakFreezeClaimView,
+    StreakFreezeView,
     StreakRecoveryView,
     StreakStatusView,
     UserProgressPDFExportView,
@@ -63,6 +65,12 @@ urlpatterns = [
     path("xp-breakdown/", XPBreakdownView.as_view(), name="xp-breakdown"),
     path("streak/", StreakStatusView.as_view(), name="streak-status"),
     path("streak/recovery/", StreakRecoveryView.as_view(), name="streak-recovery"),
+    path("streak/freezes/", StreakFreezeView.as_view(), name="streak-freezes"),
+    path(
+        "streak/freezes/claim-weekly/",
+        StreakFreezeClaimView.as_view(),
+        name="streak-freezes-claim-weekly",
+    ),
     path("export/pdf/", UserProgressPDFExportView.as_view(), name="export-pdf"),
     path("badges/", BadgeListView.as_view(), name="badges"),
     # Progress

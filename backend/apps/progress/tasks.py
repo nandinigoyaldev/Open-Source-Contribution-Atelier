@@ -432,3 +432,10 @@ def archive_monthly_leaderboard():
     from apps.progress.services.leaderboard_service import LeaderboardService
 
     return LeaderboardService.archive_and_reset_monthly_leaderboard()
+
+
+def apply_streak_freezes_task():
+    """Hourly Django-Q task, spends freeze tokens on days that ended unused."""
+    from apps.progress.services.streak_engine import apply_due_freezes
+
+    return apply_due_freezes()

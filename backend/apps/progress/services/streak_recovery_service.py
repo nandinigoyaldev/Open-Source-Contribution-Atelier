@@ -110,7 +110,15 @@ class StreakRecoveryService:
                 if profile.current_streak > profile.longest_streak:
                     profile.longest_streak = profile.current_streak
 
-                profile.save()
+                # Leave streak_freezes alone, a freeze may be spent meanwhile.
+                profile.save(
+                    update_fields=[
+                        "current_streak",
+                        "longest_streak",
+                        "last_activity_date",
+                        "updated_at",
+                    ]
+                )
 
             except StreakProfile.DoesNotExist:
                 pass
