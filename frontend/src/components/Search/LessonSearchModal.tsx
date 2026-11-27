@@ -14,6 +14,7 @@ import {
   SearchResultItem,
   highlightText,
 } from "../../hooks/useLessonSearch";
+import { useCustomShortcuts } from "../../features/shortcuts/useCustomShortcuts";
 
 interface LessonSearchModalProps {
   isOpen: boolean;
@@ -39,6 +40,7 @@ export function LessonSearchModal({ isOpen, onClose }: LessonSearchModalProps) {
   const inputRef = useRef<HTMLInputElement>(null);
   const modalRef = useRef<HTMLDivElement>(null);
   const previousFocusRef = useRef<HTMLElement | null>(null);
+  const { labels, matches } = useCustomShortcuts();
 
   const handleFilterSelect = (chip: string) => {
     setActiveFilter(chip);
@@ -110,10 +112,10 @@ export function LessonSearchModal({ isOpen, onClose }: LessonSearchModalProps) {
     return () => window.removeEventListener("keydown", handleTabKey);
   }, [isOpen]);
 
-  // Listen for global Cmd+K / Ctrl+K keyboard shortcut
+  // Listen for the global search shortcut (Cmd+K / Ctrl+K by default)
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+      if (matches(e, "search.toggle")) {
         e.preventDefault();
         if (isOpen) {
           onClose();
@@ -126,7 +128,7 @@ export function LessonSearchModal({ isOpen, onClose }: LessonSearchModalProps) {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, matches]);
 
   // Keyboard navigation within search results
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -190,7 +192,7 @@ export function LessonSearchModal({ isOpen, onClose }: LessonSearchModalProps) {
               setQuery(e.target.value);
               setSelectedIndex(0);
             }}
-            placeholder="Search lessons, code snippets, topics... (Cmd+K)"
+            placeholder={`Search lessons, code snippets, topics... (${labels("search.toggle").join(" / ")})`}
             className="w-full bg-transparent border-none outline-none text-base font-medium text-black dark:text-[#f0ebe2] placeholder:text-slate-400"
           />
           {query && (

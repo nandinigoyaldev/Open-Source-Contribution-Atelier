@@ -14,6 +14,7 @@ import { useAuth } from "../../features/auth/AuthContext";
 import LogoutButtonWithConfirm from "./LogoutButtonWithConfirm";
 import { ThemeToggle } from "../ui/ThemeToggle";
 import { isTypingTarget } from "../../lib/accessibility";
+import { useCustomShortcuts } from "../../features/shortcuts/useCustomShortcuts";
 
 interface NavItem {
   to: string;
@@ -31,6 +32,7 @@ const SETTINGS_ITEMS: NavItem[] = [
 ];
 
 function SearchButton({ onClick }: { onClick: () => void }) {
+  const { labels } = useCustomShortcuts();
   return (
     <button
       onClick={onClick}
@@ -40,25 +42,27 @@ function SearchButton({ onClick }: { onClick: () => void }) {
       <Search size={16} />
       <span className="hidden lg:inline">Search...</span>
       <kbd className="hidden lg:inline-flex items-center gap-0.5 px-1.5 py-0.5 text-[10px] font-mono bg-white dark:bg-[#151411] border border-slate-200 dark:border-[#2E2924] rounded text-slate-600 dark:text-slate-400">
-        /
+        {labels("nav.dashboard").join(" / ")}
       </kbd>
     </button>
   );
 }
 
 function KeyboardShortcutsButton() {
+  const { labels } = useCustomShortcuts();
+  const keys = labels("help.toggle").join(" / ");
   return (
     <button
       onClick={() => {
         window.dispatchEvent(new CustomEvent("toggle-keyboard-shortcuts"));
       }}
       className="flex items-center gap-1.5 px-2.5 py-2 rounded-lg text-sm text-slate-600 dark:text-slate-400 border border-slate-200 dark:border-[#2E2924] hover:bg-slate-50 dark:hover:bg-white/5 transition-colors"
-      aria-label="Keyboard shortcuts (?)"
-      title="Keyboard shortcuts (?)"
+      aria-label={`Keyboard shortcuts (${keys})`}
+      title={`Keyboard shortcuts (${keys})`}
     >
       <Keyboard size={16} />
       <kbd className="hidden sm:inline-flex items-center px-1.5 py-0.5 text-[10px] font-mono bg-slate-100 dark:bg-[#151411] border border-slate-200 dark:border-[#2E2924] rounded text-slate-600 dark:text-slate-400">
-        ?
+        {keys}
       </kbd>
     </button>
   );
@@ -162,6 +166,8 @@ export function Navigation() {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { labels, matches } = useCustomShortcuts();
+  const helpKeys = labels("help.toggle").join(" / ");
 
   const isItemActive = useCallback(
     (path: string) => {
@@ -174,14 +180,14 @@ export function Navigation() {
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (isTypingTarget(e)) return;
-      if (e.key === "/" && !e.ctrlKey && !e.metaKey) {
+      if (matches(e, "nav.dashboard")) {
         e.preventDefault();
         navigate("/dashboard");
       }
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [navigate]);
+  }, [navigate, matches]);
 
   return (
     <nav className="bg-white/80 dark:bg-[#151411]/80 backdrop-blur-xl border-b-2 border-slate-200 dark:border-[#2E2924] sticky top-0 z-40">
@@ -237,14 +243,14 @@ export function Navigation() {
                 );
               }}
               className="w-full flex items-center justify-between px-3 py-2.5 rounded-lg text-sm font-medium text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors"
-              aria-label="Keyboard shortcuts (?)"
+              aria-label={`Keyboard shortcuts (${helpKeys})`}
             >
               <div className="flex items-center gap-2.5">
                 <Keyboard size={18} />
                 <span>Keyboard Shortcuts</span>
               </div>
               <kbd className="px-1.5 py-0.5 text-[10px] font-mono bg-slate-100 dark:bg-[#151411] border border-slate-200 dark:border-[#2E2924] rounded text-slate-600 dark:text-slate-400">
-                ?
+                {helpKeys}
               </kbd>
             </button>
             <div className="border-t border-slate-100 dark:border-[#2E2924] my-2" />

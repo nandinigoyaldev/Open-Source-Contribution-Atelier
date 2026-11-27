@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { Command } from "cmdk";
 import { useFocusTrap } from "../hooks/useFocusTrap";
+import { useCustomShortcuts } from "../features/shortcuts/useCustomShortcuts";
 import { useTheme } from "../hooks/useTheme";
 import {
   useRecentCommands,
@@ -116,15 +117,16 @@ export const CommandPalette: React.FC = () => {
 
   const navigate = useNavigate();
   const { setTheme } = useTheme();
+  const { labels, matches } = useCustomShortcuts();
   const { recentCommands, addRecentCommand } = useRecentCommands();
 
   const modalRef = useRef<HTMLDivElement>(null);
   useFocusTrap(modalRef, isOpen);
 
-  // Toggle palette with Cmd+K or Ctrl+K
+  // Toggle palette with the search shortcut
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+      if (matches(e, "search.toggle")) {
         e.preventDefault();
         setIsOpen((prev) => !prev);
       } else if (e.key === "Escape" && isOpen) {
@@ -135,7 +137,7 @@ export const CommandPalette: React.FC = () => {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen]);
+  }, [isOpen, matches]);
 
   // Load search index when palette is opened for the first time
   useEffect(() => {
@@ -562,13 +564,14 @@ export const CommandPalette: React.FC = () => {
                 </div>
                 <div className="hidden sm:block text-right">
                   Press{" "}
-                  <kbd className="bg-black rounded px-1.5 py-0.5 text-[#f0ebe2] border border-[#2e2924]">
-                    ⌘K
-                  </kbd>{" "}
-                  /{" "}
-                  <kbd className="bg-black rounded px-1.5 py-0.5 text-[#f0ebe2] border border-[#2e2924]">
-                    Ctrl K
-                  </kbd>{" "}
+                  {labels("search.toggle").map((label, i) => (
+                    <React.Fragment key={label}>
+                      {i > 0 && " / "}
+                      <kbd className="bg-black rounded px-1.5 py-0.5 text-[#f0ebe2] border border-[#2e2924]">
+                        {label}
+                      </kbd>
+                    </React.Fragment>
+                  ))}{" "}
                   anywhere
                 </div>
               </div>
