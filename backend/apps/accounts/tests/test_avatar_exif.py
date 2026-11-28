@@ -3,7 +3,7 @@ from io import BytesIO
 import pytest
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
-from PIL import Image
+from PIL import Image, ImageCms
 
 from apps.accounts.models import UserProfile
 
@@ -97,3 +97,32 @@ def test_animated_webp_keeps_its_frames_and_is_rotated(settings, tmp_path):
         assert result.size == (20, 40)
         durations.append(result.info["duration"])
     assert durations == [120, 240]
+
+
+@pytest.mark.django_db
+def test_color_profile_survives_the_conversion(settings, tmp_path):
+    profile_bytes = ImageCms.ImageCmsProfile(ImageCms.createProfile("sRGB")).tobytes()
+    buffer = BytesIO()
+    Image.new("RGB", (8, 8)).save(buffer, format="WEBP", icc_profile=profile_bytes)
+    upload = SimpleUploadedFile("profiled.webp", buffer.getvalue())
+
+    result = _save_avatar(settings, tmp_path, upload)
+
+    assert result.info.get("icc_profile") == profile_bytes
+
+
+@pytest.mark.django_db
+def test_oversized_animation_is_stored_as_its_first_frame(
+    settings, tmp_path, monkeypatch
+):
+    monkeypatch.setattr("apps.accounts.models.MAX_ANIMATION_PIXELS", 100)
+    frames = [Image.new("RGB", (40, 20), colour) for colour in ("red", "blue")]
+    buffer = BytesIO()
+    frames[0].save(buffer, format="WEBP", save_all=True, append_images=frames[1:])
+    upload = SimpleUploadedFile("huge.webp", buffer.getvalue())
+
+    result = _save_avatar(settings, tmp_path, upload)
+
+    assert getattr(result, "n_frames", 1) == 1
+    red, _, blue = result.convert("RGB").getpixel((5, 5))
+    assert red > 200 and blue < 60

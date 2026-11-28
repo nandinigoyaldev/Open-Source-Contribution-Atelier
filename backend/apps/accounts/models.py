@@ -10,6 +10,9 @@ from apps.content.models import Lesson
 from apps.core.fields import EncryptedCharField
 from apps.core.models import AuditableModel
 
+# Width x height x frames. At 4 bytes a pixel this is about 160 MB.
+MAX_ANIMATION_PIXELS = 40_000_000
+
 
 class MentorProfile(models.Model):
     """
@@ -294,7 +297,17 @@ class UserProfile(AuditableModel):
 
             options = {"format": "WEBP", "quality": 85, "exif": b"", "xmp": b""}
 
-            if is_webp and getattr(img, "is_animated", False):
+            # Only an RGB profile still describes the pixels after conversion.
+            if img.mode in ("RGB", "RGBA") and img.info.get("icc_profile"):
+                options["icc_profile"] = img.info["icc_profile"]
+
+            # Every frame of an animation is held in memory while it is encoded,
+            # so a very large one is stored as its first frame only.
+            if (
+                is_webp
+                and getattr(img, "is_animated", False)
+                and img.n_frames * img.width * img.height <= MAX_ANIMATION_PIXELS
+            ):
                 frames, durations = [], []
                 for frame in ImageSequence.Iterator(img):
                     frame.load()
