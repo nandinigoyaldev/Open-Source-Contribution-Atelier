@@ -1,5 +1,6 @@
 import json
 import threading
+import uuid
 from datetime import timedelta
 from io import StringIO
 from typing import Any
@@ -495,6 +496,39 @@ def test_repeated_retention_and_new_events_still_verify(retention, monkeypatch):
     # A second run in the same second must not matter to the anchors.
     assert archive_audit_events() == 1
     assert problems() == []
+
+
+def test_runs_in_the_same_second_write_separate_archives(retention, monkeypatch):
+    frozen = timezone.now()
+    monkeypatch.setattr("django.utils.timezone.now", lambda: frozen)
+    make_event(1, created_at=frozen - timedelta(days=60))
+    assert archive_audit_events() == 1
+    (first,) = retention.glob("audit_archive_*.json")
+    saved = first.read_text()
+    make_event(2, created_at=frozen - timedelta(days=60))
+    assert archive_audit_events() == 1
+
+    assert len(list(retention.glob("audit_archive_*.json"))) == 2
+    assert first.read_text() == saved
+    assert len(set(AuditChainAnchor._default_manager.values_list("archive_file"))) == 2
+
+
+def test_existing_archive_is_never_overwritten(retention, monkeypatch):
+    frozen = timezone.now()
+    monkeypatch.setattr("django.utils.timezone.now", lambda: frozen)
+    monkeypatch.setattr("apps.audit.tasks.uuid.uuid4", lambda: uuid.UUID(int=1))
+    make_event(1, created_at=frozen - timedelta(days=60))
+    assert archive_audit_events() == 1
+    (archive,) = retention.glob("audit_archive_*.json")
+    saved = archive.read_text()
+    make_event(2, created_at=frozen - timedelta(days=60))
+
+    with pytest.raises(FileExistsError):
+        archive_audit_events()
+
+    assert archive.read_text() == saved
+    assert Raw.count() == 1
+    assert AuditChainAnchor._default_manager.count() == 1
 
 
 def test_retention_keeps_a_tampered_row_as_evidence(retention):

@@ -1,6 +1,7 @@
 import json
 import logging
 import os
+import uuid
 from datetime import timedelta
 from pathlib import Path
 from typing import Any
@@ -41,7 +42,8 @@ def archive_audit_events():
     archive_dir.mkdir(parents=True, exist_ok=True)
 
     timestamp = timezone.now().strftime("%Y%m%d_%H%M%S")
-    archive_file = archive_dir / f"audit_archive_{timestamp}.json"
+    # Anchors point at this file, so two runs must never share a name.
+    archive_file = archive_dir / f"audit_archive_{timestamp}_{uuid.uuid4().hex}.json"
 
     # Batch serialize and write to JSON
     using = router.db_for_write(AuditEvent)
@@ -87,7 +89,7 @@ def archive_audit_events():
     if not ids:
         return 0
 
-    with open(archive_file, "w", encoding="utf-8") as f:
+    with open(archive_file, "x", encoding="utf-8") as f:
         json.dump(serialized_events, f, indent=2)
 
     logger.info("Archived %d audit events to %s", len(ids), archive_file)
