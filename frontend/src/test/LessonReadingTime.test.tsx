@@ -2,7 +2,11 @@ import React from "react";
 import { describe, it, expect, afterEach, vi } from "vitest";
 import { render, screen, cleanup } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
-import { calculateReadingTime, formatReadingTime } from "../lib/readingTime";
+import {
+  calculateReadingTime,
+  countMarkdownWords,
+  formatReadingTime,
+} from "../lib/readingTime";
 import { ContinueLearning } from "../components/ContinueLearning";
 import { LessonPreview } from "../components/admin/LessonPreview";
 
@@ -77,5 +81,29 @@ describe("Lesson Reading Time Estimation and Preview Display", () => {
       expect(screen.getByText("Advanced Docker Pipelines")).toBeDefined();
       expect(screen.getByText("12 min read")).toBeDefined();
     });
+  });
+});
+
+describe("countMarkdownWords", () => {
+  it("counts the visible words of a sample lesson", () => {
+    const lesson = [
+      "# Git basics",
+      "",
+      "<!-- draft note -->",
+      "- Read the [official guide](https://git-scm.com/book/en/v2) first.",
+      "",
+      "```bash",
+      "git commit -m start",
+      "```",
+      "<br />",
+    ].join("\n");
+
+    // Git basics / Read the official guide first / git commit -m start
+    expect(countMarkdownWords(lesson)).toBe(11);
+  });
+
+  it("returns zero for empty or symbol-only content", () => {
+    expect(countMarkdownWords("")).toBe(0);
+    expect(countMarkdownWords("## ---\n* * *")).toBe(0);
   });
 });
