@@ -9,6 +9,7 @@ from .views import (
     LessonFeedbackMetricsView,
     LessonFeedbackRetrieveUpdateDeleteView,
     LessonPDFView,
+    LessonTitleSuggestionView,
     LessonViewSet,
     ModuleDraftViewSet,
     OrganizationListView,
@@ -35,6 +36,11 @@ router.register("learning-paths", LearningPathViewSet, basename="learning-path")
 urlpatterns = router.urls + [
     path("drafts/<int:pk>/restore/", DraftRestoreView.as_view(), name="draft-restore"),
     path("search/", SearchView.as_view(), name="search"),
+    path(
+        "search/suggestions/",
+        LessonTitleSuggestionView.as_view(),
+        name="search-suggestions",
+    ),
     path("semantic-search/", SemanticSearchView.as_view(), name="semantic-search"),
     path("organizations/", OrganizationListView.as_view(), name="organization-list"),
     path("roadmap/", RoadmapView.as_view(), name="roadmap"),

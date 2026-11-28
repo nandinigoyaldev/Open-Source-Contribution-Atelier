@@ -103,6 +103,16 @@ class LessonSearchSerializer(CamelCaseModelSerializer):
         exclude = ["embedding"]
 
 
+class LessonTitleSuggestionSerializer(serializers.Serializer):
+    slug = serializers.CharField()
+    title = serializers.CharField()
+    kind = serializers.CharField()
+
+
+class LessonTitleSuggestionListSerializer(serializers.Serializer):
+    suggestions = LessonTitleSuggestionSerializer(many=True)
+
+
 class OrganizationSerializer(CamelCaseModelSerializer):
     class Meta:
         model = Organization

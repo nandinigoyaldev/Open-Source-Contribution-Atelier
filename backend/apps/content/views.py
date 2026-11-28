@@ -7,6 +7,7 @@ from django.core.cache import cache
 from django.db.models import Q
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
+from drf_spectacular.utils import OpenApiParameter, extend_schema
 from reportlab.lib.styles import getSampleStyleSheet
 from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer
 from rest_framework import (
@@ -45,12 +46,14 @@ from .serializers import (
     LessonDraftSerializer,
     LessonSearchSerializer,
     LessonSerializer,
+    LessonTitleSuggestionListSerializer,
     LessonVersionSerializer,
     ModuleDraftSerializer,
     OrganizationSerializer,
     QuizDraftSerializer,
 )
 from .services import lesson_revisions
+from .title_suggestions import MAX_QUERY_LENGTH, lesson_title_suggestions
 
 
 # --- Helper Functions ---
@@ -431,6 +434,26 @@ class SearchView(views.APIView):
                 "challenges": ChallengeSerializer(challenges, many=True).data,
             }
         )
+
+
+class LessonTitleSuggestionView(views.APIView):
+    """Close lesson title matches for a query that has no direct title hit."""
+
+    permission_classes = [AllowAny]
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                "q",
+                str,
+                description=f"Search text, at most {MAX_QUERY_LENGTH} characters.",
+            )
+        ],
+        responses=LessonTitleSuggestionListSerializer,
+    )
+    def get(self, request):
+        suggestions = lesson_title_suggestions(request.GET.get("q", ""))
+        return response.Response({"suggestions": suggestions})
 
 
 class SemanticSearchView(views.APIView):

@@ -10,6 +10,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import Fuse, { FuseResultMatch } from "fuse.js";
 import { useFocusTrap } from "../../hooks/useFocusTrap";
+import { useTitleSuggestions } from "../../hooks/useTitleSuggestions";
 import {
   Search,
   ChevronRight,
@@ -26,6 +27,12 @@ interface SearchIndexEntry {
   content: string;
   type: "lesson" | "heading" | "content";
   hash: string;
+}
+
+interface ResultRow {
+  item: SearchIndexEntry;
+  matches?: readonly FuseResultMatch[];
+  isSuggestion?: boolean;
 }
 
 export const DocSearchModal: React.FC = () => {
@@ -84,11 +91,6 @@ export const DocSearchModal: React.FC = () => {
     }
   }, [isOpen]);
 
-  // Reset selection when query changes
-  useEffect(() => {
-    setSelectedIndex(0);
-  }, [searchQuery]);
-
   // Fuse.js setup
   const fuse = useMemo(() => {
     return new Fuse(index, {
@@ -104,6 +106,53 @@ export const DocSearchModal: React.FC = () => {
     return fuse.search(searchQuery).slice(0, 8);
   }, [searchQuery, fuse]);
 
+  // Only ask for guesses when no lesson title contains what was typed.
+  const hasTitleMatch = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    return index.some((entry) => entry.title.toLowerCase().includes(q));
+  }, [searchQuery, index]);
+  const suggestions = useTitleSuggestions(
+    searchQuery,
+    isOpen && index.length > 0 && !hasTitleMatch,
+  );
+
+  // Text that contains the query stays first, then the suggested titles, then
+  // the remaining fuzzy hits.
+  const rows = useMemo<ResultRow[]>(() => {
+    if (suggestions.length === 0) return searchResults;
+    const q = searchQuery.trim().toLowerCase();
+    const isDirect = ({ item }: ResultRow) =>
+      [item.title, item.subtitle, item.content].some((text) =>
+        text.toLowerCase().includes(q),
+      );
+    const direct = searchResults.filter(isDirect);
+    const listed = new Set(direct.map((row) => row.item.slug));
+    const guesses: ResultRow[] = suggestions
+      .filter((s) => !listed.has(s.slug))
+      .map((s) => ({
+        isSuggestion: true,
+        item: {
+          id: `suggestion-${s.slug}`,
+          slug: s.slug,
+          title: s.title,
+          subtitle: "",
+          content: `Close title match for "${searchQuery.trim()}"`,
+          type: "lesson",
+          hash: "",
+        },
+      }));
+    const guessed = new Set(guesses.map((row) => row.item.slug));
+    const fuzzy = searchResults.filter(
+      (row) => !isDirect(row) && !guessed.has(row.item.slug),
+    );
+    return [...direct, ...guesses, ...fuzzy];
+  }, [searchQuery, searchResults, suggestions]);
+
+  // Reset selection when the query or the suggestions change
+  useEffect(() => {
+    setSelectedIndex(0);
+  }, [searchQuery, suggestions]);
+
   const handleSelect = useCallback(
     (entry: SearchIndexEntry) => {
       const hash = entry.hash ? `#${entry.hash}` : "";
@@ -116,20 +165,18 @@ export const DocSearchModal: React.FC = () => {
 
   // Keyboard navigation
   useEffect(() => {
-    if (!isOpen || searchResults.length === 0) return;
+    if (!isOpen || rows.length === 0) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === "ArrowDown") {
         e.preventDefault();
-        setSelectedIndex((prev) => (prev + 1) % searchResults.length);
+        setSelectedIndex((prev) => (prev + 1) % rows.length);
       } else if (e.key === "ArrowUp") {
         e.preventDefault();
-        setSelectedIndex(
-          (prev) => (prev - 1 + searchResults.length) % searchResults.length,
-        );
+        setSelectedIndex((prev) => (prev - 1 + rows.length) % rows.length);
       } else if (e.key === "Enter") {
         e.preventDefault();
-        const selected = searchResults[selectedIndex]?.item;
+        const selected = rows[selectedIndex]?.item;
         if (selected) {
           handleSelect(selected);
         }
@@ -138,7 +185,7 @@ export const DocSearchModal: React.FC = () => {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen, searchResults, selectedIndex, handleSelect]);
+  }, [isOpen, rows, selectedIndex, handleSelect]);
 
   // Scroll active item into view
   useEffect(() => {
@@ -169,6 +216,12 @@ export const DocSearchModal: React.FC = () => {
     if (type === "heading")
       return (
         <span className={`${baseClass} bg-purple-600 text-white`}>Section</span>
+      );
+    if (type === "suggestion")
+      return (
+        <span className={`${baseClass} bg-orange-600 text-white`}>
+          Did you mean
+        </span>
       );
     return (
       <span className={`${baseClass} bg-zinc-700 text-zinc-300`}>Text</span>
@@ -262,7 +315,7 @@ export const DocSearchModal: React.FC = () => {
             </div>
           )}
 
-          {!isLoading && searchResults.length === 0 && searchQuery && (
+          {!isLoading && rows.length === 0 && searchQuery && (
             <div className="p-8 text-center">
               <p className="text-zinc-500 font-medium">
                 No results found for "{searchQuery}"
@@ -270,10 +323,10 @@ export const DocSearchModal: React.FC = () => {
             </div>
           )}
 
-          {!isLoading && searchResults.length > 0 && (
+          {!isLoading && rows.length > 0 && (
             <ul ref={resultsRef}>
-              {searchResults.map((result, idx) => {
-                const { item, matches } = result;
+              {rows.map((result, idx) => {
+                const { item, matches, isSuggestion } = result;
                 const isSelected = idx === selectedIndex;
                 const titleMatch = matches?.find((m) => m.key === "title");
                 const descMatch = matches?.find((m) => m.key === "content");
@@ -306,7 +359,9 @@ export const DocSearchModal: React.FC = () => {
                               ? renderHighlightedText(item.title, matches)
                               : item.title}
                           </p>
-                          {getBadgeForType(item.type)}
+                          {getBadgeForType(
+                            isSuggestion ? "suggestion" : item.type,
+                          )}
                         </div>
                         <p
                           className={`text-sm truncate ${isSelected ? "text-zinc-800" : "text-[#6b5a49]"}`}
