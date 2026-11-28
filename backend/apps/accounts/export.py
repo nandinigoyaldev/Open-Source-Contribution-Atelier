@@ -2,7 +2,9 @@ import csv
 import io
 import json
 import zipfile
+from itertools import chain
 
+from asgiref.sync import sync_to_async
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db.models import QuerySet
 
@@ -24,63 +26,81 @@ from apps.progress.models import (
 from apps.sandbox.models import SandboxExecutionLog
 from apps.webhooks.models import WebhookEndpoint
 
+# Rows fetched from the database, and written, between two chunks of a CSV export.
+CHUNK_ROWS = 500
+
+
+class _ZipBuffer:
+    """Write-only sink for ZipFile that hands over whatever has been written."""
+
+    def __init__(self):
+        self._parts = []
+
+    def write(self, data):
+        self._parts.append(bytes(data))
+        return len(data)
+
+    def flush(self):
+        pass
+
+    def drain(self):
+        data = b"".join(self._parts)
+        self._parts.clear()
+        return data
+
+
+async def iterate_async(chunks):
+    """
+    Serve a synchronous generator under ASGI. Handed a sync iterator, Django
+    would read all of it into memory before sending the first byte.
+    """
+    done = object()
+    pull = sync_to_async(next, thread_sensitive=True)
+    while (chunk := await pull(chunks, done)) is not done:
+        yield chunk
+
 
 class DataExportService:
     def __init__(self, user):
         self.user = user
 
+    def _sources(self):
+        """
+        Map each exported entity to a lazy queryset, or to a list for the small
+        profile records. The order here is the order of the export.
+        """
+        return {
+            "user_profile": self._get_user_base_data(),
+            "mentor_profile": self._get_mentor_profile(),
+            "lesson_progress": LessonProgress.objects.filter(user=self.user),
+            "help_requests": HelpRequest.objects.filter(user=self.user),
+            "certificates": Certificate.objects.filter(user=self.user),
+            "earned_badges": UserBadge.objects.filter(user=self.user),
+            "quiz_attempts": QuizAttempt.objects.filter(user=self.user),
+            "sandbox_logs": SandboxExecutionLog.objects.filter(user=self.user),
+            "notifications": Notification.objects.filter(recipient=self.user),
+            "pull_requests": PullRequest.objects.filter(user=self.user),
+            "assigned_issues": Issue.objects.filter(assigned_to=self.user),
+            "webhooks": WebhookEndpoint.objects.filter(user=self.user),
+            "exercise_attempts": ExerciseAttempt.objects.filter(user=self.user),
+            "code_submissions": CodeSubmission.objects.filter(user=self.user),
+            "peer_reviews": PeerReview.objects.filter(reviewer=self.user),
+            "comments": Comment.all_objects.filter(user=self.user),
+            "messages": Message.objects.filter(user=self.user),
+        }
+
     def gather_data(self):
         """
         Gather all personal data for the user into a structured dictionary.
         """
-        data = {
-            "user_profile": self._get_user_base_data(),
-            "mentor_profile": self._get_mentor_profile(),
-            "lesson_progress": self._queryset_to_list(
-                LessonProgress.objects.filter(user=self.user)
-            ),
-            "help_requests": self._queryset_to_list(
-                HelpRequest.objects.filter(user=self.user)
-            ),
-            "certificates": self._queryset_to_list(
-                Certificate.objects.filter(user=self.user)
-            ),
-            "earned_badges": self._queryset_to_list(
-                UserBadge.objects.filter(user=self.user)
-            ),
-            "quiz_attempts": self._queryset_to_list(
-                QuizAttempt.objects.filter(user=self.user)
-            ),
-            "sandbox_logs": self._queryset_to_list(
-                SandboxExecutionLog.objects.filter(user=self.user)
-            ),
-            "notifications": self._queryset_to_list(
-                Notification.objects.filter(recipient=self.user)
-            ),
-            "pull_requests": self._queryset_to_list(
-                PullRequest.objects.filter(user=self.user)
-            ),
-            "assigned_issues": self._queryset_to_list(
-                Issue.objects.filter(assigned_to=self.user)
-            ),
-            "webhooks": self._queryset_to_list(
-                WebhookEndpoint.objects.filter(user=self.user)
-            ),
-            "exercise_attempts": self._queryset_to_list(
-                ExerciseAttempt.objects.filter(user=self.user)
-            ),
-            "code_submissions": self._queryset_to_list(
-                CodeSubmission.objects.filter(user=self.user)
-            ),
-            "peer_reviews": self._queryset_to_list(
-                PeerReview.objects.filter(reviewer=self.user)
-            ),
-            "comments": self._queryset_to_list(
-                Comment.all_objects.filter(user=self.user)
-            ),
-            "messages": self._queryset_to_list(Message.objects.filter(user=self.user)),
+        return {
+            name: (
+                self._queryset_to_list(source)
+                if isinstance(source, QuerySet)
+                else source
+            )
+            for name, source in self._sources().items()
         }
-        return data
 
     def _get_user_base_data(self):
         return [
@@ -110,49 +130,59 @@ class DataExportService:
         except MentorProfile.DoesNotExist:
             return []
 
-    def _queryset_to_list(self, qs: QuerySet):
+    def _to_dict(self, obj):
         """
-        Convert a QuerySet to a list of dicts, keeping basic serializable fields.
+        Convert a model instance to a dict, keeping basic serializable fields.
         We exclude foreign keys like user_id as it's implicit, but keep explicit relations.
         """
-        if not qs.exists():
-            return []
+        return {
+            field.name: getattr(obj, field.attname)
+            for field in obj._meta.fields
+            if field.name not in ["user", "recipient", "assigned_to", "password"]
+        }
 
-        data = []
-        for obj in qs:
-            obj_dict = {}
-            for field in obj._meta.fields:
-                if field.name in ["user", "recipient", "assigned_to", "password"]:
-                    continue
-                val = getattr(obj, field.attname)
-                obj_dict[field.name] = val
-            data.append(obj_dict)
-        return data
+    def _queryset_to_list(self, qs: QuerySet):
+        return [self._to_dict(obj) for obj in qs]
+
+    def _rows(self, source):
+        if isinstance(source, QuerySet):
+            for obj in source.iterator(chunk_size=CHUNK_ROWS):
+                yield self._to_dict(obj)
+        else:
+            yield from source
 
     def generate_json(self):
         data = self.gather_data()
         return json.dumps(data, cls=DjangoJSONEncoder, indent=2)
 
-    def generate_csv_zip(self):
+    def stream_csv_zip(self):
         """
-        Generates a ZIP archive in memory containing one CSV file per data entity.
+        Yield a ZIP archive with one CSV file per data entity, piece by piece, so
+        memory use does not grow with the number of rows.
         """
-        data = self.gather_data()
-        mem_zip = io.BytesIO()
+        buffer = _ZipBuffer()
 
-        with zipfile.ZipFile(mem_zip, mode="w", compression=zipfile.ZIP_DEFLATED) as zf:
-            for entity_name, records in data.items():
-                if not records:
+        with zipfile.ZipFile(buffer, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+            for entity_name, source in self._sources().items():
+                rows = self._rows(source)
+                first = next(rows, None)
+                if first is None:
                     continue
 
-                # Write CSV to a string buffer
-                csv_buffer = io.StringIO()
-                writer = csv.DictWriter(csv_buffer, fieldnames=records[0].keys())
-                writer.writeheader()
-                for row in records:
-                    writer.writerow(row)
+                # The size is unknown up front, so allow entries beyond 2 GiB.
+                with zf.open(f"{entity_name}.csv", "w", force_zip64=True) as entry:
+                    with io.TextIOWrapper(entry, "utf-8", newline="") as text:
+                        writer = csv.DictWriter(text, fieldnames=first.keys())
+                        writer.writeheader()
+                        for count, row in enumerate(chain([first], rows), start=1):
+                            writer.writerow(row)
+                            if count % CHUNK_ROWS == 0:
+                                text.flush()
+                                if chunk := buffer.drain():
+                                    yield chunk
 
-                zf.writestr(f"{entity_name}.csv", csv_buffer.getvalue())
+                if chunk := buffer.drain():
+                    yield chunk
 
-        mem_zip.seek(0)
-        return mem_zip.read()
+        # Closing the archive writes its central directory.
+        yield buffer.drain()

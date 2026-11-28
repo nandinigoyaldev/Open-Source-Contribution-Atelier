@@ -107,7 +107,7 @@ class TestDataExport:
         assert response["Content-Type"] == "application/zip"
 
         # Verify ZIP archive
-        zip_buffer = io.BytesIO(response.content)
+        zip_buffer = io.BytesIO(b"".join(response.streaming_content))
         with zipfile.ZipFile(zip_buffer, "r") as zf:
             files = zf.namelist()
             assert "user_profile.csv" in files
