@@ -20149,6 +20149,7 @@ export interface components {
             /** @default false */
             remember: boolean;
             totp_code?: string;
+            email_code?: string;
             username: string;
             password: string;
         };
