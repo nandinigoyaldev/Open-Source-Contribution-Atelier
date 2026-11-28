@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { NavLink, useLocation } from "react-router-dom";
 import {
   History,
@@ -22,7 +22,29 @@ import {
   Settings,
   Zap,
   Flag,
+  PanelLeftClose,
+  PanelLeftOpen,
 } from "lucide-react";
+
+const STORAGE_KEY = "atelier_sidebar_collapsed";
+
+function readCollapsed(): boolean {
+  try {
+    return window.localStorage.getItem(STORAGE_KEY) === "true";
+  } catch {
+    return false;
+  }
+}
+
+function isTypingTarget(target: EventTarget | null): boolean {
+  return (
+    target instanceof HTMLElement &&
+    (target.isContentEditable ||
+      target.closest(
+        "input, textarea, select, [contenteditable='true'], [role='textbox']",
+      ) !== null)
+  );
+}
 
 interface NavItem {
   to: string;
@@ -58,13 +80,29 @@ const NAV_ITEMS: NavEntry[] = [
     label: "Sandbox",
     icon: TerminalSquare,
     items: [
-      { to: "/contributor-sandbox", label: "Contributor Sandbox", icon: TerminalSquare },
+      {
+        to: "/contributor-sandbox",
+        label: "Contributor Sandbox",
+        icon: TerminalSquare,
+      },
       { to: "/sandbox", label: "Sandbox", icon: Box },
-      { to: "/git-rebase-simulator", label: "Git Rebase Visualizer", icon: GitMerge },
+      {
+        to: "/git-rebase-simulator",
+        label: "Git Rebase Visualizer",
+        icon: GitMerge,
+      },
       { to: "/git-bisect-game", label: "Git Bisect Game", icon: GitBranch },
       { to: "/git-tools/stash", label: "Git Stash Manager", icon: Archive },
-      { to: "/sandbox/submodules", label: "Git Submodule Simulator", icon: FolderTree },
-      { to: "/monorepo-visualizer", label: "Monorepo Visualizer", icon: GitBranch },
+      {
+        to: "/sandbox/submodules",
+        label: "Git Submodule Simulator",
+        icon: FolderTree,
+      },
+      {
+        to: "/monorepo-visualizer",
+        label: "Monorepo Visualizer",
+        icon: GitBranch,
+      },
       { to: "/dockerfile-linter", label: "Dockerfile Linter", icon: FileCode },
     ],
   },
@@ -79,7 +117,11 @@ const ADMIN_ITEMS: NavItem[] = [
   { to: "/admin/security", label: "Security", icon: Shield },
   { to: "/admin/vulnerabilities", label: "Vulnerabilities", icon: Shield },
   { to: "/admin/performance", label: "API Performance", icon: BarChart3 },
-  { to: "/admin/bundle-performance", label: "Bundle Performance", icon: BarChart3 },
+  {
+    to: "/admin/bundle-performance",
+    label: "Bundle Performance",
+    icon: BarChart3,
+  },
   { to: "/admin/backups", label: "Backups", icon: Box },
   { to: "/admin/celery", label: "Celery Tasks", icon: Settings },
   { to: "/admin/oauth-clients", label: "OAuth Clients", icon: Puzzle },
@@ -90,19 +132,84 @@ const ADMIN_ITEMS: NavItem[] = [
 export function SideNav() {
   const location = useLocation();
   const [expandedGroup, setExpandedGroup] = useState<string | null>(null);
+  const [collapsed, setCollapsed] = useState(readCollapsed);
+  const [tooltip, setTooltip] = useState<{ label: string; top: number } | null>(
+    null,
+  );
+
+  useEffect(() => {
+    try {
+      window.localStorage.setItem(STORAGE_KEY, String(collapsed));
+    } catch {
+      // Storage can be blocked; the choice then lasts until reload.
+    }
+    setTooltip(null);
+  }, [collapsed]);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") {
+        setTooltip(null);
+        return;
+      }
+      if (
+        event.key !== "[" ||
+        event.defaultPrevented ||
+        event.repeat ||
+        event.ctrlKey ||
+        event.metaKey ||
+        event.altKey ||
+        isTypingTarget(event.target)
+      ) {
+        return;
+      }
+      setCollapsed((value) => !value);
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
+
+  // Rail mode hides the text visually but keeps it for screen readers.
+  const labelClass = collapsed ? "sr-only" : "";
+  const railClass = collapsed ? "justify-center" : "";
+  const tooltipProps = (label: string) => {
+    if (!collapsed) return {};
+    const show = (event: React.SyntheticEvent<HTMLElement>) =>
+      setTooltip({
+        label,
+        top: event.currentTarget.getBoundingClientRect().top,
+      });
+    const hide = () => setTooltip(null);
+    return {
+      onMouseEnter: show,
+      onMouseLeave: hide,
+      onFocus: show,
+      onBlur: hide,
+    };
+  };
+  const ToggleIcon = collapsed ? PanelLeftOpen : PanelLeftClose;
 
   const isActive = (path: string) => location.pathname === path;
   const isGroupActive = (items: NavItem[]) => items.some((i) => isActive(i.to));
 
   return (
-    <aside className="hidden lg:flex flex-col w-[220px] border-r-2 border-slate-200 dark:border-[#2E2924] bg-white dark:bg-[#0f0e0c] h-screen sticky top-0 overflow-y-auto flex-shrink-0">
+    <aside
+      onScroll={() => setTooltip(null)}
+      className={`hidden lg:flex flex-col ${
+        collapsed ? "w-16" : "w-[220px]"
+      } transition-[width] duration-200 ease-in-out motion-reduce:transition-none border-r-2 border-slate-200 dark:border-[#2E2924] bg-white dark:bg-[#0f0e0c] h-screen sticky top-0 overflow-y-auto overflow-x-hidden flex-shrink-0`}
+    >
       {/* Logo */}
-      <div className="px-4 py-4 border-b-2 border-slate-200 dark:border-[#2E2924]">
+      <div
+        className={`flex items-center gap-1.5 py-4 border-b-2 border-slate-200 dark:border-[#2E2924] ${
+          collapsed ? "flex-col px-2" : "justify-between px-4"
+        }`}
+      >
         <NavLink to="/dashboard" className="flex items-center gap-2.5 group">
           <div className="w-8 h-8 rounded-lg bg-amber-400 border-2 border-black flex items-center justify-center shadow-card-sm group-hover:-translate-y-0.5 transition-transform">
             <Zap className="w-4 h-4 fill-black" />
           </div>
-          <div>
+          <div className={labelClass}>
             <span className="font-black text-xs tracking-tight text-slate-900 dark:text-white block leading-tight">
               Open-Source
             </span>
@@ -111,10 +218,21 @@ export function SideNav() {
             </span>
           </div>
         </NavLink>
+        <button
+          type="button"
+          onClick={() => setCollapsed((value) => !value)}
+          aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          aria-expanded={!collapsed}
+          aria-keyshortcuts="["
+          title={`${collapsed ? "Expand" : "Collapse"} sidebar ([)`}
+          className="flex-shrink-0 p-1.5 rounded-lg text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5"
+        >
+          <ToggleIcon size={16} aria-hidden="true" />
+        </button>
       </div>
 
       {/* Nav Items */}
-      <nav className="flex-1 px-3 py-4 space-y-1">
+      <nav className={`flex-1 py-4 space-y-1 ${collapsed ? "px-2" : "px-3"}`}>
         {NAV_ITEMS.map((entry) => {
           if (isGroup(entry)) {
             const open = expandedGroup === entry.label;
@@ -125,29 +243,40 @@ export function SideNav() {
               <div key={entry.label}>
                 <button
                   onClick={() => setExpandedGroup(open ? null : entry.label)}
-                  className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                  aria-expanded={open}
+                  {...tooltipProps(entry.label)}
+                  className={`${railClass} w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                     groupActive
                       ? "bg-amber-400/20 text-amber-700 dark:text-amber-300"
                       : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5"
                   }`}
                 >
                   <Icon size={18} />
-                  <span className="flex-1 text-left">{entry.label}</span>
-                  <ChevronDown
-                    size={14}
-                    className={`transition-transform ${open ? "rotate-180" : ""}`}
-                  />
+                  <span className={collapsed ? "sr-only" : "flex-1 text-left"}>
+                    {entry.label}
+                  </span>
+                  {!collapsed && (
+                    <ChevronDown
+                      size={14}
+                      className={`transition-transform ${open ? "rotate-180" : ""}`}
+                    />
+                  )}
                 </button>
                 {open && (
-                  <div className="ml-3 pl-3 border-l-2 border-slate-200 dark:border-[#2E2924] mt-1 mb-2 space-y-0.5">
+                  <div
+                    className={`border-slate-200 dark:border-[#2E2924] mt-1 mb-2 space-y-0.5 ${
+                      collapsed ? "border-y-2 py-1" : "ml-3 pl-3 border-l-2"
+                    }`}
+                  >
                     {entry.items.map((item) => {
                       const ItemIcon = item.icon;
                       return (
                         <NavLink
                           key={item.to}
                           to={item.to}
+                          {...tooltipProps(item.label)}
                           className={({ isActive: linkActive }) =>
-                            `flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors ${
+                            `${railClass} flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm transition-colors ${
                               linkActive
                                 ? "bg-amber-400/20 text-amber-700 dark:text-amber-300 font-medium"
                                 : "text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5"
@@ -155,7 +284,7 @@ export function SideNav() {
                           }
                         >
                           <ItemIcon size={16} />
-                          <span>{item.label}</span>
+                          <span className={labelClass}>{item.label}</span>
                         </NavLink>
                       );
                     })}
@@ -170,8 +299,9 @@ export function SideNav() {
             <NavLink
               key={entry.to}
               to={entry.to}
+              {...tooltipProps(entry.label)}
               className={({ isActive: linkActive }) =>
-                `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
+                `${railClass} flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-colors ${
                   linkActive
                     ? "bg-amber-400/20 text-amber-700 dark:text-amber-300"
                     : "text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-white/5"
@@ -179,15 +309,19 @@ export function SideNav() {
               }
             >
               <Icon size={18} />
-              <span>{entry.label}</span>
+              <span className={labelClass}>{entry.label}</span>
             </NavLink>
           );
         })}
       </nav>
 
       {/* Admin Section */}
-      <div className="px-3 py-4 border-t-2 border-slate-200 dark:border-[#2E2924]">
-        <div className="px-3 mb-2">
+      <div
+        className={`py-4 border-t-2 border-slate-200 dark:border-[#2E2924] ${
+          collapsed ? "px-2" : "px-3"
+        }`}
+      >
+        <div className={collapsed ? "sr-only" : "px-3 mb-2"}>
           <span className="text-[10px] font-mono uppercase tracking-wider text-slate-600 dark:text-slate-400">
             Admin
           </span>
@@ -199,8 +333,9 @@ export function SideNav() {
               <NavLink
                 key={item.to}
                 to={item.to}
+                {...tooltipProps(item.label)}
                 className={({ isActive: linkActive }) =>
-                  `flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs transition-colors ${
+                  `${railClass} flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs transition-colors ${
                     linkActive
                       ? "bg-amber-400/20 text-amber-700 dark:text-amber-300 font-medium"
                       : "text-slate-500 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-white/5"
@@ -208,12 +343,23 @@ export function SideNav() {
                 }
               >
                 <Icon size={14} />
-                <span>{item.label}</span>
+                <span className={labelClass}>{item.label}</span>
               </NavLink>
             );
           })}
         </div>
       </div>
+
+      {/* Fixed position so the scrolling sidebar cannot clip it. */}
+      {collapsed && tooltip && (
+        <div
+          aria-hidden="true"
+          style={{ top: tooltip.top }}
+          className="fixed left-[68px] z-50 mt-1 whitespace-nowrap rounded-md bg-slate-900 px-2 py-1 text-xs font-medium text-white shadow-lg pointer-events-none"
+        >
+          {tooltip.label}
+        </div>
+      )}
     </aside>
   );
 }
