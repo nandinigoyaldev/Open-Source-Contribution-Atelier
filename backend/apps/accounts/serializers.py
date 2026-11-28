@@ -13,6 +13,7 @@ from rest_framework_simplejwt.serializers import (
 )
 
 from .jwt import DynamicSaltRefreshToken
+from .services.login_risk import check_login_risk
 
 
 def validate_strong_password(value):
@@ -340,6 +341,10 @@ class EmailOrUsernameTokenObtainPairSerializer(TokenObtainPairSerializer):
 
     remember = serializers.BooleanField(required=False, default=False)
     totp_code = serializers.CharField(required=False, allow_blank=True, write_only=True)
+    # Only needed after a "login_confirmation_required" answer.
+    email_code = serializers.CharField(
+        required=False, allow_blank=True, write_only=True, max_length=12
+    )
 
     MAX_PASSWORD_LENGTH = 128
 
@@ -375,8 +380,12 @@ class EmailOrUsernameTokenObtainPairSerializer(TokenObtainPairSerializer):
 
         result = super().validate(attrs)
 
+        has_totp = bool(
+            hasattr(self.user, "totp_device") and self.user.totp_device.is_enabled
+        )
+
         # Check optional 2FA TOTP enforcement
-        if hasattr(self.user, "totp_device") and self.user.totp_device.is_enabled:
+        if has_totp:
             totp_code = attrs.get("totp_code") or self.initial_data.get("totp_code")
             if not totp_code:
                 raise AuthenticationFailed(
@@ -426,6 +435,12 @@ class EmailOrUsernameTokenObtainPairSerializer(TokenObtainPairSerializer):
         ip_address = None
         user_agent = ""
         if request:
+            check_login_risk(
+                self.user,
+                request,
+                code=attrs.get("email_code", ""),
+                has_second_factor=has_totp,
+            )
             ip_address = request.META.get("REMOTE_ADDR")
             user_agent = request.META.get("HTTP_USER_AGENT", "")
 

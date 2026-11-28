@@ -6,7 +6,7 @@ import zipfile
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db.models import QuerySet
 
-from apps.accounts.models import MentorProfile
+from apps.accounts.models import MentorProfile, UserLoginHistory
 from apps.chat.models import Message
 from apps.content.models import Comment
 from apps.dashboard.models import Issue, PullRequest
@@ -79,6 +79,9 @@ class DataExportService:
                 Comment.all_objects.filter(user=self.user)
             ),
             "messages": self._queryset_to_list(Message.objects.filter(user=self.user)),
+            "login_history": self._queryset_to_list(
+                UserLoginHistory._default_manager.filter(user=self.user)
+            ),
         }
         return data
 
@@ -122,7 +125,13 @@ class DataExportService:
         for obj in qs:
             obj_dict = {}
             for field in obj._meta.fields:
-                if field.name in ["user", "recipient", "assigned_to", "password"]:
+                if field.name in [
+                    "user",
+                    "recipient",
+                    "assigned_to",
+                    "password",
+                    "code_hash",
+                ]:
                     continue
                 val = getattr(obj, field.attname)
                 obj_dict[field.name] = val

@@ -665,6 +665,27 @@ EMAIL_VERIFICATION_TIMEOUT_HOURS = int(
 # How many minutes an OTP verification code remains valid.
 OTP_TIMEOUT_MINUTES = int(os.getenv("OTP_TIMEOUT_MINUTES", "10"))
 
+# ── Suspicious Login Detection ───────────────────────────────────────────────
+# Every password login is scored and saved in UserLoginHistory. Asking for an
+# emailed code is off by default: turn it on only once email delivery works and
+# the login page can send "email_code".
+LOGIN_RISK_CONFIRMATION_ENABLED = os.getenv(
+    "LOGIN_RISK_CONFIRMATION_ENABLED", "False"
+).lower() in {"1", "true", "yes", "on"}
+# A score above this needs confirmation.
+LOGIN_RISK_THRESHOLD = int(os.getenv("LOGIN_RISK_THRESHOLD", "50"))
+LOGIN_RISK_CODE_TIMEOUT_MINUTES = int(
+    os.getenv("LOGIN_RISK_CODE_TIMEOUT_MINUTES", "10")
+)
+LOGIN_RISK_MAX_CODE_ATTEMPTS = int(os.getenv("LOGIN_RISK_MAX_CODE_ATTEMPTS", "5"))
+LOGIN_RISK_MAX_CODES_PER_HOUR = int(os.getenv("LOGIN_RISK_MAX_CODES_PER_HOUR", "5"))
+# Dotted path of the IP geolocation / ASN lookup. The default knows nothing and
+# calls no outside service.
+LOGIN_RISK_IP_PROVIDER = (
+    os.getenv("LOGIN_RISK_IP_PROVIDER", "").strip()
+    or "apps.accounts.services.ip_intelligence.OfflineIPIntelligence"
+)
+
 # ── API Versioning Configuration ──────────────────────────────────────────────
 DEFAULT_API_VERSION = "1.0"
 ALLOWED_API_VERSIONS = ["1.0"]
