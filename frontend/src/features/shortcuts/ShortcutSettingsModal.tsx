@@ -60,7 +60,18 @@ function ShortcutEditor({ onClose }: { onClose: () => void }) {
   // Shortcuts must not fire behind the editor while keys are being pressed.
   useEffect(() => suspendShortcuts(), []);
 
+  // Bumped by every edit, reset and close, so a file read that is still
+  // running when one of those happens does not import afterwards.
+  const operationRef = useRef(0);
+  useEffect(
+    () => () => {
+      operationRef.current += 1;
+    },
+    [],
+  );
+
   const clearMessages = () => {
+    operationRef.current += 1;
     setRecordingId(null);
     setRecordError("");
     setPending(null);
@@ -142,18 +153,25 @@ function ShortcutEditor({ onClose }: { onClose: () => void }) {
     // Lets the same file be picked again after it has been fixed.
     input.value = "";
     clearMessages();
+    const operation = operationRef.current;
 
     if (file.size > MAX_IMPORT_BYTES) {
       setImportErrors(["The file is too large."]);
       return;
     }
+    let text: string;
     try {
-      const result = importJson(await readFile(file));
-      if (result.ok) setStatus("Shortcuts imported.");
-      else setImportErrors(result.errors);
+      text = await readFile(file);
     } catch {
-      setImportErrors(["The file could not be read."]);
+      if (operation === operationRef.current) {
+        setImportErrors(["The file could not be read."]);
+      }
+      return;
     }
+    if (operation !== operationRef.current) return;
+    const result = importJson(text);
+    if (result.ok) setStatus("Shortcuts imported.");
+    else setImportErrors(result.errors);
   };
 
   const renderRow = (shortcut: ShortcutDefinition) => {

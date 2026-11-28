@@ -7,6 +7,7 @@ import {
   within,
   waitFor,
   cleanup,
+  act,
 } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { ShortcutSettingsModal } from "../features/shortcuts/ShortcutSettingsModal";
@@ -202,6 +203,42 @@ describe("ShortcutSettingsModal", () => {
 
     expect(await screen.findByText("Shortcuts imported.")).toBeInTheDocument();
     expect(getShortcutBindings()["lesson.next"]).toEqual(["Alt+K"]);
+  });
+
+  /** Holds the next file read until the returned function is called. */
+  function holdFileRead() {
+    const read = vi
+      .spyOn(FileReader.prototype, "readAsText")
+      .mockImplementation(() => {});
+    return (text: string) =>
+      act(async () => {
+        const reader = read.mock.contexts[0] as FileReader;
+        Object.defineProperty(reader, "result", { value: text });
+        reader.onload?.(new ProgressEvent("load") as ProgressEvent<FileReader>);
+      });
+  }
+
+  it("drops an import that finishes after a reset", async () => {
+    const finish = holdFileRead();
+    open();
+    upload("pending");
+
+    fireEvent.click(screen.getByRole("button", { name: "Reset to Defaults" }));
+    await finish('{"version":1,"shortcuts":{"lesson.next":["Alt+K"]}}');
+
+    expect(getShortcutBindings()).toEqual(DEFAULT_BINDINGS);
+    expect(screen.queryByText("Shortcuts imported.")).not.toBeInTheDocument();
+  });
+
+  it("drops an import that finishes after the editor closed", async () => {
+    const finish = holdFileRead();
+    const view = open();
+    upload("pending");
+
+    view.unmount();
+    await finish('{"version":1,"shortcuts":{"lesson.next":["Alt+K"]}}');
+
+    expect(getShortcutBindings()).toEqual(DEFAULT_BINDINGS);
   });
 
   it("shows why a file was rejected", async () => {
