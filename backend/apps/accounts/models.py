@@ -10,6 +10,9 @@ from apps.content.models import Lesson
 from apps.core.fields import EncryptedCharField
 from apps.core.models import AuditableModel
 
+# Width x height x frames. At 4 bytes a pixel this is about 160 MB.
+MAX_ANIMATION_PIXELS = 40_000_000
+
 
 class MentorProfile(models.Model):
     """
@@ -273,21 +276,57 @@ class UserProfile(AuditableModel):
         self.save(update_fields=["jwt_token_version", "last_password_change"])
 
     def _convert_to_webp(self, image_field):
-        """Helper method to convert an ImageField to WebP format."""
-        if image_field and not image_field.name.lower().endswith(".webp"):
+        """Helper method to convert an ImageField to WebP format.
+
+        The EXIF orientation is applied to the pixels first, because the WebP
+        output carries no EXIF data (which also drops GPS and camera details).
+        """
+        if not image_field:
+            return
+
+        is_webp = image_field.name.lower().endswith(".webp")
+        # A stored WebP is left alone; a new upload may still carry metadata.
+        if not is_webp or not image_field._committed:
             import os
             from io import BytesIO
 
             from django.core.files.base import ContentFile
-            from PIL import Image
+            from PIL import Image, ImageOps, ImageSequence
 
             img = Image.open(image_field)
 
-            if img.mode != "RGBA" and img.mode != "RGB":
-                img = img.convert("RGBA")
+            options = {"format": "WEBP", "quality": 85, "exif": b"", "xmp": b""}
+
+            # Only an RGB profile still describes the pixels after conversion.
+            if img.mode in ("RGB", "RGBA") and img.info.get("icc_profile"):
+                options["icc_profile"] = img.info["icc_profile"]
+
+            # Every frame of an animation is held in memory while it is encoded,
+            # so a very large one is stored as its first frame only.
+            if (
+                img.format == "WEBP"
+                and getattr(img, "is_animated", False)
+                and img.n_frames * img.width * img.height <= MAX_ANIMATION_PIXELS
+            ):
+                frames, durations = [], []
+                for frame in ImageSequence.Iterator(img):
+                    frame.load()
+                    durations.append(frame.info.get("duration", 0))
+                    frames.append(ImageOps.exif_transpose(frame.convert("RGBA")))
+                options.update(
+                    save_all=True,
+                    append_images=frames[1:],
+                    duration=durations,
+                    loop=img.info.get("loop", 0),
+                )
+                img = frames[0]
+            else:
+                img = ImageOps.exif_transpose(img)
+                if img.mode != "RGBA" and img.mode != "RGB":
+                    img = img.convert("RGBA")
 
             output = BytesIO()
-            img.save(output, format="WEBP", quality=85)
+            img.save(output, **options)
             output.seek(0)
 
             base_name = os.path.splitext(os.path.basename(image_field.name))[0]

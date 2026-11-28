@@ -5,6 +5,7 @@ from django.contrib.auth import get_user_model
 
 User = get_user_model()
 from django.utils import timezone
+from PIL import Image
 from rest_framework import serializers
 from rest_framework.exceptions import AuthenticationFailed
 from rest_framework_simplejwt.serializers import (
@@ -12,6 +13,7 @@ from rest_framework_simplejwt.serializers import (
     TokenRefreshSerializer,
 )
 
+from . import models as account_models
 from .jwt import DynamicSaltRefreshToken
 
 
@@ -56,6 +58,25 @@ def validate_strong_password(value):
     return value
 
 
+def validate_animation_size(upload):
+    """Reject an animated WebP that is too large to re-encode frame by frame."""
+    upload.seek(0)
+    image = Image.open(upload)
+    # The file name can lie, so go by the decoded format.
+    if image.format != "WEBP":
+        upload.seek(0)
+        return
+    pixels = getattr(image, "n_frames", 1) * image.width * image.height
+    upload.seek(0)
+    if (
+        getattr(image, "is_animated", False)
+        and pixels > account_models.MAX_ANIMATION_PIXELS
+    ):
+        raise serializers.ValidationError(
+            "This animation is too large. Use fewer frames or a smaller size."
+        )
+
+
 class SignupSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, min_length=8, max_length=128)
 
@@ -94,8 +115,12 @@ class UserUpdateSerializer(serializers.ModelSerializer):
     password = serializers.CharField(
         write_only=True, required=False, min_length=8, max_length=128
     )
-    avatar = serializers.ImageField(required=False)
-    cover_image = serializers.ImageField(required=False)
+    avatar = serializers.ImageField(
+        required=False, validators=[validate_animation_size]
+    )
+    cover_image = serializers.ImageField(
+        required=False, validators=[validate_animation_size]
+    )
     timezone = serializers.CharField(required=False)
     twitter_url = serializers.URLField(required=False, allow_blank=True)
     linkedin_url = serializers.URLField(required=False, allow_blank=True)
@@ -541,7 +566,7 @@ class ChangePasswordSerializer(serializers.Serializer):
 
 
 class AvatarUploadSerializer(serializers.Serializer):
-    avatar = serializers.ImageField(required=True)
+    avatar = serializers.ImageField(required=True, validators=[validate_animation_size])
 
 
 class PasswordResetValidateTokenSerializer(serializers.Serializer):
