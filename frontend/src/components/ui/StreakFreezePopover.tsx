@@ -120,6 +120,7 @@ function StreakFreezePanel() {
 export function StreakFreezePopover() {
   const [open, setOpen] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const triggerRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     if (!open) return;
@@ -127,7 +128,9 @@ export function StreakFreezePopover() {
       if (!containerRef.current?.contains(event.target as Node)) setOpen(false);
     };
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === "Escape") setOpen(false);
+      if (event.key !== "Escape") return;
+      setOpen(false);
+      triggerRef.current?.focus();
     };
     document.addEventListener("mousedown", onPointerDown);
     document.addEventListener("keydown", onKeyDown);
@@ -140,6 +143,7 @@ export function StreakFreezePopover() {
   return (
     <div className="relative" ref={containerRef}>
       <button
+        ref={triggerRef}
         type="button"
         onClick={() => setOpen((value) => !value)}
         className="flex items-center p-2 rounded-lg border border-slate-200 dark:border-[#2E2924] text-orange-500 hover:bg-slate-50 dark:hover:bg-white/5 transition-colors"

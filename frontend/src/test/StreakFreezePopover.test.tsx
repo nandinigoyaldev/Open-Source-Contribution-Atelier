@@ -137,5 +137,8 @@ describe("StreakFreezePopover", () => {
     fireEvent.keyDown(document, { key: "Escape" });
 
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Streak and freezes" }),
+    ).toHaveFocus();
   });
 });
