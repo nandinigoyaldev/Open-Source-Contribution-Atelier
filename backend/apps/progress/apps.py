@@ -36,6 +36,14 @@ class ProgressConfig(AppConfig):
                     "minutes": 1,
                 },
             )
+
+            Schedule.objects.get_or_create(  # pyright: ignore[reportAttributeAccessIssue]
+                name="apply-streak-freezes",
+                defaults={
+                    "func": "apps.progress.tasks.apply_streak_freezes_task",
+                    "schedule_type": Schedule.HOURLY,
+                },
+            )
         except Exception as e:
             logger.warning("Caught exception: %s", e)
             # Catch database programming/operational errors during migrations or tests

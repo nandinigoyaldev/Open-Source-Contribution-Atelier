@@ -1873,18 +1873,30 @@ class ShopStreakFreezeView(APIView):
     permission_classes = [IsAuthenticated]
 
     @extend_schema(
-        responses={200: OpenApiResponse(description="Streak freeze purchased.")}
+        request=None,
+        responses={
+            200: OpenApiResponse(description="Streak freeze purchased."),
+            400: OpenApiResponse(description="Not enough XP."),
+        },
     )
     def post(self, request):
-        from apps.progress.models import StreakProfile
+        from apps.progress.services.streak_engine import (
+            InsufficientXP,
+            redeem_with_xp,
+            xp_balance,
+        )
 
-        streak_profile, _ = StreakProfile.objects.get_or_create(user=request.user)
-        streak_profile.streak_freezes += 1
-        streak_profile.save(update_fields=["streak_freezes"])
+        try:
+            entry = redeem_with_xp(request.user)
+        except InsufficientXP as exc:
+            return Response({"error": str(exc)}, status=status.HTTP_400_BAD_REQUEST)
+
         return Response(
             {
                 "status": "streak freeze purchased successfully",
-                "streak_freezes": streak_profile.streak_freezes,
+                "streak_freezes": entry.balance_after,
+                "xp_spent": entry.xp_spent,
+                "remaining_xp": xp_balance(request.user),
             },
             status=status.HTTP_200_OK,
         )

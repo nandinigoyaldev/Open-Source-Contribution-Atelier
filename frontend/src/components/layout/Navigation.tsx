@@ -13,6 +13,7 @@ import { Link, NavLink, useNavigate } from "react-router-dom";
 import { useAuth } from "../../features/auth/AuthContext";
 import LogoutButtonWithConfirm from "./LogoutButtonWithConfirm";
 import { ThemeToggle } from "../ui/ThemeToggle";
+import { StreakFreezePopover } from "../ui/StreakFreezePopover";
 import { isTypingTarget } from "../../lib/accessibility";
 
 interface NavItem {
@@ -185,7 +186,7 @@ export function Navigation() {
 
   return (
     <nav className="bg-white/80 dark:bg-[#151411]/80 backdrop-blur-xl border-b-2 border-slate-200 dark:border-[#2E2924] sticky top-0 z-40">
-      <div className="flex items-center justify-between h-14 px-4 sm:px-6 gap-4">
+      <div className="flex items-center justify-between h-14 px-4 sm:px-6 gap-x-4">
         {/* Left: Mobile menu button */}
         <button
           onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
@@ -201,8 +202,9 @@ export function Navigation() {
         </div>
 
         {/* Right: Theme + Shortcuts + User */}
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-x-2 shrink-0">
           <KeyboardShortcutsButton />
+          {user && <StreakFreezePopover />}
           <ThemeToggle iconSize={16} buttonClassName="p-2" />
           {user ? (
             <UserDropdown user={user} isItemActive={isItemActive} />

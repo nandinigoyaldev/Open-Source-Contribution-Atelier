@@ -7055,6 +7055,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/progress/streak/freezes/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Freeze tokens held, how to get more and the latest ledger entries. */
+        get: operations["api_progress_streak_freezes_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/progress/streak/freezes/claim-weekly/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Claim the free token for a completed weekly lesson goal. */
+        post: operations["api_progress_streak_freezes_claim_weekly_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/progress/streak/recovery/": {
         parameters: {
             query?: never;
@@ -16249,6 +16283,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v1/api/progress/streak/freezes/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Freeze tokens held, how to get more and the latest ledger entries. */
+        get: operations["api_v1_api_progress_streak_freezes_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/api/progress/streak/freezes/claim-weekly/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** @description Claim the free token for a completed weekly lesson goal. */
+        post: operations["api_v1_api_progress_streak_freezes_claim_weekly_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v1/api/progress/streak/recovery/": {
         parameters: {
             query?: never;
@@ -20152,6 +20220,14 @@ export interface components {
             username: string;
             password: string;
         };
+        /**
+         * @description * `weekly_goal` - Earned from weekly goal
+         *     * `xp_redeem` - Redeemed with XP
+         *     * `shop_purchase` - Bought in the shop
+         *     * `consumed` - Used on a missed day
+         * @enum {string}
+         */
+        EntryTypeEnum: "weekly_goal" | "xp_redeem" | "shop_purchase" | "consumed";
         /** @description Serializer for EventHandler model. */
         EventHandler: {
             readonly id: number;
@@ -24302,6 +24378,42 @@ export interface components {
             feature_request: string;
             user?: number | null;
         };
+        StreakFreezeLedger: {
+            readonly id: number;
+            entry_type: components["schemas"]["EntryTypeEnum"];
+            /** Format: int64 */
+            delta: number;
+            /** Format: int64 */
+            balance_after: number;
+            /** Format: int64 */
+            xp_spent?: number;
+            /** Format: date */
+            protected_date?: string | null;
+            /** Format: date */
+            week_start?: string | null;
+            /** Format: date-time */
+            readonly created_at: string;
+        };
+        StreakFreezeStatus: {
+            streak_freezes: number;
+            price_xp: number;
+            xp_balance: number;
+            total_earned: number;
+            total_redeemed: number;
+            total_used: number;
+            /** Format: date */
+            last_protected_date: string | null;
+            weeks: components["schemas"]["StreakFreezeWeek"][];
+            history: components["schemas"]["StreakFreezeLedger"][];
+        };
+        StreakFreezeWeek: {
+            /** Format: date */
+            week_start: string;
+            target_lessons: number;
+            completed_lessons: number;
+            claimed: boolean;
+            claimable: boolean;
+        };
         StudyGroup: {
             readonly id: number;
             name: string;
@@ -26342,6 +26454,13 @@ export interface operations {
         responses: {
             /** @description Streak freeze purchased. */
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not enough XP. */
+            400: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -39774,6 +39893,44 @@ export interface operations {
             };
         };
     };
+    api_progress_streak_freezes_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StreakFreezeStatus"];
+                };
+            };
+        };
+    };
+    api_progress_streak_freezes_claim_weekly_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StreakFreezeStatus"];
+                };
+            };
+        };
+    };
     api_progress_streak_recovery_retrieve: {
         parameters: {
             query?: never;
@@ -46143,6 +46300,13 @@ export interface operations {
         responses: {
             /** @description Streak freeze purchased. */
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Not enough XP. */
+            400: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -59572,6 +59736,44 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    api_v1_api_progress_streak_freezes_retrieve: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StreakFreezeStatus"];
+                };
+            };
+        };
+    };
+    api_v1_api_progress_streak_freezes_claim_weekly_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StreakFreezeStatus"];
+                };
             };
         };
     };
