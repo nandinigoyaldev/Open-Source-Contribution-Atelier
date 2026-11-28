@@ -261,11 +261,19 @@ describe("LessonPage unsaved work warning", () => {
 
   it("submits the command with a remapped shortcut only", async () => {
     setShortcut("lesson.runCommand", ["Alt+R"]);
+    // The page reads newState.conflicts after a submit.
+    vi.mocked(parseGitCommand).mockReturnValueOnce({
+      error: null,
+      output: "Mock success",
+      newState: { conflicts: [] },
+    } as any);
     renderLesson();
     const input = await findTerminalInput();
     fireEvent.change(input, { target: { value: "git status" } });
 
     fireEvent.keyDown(input, { key: "Enter", ctrlKey: true });
+    // The terminal submits 800 ms after the key press, so wait past that.
+    await act(() => new Promise((resolve) => setTimeout(resolve, 1000)));
     expect(parseGitCommand).not.toHaveBeenCalled();
 
     fireEvent.keyDown(input, { key: "r", altKey: true });
