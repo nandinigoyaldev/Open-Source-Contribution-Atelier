@@ -1,0 +1,47 @@
+from io import BytesIO
+
+import pytest
+from django.contrib.auth import get_user_model
+from django.core.files.uploadedfile import SimpleUploadedFile
+from PIL import Image
+
+from apps.accounts.models import UserProfile
+
+ORIENTATION = 0x0112
+CAMERA_MODEL = 0x0110
+
+
+def _photo(image_format, orientation):
+    """A 40x20 landscape image, red on the left half, with EXIF data."""
+    img = Image.new("RGB", (40, 20), (0, 0, 255))
+    img.paste((255, 0, 0), (0, 0, 20, 20))
+    exif = Image.Exif()
+    exif[ORIENTATION] = orientation
+    exif[CAMERA_MODEL] = "PhoneCam"
+    buffer = BytesIO()
+    img.save(buffer, format=image_format, exif=exif.tobytes(), quality=95)
+    return SimpleUploadedFile(f"photo.{image_format.lower()}", buffer.getvalue())
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("image_format", ["JPEG", "WEBP"])
+def test_avatar_is_rotated_upright_and_exif_is_removed(
+    settings, tmp_path, image_format
+):
+    settings.MEDIA_ROOT = tmp_path
+    user = get_user_model().objects.create_user(username="exif", password="pw-12345!")
+    profile, _ = UserProfile.objects.get_or_create(user=user)
+
+    # Orientation 6: the viewer has to rotate the image 90 degrees clockwise.
+    profile.avatar = _photo(image_format, orientation=6)
+    profile.save()
+
+    with profile.avatar.open("rb") as stored:
+        result = Image.open(stored)
+        result.load()
+
+    assert result.format == "WEBP"
+    assert result.size == (20, 40)
+    red, _, blue = result.convert("RGB").getpixel((10, 5))
+    assert red > 200 and blue < 60
+    assert not result.getexif()

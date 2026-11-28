@@ -273,15 +273,30 @@ class UserProfile(AuditableModel):
         self.save(update_fields=["jwt_token_version", "last_password_change"])
 
     def _convert_to_webp(self, image_field):
-        """Helper method to convert an ImageField to WebP format."""
-        if image_field and not image_field.name.lower().endswith(".webp"):
+        """Helper method to convert an ImageField to WebP format.
+
+        The EXIF orientation is applied to the pixels first, because the WebP
+        output carries no EXIF data (which also drops GPS and camera details).
+        """
+        if not image_field:
+            return
+
+        is_webp = image_field.name.lower().endswith(".webp")
+        # A stored WebP is left alone; a new upload may still carry EXIF data.
+        if not is_webp or not image_field._committed:
             import os
             from io import BytesIO
 
             from django.core.files.base import ContentFile
-            from PIL import Image
+            from PIL import Image, ImageOps
 
             img = Image.open(image_field)
+
+            if is_webp and not img.getexif():
+                image_field.seek(0)
+                return
+
+            img = ImageOps.exif_transpose(img)
 
             if img.mode != "RGBA" and img.mode != "RGB":
                 img = img.convert("RGBA")
