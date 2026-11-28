@@ -803,6 +803,12 @@ def _is_migration_in_progress():
     try:
         from django.db import connection
 
+        # PRAGMA is SQLite only. Elsewhere it fails, and on PostgreSQL a failed
+        # statement aborts the transaction the save is part of. Return what the
+        # failed query used to return, without running it.
+        if connection.vendor != "sqlite":
+            return True
+
         with connection.cursor() as cursor:
             # Check if contenttypes table has the name column properly
             cursor.execute("PRAGMA table_info(django_content_type)")

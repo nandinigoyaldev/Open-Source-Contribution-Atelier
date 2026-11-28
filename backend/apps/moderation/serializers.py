@@ -73,8 +73,9 @@ class ModerationAuditEventSerializer(serializers.ModelSerializer):
         source="target_user.username", read_only=True
     )
     target_user_id = serializers.IntegerField(source="target_user.id", read_only=True)
+    # The stored copy, so the id is still there after the report is deleted.
     content_report_id = serializers.IntegerField(
-        source="content_report.id", read_only=True
+        source="content_report_ref", read_only=True
     )
 
     class Meta:

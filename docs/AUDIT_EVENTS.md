@@ -4,7 +4,7 @@ Admin actions write a structured audit event so that "who changed this, and when
 
 ## 1. Event Shape
 
-Events are rows in the existing `AuditEvent` table (`backend/apps/audit/models.py`). No new model was added. They are written with `record_admin_event()` from `backend/apps/audit/admin_events.py`.
+Events are rows in the existing `AuditEvent` table (`backend/apps/audit/models.py`). No new event model was added. They are written with `record_admin_event()` from `backend/apps/audit/admin_events.py`.
 
 | Field | Stored in | Meaning |
 | --- | --- | --- |
@@ -125,7 +125,7 @@ The row-level events written by `signals.py` (`before` / `after` model snapshots
   - Export: add `export=csv` or `export=json` to the same filters. The file is streamed row by row (rows are read with `iterator()`, nothing is built up in memory), it is not limited to one page, and an empty result is a CSV with only the header row or `[]`. Any other `export` value is a `400`. Text cells that start with `=`, `+`, `-` or `@` get a leading `'` so a spreadsheet does not run them as formulas.
 - `GET /api/admin/audit/<id>/` and `GET /api/audit/<id>/`: staff users only. This used to accept any logged-in user and now matches the list endpoint.
 - Django admin: the `Audit Trail` app is read only (add, change and delete are switched off in `admin.py`), so only staff with the view permission can look at events there.
-- Nobody can edit or delete an event through the application. `AuditEvent.save()` refuses to update an existing row and `delete()` always raises. The only thing that removes rows is the archive task below.
+- Nobody can edit or delete an event through the application. `AuditEvent.save()` refuses to update an existing row, `delete()` always raises, and `QuerySet.update()` only allows detaching the actor (account deletion does this). The only thing that removes rows is the archive task below. Changes made straight in the database are detected by the [hash chain](#6-tamper-evidence).
 - Database access is outside the application. Restrict it to people who already need production access, and ideally give the app a database role that can `INSERT` and `SELECT` on the audit table but not `UPDATE` or `DELETE`.
 
 CSV and JSON exports and the archive files below contain the same data as the API, so treat them with the same care.
@@ -160,7 +160,110 @@ inputs are checked in the browser first, and typing waits for a short pause befo
 - Events whose actor account is deleted keep their row with `actor` set to `null`. The target id stays, since it is only a number.
 - If you need a different period for compliance, change `AUDIT_RETENTION_DAYS` and decide separately how long archive files live.
 
-## 6. File Inventory
+## 6. Tamper Evidence
+
+`AuditEvent` and `ModerationAuditEvent` are each a hash chain (`backend/apps/audit/chain.py`). This does not stop somebody with database access from changing rows. It makes the change show up.
+
+### What is stored
+
+| Column | Meaning |
+| --- | --- |
+| `sequence` | Position in the chain, unique per table. |
+| `previous_hash` | `hash` of the row at `sequence - 1`. 64 zeros for the first row. |
+| `hash` | SHA-256 of the row. |
+| `actor_ref` | Copy of `actor_id` taken at write time. Moderation events have `content_report_ref`, `moderator_ref` and `target_user_ref`. |
+
+The hash is SHA-256 over compact JSON with sorted keys, containing the chain name (`audit` or `moderation`), `sequence`, `previous_hash` and:
+
+- audit: `actor_ref`, `action`, `resource_type`, `resource_id`, `before`, `after`, `correlation_id`, `ip_address`, `user_agent`, `created_at`, `extra`
+- moderation: `content_report_ref`, `moderator_ref`, `target_user_ref`, `event_type`, `status_before`, `status_after`, `action_taken`, `reason`, `created_at`
+
+The database `id` is not hashed, it does not exist yet when the hash is computed. A test fails if a new column is added to a model but not to its hash. Adding one to the hash also changes what verification computes for old rows, so it needs a plan for them (for example hashing the new column only when it is set).
+
+Account deletion sets `actor`, `moderator` or `target_user` to `null`, and deleting a content report does the same to `content_report`. The chain stays valid because the copy is what is hashed. This also means the numeric id of a deleted account stays in the audit tables. It is not linked to a name or an email once the account is gone.
+
+Deleting a content report no longer deletes its moderation events. The API still returns their `content_report_id`.
+
+### Concurrent writers
+
+`AuditChainHead` holds one row per chain with the last `sequence` and `hash`. A writer updates that row before reading it, which locks it until the surrounding transaction commits, so writers take turns and two rows cannot follow the same predecessor. The unique `sequence` is a second guard. Every insert through the model is covered, including `bulk_create` and the `RBAC` proxy.
+
+The cost: audit writes are serialized. Keep transactions that write an audit event short, and write the event near the end. A transaction that holds other row locks while waiting for the chain can deadlock with one doing the reverse, which PostgreSQL ends by aborting one of them.
+
+### Verifying
+
+```bash
+cd backend
+python manage.py verify_audit_chain                  # both chains
+python manage.py verify_audit_chain --chain audit
+python manage.py verify_audit_chain --expect audit:1200:<hash> --expect moderation:40:<hash>
+```
+
+Exit code is `0` when everything adds up and `1` otherwise, with one line per problem:
+
+| Message | What it means |
+| --- | --- |
+| `content does not match its hash` | A column was edited. |
+| `actor was changed` (or `moderator`, `target_user`, `content_report`) | The link now points at something else. |
+| `record N is missing` | Rows were deleted outside retention. |
+| `does not link to the record before it` | A row was rewritten or replaced, hash included. |
+| `is not chained` | A row was inserted around the application. |
+| `there are records after the chain head` | Rows were appended around the application. |
+| `chain head signature does not match` / `chain head is missing` | The head was edited or removed, or the signing key changed. |
+| `pruned range A-B: signature does not match` | A retention anchor was not written by this application. |
+| `checkpoint N ...` | History no longer matches what you saved earlier. |
+
+A successful run prints a `checkpoint chain:sequence:hash` line per chain. Keep these somewhere the database server cannot write to and pass them back with `--expect`.
+
+### Published checkpoints
+
+A daily scheduled job (`audit-chain-checkpoint-daily`, running `apps.audit.tasks.publish_audit_checkpoints`) verifies both chains and logs `Audit chain checkpoint chain:sequence:hash` for each one that passes. An empty chain has no checkpoint. When `AUDIT_CHECKPOINT_URL` is set it also sends them there:
+
+```json
+{"checkpoints": ["audit:1200:<hash>", "moderation:40:<hash>"], "failed": []}
+```
+
+`failed` names the chains that did not verify. The job fails, so alert on failed tasks, when a chain does not verify or the receiver does not answer with a 2xx status. Redirects are not followed.
+
+The guarantee against rollbacks is only as good as where these end up. Point the URL at a receiver that appends and never overwrites (for example one writing to object storage with a retention lock), or ship the logs to a service the database server cannot edit. The job does not read old checkpoints back: to check history against them, run `verify_audit_chain --expect` with the saved values.
+
+A checkpoint for a record that retention has since removed can only be confirmed if it was the last record of a pruned range. Otherwise it is reported as unconfirmed, so compare against recent checkpoints, and keep the archive files, which contain `sequence`, `previous_hash` and `hash`.
+
+### Retention and anchors
+
+Before the archive task deletes rows it writes an `AuditChainAnchor` for each unbroken run: the first and last `sequence`, the hash the run started from, the hash it ended on, and the archive file. The anchors and the delete commit together, and verification walks across them. Old rows that already fail their own hash check, or were never chained, are not archived or deleted. The task logs an error and leaves them as evidence.
+
+Moderation events have no retention job, so that chain has no anchors.
+
+### Signing key
+
+Row hashes need no secret. The chain head and the anchors are signed with HMAC-SHA256 using `AUDIT_CHAIN_KEY`, or `SECRET_KEY` when that is empty. So somebody with only database access cannot sign a shortened chain or write an anchor that passes a deletion off as retention (see Limits for what is left). Use the same value on web and worker processes, and for `migrate`.
+
+Before rotating `SECRET_KEY`, set `AUDIT_CHAIN_KEY` to the old value (or list the old value in Django's `SECRET_KEY_FALLBACKS`). If a process writes with the wrong key, new events are still recorded but the head is left unsigned, an error is logged, and verification keeps failing. After you have confirmed from checkpoints that nothing else is wrong, sign it again in `python manage.py shell`:
+
+```python
+from apps.audit.chain import head_parts, sign
+from apps.audit.models import AuditChainHead
+
+head = AuditChainHead.objects.get(chain="audit")
+head.signature = sign(*head_parts(head.chain, head.last_sequence, head.head_hash))
+head.save()
+```
+
+Anchors signed with a key that is no longer available keep failing, so do not drop an old key while its anchors matter.
+
+### Limits
+
+- Somebody who has the database and the signing key can rebuild a chain. Only checkpoints stored elsewhere catch that.
+- Somebody who deletes every row, the anchors and the head leaves what looks like a new chain after the next write. Checkpoints catch this too.
+- Somebody who copied the head row earlier (from a backup, say) can put it back and delete everything after it, because that signature is still valid. Checkpoints catch this as well.
+- Rows that existed before the migration are sealed by it, as they were at that moment. Edits made earlier cannot be detected.
+
+### Upgrading
+
+Migrations `audit.0003` and `moderation.0005` add the columns and seal existing rows, oldest first, inside the migration transaction. On PostgreSQL the table being migrated is locked while that runs. Stop old web and worker processes first: code from before this change writes rows without a hash, and verification reports them. Rolling `moderation.0005` back fails once a content report with moderation events has been deleted, because the old schema requires the link.
+
+## 7. File Inventory
 
 ```
 backend/apps/audit/admin_events.py        # record_admin_event() and operation names
@@ -168,8 +271,13 @@ backend/apps/audit/security_events.py     # record_security_event(), used by pas
 backend/apps/audit/redaction.py           # redact()
 backend/apps/audit/views.py               # read endpoints (staff only), ?operation filter
 backend/apps/audit/tasks.py               # archive_audit_events (retention)
+backend/apps/audit/chain.py               # hash chain: sealing, anchors, verification
+backend/apps/audit/management/commands/verify_audit_chain.py
 backend/apps/issues/views.py              # issue.updated, issue.deleted
 backend/apps/rbac/views.py                # user.role_assigned, user.role_revoked
 backend/apps/audit/test_admin_events.py   # redaction, shape, emission, access tests
+backend/apps/audit/test_chain.py          # tamper, retention and concurrency tests
+backend/apps/audit/test_checkpoints.py    # publishing the chain heads
+backend/apps/moderation/test_audit_chain.py
 docs/AUDIT_EVENTS.md                      # this document
 ```
