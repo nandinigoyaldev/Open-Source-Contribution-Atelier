@@ -1207,6 +1207,15 @@ NOTIFICATION_FAILED_RETENTION_DAYS = int(
     os.getenv("NOTIFICATION_FAILED_RETENTION_DAYS", "180")
 )
 
+# /health/ reports "Notification Delivery" as unhealthy (overall "degraded") once this many
+# dead letters were created within the window. A threshold of 0 turns the check off.
+NOTIFICATION_DEAD_LETTER_HEALTH_THRESHOLD = int(
+    os.getenv("NOTIFICATION_DEAD_LETTER_HEALTH_THRESHOLD", "10")
+)
+NOTIFICATION_DEAD_LETTER_HEALTH_WINDOW_SECONDS = int(
+    os.getenv("NOTIFICATION_DEAD_LETTER_HEALTH_WINDOW_SECONDS", "3600")
+)
+
 # ── Notification outbox (see docs/NOTIFICATION_OUTBOX.md) ──
 # Hand-off tries a queued notification gets before it is dead-lettered.
 NOTIFICATION_OUTBOX_MAX_ATTEMPTS = int(

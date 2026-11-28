@@ -32,6 +32,7 @@ def _patch_checks(**overrides):
         "check_celery": _ok("Celery Worker"),
         "check_websocket": _ok("WebSocket"),
         "check_meilisearch": _ok("Meilisearch"),
+        "check_notification_delivery": _ok("Notification Delivery"),
     }
     results.update(overrides)
 
@@ -127,7 +128,7 @@ async def test_all_healthy():
         result = await HealthChecker().run_checks()
 
     assert result["status"] == "healthy"
-    assert result["total_checks"] == 5
+    assert result["total_checks"] == 6
     assert result["unhealthy_checks"] == 0
 
 

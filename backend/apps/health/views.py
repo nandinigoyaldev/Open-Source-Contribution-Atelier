@@ -6,6 +6,7 @@ import asyncio
 import json
 import logging
 import time
+from datetime import timedelta
 from typing import Any, Dict, Optional
 
 import redis
@@ -13,7 +14,9 @@ import requests
 from django.conf import settings
 from django.core.cache import cache
 from django.db import DatabaseError, connection, connections
+from django.db.models import Count
 from django.http import JsonResponse
+from django.utils import timezone
 from django.views.decorators.cache import never_cache
 from django.views.decorators.csrf import csrf_exempt
 from django.views.decorators.http import require_http_methods
@@ -30,6 +33,8 @@ REQUIRED_CHECKS = ("PostgreSQL", "Redis")
 
 # Kept short so a hung dependency can never hang the probe.
 MEILISEARCH_TIMEOUT_SECONDS = 2
+
+NOTIFICATION_RUNBOOK = "docs/NOTIFICATION_DELIVERY_LEDGER.md#retry-exhaustion-health"
 
 
 def _check_db_pool() -> dict[str, Any]:
@@ -58,6 +63,23 @@ def _check_db_pool() -> dict[str, Any]:
         "utilization_percent": utilization,
         "conn_max_age": get_conn_max_age(),
     }
+
+
+def _count_dead_letters(since) -> Dict[str, int]:
+    """Dead letters per channel since ``since``. Reads no message content."""
+    from apps.notifications.models import NotificationDeadLetter
+
+    try:
+        rows = (
+            NotificationDeadLetter.objects.filter(failed_at__gte=since)
+            .values("channel")
+            .annotate(total=Count("id"))
+            .order_by("channel")
+        )
+        return {row["channel"]: row["total"] for row in rows}
+    finally:
+        # This runs in a short-lived worker thread with its own connection.
+        connection.close()
 
 
 def _has_internal_access(request) -> bool:
@@ -257,15 +279,55 @@ class HealthChecker:
             logger.error(f"Meilisearch health check failed: {e}")
         return result
 
+    async def check_notification_delivery(self) -> Dict[str, Any]:
+        """Report notifications that recently ran out of delivery attempts."""
+        result = {
+            "name": "Notification Delivery",
+            "status": "healthy",
+            "details": {},
+        }
+        threshold = settings.NOTIFICATION_DEAD_LETTER_HEALTH_THRESHOLD
+        if threshold <= 0:
+            result["status"] = "not_configured"
+            return result
+
+        window = settings.NOTIFICATION_DEAD_LETTER_HEALTH_WINDOW_SECONDS
+        try:
+            since = timezone.now() - timedelta(seconds=window)
+            by_channel = await asyncio.to_thread(_count_dead_letters, since)
+            total = sum(by_channel.values())
+            result["details"] = {
+                "terminal_failures": total,
+                "by_channel": by_channel,
+                "window_seconds": window,
+                "threshold": threshold,
+                "runbook": NOTIFICATION_RUNBOOK,
+            }
+            if total >= threshold:
+                result["status"] = "unhealthy"
+        except Exception as e:
+            result["status"] = "unhealthy"
+            result["details"]["error"] = str(e)
+            logger.error(f"Notification delivery health check failed: {e}")
+        return result
+
     async def run_checks(self) -> Dict[str, Any]:
         """Run all health checks asynchronously."""
-        names = ["PostgreSQL", "Redis", "Celery Worker", "WebSocket", "Meilisearch"]
+        names = [
+            "PostgreSQL",
+            "Redis",
+            "Celery Worker",
+            "WebSocket",
+            "Meilisearch",
+            "Notification Delivery",
+        ]
         tasks = [
             self.check_postgres(),
             self.check_redis(),
             self.check_celery(),
             self.check_websocket(),
             self.check_meilisearch(),
+            self.check_notification_delivery(),
         ]
         results = await asyncio.gather(*tasks, return_exceptions=True)
 
