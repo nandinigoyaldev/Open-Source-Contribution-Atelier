@@ -304,7 +304,7 @@ class UserProfile(AuditableModel):
             # Every frame of an animation is held in memory while it is encoded,
             # so a very large one is stored as its first frame only.
             if (
-                is_webp
+                img.format == "WEBP"
                 and getattr(img, "is_animated", False)
                 and img.n_frames * img.width * img.height <= MAX_ANIMATION_PIXELS
             ):

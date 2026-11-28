@@ -4,6 +4,7 @@ import pytest
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
 from PIL import Image, ImageCms
+from rest_framework.test import APIClient
 
 from apps.accounts import serializers as account_serializers
 from apps.accounts.models import UserProfile
@@ -129,18 +130,59 @@ def test_oversized_animation_is_stored_as_its_first_frame(
     assert red > 200 and blue < 60
 
 
-@pytest.mark.parametrize(
-    "serializer_name", ["AvatarUploadSerializer", "UserUpdateSerializer"]
-)
-def test_oversized_animation_is_rejected_on_upload(monkeypatch, serializer_name):
-    monkeypatch.setattr("apps.accounts.models.MAX_ANIMATION_PIXELS", 100)
+def _two_frames(name):
     frames = [Image.new("RGB", (40, 20), colour) for colour in ("red", "blue")]
     buffer = BytesIO()
     frames[0].save(buffer, format="WEBP", save_all=True, append_images=frames[1:])
-    upload = SimpleUploadedFile("huge.webp", buffer.getvalue(), "image/webp")
+    return SimpleUploadedFile(name, buffer.getvalue(), "image/webp")
+
+
+@pytest.mark.parametrize("filename", ["huge.webp", "photo.png"])
+@pytest.mark.parametrize(
+    "serializer_name, field",
+    [
+        ("AvatarUploadSerializer", "avatar"),
+        ("UserUpdateSerializer", "avatar"),
+        ("UserUpdateSerializer", "cover_image"),
+    ],
+)
+def test_oversized_animation_is_rejected_by_the_serializer(
+    monkeypatch, serializer_name, field, filename
+):
+    monkeypatch.setattr("apps.accounts.models.MAX_ANIMATION_PIXELS", 100)
     serializer_class = getattr(account_serializers, serializer_name)
 
-    serializer = serializer_class(data={"avatar": upload}, partial=True)
+    serializer = serializer_class(data={field: _two_frames(filename)}, partial=True)
 
     assert not serializer.is_valid()
-    assert "too large" in str(serializer.errors["avatar"][0])
+    assert "too large" in str(serializer.errors[field][0])
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize(
+    "method, url, field",
+    [
+        ("post", "/api/auth/profile/avatar/", "avatar"),
+        ("put", "/api/auth/me/", "avatar"),
+        ("put", "/api/auth/me/", "cover_image"),
+    ],
+)
+def test_oversized_animation_upload_returns_400(monkeypatch, method, url, field):
+    monkeypatch.setattr("apps.accounts.models.MAX_ANIMATION_PIXELS", 100)
+    user = get_user_model().objects.create_user(username="http", password="pw-12345!")
+    client = APIClient()
+    client.force_authenticate(user)
+
+    response = getattr(client, method)(
+        url, {field: _two_frames("photo.png")}, format="multipart", secure=True
+    )
+
+    assert response.status_code == 400
+    assert "too large" in response.content.decode()
+
+
+@pytest.mark.django_db
+def test_animation_named_png_keeps_its_frames(settings, tmp_path):
+    result = _save_avatar(settings, tmp_path, _two_frames("photo.png"))
+
+    assert result.n_frames == 2

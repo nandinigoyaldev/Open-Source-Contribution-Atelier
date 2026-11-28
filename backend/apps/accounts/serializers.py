@@ -60,10 +60,12 @@ def validate_strong_password(value):
 
 def validate_animation_size(upload):
     """Reject an animated WebP that is too large to re-encode frame by frame."""
-    if not upload.name.lower().endswith(".webp"):
-        return
     upload.seek(0)
     image = Image.open(upload)
+    # The file name can lie, so go by the decoded format.
+    if image.format != "WEBP":
+        upload.seek(0)
+        return
     pixels = getattr(image, "n_frames", 1) * image.width * image.height
     upload.seek(0)
     if (
