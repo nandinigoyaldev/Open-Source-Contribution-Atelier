@@ -1156,6 +1156,8 @@ if SENTRY_DSN:
 # ──────────────────────────────────────────
 AUDIT_RETENTION_DAYS = int(os.getenv("AUDIT_RETENTION_DAYS", "90"))
 AUDIT_ARCHIVE_DIR = os.getenv("AUDIT_ARCHIVE_DIR", str(BASE_DIR / "archives" / "audit"))
+# The daily checkpoint job POSTs the chain heads here. Empty means log only.
+AUDIT_CHECKPOINT_URL = os.getenv("AUDIT_CHECKPOINT_URL", "").strip()
 
 # ──────────────────────────────────────────
 # Content Security Policy (CSP)

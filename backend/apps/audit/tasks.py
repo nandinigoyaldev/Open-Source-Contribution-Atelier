@@ -6,15 +6,18 @@ from datetime import timedelta
 from pathlib import Path
 from typing import Any
 
+import requests
 from celery import shared_task
 from django.conf import settings
 from django.db import router, transaction
 from django.utils import timezone
 
-from apps.audit.chain import anchor_pruned_rows, row_problems
+from apps.audit.chain import anchor_pruned_rows, row_problems, verify_chain
 from apps.audit.models import AuditEvent
 
 logger = logging.getLogger(__name__)
+
+_CHECKPOINT_TIMEOUT_SECONDS = 10
 
 # SQLite limits how many parameters one query may carry.
 _DELETE_BATCH_SIZE = 500
@@ -114,3 +117,49 @@ def archive_audit_events():
 
     logger.info("Deleted %d archived audit events from database.", deleted_count)
     return deleted_count
+
+
+@shared_task
+def publish_audit_checkpoints():
+    """
+    Verify both hash chains and send their current heads outside the database:
+    always to the log, and to AUDIT_CHECKPOINT_URL when it is set. Raises when
+    a chain fails or the checkpoints cannot be delivered.
+    """
+    from apps.audit.management.commands.verify_audit_chain import CHAINED_MODELS
+
+    checkpoints = []
+    failed = []
+    for name, model in sorted(CHAINED_MODELS.items()):
+        report = verify_chain(model)
+        if not report.ok:
+            failed.append(name)
+            logger.error(
+                "Audit chain %s failed verification, no checkpoint published.", name
+            )
+        elif report.head_sequence:
+            checkpoint = f"{name}:{report.head_sequence}:{report.head_hash}"
+            checkpoints.append(checkpoint)
+            logger.info("Audit chain checkpoint %s", checkpoint)
+
+    url = getattr(settings, "AUDIT_CHECKPOINT_URL", "")
+    if url and (checkpoints or failed):
+        # The URL may carry a token, so it stays out of logs and tracebacks.
+        try:
+            response = requests.post(
+                url,
+                json={"checkpoints": checkpoints, "failed": failed},
+                timeout=_CHECKPOINT_TIMEOUT_SECONDS,
+                allow_redirects=False,
+            )
+            outcome = f"HTTP {response.status_code}"
+            delivered = 200 <= response.status_code < 300
+        except requests.RequestException as error:
+            outcome = type(error).__name__
+            delivered = False
+        if not delivered:
+            raise RuntimeError(f"Audit checkpoints were not delivered: {outcome}")
+
+    if failed:
+        raise RuntimeError(f"Audit chain verification failed: {', '.join(failed)}")
+    return checkpoints

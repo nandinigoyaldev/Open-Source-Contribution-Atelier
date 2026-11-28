@@ -213,7 +213,19 @@ Exit code is `0` when everything adds up and `1` otherwise, with one line per pr
 | `pruned range A-B: signature does not match` | A retention anchor was not written by this application. |
 | `checkpoint N ...` | History no longer matches what you saved earlier. |
 
-A successful run prints a `checkpoint chain:sequence:hash` line per chain. **Save these somewhere the database server cannot write to** (a log service, object storage with a retention lock, a ticket) and pass them back with `--expect`. Run the command on a schedule, for example daily from cron, and alert on a non-zero exit. The application does not publish checkpoints anywhere by itself and does not schedule the check.
+A successful run prints a `checkpoint chain:sequence:hash` line per chain. Keep these somewhere the database server cannot write to and pass them back with `--expect`.
+
+### Published checkpoints
+
+A daily scheduled job (`audit-chain-checkpoint-daily`, running `apps.audit.tasks.publish_audit_checkpoints`) verifies both chains and logs `Audit chain checkpoint chain:sequence:hash` for each one that passes. An empty chain has no checkpoint. When `AUDIT_CHECKPOINT_URL` is set it also sends them there:
+
+```json
+{"checkpoints": ["audit:1200:<hash>", "moderation:40:<hash>"], "failed": []}
+```
+
+`failed` names the chains that did not verify. The job fails, so alert on failed tasks, when a chain does not verify or the receiver does not answer with a 2xx status. Redirects are not followed.
+
+The guarantee against rollbacks is only as good as where these end up. Point the URL at a receiver that appends and never overwrites (for example one writing to object storage with a retention lock), or ship the logs to a service the database server cannot edit. The job does not read old checkpoints back: to check history against them, run `verify_audit_chain --expect` with the saved values.
 
 A checkpoint for a record that retention has since removed can only be confirmed if it was the last record of a pruned range. Otherwise it is reported as unconfirmed, so compare against recent checkpoints, and keep the archive files, which contain `sequence`, `previous_hash` and `hash`.
 
@@ -265,6 +277,7 @@ backend/apps/issues/views.py              # issue.updated, issue.deleted
 backend/apps/rbac/views.py                # user.role_assigned, user.role_revoked
 backend/apps/audit/test_admin_events.py   # redaction, shape, emission, access tests
 backend/apps/audit/test_chain.py          # tamper, retention and concurrency tests
+backend/apps/audit/test_checkpoints.py    # publishing the chain heads
 backend/apps/moderation/test_audit_chain.py
 docs/AUDIT_EVENTS.md                      # this document
 ```

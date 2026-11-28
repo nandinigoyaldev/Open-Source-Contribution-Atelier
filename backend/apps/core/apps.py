@@ -86,6 +86,16 @@ class CoreConfig(AppConfig):
                 },
             )
 
+            # Daily audit chain check, publishing the chain heads
+            Schedule.objects.get_or_create(  # pyright: ignore[reportAttributeAccessIssue]
+                name="audit-chain-checkpoint-daily",
+                defaults={
+                    "func": "apps.audit.tasks.publish_audit_checkpoints",
+                    "schedule_type": Schedule.DAILY,
+                    "repeats": -1,
+                },
+            )
+
             # Performance sample cleanup
             Schedule.objects.get_or_create(
                 name="perf-sample-prune-daily",
