@@ -2396,6 +2396,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/content/search/suggestions/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Close lesson title matches for a query that has no direct title hit. */
+        get: operations["api_content_search_suggestions_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/content/semantic-search/": {
         parameters: {
             query?: never;
@@ -11582,6 +11599,23 @@ export interface paths {
             cookie?: never;
         };
         get: operations["api_v1_api_content_search_retrieve"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v1/api/content/search/suggestions/": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** @description Close lesson title matches for a query that has no direct title hit. */
+        get: operations["api_v1_api_content_search_suggestions_retrieve"];
         put?: never;
         post?: never;
         delete?: never;
@@ -21235,6 +21269,14 @@ export interface components {
             /** @description Client-generated idempotency key per completion attempt */
             idempotency_key?: string;
         };
+        LessonTitleSuggestion: {
+            slug: string;
+            title: string;
+            kind: string;
+        };
+        LessonTitleSuggestionList: {
+            suggestions: components["schemas"]["LessonTitleSuggestion"][];
+        };
         LicenseScenario: {
             readonly id: number;
             /** @description Title of the scenario. */
@@ -29245,6 +29287,28 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    api_content_search_suggestions_retrieve: {
+        parameters: {
+            query?: {
+                /** @description Search text, at most 80 characters. */
+                q?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LessonTitleSuggestionList"];
+                };
             };
         };
     };
@@ -49046,6 +49110,28 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    api_v1_api_content_search_suggestions_retrieve: {
+        parameters: {
+            query?: {
+                /** @description Search text, at most 80 characters. */
+                q?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LessonTitleSuggestionList"];
+                };
             };
         };
     };
