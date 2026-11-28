@@ -81,6 +81,32 @@ Delivery is **at least once**: if a worker dies after the provider accepted a me
 
 Keep the claim lease longer than the slowest channel call, or a slow-but-alive worker can be taken over.
 
+## Retry exhaustion health
+
+`/health/` includes a `Notification Delivery` check that counts dead letters created in the
+last window. It covers every terminal failure: retries used up, permanent errors, too many
+rate limit deferrals, and outbox rows that were given up on.
+
+| setting | default | meaning |
+| --- | --- | --- |
+| `NOTIFICATION_DEAD_LETTER_HEALTH_THRESHOLD` | 10 | dead letters in the window at which the check turns `unhealthy`; `0` turns it off |
+| `NOTIFICATION_DEAD_LETTER_HEALTH_WINDOW_SECONDS` | 3600 | length of the window |
+
+The check is optional: an unhealthy result makes the overall status `degraded` and
+`/health/` still answers 200. Requests with a valid `X-Health-Check-Token` also see the
+total, the count per channel, the window, the threshold and a link to this section. No
+recipient, message body, payload or error text is read.
+
+The count resets on its own as dead letters get older than the window. Requeuing a
+notification keeps the old dead letter, so it stays counted until then.
+
+When the check is unhealthy:
+
+1. Use the per-channel counts to find the failing channel.
+2. Read `error_class` and `error_message` on the failed deliveries and attempts (see
+   below). For the `outbox` channel, see [NOTIFICATION_OUTBOX.md](NOTIFICATION_OUTBOX.md).
+3. Fix the provider or configuration problem before retrying anything.
+
 ## Looking at the ledger
 
 ```python
