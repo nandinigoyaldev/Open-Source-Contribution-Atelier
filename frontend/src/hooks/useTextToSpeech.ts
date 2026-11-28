@@ -1,4 +1,6 @@
+
 import { useState, useEffect, useCallback, useRef } from "react";
+import { audioManager } from "../lib/audioManager";
 
 export interface TTSSettings {
   voiceURI: string | null;
@@ -23,6 +25,7 @@ function loadStoredSettings(): TTSSettings {
   } catch (e) {
     console.error("Failed to load TTS settings", e);
   }
+
   return DEFAULT_SETTINGS;
 }
 
@@ -31,9 +34,21 @@ export function useTextToSpeech(text: string) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [voices, setVoices] = useState<SpeechSynthesisVoice[]>([]);
-  const [settings, setSettingsState] = useState<TTSSettings>(DEFAULT_SETTINGS);
+  const [settings, setSettingsState] =
+    useState<TTSSettings>(DEFAULT_SETTINGS);
 
   const utteranceRef = useRef<SpeechSynthesisUtterance | null>(null);
+  const releaseNarrationRef = useRef<(() => void) | null>(null);
+
+  const releaseNarration = useCallback(() => {
+    releaseNarrationRef.current?.();
+    releaseNarrationRef.current = null;
+  }, []);
+
+  const startNarration = useCallback(() => {
+    releaseNarration();
+    releaseNarrationRef.current = audioManager.beginNarration();
+  }, [releaseNarration]);
 
   useEffect(() => {
     if (typeof window === "undefined" || !window.speechSynthesis) {
@@ -44,8 +59,6 @@ export function useTextToSpeech(text: string) {
     setIsSupported(true);
     setSettingsState(loadStoredSettings());
 
-    // Guard against a late `voiceschanged` event still in flight when the
-    // component unmounts, so we never call setState on an unmounted hook.
     let isMounted = true;
 
     const updateVoices = () => {
@@ -54,8 +67,6 @@ export function useTextToSpeech(text: string) {
     };
 
     updateVoices();
-    // Use addEventListener (not `synth.onvoiceschanged = ...`) so we don't
-    // clobber another handler on this global object and can remove ours.
     synth.addEventListener("voiceschanged", updateVoices);
 
     return () => {
@@ -67,11 +78,13 @@ export function useTextToSpeech(text: string) {
   const setSettings = useCallback((newSettings: Partial<TTSSettings>) => {
     setSettingsState((prev) => {
       const updated = { ...prev, ...newSettings };
+
       try {
         localStorage.setItem("tts_settings", JSON.stringify(updated));
       } catch (e) {
         console.error("Failed to save TTS settings", e);
       }
+
       return updated;
     });
   }, []);
@@ -97,7 +110,10 @@ export function useTextToSpeech(text: string) {
     if (!voices.length) return null;
 
     if (settings.voiceURI) {
-      const selected = voices.find((v) => v.voiceURI === settings.voiceURI);
+      const selected = voices.find(
+        (v) => v.voiceURI === settings.voiceURI,
+      );
+
       if (selected) return selected;
     }
 
@@ -111,9 +127,17 @@ export function useTextToSpeech(text: string) {
           v.name.includes("Microsoft")) &&
         v.lang.startsWith("en"),
     );
-    const standardEnglishVoice = voices.find((v) => v.lang.startsWith("en"));
 
-    return premiumEnglishVoice || standardEnglishVoice || voices[0] || null;
+    const standardEnglishVoice = voices.find((v) =>
+      v.lang.startsWith("en"),
+    );
+
+    return (
+      premiumEnglishVoice ||
+      standardEnglishVoice ||
+      voices[0] ||
+      null
+    );
   }, [voices, settings.voiceURI]);
 
   const speakText = useCallback(
@@ -121,65 +145,118 @@ export function useTextToSpeech(text: string) {
       if (!isSupported) return;
 
       window.speechSynthesis.cancel();
+
+      // Release the previous narration before starting another one.
+      releaseNarration();
+      utteranceRef.current = null;
+
       const cleanText = stripMarkdown(textToSpeak);
+
       if (!cleanText) {
+        setIsPlaying(false);
+        setIsPaused(false);
         if (onEnd) onEnd();
         return;
       }
 
       const utterance = new SpeechSynthesisUtterance(cleanText);
+
       utterance.voice = getBestVoice();
       utterance.rate = settings.rate;
       utterance.pitch = settings.pitch;
       utterance.volume = settings.volume;
 
       utterance.onend = () => {
+        // Ignore callbacks from an older, replaced utterance.
+        if (utteranceRef.current !== utterance) return;
+
+        releaseNarration();
+        utteranceRef.current = null;
+
         setIsPlaying(false);
         setIsPaused(false);
+
         if (onEnd) onEnd();
       };
+      utterance.onerror = (event) => {
+        console.error("Speech synthesis error", event);
 
-      utterance.onerror = (e) => {
-        console.error("Speech synthesis error", e);
+        releaseNarration();
+
+        if (utteranceRef.current === utterance) {
+          utteranceRef.current = null;
+        }
+
         setIsPlaying(false);
         setIsPaused(false);
-        if (onEnd) onEnd();
       };
 
       utteranceRef.current = utterance;
+
+      startNarration();
+
       setIsPlaying(true);
       setIsPaused(false);
+
       window.speechSynthesis.speak(utterance);
     },
-    [isSupported, settings, getBestVoice],
+    [
+      isSupported,
+      settings,
+      getBestVoice,
+      releaseNarration,
+      startNarration,
+    ],
   );
 
   const play = useCallback(() => {
     if (!isSupported) return;
-    if (isPaused) {
+
+    if (isPaused && utteranceRef.current) {
       window.speechSynthesis.resume();
+
+      startNarration();
+
       setIsPaused(false);
       setIsPlaying(true);
+
       return;
     }
+
     speakText(text);
-  }, [isSupported, isPaused, speakText, text]);
+  }, [
+    isSupported,
+    isPaused,
+    speakText,
+    text,
+    startNarration,
+  ]);
 
   const pause = useCallback(() => {
     if (!isSupported) return;
+
     if (isPlaying) {
       window.speechSynthesis.pause();
+
+      releaseNarration();
+
       setIsPaused(true);
       setIsPlaying(false);
     }
-  }, [isPlaying, isSupported]);
+  }, [isPlaying, isSupported, releaseNarration]);
 
   const stop = useCallback(() => {
     if (!isSupported) return;
+
     window.speechSynthesis.cancel();
+
+    releaseNarration();
+
+    utteranceRef.current = null;
+
     setIsPlaying(false);
     setIsPaused(false);
-  }, [isSupported]);
+  }, [isSupported, releaseNarration]);
 
   const restart = useCallback(() => {
     if (!isSupported) return;
@@ -190,10 +267,9 @@ export function useTextToSpeech(text: string) {
     speakText("This is a preview of the selected voice and settings.");
   }, [speakText]);
 
-  // Handle dynamic setting updates during playback
+  // Apply updated voice and playback settings during narration.
   useEffect(() => {
     if (isPlaying && !isPaused && utteranceRef.current) {
-      // If voice, rate, pitch, or volume changes during playback, restart to apply
       if (
         utteranceRef.current.rate !== settings.rate ||
         utteranceRef.current.pitch !== settings.pitch ||
@@ -201,19 +277,22 @@ export function useTextToSpeech(text: string) {
         (utteranceRef.current.voice &&
           utteranceRef.current.voice.voiceURI !== settings.voiceURI)
       ) {
-        // Debounce slightly or restart immediately
         restart();
       }
     }
   }, [settings, isPlaying, isPaused, restart]);
 
+  // Clean up this hook's narration session on unmount.
   useEffect(() => {
     return () => {
       if (typeof window !== "undefined" && window.speechSynthesis) {
         window.speechSynthesis.cancel();
       }
+
+      releaseNarration();
+      utteranceRef.current = null;
     };
-  }, []);
+  }, [releaseNarration]);
 
   return {
     isSupported,
