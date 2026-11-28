@@ -1415,9 +1415,10 @@ class LogoutView(APIView):
             )
 
 
-from django.http import HttpResponse, JsonResponse
+from django.core.handlers.asgi import ASGIRequest
+from django.http import HttpResponse, JsonResponse, StreamingHttpResponse
 
-from .export import DataExportService
+from .export import DataExportService, iterate_async
 
 
 class ExportDataView(APIView):
@@ -1449,8 +1450,10 @@ class ExportDataView(APIView):
             return response
 
         elif export_format == "csv":
-            zip_data = service.generate_csv_zip()
-            response = HttpResponse(zip_data, content_type="application/zip")
+            chunks = service.stream_csv_zip()
+            if isinstance(request._request, ASGIRequest):
+                chunks = iterate_async(chunks)
+            response = StreamingHttpResponse(chunks, content_type="application/zip")
             response["Content-Disposition"] = (
                 f'attachment; filename="data_export_{request.user.username}.zip"'
             )

@@ -72,12 +72,11 @@ class TestDataExport:
         LessonProgress.objects.create(user=user, lesson=lesson, score=99)
 
         response = client.get("/api/users/me/export/?export_format=csv")
-        print(response.content)
         assert response.status_code == 200
         assert response["Content-Type"] == "application/zip"
 
         # Read the zip file
-        z = zipfile.ZipFile(io.BytesIO(response.content))
+        z = zipfile.ZipFile(io.BytesIO(b"".join(response.streaming_content)))
         file_list = z.namelist()
 
         assert "user_profile.csv" in file_list
