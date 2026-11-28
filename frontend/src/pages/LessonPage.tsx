@@ -32,6 +32,8 @@ import { useTerminalAutocomplete } from "../hooks/useTerminalAutocomplete";
 import { ShellState } from "../hooks/useGitShell";
 import { useBookmarks } from "../hooks/useBookmarks";
 import { useQuizDraft } from "../hooks/useQuizDraft";
+import { useCustomShortcuts } from "../features/shortcuts/useCustomShortcuts";
+import { isTypingTarget } from "../lib/accessibility";
 import { useUnsavedChanges } from "../hooks/useUnsavedChanges";
 import { UnsavedChangesDialog } from "../components/ui/UnsavedChangesDialog";
 import { useNotifications } from "../features/notifications/NotificationContext";
@@ -166,6 +168,7 @@ export function LessonPage() {
     null,
   );
   const { isOnline } = useNetworkStatus();
+  const { labels, matches } = useCustomShortcuts();
 
   // Curriculum modules list for sidebar
   const [modules, setModules] = useState<
@@ -748,19 +751,10 @@ export function LessonPage() {
   // 4. Keyboard Shortcuts for Lesson Navigation
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      const activeEl = document.activeElement;
-      const isInput =
-        activeEl &&
-        (activeEl.tagName === "INPUT" ||
-          activeEl.tagName === "TEXTAREA" ||
-          activeEl.getAttribute("contenteditable") === "true");
+      // A shortcut can be remapped to a bare letter, so never take typing.
+      if (isTypingTarget(e)) return;
 
-      if (isInput) return;
-
-      if (
-        e.altKey &&
-        (e.key === "ArrowRight" || e.key === "n" || e.key === "N")
-      ) {
+      if (matches(e, "lesson.next")) {
         e.preventDefault();
         if (nextLesson) {
           if (isCompleted) {
@@ -771,21 +765,15 @@ export function LessonPage() {
             );
           }
         }
-      } else if (
-        e.altKey &&
-        (e.key === "ArrowLeft" || e.key === "p" || e.key === "P")
-      ) {
+      } else if (matches(e, "lesson.previous")) {
         e.preventDefault();
         if (previousLesson) {
           guardedNavigate(`/lessons/${previousLesson.slug}`);
         }
-      } else if (
-        e.altKey &&
-        (e.key === "s" || e.key === "S" || e.key === "m" || e.key === "M")
-      ) {
+      } else if (matches(e, "lesson.toggleSidebar")) {
         e.preventDefault();
         setIsSidebarOpen((prev) => !prev);
-      } else if (e.altKey && (e.key === "b" || e.key === "B")) {
+      } else if (matches(e, "lesson.toggleBookmark")) {
         e.preventDefault();
         if (lesson && !isPendingSlug(lesson.slug)) {
           toggleBookmark.mutate({
@@ -794,10 +782,10 @@ export function LessonPage() {
             lesson,
           });
         }
-      } else if (e.altKey && (e.key === "c" || e.key === "C")) {
+      } else if (matches(e, "lesson.toggleNotes")) {
         e.preventDefault();
         setIsNotePanelOpen((prev) => !prev);
-      } else if (e.altKey && (e.key === "h" || e.key === "H")) {
+      } else if (matches(e, "lesson.toggleHelp")) {
         e.preventDefault();
         setIsHelpPanelOpen((prev) => !prev);
       }
@@ -814,6 +802,7 @@ export function LessonPage() {
     toggleBookmark,
     isBookmarked,
     isPendingSlug,
+    matches,
   ]);
 
   const handleCommandSubmit = async (
@@ -1713,10 +1702,7 @@ export function LessonPage() {
                                   setInput(commonCompletionPrefix);
                                 }
                               }
-                              if (
-                                (e.metaKey || e.ctrlKey) &&
-                                e.key === "Enter"
-                              ) {
+                              if (matches(e, "lesson.runCommand")) {
                                 e.preventDefault();
                                 handleCommandSubmit(
                                   e as unknown as React.FormEvent,
@@ -1857,7 +1843,7 @@ export function LessonPage() {
                 );
               }}
               className="px-4 py-2 bg-white text-text dark:bg-[#151411] dark:text-[#f0ebe2] font-black text-xs rounded-lg border-4 border-black shadow-card-sm hover:-translate-y-0.5 cursor-pointer flex items-center gap-1.5"
-              title="Press '?' for keyboard shortcuts cheat sheet"
+              title={`Press '${labels("help.toggle").join(" / ")}' for keyboard shortcuts cheat sheet`}
             >
               <Keyboard className="w-3.5 h-3.5 text-[#FFCC00]" />
               Shortcuts ⌨️

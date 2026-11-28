@@ -10,6 +10,7 @@ import {
 import { useGitShell } from "../../hooks/useGitShell";
 import type { TerminalLine } from "../../hooks/useGitShell";
 import { useTerminalAutocomplete } from "../../hooks/useTerminalAutocomplete";
+import { useCustomShortcuts } from "../../features/shortcuts/useCustomShortcuts";
 import { useFailureAnimation } from "../../hooks/useFailureAnimation";
 import { Textarea } from "./Textarea";
 import { GitCheatSheet } from "./GitCheatSheet";
@@ -85,6 +86,7 @@ export function GitTerminal({
   const [shareCopied, setShareCopied] = useState(false);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const { matches } = useCustomShortcuts();
 
   const handleComplete = useCallback(() => {
     setCompleted(true);
@@ -205,29 +207,22 @@ export function GitTerminal({
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     // Allow standard Tab/keyboard traversal when no suggestions are being displayed.
 
-    // Ctrl+L clears the terminal (override browser "clear URL bar" behavior)
-    if (e.ctrlKey && e.key.toLowerCase() === "l") {
+    // Ctrl+L or Ctrl+R by default (overrides the browser behaviour)
+    if (matches(e, "terminal.clear")) {
       e.preventDefault();
       clearTerminal();
       return;
     }
 
-    // Ctrl+Shift+C copies terminal text
-    if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === "c") {
+    // Ctrl+Shift+C by default
+    if (matches(e, "terminal.copy")) {
       e.preventDefault();
       void copyTerminalText();
       return;
     }
 
-    // Ctrl+R resets the shell
-    if (e.ctrlKey && e.key.toLowerCase() === "r") {
-      e.preventDefault();
-      clearTerminal();
-      return;
-    }
-
-    // Ctrl+/ focuses the input (defensive; input already has focus)
-    if (e.ctrlKey && e.key === "/") {
+    // Ctrl+/ by default (defensive; input already has focus)
+    if (matches(e, "terminal.focusInput")) {
       e.preventDefault();
       inputRef.current?.focus();
       return;
@@ -302,8 +297,8 @@ export function GitTerminal({
         if (!shellState.editorState) inputRef.current?.focus();
       }}
       onKeyDownCapture={(e) => {
-        // Ctrl+/ focuses the terminal input even when focus is on other elements
-        if (e.ctrlKey && e.key === "/" && !shellState.editorState) {
+        // Focus the terminal input even when focus is on other elements
+        if (matches(e, "terminal.focusInput") && !shellState.editorState) {
           e.preventDefault();
           inputRef.current?.focus();
           return;
@@ -311,19 +306,14 @@ export function GitTerminal({
 
         // Terminal-level shortcuts (work even if wrapper has focus)
         if (!shellState.editorState) {
-          if (e.ctrlKey && e.key.toLowerCase() === "l") {
+          if (matches(e, "terminal.clear")) {
             e.preventDefault();
             clearTerminal();
             return;
           }
-          if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === "c") {
+          if (matches(e, "terminal.copy")) {
             e.preventDefault();
             void copyTerminalText();
-            return;
-          }
-          if (e.ctrlKey && e.key.toLowerCase() === "r") {
-            e.preventDefault();
-            clearTerminal();
             return;
           }
         }

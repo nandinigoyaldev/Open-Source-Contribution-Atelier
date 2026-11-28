@@ -10,6 +10,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import Fuse, { FuseResultMatch } from "fuse.js";
 import { useFocusTrap } from "../../hooks/useFocusTrap";
+import { useCustomShortcuts } from "../../features/shortcuts/useCustomShortcuts";
 import {
   Search,
   ChevronRight,
@@ -36,16 +37,17 @@ export const DocSearchModal: React.FC = () => {
   const [isLoading, setIsLoading] = useState(false);
 
   const navigate = useNavigate();
+  const { matches } = useCustomShortcuts();
   const modalRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const resultsRef = useRef<HTMLUListElement>(null);
 
   useFocusTrap(modalRef, isOpen);
 
-  // Toggle modal with Cmd+K or Ctrl+K
+  // Toggle modal with the search shortcut
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+      if (matches(e, "search.toggle")) {
         e.preventDefault();
         setIsOpen((prev) => !prev);
       } else if (e.key === "Escape" && isOpen) {
@@ -56,7 +58,7 @@ export const DocSearchModal: React.FC = () => {
 
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [isOpen]);
+  }, [isOpen, matches]);
 
   // Load search index
   useEffect(() => {

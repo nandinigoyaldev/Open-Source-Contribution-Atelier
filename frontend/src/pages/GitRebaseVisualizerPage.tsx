@@ -15,6 +15,7 @@ import {
 } from "../components/Sandbox/RebaseCommitGraph";
 import { RebaseControlsModal } from "../components/Sandbox/RebaseControlsModal";
 import toast from "react-hot-toast";
+import { shortcutsSuspended } from "../features/shortcuts/store";
 
 interface RebaseScenario {
   id: string;
@@ -218,6 +219,8 @@ export function GitRebaseVisualizerPage() {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // The shortcut editor is open, so undo and redo stay off too.
+      if (shortcutsSuspended()) return;
       const target = e.target as HTMLElement;
       if (
         target &&

@@ -4,6 +4,7 @@ import {
   screen,
   fireEvent,
   cleanup,
+  waitFor,
 } from "@testing-library/react";
 import { describe, it, expect, vi, beforeEach } from "vitest";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router-dom";
@@ -12,6 +13,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import React from "react";
 import * as useUserProgressModule from "../hooks/useUserProgress";
 import * as lessonsModule from "../lib/lessons";
+import { parseGitCommand } from "../lib/gitSimulator";
+import { resetAllShortcuts, setShortcut } from "../features/shortcuts/store";
 import type { Lesson } from "../lib/lessons";
 
 // Mock TextToSpeechControls and GitGraph so they don't break
@@ -131,6 +134,7 @@ describe("LessonPage unsaved work warning", () => {
   beforeEach(() => {
     cleanup();
     vi.clearAllMocks();
+    resetAllShortcuts();
     // setup.ts installs fake timers; the page and findBy* need real ones
     // eslint-disable-next-line no-restricted-syntax -- page effects and findBy* need real timers
     vi.useRealTimers();
@@ -226,5 +230,55 @@ describe("LessonPage unsaved work warning", () => {
 
     expect(await screen.findByRole("alertdialog")).toBeInTheDocument();
     expect(screen.getByTestId("path")).toHaveTextContent("/lessons/lesson-b");
+  });
+
+  it("moves to the next lesson with a remapped shortcut only", async () => {
+    setShortcut("lesson.next", ["Alt+J"]);
+    renderLesson();
+    const input = await findTerminalInput();
+    input.blur();
+
+    fireEvent.keyDown(window, { key: "ArrowRight", altKey: true });
+    expect(screen.getByTestId("path")).toHaveTextContent("/lessons/lesson-b");
+
+    fireEvent.keyDown(window, { key: "j", altKey: true });
+    expect(screen.getByTestId("path")).toHaveTextContent("/lessons/lesson-c");
+  });
+
+  it("does not take a bare-letter shortcut away from typing", async () => {
+    setShortcut("lesson.next", ["J"]);
+    renderLesson();
+    const input = await findTerminalInput();
+    input.focus();
+
+    fireEvent.keyDown(input, { key: "j" });
+    expect(screen.getByTestId("path")).toHaveTextContent("/lessons/lesson-b");
+
+    input.blur();
+    fireEvent.keyDown(window, { key: "j" });
+    expect(screen.getByTestId("path")).toHaveTextContent("/lessons/lesson-c");
+  });
+
+  it("submits the command with a remapped shortcut only", async () => {
+    setShortcut("lesson.runCommand", ["Alt+R"]);
+    // The page reads newState.conflicts after a submit.
+    vi.mocked(parseGitCommand).mockReturnValueOnce({
+      error: null,
+      output: "Mock success",
+      newState: { conflicts: [] },
+    } as any);
+    renderLesson();
+    const input = await findTerminalInput();
+    fireEvent.change(input, { target: { value: "git status" } });
+
+    fireEvent.keyDown(input, { key: "Enter", ctrlKey: true });
+    // The terminal submits 800 ms after the key press, so wait past that.
+    await act(() => new Promise((resolve) => setTimeout(resolve, 1000)));
+    expect(parseGitCommand).not.toHaveBeenCalled();
+
+    fireEvent.keyDown(input, { key: "r", altKey: true });
+    await waitFor(() => expect(parseGitCommand).toHaveBeenCalledTimes(1), {
+      timeout: 3000,
+    });
   });
 });

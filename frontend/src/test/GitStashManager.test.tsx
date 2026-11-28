@@ -10,6 +10,7 @@ import {
 } from "@testing-library/react";
 import axe from "axe-core";
 import { GitStashManager } from "../components/git-tools/GitStashManager";
+import { suspendShortcuts } from "../features/shortcuts/store";
 
 // framer-motion keeps a leaving element on screen while it animates out. These tests are about what
 // the tool does, not about the animation, so motion elements render as plain ones.
@@ -256,6 +257,18 @@ describe("keyboard shortcuts", () => {
     altKey("S"); // clean the tree (capital letters work too)
     altKey("p");
     expect(hunkButtons()).toHaveLength(3);
+  });
+
+  it("does nothing while the shortcut editor is open", () => {
+    render(<GitStashManager />);
+    const release = suspendShortcuts();
+    altKey("d");
+    altKey("s");
+    expect(entries()).toHaveLength(2);
+    expect(hunkButtons()).toHaveLength(3);
+    release();
+    altKey("d");
+    expect(entries()).toHaveLength(1);
   });
 
   it("says so when there is nothing to pop or drop", () => {
