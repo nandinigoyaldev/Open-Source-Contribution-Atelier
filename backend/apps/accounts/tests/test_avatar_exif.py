@@ -5,6 +5,7 @@ from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
 from PIL import Image, ImageCms
 
+from apps.accounts import serializers as account_serializers
 from apps.accounts.models import UserProfile
 
 ORIENTATION = 0x0112
@@ -126,3 +127,20 @@ def test_oversized_animation_is_stored_as_its_first_frame(
     assert getattr(result, "n_frames", 1) == 1
     red, _, blue = result.convert("RGB").getpixel((5, 5))
     assert red > 200 and blue < 60
+
+
+@pytest.mark.parametrize(
+    "serializer_name", ["AvatarUploadSerializer", "UserUpdateSerializer"]
+)
+def test_oversized_animation_is_rejected_on_upload(monkeypatch, serializer_name):
+    monkeypatch.setattr("apps.accounts.models.MAX_ANIMATION_PIXELS", 100)
+    frames = [Image.new("RGB", (40, 20), colour) for colour in ("red", "blue")]
+    buffer = BytesIO()
+    frames[0].save(buffer, format="WEBP", save_all=True, append_images=frames[1:])
+    upload = SimpleUploadedFile("huge.webp", buffer.getvalue(), "image/webp")
+    serializer_class = getattr(account_serializers, serializer_name)
+
+    serializer = serializer_class(data={"avatar": upload}, partial=True)
+
+    assert not serializer.is_valid()
+    assert "too large" in str(serializer.errors["avatar"][0])
