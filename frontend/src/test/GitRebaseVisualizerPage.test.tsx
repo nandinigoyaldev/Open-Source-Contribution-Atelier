@@ -2,6 +2,7 @@ import { describe, it, expect, afterEach } from "vitest";
 import { render, screen, fireEvent, cleanup } from "@testing-library/react";
 import GitRebaseVisualizerPage from "../pages/GitRebaseVisualizerPage";
 import React from "react";
+import { suspendShortcuts } from "../features/shortcuts/store";
 
 afterEach(cleanup);
 
@@ -66,5 +67,19 @@ describe("GitRebaseVisualizerPage Undo/Redo History", () => {
     fireEvent.keyDown(window, { key: "y", ctrlKey: true });
 
     expect(undoButtons[0]).not.toBeDisabled();
+  });
+
+  it("ignores Ctrl+Z and Ctrl+Y while the shortcut editor is open", () => {
+    render(<GitRebaseVisualizerPage />);
+    fireEvent.click(screen.getAllByRole("button", { name: /^drop$/i })[0]);
+    const redo = screen.getAllByRole("button", { name: /redo/i })[0];
+
+    const release = suspendShortcuts();
+    fireEvent.keyDown(window, { key: "z", ctrlKey: true });
+    expect(redo).toBeDisabled();
+
+    release();
+    fireEvent.keyDown(window, { key: "z", ctrlKey: true });
+    expect(redo).not.toBeDisabled();
   });
 });

@@ -211,7 +211,12 @@ export function suspendShortcuts(): () => void {
   };
 }
 
+/** True while the shortcut editor is open. Fixed key handlers check this too. */
+export function shortcutsSuspended(): boolean {
+  return suspendCount > 0;
+}
+
 export function matchesShortcut(event: KeyEventLike, id: ShortcutId): boolean {
-  if (suspendCount > 0) return false;
+  if (shortcutsSuspended()) return false;
   return getShortcutBindings()[id].some((combo) => matchesCombo(event, combo));
 }

@@ -16,6 +16,7 @@ import {
   X,
   Keyboard,
 } from "lucide-react";
+import { shortcutsSuspended } from "../../features/shortcuts/store";
 
 export interface CodeHunk {
   id: string;
@@ -343,6 +344,8 @@ export function GitStashManager() {
   // Keyboard shortcut listener
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
+      // The shortcut editor is open, so no fixed shortcut runs either.
+      if (shortcutsSuspended()) return;
       const target = e.target as HTMLElement;
       if (
         target.tagName === "INPUT" ||
