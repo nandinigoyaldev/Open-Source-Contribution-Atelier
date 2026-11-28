@@ -112,36 +112,40 @@ export function formatCombo(combo: KeyCombo): string {
   return parts.join("+");
 }
 
+function comboWithKey(event: KeyEventLike, rawKey: string): string | null {
+  const key = normalizeKey(rawKey);
+  if (!key) return null;
+  return formatCombo({
+    mod: false,
+    ctrl: Boolean(event.ctrlKey),
+    meta: Boolean(event.metaKey),
+    alt: Boolean(event.altKey),
+    shift: Boolean(event.shiftKey) && !ignoresShift(key),
+    key,
+  });
+}
+
+/**
+ * Option on macOS and non-Latin layouts turn Alt+H into another character.
+ * In that case this returns the physical key ("H" for KeyH), otherwise null.
+ */
+function physicalKey(event: KeyEventLike): string | null {
+  const rawKey = event.key;
+  const isForeign =
+    rawKey === "Dead" || (isSingleChar(rawKey) && rawKey.charCodeAt(0) > 127);
+  if (!(event.ctrlKey || event.metaKey || event.altKey) || !isForeign) {
+    return null;
+  }
+  const physical = /^(?:Key([A-Z])|Digit(\d))$/.exec(event.code ?? "");
+  return physical ? (physical[1] ?? physical[2]) : null;
+}
+
 /** Returns null for a modifier pressed on its own, AltGr and unknown keys. */
 export function comboFromEvent(event: KeyEventLike): string | null {
   // AltGr is used to type characters on many international layouts.
   if (event.getModifierState?.("AltGraph")) return null;
   if (!event.key) return null;
-
-  const ctrl = Boolean(event.ctrlKey);
-  const meta = Boolean(event.metaKey);
-  const alt = Boolean(event.altKey);
-
-  let rawKey = event.key;
-  // Option on macOS and non-Latin layouts turn Alt+H into another character.
-  // Use the physical key in that case.
-  const isForeign =
-    rawKey === "Dead" || (isSingleChar(rawKey) && rawKey.charCodeAt(0) > 127);
-  if ((ctrl || meta || alt) && isForeign) {
-    const physical = /^(?:Key([A-Z])|Digit(\d))$/.exec(event.code ?? "");
-    if (physical) rawKey = physical[1] ?? physical[2];
-  }
-
-  const key = normalizeKey(rawKey);
-  if (!key) return null;
-  return formatCombo({
-    mod: false,
-    ctrl,
-    meta,
-    alt,
-    shift: Boolean(event.shiftKey) && !ignoresShift(key),
-    key,
-  });
+  return comboWithKey(event, physicalKey(event) ?? event.key);
 }
 
 /** The [ctrl, meta] states that satisfy a combination. */
@@ -167,8 +171,15 @@ export function combosOverlap(a: string, b: string): boolean {
 }
 
 export function matchesCombo(event: KeyEventLike, combo: string): boolean {
-  const pressed = comboFromEvent(event);
-  return pressed !== null && combosOverlap(pressed, combo);
+  if (event.getModifierState?.("AltGraph") || !event.key) return false;
+  // The typed key first, so an imported "Ctrl+É" still works on a layout that
+  // has É. The physical key is the fallback for Option and non-Latin layouts.
+  const physical = physicalKey(event);
+  const pressed = [
+    comboWithKey(event, event.key),
+    physical ? comboWithKey(event, physical) : null,
+  ];
+  return pressed.some((text) => text !== null && combosOverlap(text, combo));
 }
 
 /** Display labels. A "Mod" combination gets one label per platform. */

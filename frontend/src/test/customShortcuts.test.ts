@@ -71,6 +71,18 @@ describe("key combinations", () => {
     expect(comboFromEvent(press("é", { code: "Digit2" }))).toBe("É");
   });
 
+  it("matches the typed key before falling back to the physical key", () => {
+    const file = { version: 1, shortcuts: { "search.toggle": ["Ctrl+É"] } };
+    expect(importShortcuts(JSON.stringify(file))).toEqual({ ok: true });
+    const typed = press("é", { ctrlKey: true, code: "Digit2" });
+    expect(matchesShortcut(typed, "search.toggle")).toBe(true);
+    expect(matchesCombo(typed, "Ctrl+2")).toBe(true);
+    // Option on macOS still falls back to the physical key.
+    expect(
+      matchesCombo(press("˙", { altKey: true, code: "KeyH" }), "Alt+H"),
+    ).toBe(true);
+  });
+
   it("matches Mod with Ctrl or Command and needs exact modifiers", () => {
     expect(matchesCombo(press("k", { ctrlKey: true }), "Mod+K")).toBe(true);
     expect(matchesCombo(press("k", { metaKey: true }), "Mod+K")).toBe(true);
