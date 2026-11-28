@@ -120,6 +120,11 @@ const InteractiveDebugger = React.lazy(() =>
 );
 import { TextToSpeechControls } from "../components/ui/TextToSpeechControls";
 import { LessonTopBar } from "../components/LessonTopBar";
+import {
+  calculateReadingTime,
+  countMarkdownWords,
+  formatReadingTime,
+} from "../lib/readingTime";
 import { ReadingProgressTracker } from "../components/ui/ReadingProgressTracker";
 import { NotesWidget } from "../components/ui/NotesWidget";
 import { lessonPluginRegistry } from "../plugins/LessonPluginRegistry";
@@ -344,13 +349,10 @@ export function LessonPage() {
   const [helpSuccessMessage, setHelpSuccessMessage] = useState("");
   const MAX_HELP_CHARS = 500;
 
-  // Read Time
-  const calculateReadTime = (content: string) => {
-    const wordsPerMinute = 200;
-    const words = content.split(/\s+/).length;
-    const minutes = Math.ceil(words / wordsPerMinute);
-    return minutes;
-  };
+  const wordCount = useMemo(
+    () => countMarkdownWords(markdownContent),
+    [markdownContent],
+  );
 
   // Note Panel
   const [isNotePanelOpen, setIsNotePanelOpen] = useState(false);
@@ -1012,6 +1014,7 @@ export function LessonPage() {
         points={lesson.points || 15}
         isSidebarOpen={isSidebarOpen}
         isZenMode={isZenMode}
+        wordCount={wordCount}
         onToggleSidebar={() => setIsSidebarOpen((prev) => !prev)}
       />
 
@@ -1149,7 +1152,7 @@ export function LessonPage() {
                     <span className="text-[10px] font-mono font-black bg-surface-low text-text px-3 py-1 rounded-full border-2 border-black rotate-[1deg] inline-block shadow-card-sm uppercase dark:bg-[#1f1c18] dark:border-[#2e2924] dark:text-[#f0ebe2]">
                       ⏱️{" "}
                       {completionMinutes === undefined
-                        ? `${calculateReadTime(markdownContent)} min read`
+                        ? formatReadingTime(calculateReadingTime(wordCount))
                         : `${completionMinutes} min to complete`}
                     </span>
                     <span className="text-[10px] font-mono font-black bg-surface-low text-muted px-3 py-1 rounded-full border-2 border-black rotate-[-0.5deg] inline-block shadow-card-sm uppercase dark:bg-[#1f1c18] dark:border-[#2e2924] dark:text-[#c4bbae]">

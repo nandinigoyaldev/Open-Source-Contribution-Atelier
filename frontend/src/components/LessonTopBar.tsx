@@ -1,10 +1,12 @@
 import { ArrowLeft, Menu, X } from "lucide-react";
 import { Link } from "react-router-dom";
+import { calculateReadingTime, formatReadingTime } from "../lib/readingTime";
 
 interface LessonTopBarProps {
   points: number;
   isSidebarOpen: boolean;
   isZenMode: boolean;
+  wordCount?: number;
   onToggleSidebar: () => void;
 }
 
@@ -12,8 +14,12 @@ export function LessonTopBar({
   points,
   isSidebarOpen,
   isZenMode,
+  wordCount = 0,
   onToggleSidebar,
 }: LessonTopBarProps) {
+  const approxWords =
+    wordCount < 50 ? wordCount : Math.round(wordCount / 10) * 10;
+
   return (
     <header
       inert={isZenMode}
@@ -49,6 +55,13 @@ export function LessonTopBar({
         <span className="hidden md:inline-block font-mono text-[10px] uppercase font-bold text-muted dark:text-[#9b8f80]">
           Lesson Workspace
         </span>
+        {wordCount > 0 && (
+          <span className="font-mono text-[10px] sm:text-xs font-bold text-muted dark:text-[#9b8f80] whitespace-nowrap">
+            <span aria-hidden="true">📖 </span>
+            <span className="hidden sm:inline">~{approxWords} words · </span>
+            {formatReadingTime(calculateReadingTime(wordCount))}
+          </span>
+        )}
         <span
           aria-label={`XP Bounties: ${points}`}
           className="font-mono text-xs font-black bg-black text-white px-3 py-1.5 rounded-full whitespace-nowrap dark:bg-[#2e2924]"

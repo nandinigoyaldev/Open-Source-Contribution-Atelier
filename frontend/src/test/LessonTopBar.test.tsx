@@ -51,6 +51,19 @@ describe("LessonTopBar mobile layout", () => {
     expect(screen.getByText("Exit")).toHaveClass("sm:hidden");
   });
 
+  it("shows the word count and reading time once the lesson has text", () => {
+    renderBar({ wordCount: 453 });
+    expect(screen.getByText("~450 words ·")).toHaveClass("hidden", "sm:inline");
+    expect(screen.getByText("3 min read", { exact: false })).toHaveClass(
+      "whitespace-nowrap",
+    );
+  });
+
+  it("shows no reading badge while the lesson is empty", () => {
+    renderBar({});
+    expect(screen.queryByText(/min read/)).not.toBeInTheDocument();
+  });
+
   it("hides the header and disables its controls in Zen Mode", () => {
     renderBar({ isZenMode: true });
     expect(screen.getByRole("banner")).toHaveClass("-translate-y-full", "h-0");
