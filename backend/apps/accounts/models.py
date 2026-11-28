@@ -282,27 +282,38 @@ class UserProfile(AuditableModel):
             return
 
         is_webp = image_field.name.lower().endswith(".webp")
-        # A stored WebP is left alone; a new upload may still carry EXIF data.
+        # A stored WebP is left alone; a new upload may still carry metadata.
         if not is_webp or not image_field._committed:
             import os
             from io import BytesIO
 
             from django.core.files.base import ContentFile
-            from PIL import Image, ImageOps
+            from PIL import Image, ImageOps, ImageSequence
 
             img = Image.open(image_field)
 
-            if is_webp and not img.getexif():
-                image_field.seek(0)
-                return
+            options = {"format": "WEBP", "quality": 85, "exif": b"", "xmp": b""}
 
-            img = ImageOps.exif_transpose(img)
-
-            if img.mode != "RGBA" and img.mode != "RGB":
-                img = img.convert("RGBA")
+            if is_webp and getattr(img, "is_animated", False):
+                frames, durations = [], []
+                for frame in ImageSequence.Iterator(img):
+                    frame.load()
+                    durations.append(frame.info.get("duration", 0))
+                    frames.append(ImageOps.exif_transpose(frame.convert("RGBA")))
+                options.update(
+                    save_all=True,
+                    append_images=frames[1:],
+                    duration=durations,
+                    loop=img.info.get("loop", 0),
+                )
+                img = frames[0]
+            else:
+                img = ImageOps.exif_transpose(img)
+                if img.mode != "RGBA" and img.mode != "RGB":
+                    img = img.convert("RGBA")
 
             output = BytesIO()
-            img.save(output, format="WEBP", quality=85)
+            img.save(output, **options)
             output.seek(0)
 
             base_name = os.path.splitext(os.path.basename(image_field.name))[0]

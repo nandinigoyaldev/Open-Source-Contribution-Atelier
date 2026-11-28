@@ -45,3 +45,55 @@ def test_avatar_is_rotated_upright_and_exif_is_removed(
     red, _, blue = result.convert("RGB").getpixel((10, 5))
     assert red > 200 and blue < 60
     assert not result.getexif()
+
+
+def _save_avatar(settings, tmp_path, upload):
+    settings.MEDIA_ROOT = tmp_path
+    user = get_user_model().objects.create_user(username="webp", password="pw-12345!")
+    profile, _ = UserProfile.objects.get_or_create(user=user)
+    profile.avatar = upload
+    profile.save()
+    with profile.avatar.open("rb") as stored:
+        return Image.open(BytesIO(stored.read()))
+
+
+@pytest.mark.django_db
+def test_xmp_metadata_is_removed_from_webp_uploads(settings, tmp_path):
+    buffer = BytesIO()
+    Image.new("RGB", (8, 8)).save(buffer, format="WEBP", xmp=b"<x:xmpmeta/>")
+    upload = SimpleUploadedFile("tagged.webp", buffer.getvalue())
+
+    result = _save_avatar(settings, tmp_path, upload)
+
+    assert not result.info.get("xmp")
+
+
+@pytest.mark.django_db
+def test_animated_webp_keeps_its_frames_and_is_rotated(settings, tmp_path):
+    exif = Image.Exif()
+    exif[ORIENTATION] = 6
+    frames = [Image.new("RGB", (40, 20), colour) for colour in ("red", "blue")]
+    buffer = BytesIO()
+    frames[0].save(
+        buffer,
+        format="WEBP",
+        save_all=True,
+        append_images=frames[1:],
+        duration=[120, 240],
+        loop=3,
+        exif=exif.tobytes(),
+    )
+    upload = SimpleUploadedFile("moving.webp", buffer.getvalue())
+
+    result = _save_avatar(settings, tmp_path, upload)
+
+    assert result.n_frames == 2
+    assert result.info["loop"] == 3
+    assert not result.getexif()
+    durations = []
+    for index in range(result.n_frames):
+        result.seek(index)
+        result.load()
+        assert result.size == (20, 40)
+        durations.append(result.info["duration"])
+    assert durations == [120, 240]
