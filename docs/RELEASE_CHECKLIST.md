@@ -39,6 +39,7 @@ See `docs/MIGRATIONS.md` for the workflow. Before deploying:
 - [ ] `python backend/manage.py makemigrations --check --dry-run` reports "No changes detected" (no model change without a migration)
 - [ ] `python backend/manage.py showmigrations` lists the new migrations; read the SQL of risky ones with `python backend/manage.py sqlmigrate <app> <number>`
 - [ ] The migration is safe while the **old** code is still running: adding a nullable column or table is fine; dropping or renaming a column, or adding a `NOT NULL` column without a default, must be split into two releases
+  - Exception: `audit.0003_audit_hash_chain` and `moderation.0005_moderation_hash_chain` are **not** safe with old code running. Stop old web and worker processes before `migrate`: code from before these migrations writes audit rows without a hash, and `verify_audit_chain` reports them (see `docs/AUDIT_EVENTS.md`, Upgrading)
 - [ ] Large data migrations are batched and tested on a copy of production-sized data
 - [ ] A database backup exists: `cd backend && python scripts/backup_db.py` (needs the S3 settings from `backend/.env.example`) or the hosting provider's snapshot, taken **before** `migrate` runs
 

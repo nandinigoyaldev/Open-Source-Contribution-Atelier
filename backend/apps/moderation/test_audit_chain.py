@@ -2,6 +2,7 @@ from datetime import timedelta
 from typing import Any
 
 import pytest
+from django.apps import apps
 from django.contrib.auth import get_user_model
 from django.contrib.contenttypes.models import ContentType
 from django.db import connection
@@ -13,7 +14,6 @@ from apps.audit.chain import verify_chain
 from apps.audit.models import AuditEvent
 from apps.moderation.audit_utils import log_moderation_action
 from apps.moderation.models import ContentReport, ModerationAuditEvent
-from apps.notes.models import Note
 
 pytestmark = pytest.mark.django_db
 
@@ -187,16 +187,30 @@ def test_deleting_a_report_keeps_the_event_and_the_chain(people):
     assert response.data["results"][0]["content_report_id"] == report_id
 
 
-def test_account_deletion_keeps_both_chains_valid(people):
-    note: Any = Note
+def add_unmigrated_columns():
+    """
+    Some apps have model fields without a migration, and deleting any user reads
+    them. Add those columns for this test only; the transaction rolls them back.
+    """
+    quote = connection.ops.quote_name
     with connection.cursor() as cursor:
-        columns = connection.introspection.get_table_description(
-            cursor, note._meta.db_table
-        )
-    if "version" not in {column.name for column in columns}:
-        # Deleting any user fails while Note is ahead of its migrations.
-        # Runs with --nomigrations, or once that migration exists.
-        pytest.skip("the notes app is missing a migration")
+        for app_label in ("notes", "learning_journal"):
+            for model in apps.get_app_config(app_label).get_models():
+                options = model._meta
+                columns = connection.introspection.get_table_description(
+                    cursor, options.db_table
+                )
+                present = {column.name for column in columns}
+                for field in options.local_concrete_fields:
+                    if field.column not in present:
+                        cursor.execute(
+                            f"ALTER TABLE {quote(options.db_table)} ADD COLUMN "
+                            f"{quote(field.column)} {field.db_type(connection)} NULL"
+                        )
+
+
+def test_account_deletion_keeps_both_chains_valid(people):
+    add_unmigrated_columns()
 
     reporter, moderator = people["reporter"], people["moderator"]
     # The reporter is also an actor, so deletion has links to cut in both tables.
